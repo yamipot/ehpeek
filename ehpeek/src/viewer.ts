@@ -30,6 +30,7 @@ export type FullscreenViewerOptions = {
   pages: ViewerPage[];
   startIndex: number;
   loadPage: (page: ViewerPage, index: number) => Promise<LoadedViewerPage>;
+  loadBefore?: (firstPage: ViewerPage) => Promise<ViewerPage[]>;
   keepBehind?: number;
   renderAhead?: number;
   preloadAhead?: number;
@@ -61,6 +62,7 @@ class FullscreenViewer {
   private pages: InternalPage[];
   private activeIndex: number;
   private readonly loadPage: FullscreenViewerOptions["loadPage"];
+  private readonly loadBefore: FullscreenViewerOptions["loadBefore"];
   private readonly keepBehind: number;
   private readonly renderAhead: number;
   private readonly preloadAhead: number;
@@ -84,6 +86,8 @@ class FullscreenViewer {
   private openUnlockTimer: number | null = null;
   private closed = false;
   private reachedEnd = false;
+  private loadingBefore = false;
+  private noMoreBefore = false;
 
   constructor(options: FullscreenViewerOptions) {
     this.pages = options.pages.map((page, index) => ({
@@ -100,6 +104,8 @@ class FullscreenViewer {
     }));
     this.activeIndex = clamp(options.startIndex, 0, Math.max(0, this.pages.length - 1));
     this.loadPage = options.loadPage;
+    this.loadBefore = options.loadBefore;
+    this.noMoreBefore = !options.loadBefore;
     this.keepBehind = options.keepBehind ?? DEFAULT_KEEP_BEHIND;
     this.renderAhead = options.renderAhead ?? DEFAULT_RENDER_AHEAD;
     this.preloadAhead = options.preloadAhead ?? DEFAULT_PRELOAD_AHEAD;
@@ -171,6 +177,7 @@ class FullscreenViewer {
     this.scrollToPage(this.activeIndex);
     this.notifyActivePageChange();
     this.queueLoadsForActivePage();
+    this.maybeLoadBefore();
     window.addEventListener("resize", this.onResize);
     document.addEventListener("keydown", this.onKeydown, true);
   }
@@ -439,15 +446,92 @@ class FullscreenViewer {
       }
     }
 
-    if (nextActiveIndex === this.activeIndex) {
+    if (nextActiveIndex !== this.activeIndex) {
+      this.activeIndex = nextActiveIndex;
+      this.renderWindow();
+      this.pruneQueue();
+      this.notifyActivePageChange();
+      this.queueLoadsForActivePage();
+    }
+
+    this.maybeLoadBefore();
+  }
+
+  private maybeLoadBefore(): void {
+    if (this.loadingBefore || this.noMoreBefore || !this.loadBefore || this.activeIndex > this.keepBehind) {
       return;
     }
 
-    this.activeIndex = nextActiveIndex;
+    const firstPage = this.pages[0];
+
+    if (!firstPage) {
+      return;
+    }
+
+    this.loadingBefore = true;
+    void this.loadBefore({
+      url: firstPage.url,
+      aspectRatio: firstPage.aspectRatio,
+      displayNumber: firstPage.displayNumber,
+    })
+      .then((incoming) => {
+        if (this.closed) {
+          return;
+        }
+
+        if (incoming.length === 0 || this.prependPages(incoming) === 0) {
+          this.noMoreBefore = true;
+        }
+      })
+      .catch(() => {
+        // Leave noMoreBefore unset so a later scroll can retry.
+      })
+      .finally(() => {
+        this.loadingBefore = false;
+      });
+  }
+
+  private prependPages(incoming: ViewerPage[]): number {
+    const existing = new Set(this.pages.map((page) => page.url));
+    const fresh = incoming.filter((page) => !existing.has(page.url));
+
+    if (fresh.length === 0) {
+      return 0;
+    }
+
+    const prepended: InternalPage[] = fresh.map((page) => ({
+      ...page,
+      aspectRatio: normalizedAspectRatio(page.aspectRatio),
+      index: 0,
+      kind: "page",
+      state: "idle",
+      imageUrl: null,
+      width: null,
+      height: null,
+      node: null,
+      frame: null,
+    }));
+
+    this.pages = [...prepended, ...this.pages];
+    this.pages.forEach((page, index) => {
+      page.index = index;
+
+      if (page.node) {
+        page.node.dataset.ehpeekIndex = String(index);
+      }
+    });
+    this.endPageEntry.index = this.pages.length;
+    this.activeIndex += fresh.length;
+
+    const requeued = new Map<number, InternalPage>();
+    for (const page of this.queue.values()) {
+      requeued.set(page.index, page);
+    }
+    this.queue = requeued;
+
     this.renderWindow();
-    this.pruneQueue();
-    this.notifyActivePageChange();
     this.queueLoadsForActivePage();
+    return fresh.length;
   }
 
   private notifyActivePageChange(): void {

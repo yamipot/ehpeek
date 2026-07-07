@@ -46,21 +46,38 @@ function peekPageFromHash(): number | null {
   return Number.isFinite(page) && page > 0 ? page : null;
 }
 
-function updatePeekPageHash(pageNumber: number | undefined): void {
+function updatePeekLocation(pageNumber: number | undefined, pageSize: number): void {
   if (!pageNumber || pageNumber <= 0) {
     return;
   }
 
+  const url = new URL(window.location.href);
   const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const nextValue = String(pageNumber);
+  const previewIndex = previewPageIndexForGalleryPage(pageNumber, pageSize);
+  let changed = false;
 
-  if (params.get("peek_page") === nextValue) {
+  if (previewIndex === 0) {
+    if (url.searchParams.has("p")) {
+      url.searchParams.delete("p");
+      changed = true;
+    }
+  } else if (url.searchParams.get("p") !== String(previewIndex)) {
+    url.searchParams.set("p", String(previewIndex));
+    changed = true;
+  }
+
+  if (params.get("peek_page") !== nextValue) {
+    params.set("peek_page", nextValue);
+    changed = true;
+  }
+
+  if (!changed) {
     return;
   }
 
-  params.set("peek_page", nextValue);
-  const nextUrl = `${window.location.pathname}${window.location.search}#${params.toString()}`;
-  window.history.replaceState(window.history.state, "", nextUrl);
+  url.hash = params.toString();
+  window.history.replaceState(window.history.state, "", url.href);
 }
 
 function collectGalleryPages(root: ParentNode = document, baseUrl = window.location.href): ViewerPage[] {
@@ -93,32 +110,73 @@ function previewPageIndex(): number {
   return Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
-function previewPageSize(pages: ViewerPage[]): number {
-  const displayNumbers = pages
-    .map((page) => page.displayNumber)
-    .filter((value): value is number => typeof value === "number")
-    .sort((left, right) => left - right);
+// The gallery's "Showing A - B of C images" line describes the current preview page.
+function readShowingRange(root: ParentNode = document): { start: number; end: number; total: number } | null {
+  const text = root.querySelector(".gpc")?.textContent ?? "";
+  const match = text.match(/([\d,]+)\s*-\s*([\d,]+)\s+of\s+([\d,]+)/i);
 
-  if (displayNumbers.length === 0) {
+  if (!match) {
+    return null;
+  }
+
+  const start = Number(match[1].replace(/,/g, ""));
+  const end = Number(match[2].replace(/,/g, ""));
+  const total = Number(match[3].replace(/,/g, ""));
+
+  return [start, end, total].every((value) => Number.isFinite(value) && value > 0) ? { start, end, total } : null;
+}
+
+// Number of thumbnails per preview page, derived from the "Showing A - B of C" line.
+function computePreviewPageSize(root: ParentNode = document): number {
+  const range = readShowingRange(root);
+
+  if (!range) {
     return 40;
   }
 
-  const currentPreviewIndex = previewPageIndex();
-  const firstDisplayNumber = displayNumbers[0];
+  const { start, end, total } = range;
+  const currentPageCount = end - start + 1;
 
-  if (currentPreviewIndex > 0 && firstDisplayNumber > 1) {
-    return Math.max(1, Math.round((firstDisplayNumber - 1) / currentPreviewIndex));
+  // Single preview page: everything is on it, so the size only needs to exceed the total.
+  if (start === 1 && end >= total) {
+    return Math.max(1, total);
   }
 
-  return Math.max(1, displayNumbers[displayNumbers.length - 1] - firstDisplayNumber + 1);
+  // Last preview page: back the full-page size out of the pages that come before it.
+  if (end >= total) {
+    const previewIndex = previewPageIndex();
+
+    if (previewIndex > 0) {
+      return Math.max(1, Math.round((total - currentPageCount) / previewIndex));
+    }
+  }
+
+  // Any non-last preview page is full, so its own count is the page size.
+  return Math.max(1, currentPageCount);
 }
 
-function previewUrlForGalleryPage(galleryPage: number, currentPages: ViewerPage[]): string {
-  const url = new URL(window.location.href);
-  const pageSize = previewPageSize(currentPages);
-  const previewIndex = Math.max(0, Math.floor((galleryPage - 1) / pageSize));
+function maxPreviewPageIndex(root: ParentNode = document, baseUrl = window.location.href): number | null {
+  const indexes = Array.from(root.querySelectorAll<HTMLAnchorElement>("a[href*='?p='], a[href*='&p=']"))
+    .map((link) => {
+      try {
+        return Number(new URL(link.getAttribute("href") || "", baseUrl).searchParams.get("p") || "");
+      } catch {
+        return NaN;
+      }
+    })
+    .filter((value) => Number.isFinite(value) && value >= 0);
 
-  if (previewIndex === 0) {
+  if (indexes.length === 0) {
+    return null;
+  }
+
+  return Math.max(...indexes);
+}
+
+function previewUrlForIndex(previewIndex: number): string {
+  const url = new URL(window.location.href);
+
+  if (previewIndex <= 0) {
     url.searchParams.delete("p");
   } else {
     url.searchParams.set("p", String(previewIndex));
@@ -128,13 +186,21 @@ function previewUrlForGalleryPage(galleryPage: number, currentPages: ViewerPage[
   return url.href;
 }
 
-async function loadPreviewPageForGalleryPage(galleryPage: number, currentPages: ViewerPage[]): Promise<ViewerPage[]> {
-  const previewUrl = previewUrlForGalleryPage(galleryPage, currentPages);
+function previewPageIndexForGalleryPage(galleryPage: number, pageSize: number): number {
+  const previewIndex = Math.max(0, Math.floor((galleryPage - 1) / pageSize));
+  const maxPreviewIndex = maxPreviewPageIndex();
 
-  if (previewUrl === normalizeUrl(window.location.pathname + window.location.search)) {
-    return currentPages;
+  return maxPreviewIndex === null ? previewIndex : Math.min(previewIndex, maxPreviewIndex);
+}
+
+// Collect the image pages of a single preview page. `landingIndex`/`landingPages` capture the
+// preview page shown in the document at open time, since the URL's `p` is rewritten while reading.
+async function collectPreviewPage(index: number, landingIndex: number, landingPages: ViewerPage[]): Promise<ViewerPage[]> {
+  if (index === landingIndex) {
+    return landingPages;
   }
 
+  const previewUrl = previewUrlForIndex(index);
   const html = await requestText(previewUrl);
   const doc = new DOMParser().parseFromString(html, "text/html");
   return collectGalleryPages(doc, previewUrl);
@@ -231,16 +297,15 @@ async function loadEhImagePage(page: ViewerPage): Promise<LoadedViewerPage> {
 }
 
 async function openReader(startPageUrl: string): Promise<void> {
-  let pages = collectGalleryPages();
+  const landingIndex = previewPageIndex();
+  const landingPages = collectGalleryPages();
+  const pageSize = computePreviewPageSize();
   const startUrl = normalizeUrl(startPageUrl);
   const hashPage = peekPageFromHash();
+  const targetIndex = hashPage !== null ? previewPageIndexForGalleryPage(hashPage, pageSize) : landingIndex;
+  const pages = await collectPreviewPage(targetIndex, landingIndex, landingPages);
   let startIndex =
     hashPage !== null ? pages.findIndex((page) => page.displayNumber === hashPage) : pages.findIndex((page) => page.url === startUrl);
-
-  if (hashPage !== null && startIndex < 0) {
-    pages = await loadPreviewPageForGalleryPage(hashPage, pages);
-    startIndex = pages.findIndex((page) => page.displayNumber === hashPage);
-  }
 
   if (startIndex < 0) {
     startIndex = 0;
@@ -256,8 +321,23 @@ async function openReader(startPageUrl: string): Promise<void> {
     nearConcurrentLoads: 3,
     farConcurrentLoads: 6,
     loadPage: loadEhImagePage,
+    loadBefore: async (firstPage) => {
+      const firstNumber = firstPage.displayNumber;
+
+      if (!firstNumber || firstNumber <= 1) {
+        return [];
+      }
+
+      const previousIndex = previewPageIndexForGalleryPage(firstNumber, pageSize) - 1;
+
+      if (previousIndex < 0) {
+        return [];
+      }
+
+      return collectPreviewPage(previousIndex, landingIndex, landingPages);
+    },
     onActivePageChange: (page) => {
-      updatePeekPageHash(page.displayNumber);
+      updatePeekLocation(page.displayNumber, pageSize);
     },
   });
 }

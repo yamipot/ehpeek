@@ -1,3 +1,3 @@
 # userscripts
 
-A collection of userscripts, mostly vibe-coded.
+A collection of userscripts, fully vibe-coded.
