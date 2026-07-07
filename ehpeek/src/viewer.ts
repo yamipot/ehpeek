@@ -35,6 +35,7 @@ export type FullscreenViewerOptions = {
   preloadAhead?: number;
   nearConcurrentLoads?: number;
   farConcurrentLoads?: number;
+  onActivePageChange?: (page: ViewerPage, index: number) => void;
 };
 
 const VIEWER_ID = "ehpeek-reader";
@@ -65,6 +66,7 @@ class FullscreenViewer {
   private readonly preloadAhead: number;
   private readonly nearConcurrentLoads: number;
   private readonly farConcurrentLoads: number;
+  private readonly onActivePageChange: ((page: ViewerPage, index: number) => void) | undefined;
   private readonly endPageEntry: InternalPage;
   private overlay: HTMLDivElement | null = null;
   private scroller: HTMLDivElement | null = null;
@@ -103,6 +105,7 @@ class FullscreenViewer {
     this.preloadAhead = options.preloadAhead ?? DEFAULT_PRELOAD_AHEAD;
     this.nearConcurrentLoads = options.nearConcurrentLoads ?? DEFAULT_NEAR_CONCURRENT_LOADS;
     this.farConcurrentLoads = options.farConcurrentLoads ?? DEFAULT_FAR_CONCURRENT_LOADS;
+    this.onActivePageChange = options.onActivePageChange;
     this.endPageEntry = {
       url: "__ehpeek_end__",
       aspectRatio: 0.42,
@@ -166,6 +169,7 @@ class FullscreenViewer {
     this.lockOpenScroll();
     this.renderWindow();
     this.scrollToPage(this.activeIndex);
+    this.notifyActivePageChange();
     this.queueLoadsForActivePage();
     window.addEventListener("resize", this.onResize);
     document.addEventListener("keydown", this.onKeydown, true);
@@ -442,7 +446,16 @@ class FullscreenViewer {
     this.activeIndex = nextActiveIndex;
     this.renderWindow();
     this.pruneQueue();
+    this.notifyActivePageChange();
     this.queueLoadsForActivePage();
+  }
+
+  private notifyActivePageChange(): void {
+    const page = this.pages[this.activeIndex];
+
+    if (page) {
+      this.onActivePageChange?.(page, this.activeIndex);
+    }
   }
 
   private queueLoadsForActivePage(): void {

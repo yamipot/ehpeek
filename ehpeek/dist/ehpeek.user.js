@@ -108,6 +108,7 @@
       this.preloadAhead = options.preloadAhead ?? DEFAULT_PRELOAD_AHEAD;
       this.nearConcurrentLoads = options.nearConcurrentLoads ?? DEFAULT_NEAR_CONCURRENT_LOADS;
       this.farConcurrentLoads = options.farConcurrentLoads ?? DEFAULT_FAR_CONCURRENT_LOADS;
+      this.onActivePageChange = options.onActivePageChange;
       this.endPageEntry = {
         url: "__ehpeek_end__",
         aspectRatio: 0.42,
@@ -161,6 +162,7 @@
       this.lockOpenScroll();
       this.renderWindow();
       this.scrollToPage(this.activeIndex);
+      this.notifyActivePageChange();
       this.queueLoadsForActivePage();
       window.addEventListener("resize", this.onResize);
       document.addEventListener("keydown", this.onKeydown, true);
@@ -344,7 +346,14 @@
       this.activeIndex = nextActiveIndex;
       this.renderWindow();
       this.pruneQueue();
+      this.notifyActivePageChange();
       this.queueLoadsForActivePage();
+    }
+    notifyActivePageChange() {
+      const page = this.pages[this.activeIndex];
+      if (page) {
+        this.onActivePageChange?.(page, this.activeIndex);
+      }
     }
     queueLoadsForActivePage() {
       this.queueLoad(this.pages[this.activeIndex]);
@@ -680,14 +689,32 @@
       return void 0;
     }
   }
-  function collectGalleryPages() {
+  function peekPageFromHash() {
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const page = Number(params.get("peek_page") || "");
+    return Number.isFinite(page) && page > 0 ? page : null;
+  }
+  function updatePeekPageHash(pageNumber) {
+    if (!pageNumber || pageNumber <= 0) {
+      return;
+    }
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const nextValue = String(pageNumber);
+    if (params.get("peek_page") === nextValue) {
+      return;
+    }
+    params.set("peek_page", nextValue);
+    const nextUrl = `${window.location.pathname}${window.location.search}#${params.toString()}`;
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }
+  function collectGalleryPages(root = document, baseUrl = window.location.href) {
     const links = Array.from(
-      document.querySelectorAll("#gdt a[href], .gdtm a[href], .gdtl a[href], a[href*='/s/']")
+      root.querySelectorAll("#gdt a[href], .gdtm a[href], .gdtl a[href], a[href*='/s/']")
     );
     const seen = /* @__PURE__ */ new Set();
     const pages = [];
     for (const link of links) {
-      const url = normalizeUrl(link.href);
+      const url = normalizeUrl(link.getAttribute("href") || "", baseUrl);
       if (!url || !isImagePageUrl(url) || seen.has(url)) {
         continue;
       }
@@ -699,6 +726,43 @@
       });
     }
     return pages;
+  }
+  function previewPageIndex() {
+    const value = Number(new URL(window.location.href).searchParams.get("p") || "0");
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+  }
+  function previewPageSize(pages) {
+    const displayNumbers = pages.map((page) => page.displayNumber).filter((value) => typeof value === "number").sort((left, right) => left - right);
+    if (displayNumbers.length === 0) {
+      return 40;
+    }
+    const currentPreviewIndex = previewPageIndex();
+    const firstDisplayNumber = displayNumbers[0];
+    if (currentPreviewIndex > 0 && firstDisplayNumber > 1) {
+      return Math.max(1, Math.round((firstDisplayNumber - 1) / currentPreviewIndex));
+    }
+    return Math.max(1, displayNumbers[displayNumbers.length - 1] - firstDisplayNumber + 1);
+  }
+  function previewUrlForGalleryPage(galleryPage, currentPages) {
+    const url = new URL(window.location.href);
+    const pageSize = previewPageSize(currentPages);
+    const previewIndex = Math.max(0, Math.floor((galleryPage - 1) / pageSize));
+    if (previewIndex === 0) {
+      url.searchParams.delete("p");
+    } else {
+      url.searchParams.set("p", String(previewIndex));
+    }
+    url.hash = "";
+    return url.href;
+  }
+  async function loadPreviewPageForGalleryPage(galleryPage, currentPages) {
+    const previewUrl = previewUrlForGalleryPage(galleryPage, currentPages);
+    if (previewUrl === normalizeUrl(window.location.pathname + window.location.search)) {
+      return currentPages;
+    }
+    const html = await requestText(previewUrl);
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return collectGalleryPages(doc, previewUrl);
   }
   function findClickedImageLink(target) {
     const link = target instanceof Element ? target.closest("a[href]") : null;
@@ -767,10 +831,15 @@
       } : null
     };
   }
-  function openReader(startPageUrl) {
-    const pages = collectGalleryPages();
+  async function openReader(startPageUrl) {
+    let pages = collectGalleryPages();
     const startUrl = normalizeUrl(startPageUrl);
-    let startIndex = pages.findIndex((page) => page.url === startUrl);
+    const hashPage = peekPageFromHash();
+    let startIndex = hashPage !== null ? pages.findIndex((page) => page.displayNumber === hashPage) : pages.findIndex((page) => page.url === startUrl);
+    if (hashPage !== null && startIndex < 0) {
+      pages = await loadPreviewPageForGalleryPage(hashPage, pages);
+      startIndex = pages.findIndex((page) => page.displayNumber === hashPage);
+    }
     if (startIndex < 0) {
       startIndex = 0;
       pages.unshift({ url: startUrl, aspectRatio: 1.42, displayNumber: galleryPageNumber(startUrl) });
@@ -783,7 +852,10 @@
       preloadAhead: 10,
       nearConcurrentLoads: 3,
       farConcurrentLoads: 6,
-      loadPage: loadEhImagePage
+      loadPage: loadEhImagePage,
+      onActivePageChange: (page) => {
+        updatePeekPageHash(page.displayNumber);
+      }
     });
   }
   function onDocumentClick(event) {
@@ -793,9 +865,21 @@
     }
     event.preventDefault();
     event.stopPropagation();
-    openReader(link.href);
+    void openReader(link.href);
+  }
+  async function openReaderFromHash() {
+    const peekPage = peekPageFromHash();
+    if (peekPage === null) {
+      return;
+    }
+    const pages = collectGalleryPages();
+    const page = pages.find((item) => item.displayNumber === peekPage) ?? pages[0];
+    if (page) {
+      await openReader(page.url);
+    }
   }
   if (/^\/g\/\d+\/[^/]+\/?$/i.test(window.location.pathname)) {
     document.addEventListener("click", onDocumentClick, true);
+    void openReaderFromHash();
   }
 })();
