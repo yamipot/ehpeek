@@ -71,6 +71,7 @@ const DEFAULT_FAR_CONCURRENT_LOADS = 6;
 const NEAR_LOAD_AHEAD = 3;
 const FALLBACK_ASPECT_RATIO = 1.42;
 const PAGED_SWIPE_THRESHOLD = 24;
+const PAGED_WHEEL_THRESHOLD = 8;
 
 let activeViewer: FullscreenViewer | null = null;
 
@@ -205,6 +206,7 @@ class FullscreenViewer {
     const scroller = document.createElement("div");
     scroller.className = "ehpeek-scroller";
     scroller.addEventListener("scroll", this.onScroll, { passive: true });
+    scroller.addEventListener("wheel", this.onWheel, { passive: false });
     scroller.addEventListener("pointerdown", this.onPointerDown);
     scroller.addEventListener("pointermove", this.onPointerMove);
     scroller.addEventListener("pointerup", this.onPointerUp);
@@ -313,11 +315,46 @@ class FullscreenViewer {
       return;
     }
 
-    if (this.mode === "paged" && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
-      event.preventDefault();
+    if (this.mode === "paged") {
       // Right-to-left reading: Left advances to the next (higher-numbered) page.
-      this.step(event.key === "ArrowLeft" ? 1 : -1);
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        this.step(1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        this.step(-1);
+      }
+      return;
     }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      this.step(1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      this.step(-1);
+    }
+  };
+
+  private readonly onWheel = (event: WheelEvent): void => {
+    if (this.mode !== "paged") {
+      return;
+    }
+
+    event.preventDefault();
+
+    // Ignore further notches until the current one-page glide finishes, so one gesture = one page.
+    if (this.settleFrame !== null || this.dragging) {
+      return;
+    }
+
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+
+    if (Math.abs(delta) < PAGED_WHEEL_THRESHOLD) {
+      return;
+    }
+
+    this.step(delta > 0 ? 1 : -1);
   };
 
   private setMode(mode: ViewMode): void {

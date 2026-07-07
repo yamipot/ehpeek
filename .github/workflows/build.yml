@@ -44,17 +44,18 @@ jobs:
           safe_ref="${GITHUB_REF_NAME//\//-}"
           build_branch="build-${safe_ref}"
           worktree="$(mktemp -d)"
+          artifact="$(mktemp)"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          cp ehpeek/dist/ehpeek.user.js "$artifact"
           git worktree add --detach "$worktree"
-          cp ehpeek/dist/ehpeek.user.js "$worktree/ehpeek.user.js"
 
           cd "$worktree"
           git checkout --orphan "$build_branch"
           git rm -rf . >/dev/null 2>&1 || true
-          mv ehpeek.user.js ./
+          cp "$artifact" ehpeek.user.js
           git add ehpeek.user.js
           git commit -m "build ehpeek from ${GITHUB_SHA}"
           git push --force origin "HEAD:${build_branch}"
