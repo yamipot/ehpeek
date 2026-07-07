@@ -312,6 +312,8 @@ async function openReader(startPageUrl: string): Promise<void> {
     pages.unshift({ url: startUrl, aspectRatio: 1.42, displayNumber: galleryPageNumber(startUrl) });
   }
 
+  let lastDisplayNumber = hashPage ?? galleryPageNumber(startUrl);
+
   openFullscreenViewer({
     pages,
     startIndex,
@@ -337,7 +339,23 @@ async function openReader(startPageUrl: string): Promise<void> {
       return collectPreviewPage(previousIndex, landingIndex, landingPages);
     },
     onActivePageChange: (page) => {
+      if (page.displayNumber) {
+        lastDisplayNumber = page.displayNumber;
+      }
+
       updatePeekLocation(page.displayNumber, pageSize);
+    },
+    onExit: () => {
+      const exitIndex = lastDisplayNumber ? previewPageIndexForGalleryPage(lastDisplayNumber, pageSize) : landingIndex;
+      const galleryUrl = previewUrlForIndex(exitIndex);
+
+      // If the page underneath already shows this preview page, keep it (just fix the URL);
+      // otherwise navigate the gallery to the preview page the reader ended on.
+      if (exitIndex === landingIndex) {
+        window.history.replaceState(window.history.state, "", galleryUrl);
+      } else {
+        window.location.replace(galleryUrl);
+      }
     },
   });
 }

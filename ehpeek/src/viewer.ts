@@ -31,6 +31,7 @@ export type FullscreenViewerOptions = {
   startIndex: number;
   loadPage: (page: ViewerPage, index: number) => Promise<LoadedViewerPage>;
   loadBefore?: (firstPage: ViewerPage) => Promise<ViewerPage[]>;
+  onExit?: () => void;
   keepBehind?: number;
   renderAhead?: number;
   preloadAhead?: number;
@@ -63,6 +64,7 @@ class FullscreenViewer {
   private activeIndex: number;
   private readonly loadPage: FullscreenViewerOptions["loadPage"];
   private readonly loadBefore: FullscreenViewerOptions["loadBefore"];
+  private readonly onExit: FullscreenViewerOptions["onExit"];
   private readonly keepBehind: number;
   private readonly renderAhead: number;
   private readonly preloadAhead: number;
@@ -88,6 +90,8 @@ class FullscreenViewer {
   private reachedEnd = false;
   private loadingBefore = false;
   private noMoreBefore = false;
+  private historyEntry = false;
+  private closing = false;
 
   constructor(options: FullscreenViewerOptions) {
     this.pages = options.pages.map((page, index) => ({
@@ -105,6 +109,7 @@ class FullscreenViewer {
     this.activeIndex = clamp(options.startIndex, 0, Math.max(0, this.pages.length - 1));
     this.loadPage = options.loadPage;
     this.loadBefore = options.loadBefore;
+    this.onExit = options.onExit;
     this.noMoreBefore = !options.loadBefore;
     this.keepBehind = options.keepBehind ?? DEFAULT_KEEP_BEHIND;
     this.renderAhead = options.renderAhead ?? DEFAULT_RENDER_AHEAD;
@@ -172,6 +177,12 @@ class FullscreenViewer {
     this.scroller = scroller;
     this.strip = strip;
 
+    if (this.onExit) {
+      window.history.pushState({ ehpeekReader: true }, "", window.location.href);
+      this.historyEntry = true;
+      window.addEventListener("popstate", this.onPopState);
+    }
+
     this.lockOpenScroll();
     this.renderWindow();
     this.scrollToPage(this.activeIndex);
@@ -182,7 +193,33 @@ class FullscreenViewer {
     document.addEventListener("keydown", this.onKeydown, true);
   }
 
+  // Closing via the button/Escape unwinds the pushed history entry, so exiting the reader always
+  // routes through popstate (finishClose + onExit) the same way the browser Back button does.
   close(): void {
+    if (this.closed || this.closing) {
+      return;
+    }
+
+    if (this.historyEntry) {
+      this.closing = true;
+      window.history.back();
+      return;
+    }
+
+    this.finishClose();
+  }
+
+  private readonly onPopState = (): void => {
+    if (!this.historyEntry) {
+      return;
+    }
+
+    this.historyEntry = false;
+    this.finishClose();
+    this.onExit?.();
+  };
+
+  private finishClose(): void {
     if (this.closed) {
       return;
     }
@@ -191,6 +228,7 @@ class FullscreenViewer {
     this.queue.clear();
     this.scroller?.removeEventListener("scroll", this.onScroll);
     window.removeEventListener("resize", this.onResize);
+    window.removeEventListener("popstate", this.onPopState);
     document.removeEventListener("keydown", this.onKeydown, true);
     this.overlay?.remove();
     document.documentElement.style.overflow = this.previousDocumentOverflow;
