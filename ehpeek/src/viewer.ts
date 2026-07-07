@@ -1,5 +1,25 @@
 import texts from "./texts.json";
 
+export type ViewMode = "scroll" | "paged";
+
+const VIEW_MODE_KEY = "ehpeek:view-mode";
+
+function loadViewMode(): ViewMode {
+  try {
+    return window.localStorage.getItem(VIEW_MODE_KEY) === "paged" ? "paged" : "scroll";
+  } catch {
+    return "scroll";
+  }
+}
+
+function saveViewMode(mode: ViewMode): void {
+  try {
+    window.localStorage.setItem(VIEW_MODE_KEY, mode);
+  } catch {
+    // Ignore storage failures (private mode, disabled storage, etc.).
+  }
+}
+
 export type ViewerPage = {
   url: string;
   aspectRatio: number;
@@ -31,6 +51,7 @@ export type FullscreenViewerOptions = {
   startIndex: number;
   loadPage: (page: ViewerPage, index: number) => Promise<LoadedViewerPage>;
   loadBefore?: (firstPage: ViewerPage) => Promise<ViewerPage[]>;
+  loadAfter?: (lastPage: ViewerPage) => Promise<ViewerPage[]>;
   onExit?: () => void;
   keepBehind?: number;
   renderAhead?: number;
@@ -49,6 +70,7 @@ const DEFAULT_NEAR_CONCURRENT_LOADS = 3;
 const DEFAULT_FAR_CONCURRENT_LOADS = 6;
 const NEAR_LOAD_AHEAD = 3;
 const FALLBACK_ASPECT_RATIO = 1.42;
+const PAGED_SWIPE_THRESHOLD = 24;
 
 let activeViewer: FullscreenViewer | null = null;
 
@@ -64,6 +86,7 @@ class FullscreenViewer {
   private activeIndex: number;
   private readonly loadPage: FullscreenViewerOptions["loadPage"];
   private readonly loadBefore: FullscreenViewerOptions["loadBefore"];
+  private readonly loadAfter: FullscreenViewerOptions["loadAfter"];
   private readonly onExit: FullscreenViewerOptions["onExit"];
   private readonly keepBehind: number;
   private readonly renderAhead: number;
@@ -72,6 +95,8 @@ class FullscreenViewer {
   private readonly farConcurrentLoads: number;
   private readonly onActivePageChange: ((page: ViewerPage, index: number) => void) | undefined;
   private readonly endPageEntry: InternalPage;
+  private mode: ViewMode = loadViewMode();
+  private modeButton: HTMLButtonElement | null = null;
   private overlay: HTMLDivElement | null = null;
   private scroller: HTMLDivElement | null = null;
   private strip: HTMLElement | null = null;
@@ -90,8 +115,15 @@ class FullscreenViewer {
   private reachedEnd = false;
   private loadingBefore = false;
   private noMoreBefore = false;
+  private loadingAfter = false;
+  private noMoreAfter = false;
   private historyEntry = false;
   private closing = false;
+  private dragging = false;
+  private dragPointerId: number | null = null;
+  private dragStartClientX = 0;
+  private dragStartScroll = 0;
+  private settleFrame: number | null = null;
 
   constructor(options: FullscreenViewerOptions) {
     this.pages = options.pages.map((page, index) => ({
@@ -109,8 +141,10 @@ class FullscreenViewer {
     this.activeIndex = clamp(options.startIndex, 0, Math.max(0, this.pages.length - 1));
     this.loadPage = options.loadPage;
     this.loadBefore = options.loadBefore;
+    this.loadAfter = options.loadAfter;
     this.onExit = options.onExit;
     this.noMoreBefore = !options.loadBefore;
+    this.noMoreAfter = !options.loadAfter;
     this.keepBehind = options.keepBehind ?? DEFAULT_KEEP_BEHIND;
     this.renderAhead = options.renderAhead ?? DEFAULT_RENDER_AHEAD;
     this.preloadAhead = options.preloadAhead ?? DEFAULT_PRELOAD_AHEAD;
@@ -150,6 +184,7 @@ class FullscreenViewer {
 
     const overlay = document.createElement("div");
     overlay.id = VIEWER_ID;
+    overlay.classList.toggle("ehpeek-paged", this.mode === "paged");
 
     const toolbar = document.createElement("div");
     toolbar.className = "ehpeek-toolbar";
@@ -161,17 +196,29 @@ class FullscreenViewer {
     closeButton.textContent = "x";
     closeButton.addEventListener("click", () => this.close());
 
+    const modeButton = document.createElement("button");
+    modeButton.type = "button";
+    modeButton.className = "ehpeek-button";
+    modeButton.addEventListener("click", () => this.setMode(this.mode === "paged" ? "scroll" : "paged"));
+    this.modeButton = modeButton;
+
     const scroller = document.createElement("div");
     scroller.className = "ehpeek-scroller";
     scroller.addEventListener("scroll", this.onScroll, { passive: true });
+    scroller.addEventListener("pointerdown", this.onPointerDown);
+    scroller.addEventListener("pointermove", this.onPointerMove);
+    scroller.addEventListener("pointerup", this.onPointerUp);
+    scroller.addEventListener("pointercancel", this.onPointerUp);
 
     const strip = document.createElement("main");
     strip.className = "ehpeek-strip";
 
     scroller.append(strip);
-    toolbar.append(closeButton);
+    toolbar.append(closeButton, modeButton);
     overlay.append(toolbar, scroller);
     document.body.append(overlay);
+
+    this.updateModeButton();
 
     this.overlay = overlay;
     this.scroller = scroller;
@@ -189,6 +236,7 @@ class FullscreenViewer {
     this.notifyActivePageChange();
     this.queueLoadsForActivePage();
     this.maybeLoadBefore();
+    this.maybeLoadAfter();
     window.addEventListener("resize", this.onResize);
     document.addEventListener("keydown", this.onKeydown, true);
   }
@@ -225,6 +273,7 @@ class FullscreenViewer {
     }
 
     this.closed = true;
+    this.cancelSettle();
     this.queue.clear();
     this.scroller?.removeEventListener("scroll", this.onScroll);
     window.removeEventListener("resize", this.onResize);
@@ -258,20 +307,203 @@ class FullscreenViewer {
   }
 
   private readonly onKeydown = (event: KeyboardEvent): void => {
-    if (event.key !== "Escape") {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      this.close();
       return;
     }
 
-    event.preventDefault();
-    this.close();
+    if (this.mode === "paged" && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+      event.preventDefault();
+      // Right-to-left reading: Left advances to the next (higher-numbered) page.
+      this.step(event.key === "ArrowLeft" ? 1 : -1);
+    }
   };
 
+  private setMode(mode: ViewMode): void {
+    if (mode === this.mode) {
+      return;
+    }
+
+    this.mode = mode;
+    saveViewMode(mode);
+    this.overlay?.classList.toggle("ehpeek-paged", mode === "paged");
+    this.updateModeButton();
+
+    for (const page of this.pages) {
+      this.applyPageSize(page);
+    }
+    this.applyPageSize(this.endPageEntry);
+
+    this.lockOpenScroll();
+    window.requestAnimationFrame(() => this.scrollToPage(this.activeIndex));
+  }
+
+  private updateModeButton(): void {
+    if (!this.modeButton) {
+      return;
+    }
+
+    const paged = this.mode === "paged";
+    this.modeButton.textContent = paged ? "⇔" : "⇕";
+    this.modeButton.title = paged ? texts.viewer.scrollMode : texts.viewer.pagedMode;
+  }
+
+  private step(delta: number): void {
+    this.settleToPage(this.activeIndex + delta);
+  }
+
+  // The end "tap to exit" slide sits just past the last image once the gallery end is loaded.
+  private maxNavIndex(): number {
+    return this.reachedEnd ? this.pages.length : this.pages.length - 1;
+  }
+
+  private nodeAt(index: number): HTMLElement | null {
+    if (this.reachedEnd && index === this.endPageEntry.index) {
+      return this.endPageEntry.node;
+    }
+
+    return this.pages[index]?.node ?? null;
+  }
+
+  // Commit to a single page and spring to its centered position, so a gesture never rests half-way.
+  private settleToPage(index: number): void {
+    const target = clamp(index, 0, this.maxNavIndex());
+
+    if (target !== this.activeIndex) {
+      this.activeIndex = target;
+      this.renderWindow();
+      this.pruneQueue();
+      this.notifyActivePageChange();
+      this.queueLoadsForActivePage();
+      this.maybeLoadBefore();
+      this.maybeLoadAfter();
+    }
+
+    const node = this.nodeAt(this.activeIndex);
+
+    if (!this.scroller || !node) {
+      return;
+    }
+
+    const pageRect = node.getBoundingClientRect();
+    const scrollerRect = this.scroller.getBoundingClientRect();
+    const delta = this.horizontal() ? pageRect.left - scrollerRect.left : pageRect.top - scrollerRect.top;
+    this.animateSettle(delta);
+  }
+
+  private animateSettle(delta: number): void {
+    this.cancelSettle();
+
+    if (!this.scroller || Math.abs(delta) < 0.5) {
+      return;
+    }
+
+    const horizontal = this.horizontal();
+    const startPos = horizontal ? this.scroller.scrollLeft : this.scroller.scrollTop;
+    const startTime = performance.now();
+    const duration = 220;
+
+    const tick = (now: number): void => {
+      if (this.closed || !this.scroller) {
+        this.settleFrame = null;
+        return;
+      }
+
+      const progress = Math.min(1, (now - startTime) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const position = startPos + delta * eased;
+
+      if (horizontal) {
+        this.scroller.scrollLeft = position;
+      } else {
+        this.scroller.scrollTop = position;
+      }
+
+      this.settleFrame = progress < 1 ? window.requestAnimationFrame(tick) : null;
+    };
+
+    this.settleFrame = window.requestAnimationFrame(tick);
+  }
+
+  private cancelSettle(): void {
+    if (this.settleFrame !== null) {
+      window.cancelAnimationFrame(this.settleFrame);
+      this.settleFrame = null;
+    }
+  }
+
+  private horizontal(): boolean {
+    return this.mode === "paged";
+  }
+
+  private addScrollPos(delta: number): void {
+    if (!this.scroller) {
+      return;
+    }
+
+    if (this.horizontal()) {
+      this.scroller.scrollLeft += delta;
+    } else {
+      this.scroller.scrollTop += delta;
+    }
+  }
+
   private readonly onScroll = (): void => {
-    if (this.openLocked) {
+    if (this.openLocked || this.dragging || this.settleFrame !== null) {
       return;
     }
 
     this.scheduleActivePageUpdate();
+  };
+
+  private readonly onPointerDown = (event: PointerEvent): void => {
+    if (this.mode !== "paged" || !this.scroller) {
+      return;
+    }
+
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    this.cancelSettle();
+    this.dragging = true;
+    this.dragPointerId = event.pointerId;
+    this.dragStartClientX = event.clientX;
+    this.dragStartScroll = this.scroller.scrollLeft;
+    this.scroller.setPointerCapture(event.pointerId);
+  };
+
+  private readonly onPointerMove = (event: PointerEvent): void => {
+    if (!this.dragging || event.pointerId !== this.dragPointerId || !this.scroller) {
+      return;
+    }
+
+    // Follow the finger: moving right shifts content right, revealing the page to the left.
+    this.scroller.scrollLeft = this.dragStartScroll - (event.clientX - this.dragStartClientX);
+    event.preventDefault();
+  };
+
+  private readonly onPointerUp = (event: PointerEvent): void => {
+    if (!this.dragging || event.pointerId !== this.dragPointerId) {
+      return;
+    }
+
+    this.dragging = false;
+    this.dragPointerId = null;
+    this.scroller?.releasePointerCapture?.(event.pointerId);
+
+    const dx = event.clientX - this.dragStartClientX;
+
+    // One gesture flips at most one page: drag right -> next (higher number, to the left) and back.
+    if (dx >= PAGED_SWIPE_THRESHOLD) {
+      this.settleToPage(this.activeIndex + 1);
+    } else if (dx <= -PAGED_SWIPE_THRESHOLD) {
+      this.settleToPage(this.activeIndex - 1);
+    } else {
+      this.settleToPage(this.activeIndex);
+    }
   };
 
   private readonly onResize = (): void => {
@@ -424,30 +656,35 @@ class FullscreenViewer {
   }
 
   private scrollToPage(index: number): void {
-    const page = this.pages[index];
+    const node = this.nodeAt(index);
 
-    if (!this.scroller || !page?.node) {
+    if (!this.scroller || !node) {
       return;
     }
 
-    this.scroller.scrollTop += page.node.getBoundingClientRect().top - this.scroller.getBoundingClientRect().top;
+    const pageRect = node.getBoundingClientRect();
+    const scrollerRect = this.scroller.getBoundingClientRect();
+    const delta = this.horizontal() ? pageRect.left - scrollerRect.left : pageRect.top - scrollerRect.top;
+    this.addScrollPos(delta);
   }
 
   private withLockedActivePosition(change: () => void): void {
     const activeNode = this.pages[this.activeIndex]?.node;
-    const beforeTop = activeNode?.getBoundingClientRect().top ?? null;
+    const beforeRect = activeNode?.getBoundingClientRect();
+    const beforeStart = beforeRect ? (this.horizontal() ? beforeRect.left : beforeRect.top) : null;
 
     change();
 
-    if (!this.scroller || beforeTop === null || !activeNode?.isConnected) {
+    if (!this.scroller || beforeStart === null || !activeNode?.isConnected) {
       return;
     }
 
-    const afterTop = activeNode.getBoundingClientRect().top;
-    const delta = afterTop - beforeTop;
+    const afterRect = activeNode.getBoundingClientRect();
+    const afterStart = this.horizontal() ? afterRect.left : afterRect.top;
+    const delta = afterStart - beforeStart;
 
     if (Math.abs(delta) >= 0.5) {
-      this.scroller.scrollTop += delta;
+      this.addScrollPos(delta);
     }
   }
 
@@ -468,7 +705,10 @@ class FullscreenViewer {
     }
 
     const scrollerRect = this.scroller.getBoundingClientRect();
-    const targetY = scrollerRect.top + Math.min(80, scrollerRect.height * 0.14);
+    const horizontal = this.horizontal();
+    const target = horizontal
+      ? scrollerRect.left + scrollerRect.width * 0.5
+      : scrollerRect.top + Math.min(80, scrollerRect.height * 0.14);
     let nextActiveIndex = this.activeIndex;
 
     for (const page of this.pages) {
@@ -477,8 +717,10 @@ class FullscreenViewer {
       }
 
       const rect = page.node.getBoundingClientRect();
+      const start = horizontal ? rect.left : rect.top;
+      const end = horizontal ? rect.right : rect.bottom;
 
-      if (rect.top <= targetY && rect.bottom > targetY) {
+      if (start <= target && end > target) {
         nextActiveIndex = page.index;
         break;
       }
@@ -493,6 +735,64 @@ class FullscreenViewer {
     }
 
     this.maybeLoadBefore();
+    this.maybeLoadAfter();
+  }
+
+  private maybeLoadAfter(): void {
+    if (
+      this.loadingAfter ||
+      this.noMoreAfter ||
+      this.reachedEnd ||
+      !this.loadAfter ||
+      this.activeIndex < this.pages.length - 1 - this.keepBehind
+    ) {
+      return;
+    }
+
+    const lastPage = this.pages[this.pages.length - 1];
+
+    if (!lastPage) {
+      return;
+    }
+
+    this.loadingAfter = true;
+    void this.loadAfter({
+      url: lastPage.url,
+      aspectRatio: lastPage.aspectRatio,
+      displayNumber: lastPage.displayNumber,
+    })
+      .then((incoming) => {
+        if (this.closed) {
+          return;
+        }
+
+        if (incoming.length === 0 || this.appendPages(incoming) === 0) {
+          this.noMoreAfter = true;
+        }
+      })
+      .catch(() => {
+        // Leave noMoreAfter unset so a later scroll can retry.
+      })
+      .finally(() => {
+        this.loadingAfter = false;
+      });
+  }
+
+  private appendPages(incoming: ViewerPage[]): number {
+    const before = this.pages.length;
+
+    for (const page of incoming) {
+      this.appendPage(page);
+    }
+
+    const added = this.pages.length - before;
+
+    if (added > 0) {
+      this.renderWindow();
+      this.queueLoadsForActivePage();
+    }
+
+    return added;
   }
 
   private maybeLoadBefore(): void {
@@ -753,6 +1053,7 @@ class FullscreenViewer {
     image.alt = `Page ${page.index + 1}`;
     image.decoding = "async";
     image.loading = "eager";
+    image.draggable = false;
     image.setAttribute("fetchpriority", page.index === this.activeIndex ? "high" : "low");
     image.src = expectedImageUrl;
 
@@ -815,11 +1116,10 @@ function ensureViewerStyle(): void {
       position: fixed;
       top: 10px;
       right: 10px;
-      left: 10px;
       z-index: 2;
       display: flex;
-      align-items: center;
-      justify-content: flex-end;
+      flex-direction: column;
+      align-items: flex-end;
       gap: 8px;
       pointer-events: none;
     }
@@ -847,6 +1147,7 @@ function ensureViewerStyle(): void {
       overflow: auto;
       overscroll-behavior: contain;
       scroll-behavior: auto;
+      touch-action: pan-y;
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
@@ -919,6 +1220,45 @@ function ensureViewerStyle(): void {
       width: var(--ehpeek-frame-width);
       height: var(--ehpeek-frame-height);
       object-fit: contain;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    #${VIEWER_ID}.ehpeek-paged .ehpeek-scroller {
+      user-select: none;
+    }
+
+    #${VIEWER_ID}.ehpeek-paged .ehpeek-scroller {
+      overflow: hidden;
+      direction: rtl;
+      touch-action: none;
+    }
+
+    #${VIEWER_ID}.ehpeek-paged .ehpeek-strip {
+      display: flex;
+      flex-direction: row;
+      width: auto;
+      height: 100%;
+      min-height: 0;
+      padding: 0;
+    }
+
+    #${VIEWER_ID}.ehpeek-paged .ehpeek-page {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 100%;
+      align-items: center;
+      padding: 0;
+    }
+
+    #${VIEWER_ID}.ehpeek-paged .ehpeek-frame {
+      width: 100%;
+      height: 100%;
+    }
+
+    #${VIEWER_ID}.ehpeek-paged .ehpeek-image {
+      width: 100%;
+      height: 100%;
     }
   `;
   document.head.append(style);

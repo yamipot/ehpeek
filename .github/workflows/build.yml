@@ -1,0 +1,60 @@
+name: Build userscripts
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-ehpeek:
+    name: Build ehpeek
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ehpeek
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type check
+        run: npm run check
+
+      - name: Build
+        env:
+          EHPEEK_RELEASE_BUILD: "true"
+        run: npm run build
+
+      - name: Publish built userscript branch
+        if: github.event_name != 'pull_request'
+        working-directory: .
+        run: |
+          safe_ref="${GITHUB_REF_NAME//\//-}"
+          build_branch="build-${safe_ref}"
+          worktree="$(mktemp -d)"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git worktree add --detach "$worktree"
+          cp ehpeek/dist/ehpeek.user.js "$worktree/ehpeek.user.js"
+
+          cd "$worktree"
+          git checkout --orphan "$build_branch"
+          git rm -rf . >/dev/null 2>&1 || true
+          mv ehpeek.user.js ./
+          git add ehpeek.user.js
+          git commit -m "build ehpeek from ${GITHUB_SHA}"
+          git push --force origin "HEAD:${build_branch}"

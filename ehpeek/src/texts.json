@@ -1,7 +1,9 @@
 {
   "description": "A mobile-optimized E-H/ExH viewer",
-  "viewer": {   
+  "viewer": {
     "close": "Close",
+    "scrollMode": "Switch to scroll mode",
+    "pagedMode": "Switch to page-flip mode",
     "end": "End of gallery. Tap to exit.",
     "failedPrefix": "Failed"
   },

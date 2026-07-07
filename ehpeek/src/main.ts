@@ -338,6 +338,22 @@ async function openReader(startPageUrl: string): Promise<void> {
 
       return collectPreviewPage(previousIndex, landingIndex, landingPages);
     },
+    loadAfter: async (lastPage) => {
+      const lastNumber = lastPage.displayNumber;
+
+      if (!lastNumber) {
+        return [];
+      }
+
+      const nextIndex = previewPageIndexForGalleryPage(lastNumber, pageSize) + 1;
+      const maxIndex = maxPreviewPageIndex();
+
+      if (maxIndex !== null && nextIndex > maxIndex) {
+        return [];
+      }
+
+      return collectPreviewPage(nextIndex, landingIndex, landingPages);
+    },
     onActivePageChange: (page) => {
       if (page.displayNumber) {
         lastDisplayNumber = page.displayNumber;
