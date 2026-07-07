@@ -847,6 +847,12 @@ function ensureViewerStyle(): void {
       overflow: auto;
       overscroll-behavior: contain;
       scroll-behavior: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .ehpeek-scroller::-webkit-scrollbar {
+      display: none;
     }
 
     .ehpeek-strip {
