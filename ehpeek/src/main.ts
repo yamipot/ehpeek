@@ -311,19 +311,6 @@ async function requestText(url: string): Promise<string> {
   }
 }
 
-function firstImagePageHref(doc: Document, selectors: string[], baseUrl: string): string | null {
-  for (const selector of selectors) {
-    const link = doc.querySelector<HTMLAnchorElement>(selector);
-    const href = link ? normalizeUrl(link.getAttribute("href") || "", baseUrl) : "";
-
-    if (href && isImagePageUrl(href)) {
-      return href;
-    }
-  }
-
-  return null;
-}
-
 function numericAttribute(element: Element | null, attribute: string): number | null {
   const value = Number(element?.getAttribute(attribute) || "");
   return Number.isFinite(value) && value > 0 ? value : null;
@@ -340,13 +327,6 @@ async function loadEhImagePage(page: ViewerPage): Promise<LoadedViewerPage> {
     throw new Error(texts.errors.imageNotFound);
   }
 
-  const imageLink = image?.closest<HTMLAnchorElement>("a[href]") ?? null;
-  const imageLinkUrl =
-    imageLink instanceof HTMLAnchorElement ? normalizeUrl(imageLink.getAttribute("href") || "", page.url) : null;
-  const nextPageUrl =
-    firstImagePageHref(doc, ["a#next[href]", "#i3 a[href*='/s/']"], page.url) ||
-    (imageLinkUrl && isImagePageUrl(imageLinkUrl) ? imageLinkUrl : null) ||
-    firstImagePageHref(doc, ["a[href*='/s/']"], page.url);
   const width = numericAttribute(image, "width");
   const height = numericAttribute(image, "height");
 
@@ -354,14 +334,6 @@ async function loadEhImagePage(page: ViewerPage): Promise<LoadedViewerPage> {
     imageUrl,
     width,
     height,
-    nextPage:
-      nextPageUrl && nextPageUrl !== page.url
-        ? {
-            url: nextPageUrl,
-            aspectRatio: width && height ? height / width : page.aspectRatio,
-            displayNumber: galleryPageNumber(nextPageUrl),
-          }
-        : null,
   };
 }
 

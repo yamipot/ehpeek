@@ -27,7 +27,6 @@ export type LoadedViewerPage = {
   imageUrl: string;
   width?: number | null;
   height?: number | null;
-  nextPage?: ViewerPage | null;
 };
 
 export type FullscreenViewerOptions = {
@@ -47,9 +46,13 @@ export type FullscreenViewerOptions = {
 
 type PageState = "idle" | "loading" | "ready" | "error";
 type Direction = -1 | 1;
+type SlotKind = "page" | "blank" | "end";
 
-type InternalPage = ViewerPage & {
+type PageSlot = {
+  x: number;
   index: number;
+  kind: SlotKind;
+  meta: ViewerPage | null;
   state: PageState;
   imageUrl: string | null;
   width: number | null;
@@ -57,6 +60,11 @@ type InternalPage = ViewerPage & {
   node: HTMLElement | null;
   frame: HTMLElement | null;
   token: number;
+};
+
+type LoadedPageSlot = PageSlot & {
+  kind: "page";
+  meta: ViewerPage;
 };
 
 let activeViewer: FullscreenViewer | null = null;
@@ -69,8 +77,8 @@ export function openFullscreenViewer(options: FullscreenViewerOptions): void {
 }
 
 class TwoTierImageQueue {
-  private nearQueue = new Map<number, InternalPage>();
-  private farQueue = new Map<number, InternalPage>();
+  private nearQueue = new Map<number, PageSlot>();
+  private farQueue = new Map<number, PageSlot>();
   private activeNearLoads = 0;
   private activeTotalLoads = 0;
   private timer: number | null = null;
@@ -78,8 +86,8 @@ class TwoTierImageQueue {
 
   constructor(
     private readonly loadPage: (page: ViewerPage, index: number) => Promise<LoadedViewerPage>,
-    private readonly onLoaded: (page: InternalPage, loaded: LoadedViewerPage, token: number) => void,
-    private readonly onError: (page: InternalPage, error: unknown, token: number) => void,
+    private readonly onLoaded: (slot: PageSlot, loaded: LoadedViewerPage, token: number) => void,
+    private readonly onError: (slot: PageSlot, error: unknown, token: number) => void,
     private readonly nearConcurrentLoads: number,
     private readonly farConcurrentLoads: number,
   ) {}
@@ -95,7 +103,7 @@ class TwoTierImageQueue {
     }
   }
 
-  sync(pages: InternalPage[], currentPageNumber: number, direction: Direction, windowNumbers: Set<number>, preloadWindowSize: number): void {
+  sync(slots: PageSlot[], currentPageNumber: number, direction: Direction, windowNumbers: Set<number>, preloadWindowSize: number): void {
     for (const queue of [this.nearQueue, this.farQueue]) {
       for (const displayNumber of queue.keys()) {
         if (!windowNumbers.has(displayNumber)) {
@@ -104,56 +112,56 @@ class TwoTierImageQueue {
       }
     }
 
-    for (const page of pages) {
-      const displayNumber = displayNumberFor(page);
+    for (const slot of slots) {
+      const displayNumber = slot.x;
 
       if (!windowNumbers.has(displayNumber)) {
-        this.invalidate(page);
+        this.invalidate(slot);
       }
     }
 
-    this.enqueue(pages.find((page) => displayNumberFor(page) === currentPageNumber), "near");
+    this.enqueue(slots.find((slot) => slot.x === currentPageNumber), "near");
 
     for (let offset = 1; offset <= preloadWindowSize; offset += 1) {
       const displayNumber = currentPageNumber + offset * direction;
-      const page = pages.find((candidate) => displayNumberFor(candidate) === displayNumber);
+      const slot = slots.find((candidate) => candidate.x === displayNumber);
 
-      if (page) {
-        this.enqueue(page, offset <= NEAR_LOAD_AHEAD ? "near" : "far");
+      if (slot) {
+        this.enqueue(slot, offset <= NEAR_LOAD_AHEAD ? "near" : "far");
       }
     }
 
     this.schedule();
   }
 
-  invalidate(page: InternalPage): void {
-    page.token += 1;
-    this.nearQueue.delete(displayNumberFor(page));
-    this.farQueue.delete(displayNumberFor(page));
+  invalidate(slot: PageSlot): void {
+    slot.token += 1;
+    this.nearQueue.delete(slot.x);
+    this.farQueue.delete(slot.x);
 
-    if (page.state !== "idle") {
-      page.state = "idle";
-      page.imageUrl = null;
-      page.width = null;
-      page.height = null;
+    if (slot.state !== "idle") {
+      slot.state = "idle";
+      slot.imageUrl = null;
+      slot.width = null;
+      slot.height = null;
     }
   }
 
-  private enqueue(page: InternalPage | undefined, tier: "near" | "far"): void {
-    if (!page || page.state !== "idle") {
+  private enqueue(slot: PageSlot | undefined, tier: "near" | "far"): void {
+    if (!slot || slot.kind !== "page" || !slot.meta || slot.state !== "idle") {
       return;
     }
 
-    const displayNumber = displayNumberFor(page);
+    const displayNumber = slot.x;
 
     if (tier === "near") {
       this.farQueue.delete(displayNumber);
-      this.nearQueue.set(displayNumber, page);
+      this.nearQueue.set(displayNumber, slot);
       return;
     }
 
     if (!this.nearQueue.has(displayNumber)) {
-      this.farQueue.set(displayNumber, page);
+      this.farQueue.set(displayNumber, slot);
     }
   }
 
@@ -181,19 +189,19 @@ class TwoTierImageQueue {
       }
 
       const queue = tier === "near" ? this.nearQueue : this.farQueue;
-      const page = queue.values().next().value as InternalPage | undefined;
+      const slot = queue.values().next().value as PageSlot | undefined;
 
-      if (!page) {
+      if (!slot) {
         return;
       }
 
-      queue.delete(displayNumberFor(page));
+      queue.delete(slot.x);
 
-      if (page.state !== "idle") {
+      if (slot.state !== "idle") {
         continue;
       }
 
-      this.start(page, tier);
+      this.start(slot, tier);
     }
   }
 
@@ -203,25 +211,30 @@ class TwoTierImageQueue {
       : this.farConcurrentLoads;
   }
 
-  private start(page: InternalPage, tier: "near" | "far"): void {
-    page.state = "loading";
-    page.token += 1;
-    const token = page.token;
+  private start(slot: PageSlot, tier: "near" | "far"): void {
+    if (!slot.meta) {
+      return;
+    }
+
+    slot.state = "loading";
+    slot.token += 1;
+    const token = slot.token;
+    const meta = slot.meta;
     this.activeTotalLoads += 1;
 
     if (tier === "near") {
       this.activeNearLoads += 1;
     }
 
-    void this.loadPage(page, page.index)
+    void this.loadPage(meta, slot.index)
       .then((loaded) => {
         if (!this.disposed) {
-          this.onLoaded(page, loaded, token);
+          this.onLoaded(slot, loaded, token);
         }
       })
       .catch((error) => {
         if (!this.disposed) {
-          this.onError(page, error, token);
+          this.onError(slot, error, token);
         }
       })
       .finally(() => {
@@ -237,9 +250,8 @@ class TwoTierImageQueue {
 }
 
 class FullscreenViewer {
-  private pages: InternalPage[];
+  private slots: PageSlot[];
   private currentPageNumber: number;
-  private activeIndex = 0;
   private direction: Direction = 1;
   private mode: ViewMode = loadViewMode();
   private readDirection: ReadDirection = loadReadDirection();
@@ -261,23 +273,18 @@ class FullscreenViewer {
   private readDirectionButton: HTMLButtonElement | null = null;
   private rightTapButton: HTMLButtonElement | null = null;
   private pageNumberLabel: HTMLElement | null = null;
-  private progressTrack: HTMLDivElement | null = null;
-  private progressFill: HTMLDivElement | null = null;
-  private progressThumb: HTMLDivElement | null = null;
+  private progressInput: HTMLInputElement | null = null;
   private previousBodyOverflow = "";
   private previousDocumentOverflow = "";
   private previousBodyTouchAction = "";
   private previousDocumentTouchAction = "";
-  private openLocked = false;
-  private openUnlockTimer: number | null = null;
   private scrollFrame: number | null = null;
   private resizeFrame: number | null = null;
-  private settleFrame: number | null = null;
   private progressCommitTimer: number | null = null;
   private pendingProgressDisplayNumber: number | null = null;
   private progressDragging = false;
-  private progressPointerId: number | null = null;
   private dragging = false;
+  private suppressNextClick = false;
   private dragPointerId: number | null = null;
   private dragStartClientX = 0;
   private dragStartClientY = 0;
@@ -287,10 +294,10 @@ class FullscreenViewer {
   private closing = false;
   private closed = false;
 
-  constructor(private readonly options: FullscreenViewerOptions) {
-    this.pages = options.pages.map((page, index) => toInternalPage(page, index));
-    this.activeIndex = clamp(options.startIndex, 0, Math.max(0, this.pages.length - 1));
-    this.currentPageNumber = displayNumberFor(this.pages[this.activeIndex]);
+  constructor(options: FullscreenViewerOptions) {
+    this.slots = options.pages.map((page, index) => toPageSlot(page, index));
+    const startIndex = clamp(options.startIndex, 0, Math.max(0, this.slots.length - 1));
+    this.currentPageNumber = this.slots[startIndex]?.x ?? 1;
     this.totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : undefined;
     this.windowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE;
     this.preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE;
@@ -308,7 +315,7 @@ class FullscreenViewer {
   }
 
   open(): void {
-    if (this.pages.length === 0) {
+    if (this.slots.length === 0) {
       return;
     }
 
@@ -332,8 +339,7 @@ class FullscreenViewer {
 
     window.addEventListener("resize", this.onResize);
     document.addEventListener("keydown", this.onKeydown, true);
-    this.lockOpenScroll();
-    void this.syncAfterPageChange({ scrollIntoView: true });
+    this.syncAfterPageChange({ scrollIntoView: true });
   }
 
   close(): void {
@@ -359,6 +365,9 @@ class FullscreenViewer {
 
     const topbar = document.createElement("div");
     topbar.className = "ehpeek-topbar";
+    topbar.addEventListener("click", stopEvent);
+    topbar.addEventListener("pointerdown", stopEvent);
+    topbar.addEventListener("wheel", stopEvent);
 
     const readDirectionButton = document.createElement("button");
     readDirectionButton.type = "button";
@@ -406,24 +415,22 @@ class FullscreenViewer {
 
     const toolbar = document.createElement("div");
     toolbar.className = "ehpeek-progressbar ehpeek-toolbar-hidden";
+    toolbar.addEventListener("click", stopEvent);
+    toolbar.addEventListener("pointerdown", stopEvent);
+    toolbar.addEventListener("wheel", stopEvent);
     this.toolbar = toolbar;
 
-    const progressTrack = document.createElement("div");
-    progressTrack.className = "ehpeek-progress";
-    progressTrack.addEventListener("pointerdown", this.onProgressPointerDown);
-    progressTrack.addEventListener("pointermove", this.onProgressPointerMove);
-    progressTrack.addEventListener("pointerup", this.onProgressPointerUp);
-    progressTrack.addEventListener("pointercancel", this.onProgressPointerUp);
-    this.progressTrack = progressTrack;
-
-    const progressFill = document.createElement("div");
-    progressFill.className = "ehpeek-progress-fill";
-    this.progressFill = progressFill;
-
-    const progressThumb = document.createElement("div");
-    progressThumb.className = "ehpeek-progress-thumb";
-    this.progressThumb = progressThumb;
-    progressTrack.append(progressFill, progressThumb);
+    const progressInput = document.createElement("input");
+    progressInput.type = "range";
+    progressInput.className = "ehpeek-progress";
+    progressInput.min = "1";
+    progressInput.step = "1";
+    progressInput.addEventListener("pointerdown", this.onProgressPointerDown);
+    progressInput.addEventListener("input", this.onProgressInput);
+    progressInput.addEventListener("change", this.onProgressCommit);
+    progressInput.addEventListener("pointerup", this.onProgressCommit);
+    progressInput.addEventListener("pointercancel", this.onProgressCommit);
+    this.progressInput = progressInput;
 
     const scroller = document.createElement("div");
     scroller.className = "ehpeek-scroller";
@@ -431,9 +438,7 @@ class FullscreenViewer {
     scroller.addEventListener("scroll", this.onScroll, { passive: true });
     scroller.addEventListener("wheel", this.onWheel, { passive: false });
     scroller.addEventListener("pointerdown", this.onPointerDown);
-    scroller.addEventListener("pointermove", this.onPointerMove);
-    scroller.addEventListener("pointerup", this.onPointerUp);
-    scroller.addEventListener("pointercancel", this.onPointerUp);
+    scroller.tabIndex = -1;
     this.scroller = scroller;
 
     const strip = document.createElement("main");
@@ -442,10 +447,11 @@ class FullscreenViewer {
 
     scroller.append(strip);
     topbar.append(actions);
-    toolbar.append(progressTrack);
+    toolbar.append(progressInput);
     overlay.append(topbar, pageNumberLabel, toolbar, scroller);
     document.body.append(overlay);
     this.overlay = overlay;
+    scroller.focus({ preventScroll: true });
     this.updateModeButton();
     this.updateReadDirectionButton();
     this.updateRightTapButton();
@@ -468,22 +474,19 @@ class FullscreenViewer {
     }
 
     this.closed = true;
-    this.cancelSettle();
     this.cancelProgressCommit();
-    this.progressPointerId = null;
     this.imageQueue.dispose();
     window.removeEventListener("resize", this.onResize);
     window.removeEventListener("popstate", this.onPopState);
     document.removeEventListener("keydown", this.onKeydown, true);
+    document.removeEventListener("pointermove", this.onPointerMove, true);
+    document.removeEventListener("pointerup", this.onPointerUp, true);
+    document.removeEventListener("pointercancel", this.onPointerUp, true);
     this.overlay?.remove();
     document.documentElement.style.overflow = this.previousDocumentOverflow;
     document.body.style.overflow = this.previousBodyOverflow;
     document.documentElement.style.touchAction = this.previousDocumentTouchAction;
     document.body.style.touchAction = this.previousBodyTouchAction;
-
-    if (this.openUnlockTimer !== null) {
-      window.clearTimeout(this.openUnlockTimer);
-    }
 
     if (this.scrollFrame !== null) {
       window.cancelAnimationFrame(this.scrollFrame);
@@ -498,70 +501,107 @@ class FullscreenViewer {
     }
   }
 
-  private async setCurrentPageNumber(pageNumber: number, scrollIntoView: boolean): Promise<void> {
-    const target = clamp(Math.round(pageNumber), 1, this.totalPages ?? Number.MAX_SAFE_INTEGER);
+  private setCurrentPageNumber(pageNumber: number, scrollIntoView: boolean): void {
+    const target = clamp(Math.round(pageNumber), 1, this.maxDisplayNumber());
 
     if (target !== this.currentPageNumber) {
       this.direction = target > this.currentPageNumber ? 1 : -1;
       this.currentPageNumber = target;
     }
 
-    await this.syncAfterPageChange({ scrollIntoView });
+    this.syncAfterPageChange({ scrollIntoView });
   }
 
-  private async syncAfterPageChange(options: { scrollIntoView: boolean }): Promise<void> {
+  private syncAfterPageChange(options: { scrollIntoView: boolean }): void {
     const token = ++this.syncToken;
     const numbers = this.windowNumbers();
-    const missing = numbers.filter((number) => !this.pageFor(number));
-    const incoming = missing.length > 0 ? await this.loadPages?.(missing) : [];
+    const missing = numbers.filter((number) => this.isRealDisplayNumber(number) && !this.loadedSlotFor(number));
 
-    if (this.closed || token !== this.syncToken) {
-      return;
-    }
-
-    this.maintainContainers(numbers, incoming ?? []);
+    this.maintainContainers(numbers, []);
     this.maintainLoadQueue();
     this.notifyActivePageChange();
 
     if (options.scrollIntoView) {
       this.scrollToCurrentPage();
     }
+
+    if (missing.length > 0) {
+      void this.loadMissingPages(missing, token);
+    }
+  }
+
+  private async loadMissingPages(displayNumbers: number[], token: number): Promise<void> {
+    let incoming: ViewerPage[] | undefined;
+
+    try {
+      incoming = await this.loadPages?.(displayNumbers);
+    } catch (error) {
+      console.error("[ehpeek]", error);
+      return;
+    }
+
+    if (this.closed || token !== this.syncToken) {
+      return;
+    }
+
+    this.maintainContainers(this.windowNumbers(), incoming ?? []);
+    this.maintainLoadQueue();
+    this.notifyActivePageChange();
   }
 
   private maintainContainers(numbers: number[], incoming: ViewerPage[]): void {
-    const keep = new Set(numbers);
-    const byNumber = new Map<number, InternalPage>();
+    const oldSlots = new Map(this.slots.map((slot) => [slot.x, slot]));
+    const incomingPages = new Map(
+      incoming
+        .map((page) => [page.displayNumber ?? 0, page] as const)
+        .filter(([number]) => number > 0),
+    );
+    const nextSlots: PageSlot[] = [];
 
-    for (const page of this.pages) {
-      const number = displayNumberFor(page);
+    for (const number of numbers) {
+      const kind = this.slotKindFor(number);
+      const oldSlot = oldSlots.get(number);
+      let slot: PageSlot;
 
-      if (keep.has(number)) {
-        byNumber.set(number, page);
+      if (oldSlot && oldSlot.kind === kind) {
+        slot = oldSlot;
       } else {
-        this.removePage(page);
+        slot = createSlot(number, kind);
+      }
+
+      if (kind === "page") {
+        const incomingPage = incomingPages.get(number);
+
+        if (incomingPage) {
+          this.fillSlotMetadata(slot, incomingPage);
+        }
+      } else {
+        this.clearSlotMetadata(slot);
+      }
+
+      nextSlots.push(slot);
+    }
+
+    const nextSet = new Set(nextSlots);
+
+    for (const slot of this.slots) {
+      if (!nextSet.has(slot)) {
+        this.removeSlot(slot);
       }
     }
 
-    for (const page of incoming) {
-      const number = page.displayNumber;
-
-      if (number && keep.has(number) && !byNumber.has(number)) {
-        byNumber.set(number, toInternalPage(page, 0));
-      }
-    }
-
-    this.pages = Array.from(byNumber.values()).sort((left, right) => displayNumberFor(left) - displayNumberFor(right));
-    this.pages.forEach((page, index) => {
-      page.index = index;
+    this.slots = nextSlots;
+    this.slots.forEach((slot, index) => {
+      slot.index = index;
     });
-    this.activeIndex = Math.max(0, this.pages.findIndex((page) => displayNumberFor(page) === this.currentPageNumber));
     this.renderContainers();
     this.updatePageNumber();
   }
 
   private maintainLoadQueue(): void {
-    const windowSet = new Set(this.windowNumbers());
-    this.imageQueue.sync(this.pages, this.currentPageNumber, this.direction, windowSet, this.preloadWindowSize);
+    const loadableSlots = this.slots.filter((slot) => slot.kind === "page" && slot.meta);
+    const windowSet = new Set(loadableSlots.map((slot) => slot.x));
+    this.imageQueue.sync(loadableSlots, this.currentPageNumber, this.direction, windowSet, this.preloadWindowSize);
   }
 
   private renderContainers(): void {
@@ -569,149 +609,246 @@ class FullscreenViewer {
       return;
     }
 
-    const keepNumbers = new Set(this.pages.map((page) => displayNumberFor(page)));
+    const keepNodes = new Set(this.slots.map((slot) => slot.node).filter(Boolean));
 
     for (const node of Array.from(this.strip.children)) {
-      const displayNumber = Number((node as HTMLElement).dataset.ehpeekDisplayNumber ?? "");
-
-      if (!keepNumbers.has(displayNumber)) {
+      if (!keepNodes.has(node as HTMLElement)) {
         node.remove();
       }
     }
 
-    for (const page of this.pages) {
-      if (page.node && !page.node.isConnected) {
-        page.node = null;
-        page.frame = null;
+    for (const slot of this.slots) {
+      if (slot.node && !slot.node.isConnected) {
+        slot.node = null;
+        slot.frame = null;
       }
 
-      this.mountPage(page);
-      page.node?.style.setProperty("order", String(page.index));
-      page.node?.setAttribute("data-ehpeek-index", String(page.index));
+      this.mountSlot(slot);
+      slot.node?.style.setProperty("order", String(slot.index));
+      slot.node?.setAttribute("data-ehpeek-index", String(slot.index));
     }
   }
 
-  private mountPage(page: InternalPage): void {
-    if (!this.strip || page.node) {
-      if (page.node) {
-        this.applyPageSize(page);
+  private mountSlot(slot: PageSlot): void {
+    if (!this.strip || slot.node) {
+      if (slot.node) {
+        this.applySlotSize(slot);
+        this.refreshSlot(slot);
       }
       return;
     }
 
     const section = document.createElement("section");
     section.className = "ehpeek-page";
-    section.dataset.ehpeekIndex = String(page.index);
-    section.dataset.ehpeekDisplayNumber = String(displayNumberFor(page));
+    section.dataset.ehpeekIndex = String(slot.index);
+    section.dataset.ehpeekDisplayNumber = String(slot.x);
 
     const frame = document.createElement("div");
     frame.className = "ehpeek-frame";
 
     const placeholder = document.createElement("div");
-    placeholder.className = page.state === "error" ? "ehpeek-error" : "ehpeek-placeholder";
-    placeholder.textContent = page.state === "error" ? `${texts.viewer.failedPrefix} ${displayNumberFor(page)}` : String(displayNumberFor(page));
+    placeholder.className = slot.state === "error" ? "ehpeek-error" : "ehpeek-placeholder";
+    placeholder.classList.toggle("ehpeek-placeholder-end", slot.kind === "end");
+    placeholder.textContent = this.placeholderTextFor(slot);
+
+    if (slot.kind === "end") {
+      placeholder.addEventListener("click", () => this.close());
+    }
+
     frame.append(placeholder);
     section.append(frame);
-    page.node = section;
-    page.frame = frame;
-    this.applyPageSize(page);
+    slot.node = section;
+    slot.frame = frame;
+    this.applySlotSize(slot);
     this.strip.append(section);
 
-    if (page.state === "ready" && page.imageUrl) {
-      void this.installImage(page);
+    if (slot.state === "ready" && slot.imageUrl) {
+      void this.installImage(slot);
     }
   }
 
-  private removePage(page: InternalPage): void {
-    this.imageQueue.invalidate(page);
-    page.node?.remove();
-    page.node = null;
-    page.frame = null;
+  private fillSlotMetadata(slot: PageSlot, meta: ViewerPage): void {
+    slot.meta = { ...meta, aspectRatio: normalizedAspectRatio(meta.aspectRatio), displayNumber: slot.x };
+    slot.kind = "page";
+    slot.state = "idle";
+    slot.imageUrl = null;
+    slot.width = null;
+    slot.height = null;
+    slot.token += 1;
+
+    this.refreshSlot(slot);
+  }
+
+  private clearSlotMetadata(slot: PageSlot): void {
+    if (!slot.meta && slot.state === "ready" && !slot.imageUrl) {
+      return;
+    }
+
+    slot.meta = null;
+    slot.state = "ready";
+    slot.imageUrl = null;
+    slot.width = null;
+    slot.height = null;
+    slot.token += 1;
+    this.refreshSlot(slot);
+  }
+
+  private refreshSlot(slot: PageSlot): void {
+    if (!slot.node || !slot.frame) {
+      return;
+    }
+
+    slot.node.dataset.ehpeekDisplayNumber = String(slot.x);
+
+    if (slot.state === "ready" && slot.imageUrl) {
+      void this.installImage(slot);
+      return;
+    }
+
+    const placeholder = document.createElement("div");
+    placeholder.className = slot.state === "error" ? "ehpeek-error" : "ehpeek-placeholder";
+    placeholder.classList.toggle("ehpeek-placeholder-end", slot.kind === "end");
+    placeholder.textContent = this.placeholderTextFor(slot);
+
+    if (slot.kind === "end") {
+      placeholder.addEventListener("click", () => this.close());
+    }
+
+    slot.frame.replaceChildren(placeholder);
+  }
+
+  private placeholderTextFor(slot: PageSlot): string {
+    if (slot.state === "error") {
+      return `${texts.viewer.failedPrefix} ${slot.x}`;
+    }
+
+    if (slot.kind === "end") {
+      return texts.viewer.end;
+    }
+
+    if (slot.kind === "blank" || !slot.meta) {
+      return "";
+    }
+
+    return String(slot.x);
+  }
+
+  private removeSlot(slot: PageSlot): void {
+    this.imageQueue.invalidate(slot);
+    slot.node?.remove();
+    slot.node = null;
+    slot.frame = null;
   }
 
   private windowNumbers(): number[] {
     const numbers: number[] = [];
 
     for (let offset = -this.windowSize; offset <= this.windowSize; offset += 1) {
-      const number = this.currentPageNumber + offset;
-
-      if (number > 0 && (!this.totalPages || number <= this.totalPages)) {
-        numbers.push(number);
-      }
+      numbers.push(this.currentPageNumber + offset);
     }
 
     return numbers;
   }
 
-  private pageFor(displayNumber: number): InternalPage | undefined {
-    return this.pages.find((page) => displayNumberFor(page) === displayNumber);
+  private slotFor(displayNumber: number): PageSlot | undefined {
+    return this.slots.find((slot) => slot.x === displayNumber);
+  }
+
+  private loadedSlotFor(displayNumber: number): LoadedPageSlot | undefined {
+    return this.slots.find(
+      (slot): slot is LoadedPageSlot => slot.kind === "page" && slot.meta !== null && slot.x === displayNumber,
+    );
+  }
+
+  private maxDisplayNumber(): number {
+    return this.totalPages ? this.totalPages + 1 : Number.MAX_SAFE_INTEGER;
+  }
+
+  private isRealDisplayNumber(displayNumber: number): boolean {
+    return displayNumber >= 1 && (!this.totalPages || displayNumber <= this.totalPages);
+  }
+
+  private slotKindFor(displayNumber: number): SlotKind {
+    if (displayNumber < 1) {
+      return "blank";
+    }
+
+    if (this.totalPages && displayNumber === this.totalPages + 1) {
+      return "end";
+    }
+
+    if (this.totalPages && displayNumber > this.totalPages + 1) {
+      return "blank";
+    }
+
+    return "page";
   }
 
   private step(delta: number): void {
-    void this.setCurrentPageNumber(this.currentPageNumber + delta, true);
+    this.setCurrentPageNumber(this.currentPageNumber + delta, true);
   }
 
   private scrollToCurrentPage(): void {
-    const page = this.pageFor(this.currentPageNumber);
+    const slot = this.slotFor(this.currentPageNumber);
 
-    if (!this.scroller || !page?.node) {
+    if (!this.scroller || !slot?.node) {
       return;
     }
 
-    const pageRect = page.node.getBoundingClientRect();
+    const pageRect = slot.node.getBoundingClientRect();
     const scrollerRect = this.scroller.getBoundingClientRect();
     const delta = this.horizontal() ? pageRect.left - scrollerRect.left : pageRect.top - scrollerRect.top;
     this.addScrollPos(delta);
   }
 
-  private readonly onImageLoaded = (page: InternalPage, loaded: LoadedViewerPage, token: number): void => {
-    if (page.token !== token || !this.windowNumbers().includes(displayNumberFor(page))) {
+  private readonly onImageLoaded = (slot: PageSlot, loaded: LoadedViewerPage, token: number): void => {
+    if (slot.token !== token || !this.windowNumbers().includes(slot.x)) {
       return;
     }
 
-    page.state = "ready";
-    page.imageUrl = loaded.imageUrl;
-    page.width = positiveNumber(loaded.width);
-    page.height = positiveNumber(loaded.height);
+    slot.state = "ready";
+    slot.imageUrl = loaded.imageUrl;
+    slot.width = positiveNumber(loaded.width);
+    slot.height = positiveNumber(loaded.height);
 
-    if (page.node) {
-      this.applyPageSize(page);
-      void this.installImage(page);
+    if (slot.node) {
+      this.applySlotSize(slot);
+      void this.installImage(slot);
     }
   };
 
-  private readonly onImageError = (page: InternalPage, error: unknown, token: number): void => {
-    if (page.token !== token || !page.frame) {
+  private readonly onImageError = (slot: PageSlot, error: unknown, token: number): void => {
+    if (slot.token !== token || !slot.frame) {
       return;
     }
 
-    page.state = "error";
+    slot.state = "error";
     const message = error instanceof Error ? error.message : texts.errors.loadFailed;
     const errorBox = document.createElement("div");
     errorBox.className = "ehpeek-error";
-    errorBox.textContent = `${texts.viewer.failedPrefix} ${displayNumberFor(page)}: ${message}`;
-    page.frame.replaceChildren(errorBox);
+    errorBox.textContent = `${texts.viewer.failedPrefix} ${slot.x}: ${message}`;
+    slot.frame.replaceChildren(errorBox);
   };
 
-  private async installImage(page: InternalPage): Promise<void> {
-    if (!page.frame || !page.imageUrl) {
+  private async installImage(slot: PageSlot): Promise<void> {
+    if (!slot.frame || !slot.imageUrl) {
       return;
     }
 
-    const imageUrl = page.imageUrl;
-    const token = page.token;
+    const imageUrl = slot.imageUrl;
+    const token = slot.token;
     const image = document.createElement("img");
     image.className = "ehpeek-image";
-    image.alt = `Page ${displayNumberFor(page)}`;
+    image.alt = `Page ${slot.x}`;
     image.decoding = "async";
     image.loading = "eager";
     image.draggable = false;
-    image.setAttribute("fetchpriority", displayNumberFor(page) === this.currentPageNumber ? "high" : "low");
+    image.setAttribute("fetchpriority", slot.x === this.currentPageNumber ? "high" : "low");
     image.src = imageUrl;
 
-    if (page.width && page.height) {
-      image.width = page.width;
-      image.height = page.height;
+    if (slot.width && slot.height) {
+      image.width = slot.width;
+      image.height = slot.height;
     }
 
     try {
@@ -720,21 +857,21 @@ class FullscreenViewer {
       return;
     }
 
-    if (!this.closed && page.token === token && page.frame && page.imageUrl === imageUrl) {
-      page.frame.replaceChildren(image);
+    if (!this.closed && slot.token === token && slot.frame && slot.imageUrl === imageUrl) {
+      slot.frame.replaceChildren(image);
     }
   }
 
-  private applyPageSize(page: InternalPage): void {
-    if (!page.node || !page.frame) {
+  private applySlotSize(slot: PageSlot): void {
+    if (!slot.node || !slot.frame) {
       return;
     }
 
     const frameWidth = Math.max(1, this.scroller?.clientWidth || window.innerWidth || 1);
-    const frameHeight = Math.ceil(frameWidth * aspectRatioFor(page));
-    page.node.style.setProperty("--ehpeek-page-height", `${frameHeight + 8}px`);
-    page.node.style.setProperty("--ehpeek-frame-width", `${frameWidth}px`);
-    page.node.style.setProperty("--ehpeek-frame-height", `${frameHeight}px`);
+    const frameHeight = Math.ceil(frameWidth * aspectRatioFor(slot));
+    slot.node.style.setProperty("--ehpeek-page-height", `${frameHeight + 8}px`);
+    slot.node.style.setProperty("--ehpeek-frame-width", `${frameWidth}px`);
+    slot.node.style.setProperty("--ehpeek-frame-height", `${frameHeight}px`);
   }
 
   private updatePageNumber(): void {
@@ -742,21 +879,30 @@ class FullscreenViewer {
       return;
     }
 
-    this.pageNumberLabel.textContent = this.totalPages ? `${this.currentPageNumber} / ${this.totalPages}` : String(this.currentPageNumber);
+    this.pageNumberLabel.textContent = this.pageNumberText(this.currentPageNumber);
 
-    if (this.progressDragging) {
+    if (!this.progressInput || this.progressDragging) {
       return;
     }
 
-    this.updateProgressVisual(this.currentPageNumber);
+    this.progressInput.max = String(Math.max(1, this.totalPages ? this.totalPages + 1 : this.currentPageNumber));
+    this.progressInput.value = String(this.currentPageNumber);
   }
 
   private notifyActivePageChange(): void {
-    const page = this.pageFor(this.currentPageNumber);
+    const page = this.loadedSlotFor(this.currentPageNumber);
 
     if (page) {
-      this.onActivePageChange?.(page, page.index);
+      this.onActivePageChange?.(page.meta, page.index);
     }
+  }
+
+  private pageNumberText(displayNumber: number): string {
+    if (this.totalPages && displayNumber === this.totalPages + 1) {
+      return "end";
+    }
+
+    return this.totalPages ? `${displayNumber} / ${this.totalPages}` : String(displayNumber);
   }
 
   private readonly onKeydown = (event: KeyboardEvent): void => {
@@ -766,23 +912,15 @@ class FullscreenViewer {
       return;
     }
 
-    if (this.mode === "paged") {
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        this.step(this.leftwardDelta());
-      } else if (event.key === "ArrowRight") {
-        event.preventDefault();
-        this.step(this.rightwardDelta());
-      }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      this.step(this.leftwardDelta());
       return;
     }
 
-    if (event.key === "ArrowDown") {
+    if (event.key === "ArrowRight") {
       event.preventDefault();
-      this.step(1);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      this.step(-1);
+      this.step(this.rightwardDelta());
     }
   };
 
@@ -793,7 +931,7 @@ class FullscreenViewer {
 
     event.preventDefault();
 
-    if (this.settleFrame !== null || this.dragging) {
+    if (this.dragging) {
       return;
     }
 
@@ -805,7 +943,7 @@ class FullscreenViewer {
   };
 
   private readonly onPointerDown = (event: PointerEvent): void => {
-    if (this.mode !== "paged" || !this.scroller) {
+    if (!this.scroller) {
       return;
     }
 
@@ -814,13 +952,16 @@ class FullscreenViewer {
     }
 
     event.preventDefault();
-    this.cancelSettle();
     this.dragging = true;
     this.dragPointerId = event.pointerId;
     this.dragStartClientX = event.clientX;
     this.dragStartClientY = event.clientY;
-    this.dragStartScroll = this.scroller.scrollLeft;
-    this.scroller.setPointerCapture(event.pointerId);
+    this.dragStartScroll = this.mode === "paged" ? this.scroller.scrollLeft : this.scroller.scrollTop;
+    this.scroller.setPointerCapture?.(event.pointerId);
+    this.scroller.classList.add("ehpeek-scroller-dragging");
+    document.addEventListener("pointermove", this.onPointerMove, true);
+    document.addEventListener("pointerup", this.onPointerUp, true);
+    document.addEventListener("pointercancel", this.onPointerUp, true);
   };
 
   private readonly onPointerMove = (event: PointerEvent): void => {
@@ -828,7 +969,12 @@ class FullscreenViewer {
       return;
     }
 
-    this.scroller.scrollLeft = this.dragStartScroll - (event.clientX - this.dragStartClientX);
+    if (this.mode === "paged") {
+      this.scroller.scrollLeft = this.dragStartScroll - (event.clientX - this.dragStartClientX);
+    } else {
+      this.scroller.scrollTop = this.dragStartScroll - (event.clientY - this.dragStartClientY);
+    }
+
     event.preventDefault();
   };
 
@@ -840,9 +986,25 @@ class FullscreenViewer {
     this.dragging = false;
     this.dragPointerId = null;
     this.scroller?.releasePointerCapture?.(event.pointerId);
+    this.scroller?.classList.remove("ehpeek-scroller-dragging");
+    document.removeEventListener("pointermove", this.onPointerMove, true);
+    document.removeEventListener("pointerup", this.onPointerUp, true);
+    document.removeEventListener("pointercancel", this.onPointerUp, true);
 
     const dx = event.clientX - this.dragStartClientX;
     const dy = event.clientY - this.dragStartClientY;
+
+    if (this.mode !== "paged") {
+      if (Math.abs(dx) >= 8 || Math.abs(dy) >= 8) {
+        this.suppressNextClick = true;
+        this.setScrollTop(this.scroller?.scrollTop ?? 0);
+        this.updateCurrentFromScroll();
+      } else {
+        this.suppressNextClick = true;
+        this.toggleToolbar();
+      }
+      return;
+    }
 
     if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {
       const width = this.scroller?.clientWidth || window.innerWidth || 1;
@@ -866,7 +1028,14 @@ class FullscreenViewer {
   };
 
   private readonly onScroll = (): void => {
-    if (this.openLocked || this.dragging || this.settleFrame !== null || this.mode === "paged") {
+    if (this.dragging || this.mode === "paged") {
+      return;
+    }
+
+    const scrollTop = this.clampedScrollTop(this.scroller?.scrollTop ?? 0);
+
+    if (this.scroller && scrollTop !== this.scroller.scrollTop) {
+      this.scroller.scrollTop = scrollTop;
       return;
     }
 
@@ -888,20 +1057,20 @@ class FullscreenViewer {
     const scrollerRect = this.scroller.getBoundingClientRect();
     const target = scrollerRect.top + Math.min(80, scrollerRect.height * 0.14);
 
-    for (const page of this.pages) {
-      if (!page.node) {
+    for (const slot of this.slots) {
+      if (!slot.node || slot.kind === "blank") {
         continue;
       }
 
-      const rect = page.node.getBoundingClientRect();
+      const rect = slot.node.getBoundingClientRect();
 
       if (rect.top <= target && rect.bottom > target) {
-        const next = displayNumberFor(page);
+        const next = slot.x;
 
         if (next !== this.currentPageNumber) {
           this.direction = next > this.currentPageNumber ? 1 : -1;
           this.currentPageNumber = next;
-          void this.syncAfterPageChange({ scrollIntoView: false });
+          this.syncAfterPageChange({ scrollIntoView: false });
         }
         return;
       }
@@ -909,6 +1078,12 @@ class FullscreenViewer {
   }
 
   private readonly onScrollerClick = (event: MouseEvent): void => {
+    if (this.suppressNextClick) {
+      this.suppressNextClick = false;
+      event.preventDefault();
+      return;
+    }
+
     if (this.mode !== "scroll" || targetIsToolbar(event.target)) {
       return;
     }
@@ -918,93 +1093,43 @@ class FullscreenViewer {
 
   private readonly onProgressPointerDown = (event: PointerEvent): void => {
     this.progressDragging = true;
-    this.progressPointerId = event.pointerId;
     this.cancelProgressCommit();
-    this.progressTrack?.setPointerCapture(event.pointerId);
-    this.updateProgressFromClientX(event.clientX);
-    event.preventDefault();
+    event.stopPropagation();
   };
 
-  private readonly onProgressPointerMove = (event: PointerEvent): void => {
-    if (!this.progressDragging || event.pointerId !== this.progressPointerId) {
+  private readonly onProgressInput = (): void => {
+    const displayNumber = Number(this.progressInput?.value || "");
+
+    if (!Number.isFinite(displayNumber) || displayNumber <= 0) {
       return;
     }
 
-    this.updateProgressFromClientX(event.clientX);
-    event.preventDefault();
+    this.progressDragging = true;
+    this.pendingProgressDisplayNumber = displayNumber;
+    this.updatePageNumberText(displayNumber);
+    this.cancelProgressCommit();
+    this.progressCommitTimer = window.setTimeout(() => this.onProgressCommit(), 1500);
   };
 
-  private readonly onProgressPointerUp = (event: PointerEvent): void => {
-    if (event.pointerId !== this.progressPointerId) {
-      return;
-    }
-
-    this.progressTrack?.releasePointerCapture?.(event.pointerId);
-    this.progressPointerId = null;
-    this.onProgressCommit();
-  };
-
-  private onProgressCommit(): void {
+  private readonly onProgressCommit = (): void => {
     if (!this.progressDragging && this.pendingProgressDisplayNumber === null) {
       return;
     }
 
-    const displayNumber = this.pendingProgressDisplayNumber ?? this.currentPageNumber;
+    const displayNumber = this.pendingProgressDisplayNumber ?? Number(this.progressInput?.value || "");
     this.progressDragging = false;
     this.pendingProgressDisplayNumber = null;
     this.cancelProgressCommit();
 
     if (Number.isFinite(displayNumber) && displayNumber > 0) {
-      void this.setCurrentPageNumber(displayNumber, true);
+      this.setCurrentPageNumber(displayNumber, true);
     }
-  }
-
-  private updateProgressFromClientX(clientX: number): void {
-    const displayNumber = this.displayNumberFromProgressClientX(clientX);
-
-    if (displayNumber === null) {
-      return;
-    }
-
-    this.pendingProgressDisplayNumber = displayNumber;
-    this.updatePageNumberText(displayNumber);
-    this.updateProgressVisual(displayNumber);
-    this.cancelProgressCommit();
-    this.progressCommitTimer = window.setTimeout(() => this.onProgressCommit(), 1500);
-  }
-
-  private displayNumberFromProgressClientX(clientX: number): number | null {
-    if (!this.progressTrack) {
-      return null;
-    }
-
-    const max = Math.max(1, this.totalPages ?? this.currentPageNumber);
-    const rect = this.progressTrack.getBoundingClientRect();
-
-    if (rect.width <= 0) {
-      return null;
-    }
-
-    const ratio =
-      this.readDirection === "rtl"
-        ? clamp((rect.right - clientX) / rect.width, 0, 1)
-        : clamp((clientX - rect.left) / rect.width, 0, 1);
-    return clamp(Math.round(1 + ratio * (max - 1)), 1, max);
-  }
+  };
 
   private updatePageNumberText(displayNumber: number): void {
     if (this.pageNumberLabel) {
-      this.pageNumberLabel.textContent = this.totalPages ? `${displayNumber} / ${this.totalPages}` : String(displayNumber);
+      this.pageNumberLabel.textContent = this.pageNumberText(displayNumber);
     }
-  }
-
-  private updateProgressVisual(displayNumber: number): void {
-    const max = Math.max(1, this.totalPages ?? displayNumber);
-    const ratio = max <= 1 ? 0 : (displayNumber - 1) / (max - 1);
-    const percent = `${ratio * 100}%`;
-
-    this.progressFill?.style.setProperty("--ehpeek-progress-value", percent);
-    this.progressThumb?.style.setProperty("--ehpeek-progress-value", percent);
   }
 
   private cancelProgressCommit(): void {
@@ -1021,10 +1146,9 @@ class FullscreenViewer {
 
     this.resizeFrame = window.requestAnimationFrame(() => {
       this.resizeFrame = null;
-      for (const page of this.pages) {
-        this.applyPageSize(page);
+      for (const slot of this.slots) {
+        this.applySlotSize(slot);
       }
-      this.scrollToCurrentPage();
     });
   };
 
@@ -1037,7 +1161,6 @@ class FullscreenViewer {
     saveViewMode(mode);
     this.overlay?.classList.toggle("ehpeek-paged", mode === "paged");
     this.updateModeButton();
-    this.lockOpenScroll();
     window.requestAnimationFrame(() => this.scrollToCurrentPage());
   }
 
@@ -1047,8 +1170,6 @@ class FullscreenViewer {
     this.overlay?.classList.toggle("ehpeek-read-rtl", this.readDirection === "rtl");
     this.overlay?.classList.toggle("ehpeek-read-ltr", this.readDirection === "ltr");
     this.updateReadDirectionButton();
-    this.updateProgressVisual(this.pendingProgressDisplayNumber ?? this.currentPageNumber);
-    window.requestAnimationFrame(() => this.scrollToCurrentPage());
   }
 
   private toggleRightTapAction(): void {
@@ -1089,6 +1210,7 @@ class FullscreenViewer {
 
   private toggleToolbar(): void {
     const hidden = this.toolbar?.classList.toggle("ehpeek-toolbar-hidden") ?? false;
+    this.overlay?.classList.toggle("ehpeek-toolbar-open", !hidden);
     this.modeButton?.classList.toggle("ehpeek-control-hidden", hidden);
     this.readDirectionButton?.classList.toggle("ehpeek-control-hidden", hidden);
     this.rightTapButton?.classList.toggle("ehpeek-control-hidden", hidden);
@@ -1111,19 +1233,6 @@ class FullscreenViewer {
     return -this.rightwardDelta();
   }
 
-  private lockOpenScroll(): void {
-    this.openLocked = true;
-
-    if (this.openUnlockTimer !== null) {
-      window.clearTimeout(this.openUnlockTimer);
-    }
-
-    this.openUnlockTimer = window.setTimeout(() => {
-      this.openLocked = false;
-      this.openUnlockTimer = null;
-    }, 450);
-  }
-
   private horizontal(): boolean {
     return this.mode === "paged";
   }
@@ -1136,16 +1245,65 @@ class FullscreenViewer {
     if (this.horizontal()) {
       this.scroller.scrollLeft += delta;
     } else {
-      this.scroller.scrollTop += delta;
+      this.setScrollTop(this.scroller.scrollTop + delta);
     }
   }
 
-  private cancelSettle(): void {
-    if (this.settleFrame !== null) {
-      window.cancelAnimationFrame(this.settleFrame);
-      this.settleFrame = null;
+  private setScrollTop(scrollTop: number): void {
+    if (!this.scroller) {
+      return;
     }
+
+    this.scroller.scrollTop = this.clampedScrollTop(scrollTop);
   }
+
+  private clampedScrollTop(scrollTop: number): number {
+    const bounds = this.scrollBounds();
+
+    if (!bounds) {
+      return scrollTop;
+    }
+
+    return clamp(
+      scrollTop,
+      bounds.min ?? Number.NEGATIVE_INFINITY,
+      bounds.max ?? Number.POSITIVE_INFINITY,
+    );
+  }
+
+  private scrollBounds(): { min?: number; max?: number } | null {
+    if (!this.scroller || this.mode !== "scroll") {
+      return null;
+    }
+
+    const firstSlot = this.slotFor(1);
+    const lastSlot = this.totalPages ? this.slotFor(this.totalPages + 1) : undefined;
+
+    const scrollerRect = this.scroller.getBoundingClientRect();
+    const bounds: { min?: number; max?: number } = {};
+
+    if (firstSlot?.node) {
+      const firstRect = firstSlot.node.getBoundingClientRect();
+      bounds.min = this.scroller.scrollTop + firstRect.top - scrollerRect.top;
+    }
+
+    if (lastSlot?.node) {
+      const lastRect = lastSlot.node.getBoundingClientRect();
+      const lastTop = this.scroller.scrollTop + lastRect.top - scrollerRect.top;
+      bounds.max = lastTop + lastRect.height - this.scroller.clientHeight;
+    }
+
+    if (bounds.min === undefined && bounds.max === undefined) {
+      return null;
+    }
+
+    if (bounds.min !== undefined && bounds.max !== undefined) {
+      bounds.max = Math.max(bounds.min, bounds.max);
+    }
+
+    return bounds;
+  }
+
 }
 
 async function loadImage(image: HTMLImageElement): Promise<void> {
@@ -1165,11 +1323,14 @@ async function loadImage(image: HTMLImageElement): Promise<void> {
   }
 }
 
-function toInternalPage(page: ViewerPage, index: number): InternalPage {
+function toPageSlot(page: ViewerPage, index: number): PageSlot {
+  const x = typeof page.displayNumber === "number" && Number.isFinite(page.displayNumber) ? page.displayNumber : index + 1;
+
   return {
-    ...page,
-    aspectRatio: normalizedAspectRatio(page.aspectRatio),
+    x,
     index,
+    kind: "page",
+    meta: { ...page, aspectRatio: normalizedAspectRatio(page.aspectRatio), displayNumber: x },
     state: "idle",
     imageUrl: null,
     width: null,
@@ -1180,14 +1341,26 @@ function toInternalPage(page: ViewerPage, index: number): InternalPage {
   };
 }
 
-function displayNumberFor(page: ViewerPage & { index: number }): number {
-  return page.displayNumber && page.displayNumber > 0 ? page.displayNumber : page.index + 1;
+function createSlot(x: number, kind: SlotKind): PageSlot {
+  return {
+    x,
+    index: 0,
+    kind,
+    meta: null,
+    state: kind === "page" ? "idle" : "ready",
+    imageUrl: null,
+    width: null,
+    height: null,
+    node: null,
+    frame: null,
+    token: 0,
+  };
 }
 
-function aspectRatioFor(page: InternalPage): number {
-  return page.width && page.height && page.width > 0 && page.height > 0
-    ? page.height / page.width
-    : normalizedAspectRatio(page.aspectRatio);
+function aspectRatioFor(slot: PageSlot): number {
+  return slot.width && slot.height && slot.width > 0 && slot.height > 0
+    ? slot.height / slot.width
+    : normalizedAspectRatio(slot.meta?.aspectRatio);
 }
 
 function targetIsToolbar(target: EventTarget | null): boolean {
@@ -1254,6 +1427,10 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+function stopEvent(event: Event): void {
+  event.stopPropagation();
+}
+
 function ensureViewerStyle(): void {
   if (document.getElementById(STYLE_ID)) {
     return;
@@ -1309,6 +1486,13 @@ function ensureViewerStyle(): void {
       font-size: 13px;
     }
 
+    #${VIEWER_ID}.ehpeek-toolbar-open .ehpeek-actions .ehpeek-button {
+      min-width: 52px;
+      height: 44px;
+      padding: 0 12px;
+      font-size: 16px;
+    }
+
     .ehpeek-disable-button {
       min-width: 48px;
       padding: 0 10px;
@@ -1320,38 +1504,6 @@ function ensureViewerStyle(): void {
       display: none;
     }
 
-    @media (pointer: coarse) {
-      .ehpeek-button {
-        min-width: 48px;
-        height: 48px;
-        border-radius: 8px;
-        font-size: 24px;
-      }
-
-      .ehpeek-disable-button {
-        min-width: 58px;
-        font-size: 15px;
-      }
-
-      .ehpeek-topbar {
-        top: calc(8px + env(safe-area-inset-top, 0px));
-        right: 8px;
-      }
-
-      .ehpeek-progressbar {
-        right: 8px;
-        bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-        left: 8px;
-        gap: 10px;
-        padding: 10px;
-      }
-
-      .ehpeek-pageno {
-        min-width: 76px;
-        font-size: 16px;
-      }
-    }
-
     .ehpeek-pageno {
       position: fixed;
       top: calc(12px + env(safe-area-inset-top, 0px));
@@ -1360,7 +1512,7 @@ function ensureViewerStyle(): void {
       min-width: 64px;
       padding: 4px 10px;
       border-radius: 6px;
-      background: rgba(15, 15, 15, 0.72);
+      background: rgba(15, 15, 15, 0.34);
       color: #f3f3f3;
       font: 600 14px/1.4 system-ui, sans-serif;
       white-space: nowrap;
@@ -1369,20 +1521,19 @@ function ensureViewerStyle(): void {
       pointer-events: none;
     }
 
+    #${VIEWER_ID}.ehpeek-toolbar-open .ehpeek-pageno {
+      top: calc(62px + env(safe-area-inset-top, 0px));
+    }
+
     .ehpeek-progressbar {
       position: fixed;
-      right: 10px;
-      bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-      left: 10px;
+      right: max(12px, env(safe-area-inset-right, 0px));
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      left: max(12px, env(safe-area-inset-left, 0px));
       z-index: 2;
       display: flex;
       align-items: center;
-      padding: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 8px;
-      background: rgba(15, 15, 15, 0.82);
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
-      backdrop-filter: blur(10px);
+      padding: 0;
       transition: opacity 160ms ease, transform 160ms ease;
     }
 
@@ -1393,62 +1544,61 @@ function ensureViewerStyle(): void {
     }
 
     .ehpeek-progress {
-      position: relative;
       width: 100%;
-      height: 32px;
-      cursor: pointer;
+      height: 48px;
+      margin: 0;
+      padding: 0 12px;
+      accent-color: #f3f3f3;
+      cursor: grab;
       touch-action: none;
+      user-select: none;
+      -webkit-appearance: none;
+      appearance: none;
     }
 
-    .ehpeek-progress::before {
-      position: absolute;
-      right: 0;
-      left: 0;
-      top: 50%;
-      height: 4px;
+    .ehpeek-progress:active {
+      cursor: grabbing;
+    }
+
+    #${VIEWER_ID}.ehpeek-read-rtl .ehpeek-progress {
+      direction: rtl;
+    }
+
+    #${VIEWER_ID}.ehpeek-read-ltr .ehpeek-progress {
+      direction: ltr;
+    }
+
+    .ehpeek-progress::-webkit-slider-runnable-track {
+      height: 8px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.24);
-      content: "";
-      transform: translateY(-50%);
+      background: rgba(255, 255, 255, 0.34);
     }
 
-    .ehpeek-progress-fill {
-      position: absolute;
-      top: 50%;
-      width: var(--ehpeek-progress-value, 0%);
-      height: 4px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.84);
-      transform: translateY(-50%);
-    }
-
-    .ehpeek-progress-thumb {
-      position: absolute;
-      top: 50%;
-      width: 22px;
-      height: 22px;
+    .ehpeek-progress::-webkit-slider-thumb {
+      width: 30px;
+      height: 30px;
+      margin-top: -11px;
       border: 2px solid rgba(15, 15, 15, 0.92);
       border-radius: 50%;
       background: #f3f3f3;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+      -webkit-appearance: none;
+      appearance: none;
     }
 
-    #${VIEWER_ID}.ehpeek-read-rtl .ehpeek-progress-fill {
-      right: 0;
+    .ehpeek-progress::-moz-range-track {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.34);
     }
 
-    #${VIEWER_ID}.ehpeek-read-rtl .ehpeek-progress-thumb {
-      right: var(--ehpeek-progress-value, 0%);
-      transform: translate(50%, -50%);
-    }
-
-    #${VIEWER_ID}.ehpeek-read-ltr .ehpeek-progress-fill {
-      left: 0;
-    }
-
-    #${VIEWER_ID}.ehpeek-read-ltr .ehpeek-progress-thumb {
-      left: var(--ehpeek-progress-value, 0%);
-      transform: translate(-50%, -50%);
+    .ehpeek-progress::-moz-range-thumb {
+      width: 30px;
+      height: 30px;
+      border: 2px solid rgba(15, 15, 15, 0.92);
+      border-radius: 50%;
+      background: #f3f3f3;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
     }
 
     .ehpeek-scroller {
@@ -1457,9 +1607,15 @@ function ensureViewerStyle(): void {
       overflow: auto;
       overscroll-behavior: contain;
       scroll-behavior: auto;
-      touch-action: pan-y;
+      touch-action: none;
+      cursor: grab;
       scrollbar-width: none;
       -ms-overflow-style: none;
+    }
+
+    .ehpeek-scroller-dragging {
+      cursor: grabbing;
+      user-select: none;
     }
 
     .ehpeek-scroller::-webkit-scrollbar {
@@ -1467,6 +1623,8 @@ function ensureViewerStyle(): void {
     }
 
     .ehpeek-strip {
+      display: flex;
+      flex-direction: column;
       width: 100%;
       min-height: 100%;
       padding: 56px 0 72px;
@@ -1515,6 +1673,13 @@ function ensureViewerStyle(): void {
       color: #ffb2a7;
       font-size: 18px;
       font-weight: 700;
+    }
+
+    .ehpeek-placeholder-end {
+      padding: 24px;
+      font-size: clamp(24px, 6vw, 42px);
+      font-weight: 700;
+      line-height: 1.3;
     }
 
     .ehpeek-image {
@@ -1571,6 +1736,11 @@ function ensureViewerStyle(): void {
         font-size: 24px;
       }
 
+      .ehpeek-disable-button {
+        min-width: 58px;
+        font-size: 15px;
+      }
+
       .ehpeek-direction-button {
         min-width: 56px;
         padding: 0 10px;
@@ -1582,16 +1752,62 @@ function ensureViewerStyle(): void {
         right: 8px;
       }
 
-      .ehpeek-progressbar {
-        right: 8px;
-        bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-        left: 8px;
-        padding: 10px;
+      #${VIEWER_ID}.ehpeek-toolbar-open .ehpeek-actions .ehpeek-button {
+        min-width: 64px;
+        height: 56px;
+        padding: 0 14px;
+        font-size: 17px;
       }
 
+      .ehpeek-progressbar {
+        right: max(12px, env(safe-area-inset-right, 0px));
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        left: max(12px, env(safe-area-inset-left, 0px));
+        padding: 0;
+      }
+
+      .ehpeek-progress {
+        height: 60px;
+        padding: 0 16px;
+      }
+
+      .ehpeek-progress::-webkit-slider-thumb {
+        width: 36px;
+        height: 36px;
+        margin-top: -14px;
+      }
+
+      .ehpeek-progress::-moz-range-thumb {
+        width: 36px;
+        height: 36px;
+      }
+    }
+
+    @media (orientation: landscape) {
       .ehpeek-pageno {
-        min-width: 76px;
-        font-size: 16px;
+        top: calc(54px + env(safe-area-inset-top, 0px));
+        right: 10px;
+        left: auto;
+        min-width: 0;
+        max-width: calc(100vw - 20px);
+        text-align: right;
+        transform: none;
+      }
+
+      #${VIEWER_ID}.ehpeek-toolbar-open .ehpeek-pageno {
+        top: calc(64px + env(safe-area-inset-top, 0px));
+      }
+    }
+
+    @media (orientation: landscape) and (pointer: coarse) {
+      .ehpeek-pageno {
+        top: calc(62px + env(safe-area-inset-top, 0px));
+        right: 8px;
+        max-width: calc(100vw - 16px);
+      }
+
+      #${VIEWER_ID}.ehpeek-toolbar-open .ehpeek-pageno {
+        top: calc(72px + env(safe-area-inset-top, 0px));
       }
     }
   `;
