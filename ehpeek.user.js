@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ehpeek: E-H/ExH viewer
 // @namespace    ehpeek
-// @version      260708.0440
+// @version      260708.0457
 // @description  A mobile-optimized E-H/ExH viewer
 // @match        *://e-hentai.org/*
 // @match        *://exhentai.org/*
@@ -46,7 +46,7 @@
   };
 
   // src/viewer.ts
-  var VIEW_MODE_KEY = "ehpeek:view-mode", READ_DIRECTION_KEY = "ehpeek:read-direction", RIGHT_TAP_ACTION_KEY = "ehpeek:right-tap-action", VIEWER_ID = "ehpeek-reader", STYLE_ID = "ehpeek-reader-style", DEFAULT_WINDOW_SIZE = 10, DEFAULT_NEAR_CONCURRENT_LOADS = 3, DEFAULT_FAR_CONCURRENT_LOADS = 6, NEAR_LOAD_AHEAD = 3, FALLBACK_ASPECT_RATIO = 1.42, PAGED_SWIPE_THRESHOLD = 24, PAGED_WHEEL_THRESHOLD = 8, PAGED_SMOOTH_SCROLL_MS = 240, PROGRESS_IDLE_COMMIT_MS = 1e3, SCROLL_FLING_MIN_VELOCITY = 0.35, SCROLL_FLING_STOP_VELOCITY = 0.02, SCROLL_FLING_DECAY = 45e-4, activeViewer = null;
+  var VIEW_MODE_KEY = "ehpeek:view-mode", READ_DIRECTION_KEY = "ehpeek:read-direction", RIGHT_TAP_ACTION_KEY = "ehpeek:right-tap-action", VIEWER_ID = "ehpeek-reader", STYLE_ID = "ehpeek-reader-style", DEFAULT_WINDOW_SIZE = 10, DEFAULT_NEAR_CONCURRENT_LOADS = 3, DEFAULT_FAR_CONCURRENT_LOADS = 6, NEAR_LOAD_AHEAD = 3, FALLBACK_ASPECT_RATIO = 1.42, PAGED_SWIPE_THRESHOLD = 24, PAGED_WHEEL_THRESHOLD = 8, PAGED_SMOOTH_SCROLL_MS = 180, PROGRESS_IDLE_COMMIT_MS = 1e3, SCROLL_FLING_MIN_VELOCITY = 0.35, SCROLL_FLING_STOP_VELOCITY = 0.02, SCROLL_FLING_DECAY = 45e-4, activeViewer = null;
   function openFullscreenViewer(options) {
     activeViewer?.close();
     let viewer = new FullscreenViewer(options);
@@ -367,6 +367,12 @@
       let token = ++this.syncToken, numbers = this.windowNumbers(), missing = numbers.filter((number) => this.isRealDisplayNumber(number) && !this.loadedSlotFor(number));
       this.maintainContainers(numbers, []), this.maintainLoadQueue(), this.notifyActivePageChange(), options.scrollIntoView && this.scrollToCurrentPage(options.scrollBehavior), missing.length > 0 && this.loadMissingPages(missing, token);
     }
+    rebuildForCurrentMode() {
+      this.cancelScrollFling(), this.pagedScrollCommitTimer !== null && (window.clearTimeout(this.pagedScrollCommitTimer), this.pagedScrollCommitTimer = null);
+      for (let slot of this.slots)
+        slot.node?.remove(), slot.node = null, slot.frame = null;
+      this.scroller && (this.scroller.scrollLeft = 0, this.scroller.scrollTop = 0), this.syncAfterPageChange({ scrollIntoView: !0 });
+    }
     async loadMissingPages(displayNumbers, token) {
       let incoming;
       try {
@@ -565,7 +571,7 @@
       this.progressCommitTimer !== null && (window.clearTimeout(this.progressCommitTimer), this.progressCommitTimer = null);
     }
     setMode(mode) {
-      mode !== this.mode && (this.mode === "scroll" && mode === "paged" && this.updateCurrentFromScroll(), this.mode = mode, saveViewMode(mode), this.overlay?.classList.toggle("ehpeek-paged", mode === "paged"), this.updateModeButton(), window.requestAnimationFrame(() => this.scrollToCurrentPage("smooth")));
+      mode !== this.mode && (this.mode = mode, saveViewMode(mode), this.overlay?.classList.toggle("ehpeek-paged", mode === "paged"), this.updateModeButton(), this.rebuildForCurrentMode());
     }
     toggleReadDirection() {
       this.readDirection = this.readDirection === "rtl" ? "ltr" : "rtl", saveReadDirection(this.readDirection), this.overlay?.classList.toggle("ehpeek-read-rtl", this.readDirection === "rtl"), this.overlay?.classList.toggle("ehpeek-read-ltr", this.readDirection === "ltr"), this.updateReadDirectionButton();
