@@ -964,13 +964,13 @@ class FullscreenViewer {
 
     if (event.key === "ArrowLeft") {
       event.preventDefault();
-      this.step(this.leftwardDelta());
+      this.step(this.leftTapDelta());
       return;
     }
 
     if (event.key === "ArrowRight") {
       event.preventDefault();
-      this.step(this.rightwardDelta());
+      this.step(this.rightTapDelta());
     }
   };
 
@@ -1318,7 +1318,7 @@ class FullscreenViewer {
     }
 
     const previous = this.rightTapAction === "previous";
-    this.rightTapButton.textContent = previous ? "R-1" : "R+1";
+    this.rightTapButton.textContent = previous ? "R-" : "R+";
     this.rightTapButton.title = previous ? texts.viewer.rightTapNext : texts.viewer.rightTapPrevious;
   }
 
