@@ -17,7 +17,7 @@ const NEAR_LOAD_AHEAD = 3;
 const FALLBACK_ASPECT_RATIO = 1.42;
 const PAGED_SWIPE_THRESHOLD = 24;
 const PAGED_WHEEL_THRESHOLD = 8;
-const PAGED_SMOOTH_SCROLL_MS = 240;
+const PAGED_SMOOTH_SCROLL_MS = 180;
 const PROGRESS_IDLE_COMMIT_MS = 1000;
 const SCROLL_FLING_MIN_VELOCITY = 0.35;
 const SCROLL_FLING_STOP_VELOCITY = 0.02;
@@ -548,6 +548,28 @@ class FullscreenViewer {
     if (missing.length > 0) {
       void this.loadMissingPages(missing, token);
     }
+  }
+
+  private rebuildForCurrentMode(): void {
+    this.cancelScrollFling();
+
+    if (this.pagedScrollCommitTimer !== null) {
+      window.clearTimeout(this.pagedScrollCommitTimer);
+      this.pagedScrollCommitTimer = null;
+    }
+
+    for (const slot of this.slots) {
+      slot.node?.remove();
+      slot.node = null;
+      slot.frame = null;
+    }
+
+    if (this.scroller) {
+      this.scroller.scrollLeft = 0;
+      this.scroller.scrollTop = 0;
+    }
+
+    this.syncAfterPageChange({ scrollIntoView: true });
   }
 
   private async loadMissingPages(displayNumbers: number[], token: number): Promise<void> {
@@ -1354,15 +1376,11 @@ class FullscreenViewer {
       return;
     }
 
-    if (this.mode === "scroll" && mode === "paged") {
-      this.updateCurrentFromScroll();
-    }
-
     this.mode = mode;
     saveViewMode(mode);
     this.overlay?.classList.toggle("ehpeek-paged", mode === "paged");
     this.updateModeButton();
-    window.requestAnimationFrame(() => this.scrollToCurrentPage("smooth"));
+    this.rebuildForCurrentMode();
   }
 
   private toggleReadDirection(): void {
