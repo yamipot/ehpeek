@@ -8,8 +8,17 @@
     "readRightToLeft": "Read right to left",
     "rightTapPrevious": "Right tap goes to previous page",
     "rightTapNext": "Right tap goes to next page",
+    "disableReader": "Disable Ehpeek Reader",
     "end": "End of gallery. Tap to exit.",
     "failedPrefix": "Failed"
+  },
+  "settings": {
+    "openSettings": "Settings",
+    "menuLabel": "Ehpeek",
+    "readerOn": "Reader: on",
+    "readerOff": "Reader: off",
+    "enableReader": "Enable Ehpeek Reader",
+    "disableReader": "Disable Ehpeek Reader"
   },
   "errors": {
     "imageNotFound": "Image not found",

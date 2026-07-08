@@ -19,6 +19,8 @@ const metadata = [
   `// @description  ${texts.description}`,
   "// @match        *://e-hentai.org/*",
   "// @match        *://exhentai.org/*",
+  "// @grant        GM_registerMenuCommand",
+  "// @grant        GM_unregisterMenuCommand",
   "// @run-at       document-end",
   `// @updateURL    ${installUrl}`,
   `// @downloadURL  ${installUrl}`,

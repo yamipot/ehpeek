@@ -42,6 +42,7 @@ export type FullscreenViewerOptions = {
   nearConcurrentLoads?: number;
   farConcurrentLoads?: number;
   onActivePageChange?: (page: ViewerPage, index: number) => void;
+  onDisableReader?: () => void;
 };
 
 type PageState = "idle" | "loading" | "ready" | "error";
@@ -250,6 +251,8 @@ class FullscreenViewer {
   private readonly loadPages: FullscreenViewerOptions["loadPages"];
   private readonly onExit: FullscreenViewerOptions["onExit"];
   private readonly onActivePageChange: ((page: ViewerPage, index: number) => void) | undefined;
+  private readonly onDisableReader: (() => void) | undefined;
+  private disableReaderButton: HTMLButtonElement | null = null;
   private overlay: HTMLDivElement | null = null;
   private scroller: HTMLDivElement | null = null;
   private strip: HTMLElement | null = null;
@@ -294,6 +297,7 @@ class FullscreenViewer {
     this.loadPages = options.loadPages;
     this.onExit = options.onExit;
     this.onActivePageChange = options.onActivePageChange;
+    this.onDisableReader = options.onDisableReader;
     this.imageQueue = new TwoTierImageQueue(
       options.loadPage,
       this.onImageLoaded,
@@ -381,9 +385,20 @@ class FullscreenViewer {
     closeButton.textContent = "X";
     closeButton.addEventListener("click", () => this.close());
 
+    const disableReaderButton = document.createElement("button");
+    disableReaderButton.type = "button";
+    disableReaderButton.className = "ehpeek-button ehpeek-disable-button ehpeek-control-hidden";
+    disableReaderButton.title = texts.viewer.disableReader;
+    disableReaderButton.textContent = "off";
+    disableReaderButton.addEventListener("click", () => {
+      this.onDisableReader?.();
+      this.close();
+    });
+    this.disableReaderButton = disableReaderButton;
+
     const actions = document.createElement("div");
     actions.className = "ehpeek-actions";
-    actions.append(modeButton, readDirectionButton, rightTapButton, closeButton);
+    actions.append(readDirectionButton, rightTapButton, modeButton, disableReaderButton, closeButton);
 
     const pageNumberLabel = document.createElement("div");
     pageNumberLabel.className = "ehpeek-pageno";
@@ -1077,6 +1092,7 @@ class FullscreenViewer {
     this.modeButton?.classList.toggle("ehpeek-control-hidden", hidden);
     this.readDirectionButton?.classList.toggle("ehpeek-control-hidden", hidden);
     this.rightTapButton?.classList.toggle("ehpeek-control-hidden", hidden);
+    this.disableReaderButton?.classList.toggle("ehpeek-control-hidden", hidden);
   }
 
   private rightTapDelta(): number {
@@ -1293,8 +1309,47 @@ function ensureViewerStyle(): void {
       font-size: 13px;
     }
 
+    .ehpeek-disable-button {
+      min-width: 48px;
+      padding: 0 10px;
+      font-size: 13px;
+      text-transform: uppercase;
+    }
+
     .ehpeek-control-hidden {
       display: none;
+    }
+
+    @media (pointer: coarse) {
+      .ehpeek-button {
+        min-width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        font-size: 24px;
+      }
+
+      .ehpeek-disable-button {
+        min-width: 58px;
+        font-size: 15px;
+      }
+
+      .ehpeek-topbar {
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        right: 8px;
+      }
+
+      .ehpeek-progressbar {
+        right: 8px;
+        bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        left: 8px;
+        gap: 10px;
+        padding: 10px;
+      }
+
+      .ehpeek-pageno {
+        min-width: 76px;
+        font-size: 16px;
+      }
     }
 
     .ehpeek-pageno {

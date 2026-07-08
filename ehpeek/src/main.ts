@@ -3,6 +3,75 @@ import texts from "./texts.json";
 
 const REQUEST_TIMEOUT_MS = 30000;
 const PREVIEW_CACHE_LIMIT = 10;
+const READER_ENABLED_KEY = "ehpeek:reader-enabled";
+const LEGACY_THUMBNAIL_VIEWER_ENABLED_KEY = "ehpeek:thumbnail-viewer-enabled";
+const SETTINGS_ROOT_ID = "ehpeek-settings-root";
+const SETTINGS_TRIGGER_ID = "ehpeek-settings-trigger";
+const SETTINGS_MENU_ID = "ehpeek-settings-menu";
+const SETTINGS_READER_ID = "ehpeek-reader-setting";
+const SETTINGS_STYLE_ID = "ehpeek-settings-style";
+
+declare const GM_registerMenuCommand:
+  | undefined
+  | ((caption: string, commandFunc: () => void, accessKey?: string) => number | string);
+declare const GM_unregisterMenuCommand: undefined | ((menuCmdId: number | string) => void);
+
+let menuCommandId: number | string | null = null;
+
+function readerEnabled(): boolean {
+  try {
+    const value = window.localStorage.getItem(READER_ENABLED_KEY);
+
+    if (value !== null) {
+      return value !== "false";
+    }
+
+    const legacyValue = window.localStorage.getItem(LEGACY_THUMBNAIL_VIEWER_ENABLED_KEY);
+    return legacyValue !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function setReaderEnabled(enabled: boolean): void {
+  try {
+    window.localStorage.setItem(READER_ENABLED_KEY, String(enabled));
+    window.localStorage.removeItem(LEGACY_THUMBNAIL_VIEWER_ENABLED_KEY);
+  } catch {
+    // Ignore storage failures (private mode, disabled storage, etc.).
+  }
+
+  updateSettingsMenu();
+  registerUserscriptMenu();
+}
+
+function toggleReader(): void {
+  setReaderEnabled(!readerEnabled());
+}
+
+function registerUserscriptMenu(): void {
+  if (typeof GM_registerMenuCommand !== "function") {
+    return;
+  }
+
+  if (menuCommandId !== null && typeof GM_unregisterMenuCommand === "function") {
+    GM_unregisterMenuCommand(menuCommandId);
+    menuCommandId = null;
+  }
+
+  menuCommandId = GM_registerMenuCommand(
+    texts.settings.openSettings,
+    openSettingsMenu,
+  );
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (max < min) {
+    return min;
+  }
+
+  return Math.min(max, Math.max(min, value));
+}
 
 function normalizeUrl(url: string, baseUrl = window.location.href): string {
   try {
@@ -431,6 +500,7 @@ async function openReader(startPageUrl: string): Promise<void> {
         window.location.replace(galleryUrl);
       }
     },
+    onDisableReader: () => setReaderEnabled(false),
   });
 }
 
@@ -440,7 +510,236 @@ function reportOpenError(error: unknown): void {
   window.alert(message);
 }
 
+function ensureSettingsStyle(): void {
+  if (document.getElementById(SETTINGS_STYLE_ID)) {
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = SETTINGS_STYLE_ID;
+  style.textContent = `
+    #${SETTINGS_MENU_ID} {
+      position: fixed;
+      z-index: 2147483646;
+      min-width: 190px;
+      padding: 6px;
+      border: 1px solid currentColor;
+      border-radius: 4px;
+      background: Canvas;
+      color: CanvasText;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
+    }
+
+    #${SETTINGS_MENU_ID}[hidden] {
+      display: none;
+    }
+
+    #${SETTINGS_READER_ID} {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 6px 8px;
+      border: 0;
+      border-radius: 3px;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+    }
+
+    #${SETTINGS_READER_ID}:hover {
+      background: color-mix(in srgb, currentColor 10%, transparent);
+    }
+
+    #${SETTINGS_READER_ID}::after {
+      content: "";
+      flex: 0 0 auto;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #2faa44;
+    }
+
+    #${SETTINGS_READER_ID}[aria-checked="false"]::after {
+      background: #999;
+    }
+  `;
+  document.head.append(style);
+}
+
+function positionSettingsMenu(): void {
+  const trigger = document.getElementById(SETTINGS_TRIGGER_ID);
+  const menu = document.getElementById(SETTINGS_MENU_ID);
+
+  if (!trigger || !menu || menu.hidden) {
+    return;
+  }
+
+  const gap = 4;
+  const edgePadding = 8;
+  const triggerRect = trigger.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
+  const left = clamp(triggerRect.right - menuRect.width, edgePadding, window.innerWidth - menuRect.width - edgePadding);
+  const top = clamp(triggerRect.bottom + gap, edgePadding, window.innerHeight - menuRect.height - edgePadding);
+
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+function updateSettingsMenu(): void {
+  const trigger = document.getElementById(SETTINGS_TRIGGER_ID);
+  const setting = document.getElementById(SETTINGS_READER_ID);
+  const menu = document.getElementById(SETTINGS_MENU_ID);
+
+  if (trigger) {
+    trigger.textContent = texts.settings.menuLabel;
+    trigger.setAttribute("aria-expanded", String(menu ? !menu.hidden : false));
+    trigger.setAttribute("aria-haspopup", "menu");
+  }
+
+  const enabled = readerEnabled();
+
+  if (setting) {
+    setting.setAttribute("aria-checked", String(enabled));
+    setting.textContent = enabled ? texts.settings.readerOn : texts.settings.readerOff;
+    setting.title = enabled ? texts.settings.disableReader : texts.settings.enableReader;
+  }
+
+  positionSettingsMenu();
+}
+
+function closeSettingsMenu(): void {
+  const menu = document.getElementById(SETTINGS_MENU_ID);
+
+  if (!menu || menu.hidden) {
+    return;
+  }
+
+  menu.hidden = true;
+  updateSettingsMenu();
+}
+
+function toggleSettingsMenu(): void {
+  const menu = document.getElementById(SETTINGS_MENU_ID);
+
+  if (!menu) {
+    return;
+  }
+
+  const nextHidden = !menu.hidden;
+  menu.hidden = nextHidden;
+  updateSettingsMenu();
+
+  if (!nextHidden) {
+    positionSettingsMenu();
+  }
+}
+
+function openSettingsMenu(): void {
+  if (!document.getElementById(SETTINGS_ROOT_ID)) {
+    installSettingsMenu();
+  }
+
+  const menu = document.getElementById(SETTINGS_MENU_ID);
+
+  if (!menu) {
+    return;
+  }
+
+  menu.hidden = false;
+  updateSettingsMenu();
+  positionSettingsMenu();
+}
+
+function installSettingsMenu(): void {
+  if (document.getElementById(SETTINGS_ROOT_ID)) {
+    updateSettingsMenu();
+    return;
+  }
+
+  const thumbnailContainer = document.querySelector("#gdt");
+  const titleContainer = document.querySelector("#gd2, h1");
+  const topNav = document.querySelector("#nb");
+  const anchor = thumbnailContainer ?? titleContainer;
+
+  if (!topNav && !anchor?.parentElement) {
+    return;
+  }
+
+  ensureSettingsStyle();
+
+  const root = document.createElement(topNav ? "div" : "span");
+  root.id = SETTINGS_ROOT_ID;
+
+  const trigger = topNav ? document.createElement("a") : document.createElement("button");
+  trigger.id = SETTINGS_TRIGGER_ID;
+  if (trigger instanceof HTMLAnchorElement) {
+    trigger.href = "#";
+  } else {
+    trigger.type = "button";
+  }
+  trigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleSettingsMenu();
+  });
+
+  const menu = document.createElement("div");
+  menu.id = SETTINGS_MENU_ID;
+  menu.hidden = true;
+
+  const readerSetting = document.createElement("button");
+  readerSetting.id = SETTINGS_READER_ID;
+  readerSetting.type = "button";
+  readerSetting.setAttribute("role", "switch");
+  readerSetting.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleReader();
+  });
+
+  menu.append(readerSetting);
+  root.append(trigger, menu);
+
+  if (topNav) {
+    topNav.append(root);
+  } else {
+    const wrapper = document.createElement("div");
+    wrapper.style.textAlign = "right";
+    wrapper.append(root);
+
+    if (thumbnailContainer) {
+      anchor?.parentElement?.insertBefore(wrapper, anchor);
+    } else {
+      anchor?.insertAdjacentElement("afterend", wrapper);
+    }
+  }
+
+  document.addEventListener("click", (event) => {
+    if (event.target instanceof Element && event.target.closest(`#${SETTINGS_ROOT_ID}`)) {
+      return;
+    }
+
+    closeSettingsMenu();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeSettingsMenu();
+    }
+  });
+  window.addEventListener("resize", positionSettingsMenu);
+  window.addEventListener("scroll", positionSettingsMenu, true);
+
+  updateSettingsMenu();
+}
+
 function onDocumentClick(event: MouseEvent): void {
+  if (!readerEnabled()) {
+    return;
+  }
+
   const link = findClickedImageLink(event.target);
 
   if (!link) {
@@ -467,7 +766,12 @@ async function openReaderFromHash(): Promise<void> {
   }
 }
 
+registerUserscriptMenu();
+
 if (/^\/g\/\d+\/[^/]+\/?$/i.test(window.location.pathname)) {
+  installSettingsMenu();
   document.addEventListener("click", onDocumentClick, true);
-  void openReaderFromHash();
+  if (readerEnabled()) {
+    void openReaderFromHash();
+  }
 }
