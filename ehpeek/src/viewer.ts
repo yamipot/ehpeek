@@ -949,7 +949,7 @@ class FullscreenViewer {
 
   private pageNumberText(displayNumber: number): string {
     if (this.totalPages && displayNumber === this.totalPages + 1) {
-      return "end";
+      return "End";
     }
 
     return this.totalPages ? `${displayNumber} / ${this.totalPages}` : String(displayNumber);
@@ -1595,31 +1595,25 @@ function ensureViewerStyle(): void {
     }
 
     .ehpeek-button {
-      min-width: 36px;
-      height: 36px;
+      width: 46px;
+      height: 40px;
+      padding: 0 10px;
       border: 1px solid rgba(255, 255, 255, 0.18);
       border-radius: 6px;
       background: rgba(35, 35, 35, 0.88);
       color: #f3f3f3;
       cursor: pointer;
-      font: 700 18px/1 system-ui, sans-serif;
+      font: 700 16px/1 system-ui, sans-serif;
     }
 
     .ehpeek-direction-button {
-      min-width: 48px;
-      padding: 0 8px;
-      font-size: 13px;
-    }
-
-    #${VIEWER_ID}.ehpeek-toolbar-open .ehpeek-actions .ehpeek-button {
-      min-width: 52px;
-      height: 44px;
-      padding: 0 12px;
-      font-size: 16px;
+      width: 46px;
+      padding: 0 10px;
+      font-size: 15px;
     }
 
     .ehpeek-disable-button {
-      min-width: 48px;
+      width: 46px;
       padding: 0 10px;
       font-size: 13px;
       text-transform: uppercase;
@@ -1631,7 +1625,7 @@ function ensureViewerStyle(): void {
 
     .ehpeek-pageno {
       position: fixed;
-      top: calc(12px + env(safe-area-inset-top, 0px));
+      top: calc(62px + env(safe-area-inset-top, 0px));
       left: 50%;
       z-index: 3;
       min-width: 64px;
@@ -1644,10 +1638,6 @@ function ensureViewerStyle(): void {
       text-align: center;
       transform: translateX(-50%);
       pointer-events: none;
-    }
-
-    #${VIEWER_ID}.ehpeek-toolbar-open .ehpeek-pageno {
-      top: calc(62px + env(safe-area-inset-top, 0px));
     }
 
     .ehpeek-progressbar {
@@ -1802,9 +1792,11 @@ function ensureViewerStyle(): void {
 
     .ehpeek-placeholder-end {
       padding: 24px;
+      direction: ltr;
       font-size: clamp(24px, 6vw, 42px);
       font-weight: 700;
       line-height: 1.3;
+      unicode-bidi: plaintext;
     }
 
     .ehpeek-image {
@@ -1855,33 +1847,31 @@ function ensureViewerStyle(): void {
 
     @media (pointer: coarse) {
       .ehpeek-button {
-        min-width: 48px;
-        height: 48px;
+        width: 68px;
+        height: 60px;
+        padding: 0 16px;
         border-radius: 8px;
-        font-size: 24px;
+        font-size: 18px;
       }
 
       .ehpeek-disable-button {
-        min-width: 58px;
+        width: 68px;
         font-size: 15px;
       }
 
       .ehpeek-direction-button {
-        min-width: 56px;
-        padding: 0 10px;
-        font-size: 15px;
+        width: 68px;
+        padding: 0 16px;
+        font-size: 16px;
+      }
+
+      .ehpeek-pageno {
+        top: calc(72px + env(safe-area-inset-top, 0px));
       }
 
       .ehpeek-topbar {
         top: calc(8px + env(safe-area-inset-top, 0px));
         right: 8px;
-      }
-
-      #${VIEWER_ID}.ehpeek-toolbar-open .ehpeek-actions .ehpeek-button {
-        min-width: 64px;
-        height: 56px;
-        padding: 0 14px;
-        font-size: 17px;
       }
 
       .ehpeek-progressbar {
@@ -1892,19 +1882,19 @@ function ensureViewerStyle(): void {
       }
 
       .ehpeek-progress {
-        height: 60px;
-        padding: 0 16px;
+        height: 72px;
+        padding: 0 19px;
       }
 
       .ehpeek-progress::-webkit-slider-thumb {
-        width: 36px;
-        height: 36px;
-        margin-top: -14px;
+        width: 43px;
+        height: 43px;
+        margin-top: -17px;
       }
 
       .ehpeek-progress::-moz-range-thumb {
-        width: 36px;
-        height: 36px;
+        width: 43px;
+        height: 43px;
       }
     }
 
@@ -1918,10 +1908,6 @@ function ensureViewerStyle(): void {
         text-align: right;
         transform: none;
       }
-
-      #${VIEWER_ID}.ehpeek-toolbar-open .ehpeek-pageno {
-        top: calc(64px + env(safe-area-inset-top, 0px));
-      }
     }
 
     @media (orientation: landscape) and (pointer: coarse) {
@@ -1929,10 +1915,6 @@ function ensureViewerStyle(): void {
         top: calc(62px + env(safe-area-inset-top, 0px));
         right: 8px;
         max-width: calc(100vw - 16px);
-      }
-
-      #${VIEWER_ID}.ehpeek-toolbar-open .ehpeek-pageno {
-        top: calc(72px + env(safe-area-inset-top, 0px));
       }
     }
   `;
