@@ -1,8 +1,12 @@
 import texts from "./texts.json";
 
 export type ViewMode = "scroll" | "paged";
+type ReadDirection = "ltr" | "rtl";
+type RightTapAction = "previous" | "next";
 
 const VIEW_MODE_KEY = "ehpeek:view-mode";
+const READ_DIRECTION_KEY = "ehpeek:read-direction";
+const RIGHT_TAP_ACTION_KEY = "ehpeek:right-tap-action";
 const VIEWER_ID = "ehpeek-reader";
 const STYLE_ID = "ehpeek-reader-style";
 const DEFAULT_WINDOW_SIZE = 10;
@@ -237,6 +241,8 @@ class FullscreenViewer {
   private activeIndex = 0;
   private direction: Direction = 1;
   private mode: ViewMode = loadViewMode();
+  private readDirection: ReadDirection = loadReadDirection();
+  private rightTapAction: RightTapAction = loadRightTapAction();
   private readonly totalPages: number | undefined;
   private readonly windowSize: number;
   private readonly preloadWindowSize: number;
@@ -249,6 +255,8 @@ class FullscreenViewer {
   private strip: HTMLElement | null = null;
   private toolbar: HTMLDivElement | null = null;
   private modeButton: HTMLButtonElement | null = null;
+  private readDirectionButton: HTMLButtonElement | null = null;
+  private rightTapButton: HTMLButtonElement | null = null;
   private pageNumberLabel: HTMLElement | null = null;
   private progressTrack: HTMLDivElement | null = null;
   private progressFill: HTMLDivElement | null = null;
@@ -342,9 +350,23 @@ class FullscreenViewer {
     const overlay = document.createElement("div");
     overlay.id = VIEWER_ID;
     overlay.classList.toggle("ehpeek-paged", this.mode === "paged");
+    overlay.classList.toggle("ehpeek-read-rtl", this.readDirection === "rtl");
+    overlay.classList.toggle("ehpeek-read-ltr", this.readDirection === "ltr");
 
     const topbar = document.createElement("div");
     topbar.className = "ehpeek-topbar";
+
+    const readDirectionButton = document.createElement("button");
+    readDirectionButton.type = "button";
+    readDirectionButton.className = "ehpeek-button ehpeek-direction-button ehpeek-control-hidden";
+    readDirectionButton.addEventListener("click", () => this.toggleReadDirection());
+    this.readDirectionButton = readDirectionButton;
+
+    const rightTapButton = document.createElement("button");
+    rightTapButton.type = "button";
+    rightTapButton.className = "ehpeek-button ehpeek-direction-button ehpeek-control-hidden";
+    rightTapButton.addEventListener("click", () => this.toggleRightTapAction());
+    this.rightTapButton = rightTapButton;
 
     const modeButton = document.createElement("button");
     modeButton.type = "button";
@@ -361,7 +383,7 @@ class FullscreenViewer {
 
     const actions = document.createElement("div");
     actions.className = "ehpeek-actions";
-    actions.append(modeButton, closeButton);
+    actions.append(modeButton, readDirectionButton, rightTapButton, closeButton);
 
     const pageNumberLabel = document.createElement("div");
     pageNumberLabel.className = "ehpeek-pageno";
@@ -410,6 +432,8 @@ class FullscreenViewer {
     document.body.append(overlay);
     this.overlay = overlay;
     this.updateModeButton();
+    this.updateReadDirectionButton();
+    this.updateRightTapButton();
     this.updatePageNumber();
   }
 
@@ -730,10 +754,10 @@ class FullscreenViewer {
     if (this.mode === "paged") {
       if (event.key === "ArrowLeft") {
         event.preventDefault();
-        this.step(1);
+        this.step(this.leftwardDelta());
       } else if (event.key === "ArrowRight") {
         event.preventDefault();
-        this.step(-1);
+        this.step(this.rightwardDelta());
       }
       return;
     }
@@ -761,7 +785,7 @@ class FullscreenViewer {
     const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
 
     if (Math.abs(delta) >= PAGED_WHEEL_THRESHOLD) {
-      this.step(delta > 0 ? 1 : -1);
+      this.step(delta > 0 ? this.rightwardDelta() : this.leftwardDelta());
     }
   };
 
@@ -812,15 +836,15 @@ class FullscreenViewer {
       if (zone >= 1 / 3 && zone <= 2 / 3) {
         this.toggleToolbar();
       } else {
-        this.step(zone < 1 / 3 ? 1 : -1);
+        this.step(zone < 1 / 3 ? this.leftTapDelta() : this.rightTapDelta());
       }
       return;
     }
 
     if (dx >= PAGED_SWIPE_THRESHOLD) {
-      this.step(1);
+      this.step(this.leftwardDelta());
     } else if (dx <= -PAGED_SWIPE_THRESHOLD) {
-      this.step(-1);
+      this.step(this.rightwardDelta());
     } else {
       this.scrollToCurrentPage();
     }
@@ -946,7 +970,10 @@ class FullscreenViewer {
       return null;
     }
 
-    const ratio = clamp((rect.right - clientX) / rect.width, 0, 1);
+    const ratio =
+      this.readDirection === "rtl"
+        ? clamp((rect.right - clientX) / rect.width, 0, 1)
+        : clamp((clientX - rect.left) / rect.width, 0, 1);
     return clamp(Math.round(1 + ratio * (max - 1)), 1, max);
   }
 
@@ -999,6 +1026,22 @@ class FullscreenViewer {
     window.requestAnimationFrame(() => this.scrollToCurrentPage());
   }
 
+  private toggleReadDirection(): void {
+    this.readDirection = this.readDirection === "rtl" ? "ltr" : "rtl";
+    saveReadDirection(this.readDirection);
+    this.overlay?.classList.toggle("ehpeek-read-rtl", this.readDirection === "rtl");
+    this.overlay?.classList.toggle("ehpeek-read-ltr", this.readDirection === "ltr");
+    this.updateReadDirectionButton();
+    this.updateProgressVisual(this.pendingProgressDisplayNumber ?? this.currentPageNumber);
+    window.requestAnimationFrame(() => this.scrollToCurrentPage());
+  }
+
+  private toggleRightTapAction(): void {
+    this.rightTapAction = this.rightTapAction === "previous" ? "next" : "previous";
+    saveRightTapAction(this.rightTapAction);
+    this.updateRightTapButton();
+  }
+
   private updateModeButton(): void {
     if (!this.modeButton) {
       return;
@@ -1009,9 +1052,47 @@ class FullscreenViewer {
     this.modeButton.title = paged ? texts.viewer.scrollMode : texts.viewer.pagedMode;
   }
 
+  private updateReadDirectionButton(): void {
+    if (!this.readDirectionButton) {
+      return;
+    }
+
+    const rtl = this.readDirection === "rtl";
+    this.readDirectionButton.textContent = rtl ? "RL" : "LR";
+    this.readDirectionButton.title = rtl ? texts.viewer.readLeftToRight : texts.viewer.readRightToLeft;
+  }
+
+  private updateRightTapButton(): void {
+    if (!this.rightTapButton) {
+      return;
+    }
+
+    const previous = this.rightTapAction === "previous";
+    this.rightTapButton.textContent = previous ? "R-1" : "R+1";
+    this.rightTapButton.title = previous ? texts.viewer.rightTapNext : texts.viewer.rightTapPrevious;
+  }
+
   private toggleToolbar(): void {
     const hidden = this.toolbar?.classList.toggle("ehpeek-toolbar-hidden") ?? false;
     this.modeButton?.classList.toggle("ehpeek-control-hidden", hidden);
+    this.readDirectionButton?.classList.toggle("ehpeek-control-hidden", hidden);
+    this.rightTapButton?.classList.toggle("ehpeek-control-hidden", hidden);
+  }
+
+  private rightTapDelta(): number {
+    return this.rightTapAction === "previous" ? -1 : 1;
+  }
+
+  private leftTapDelta(): number {
+    return -this.rightTapDelta();
+  }
+
+  private rightwardDelta(): number {
+    return this.readDirection === "ltr" ? 1 : -1;
+  }
+
+  private leftwardDelta(): number {
+    return -this.rightwardDelta();
   }
 
   private lockOpenScroll(): void {
@@ -1113,6 +1194,38 @@ function saveViewMode(mode: ViewMode): void {
   }
 }
 
+function loadReadDirection(): ReadDirection {
+  try {
+    return window.localStorage.getItem(READ_DIRECTION_KEY) === "ltr" ? "ltr" : "rtl";
+  } catch {
+    return "rtl";
+  }
+}
+
+function saveReadDirection(direction: ReadDirection): void {
+  try {
+    window.localStorage.setItem(READ_DIRECTION_KEY, direction);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function loadRightTapAction(): RightTapAction {
+  try {
+    return window.localStorage.getItem(RIGHT_TAP_ACTION_KEY) === "next" ? "next" : "previous";
+  } catch {
+    return "previous";
+  }
+}
+
+function saveRightTapAction(action: RightTapAction): void {
+  try {
+    window.localStorage.setItem(RIGHT_TAP_ACTION_KEY, action);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
 function normalizedAspectRatio(value: number | null | undefined): number {
   return value && Number.isFinite(value) && value > 0 ? value : FALLBACK_ASPECT_RATIO;
 }
@@ -1172,6 +1285,12 @@ function ensureViewerStyle(): void {
       color: #f3f3f3;
       cursor: pointer;
       font: 700 18px/1 system-ui, sans-serif;
+    }
+
+    .ehpeek-direction-button {
+      min-width: 48px;
+      padding: 0 8px;
+      font-size: 13px;
     }
 
     .ehpeek-control-hidden {
@@ -1240,7 +1359,6 @@ function ensureViewerStyle(): void {
 
     .ehpeek-progress-fill {
       position: absolute;
-      right: 0;
       top: 50%;
       width: var(--ehpeek-progress-value, 0%);
       height: 4px;
@@ -1251,7 +1369,6 @@ function ensureViewerStyle(): void {
 
     .ehpeek-progress-thumb {
       position: absolute;
-      right: var(--ehpeek-progress-value, 0%);
       top: 50%;
       width: 22px;
       height: 22px;
@@ -1259,7 +1376,24 @@ function ensureViewerStyle(): void {
       border-radius: 50%;
       background: #f3f3f3;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    #${VIEWER_ID}.ehpeek-read-rtl .ehpeek-progress-fill {
+      right: 0;
+    }
+
+    #${VIEWER_ID}.ehpeek-read-rtl .ehpeek-progress-thumb {
+      right: var(--ehpeek-progress-value, 0%);
       transform: translate(50%, -50%);
+    }
+
+    #${VIEWER_ID}.ehpeek-read-ltr .ehpeek-progress-fill {
+      left: 0;
+    }
+
+    #${VIEWER_ID}.ehpeek-read-ltr .ehpeek-progress-thumb {
+      left: var(--ehpeek-progress-value, 0%);
+      transform: translate(-50%, -50%);
     }
 
     .ehpeek-scroller {
@@ -1339,9 +1473,16 @@ function ensureViewerStyle(): void {
 
     #${VIEWER_ID}.ehpeek-paged .ehpeek-scroller {
       overflow: hidden;
-      direction: rtl;
       touch-action: none;
       user-select: none;
+    }
+
+    #${VIEWER_ID}.ehpeek-paged.ehpeek-read-rtl .ehpeek-scroller {
+      direction: rtl;
+    }
+
+    #${VIEWER_ID}.ehpeek-paged.ehpeek-read-ltr .ehpeek-scroller {
+      direction: ltr;
     }
 
     #${VIEWER_ID}.ehpeek-paged .ehpeek-strip {
@@ -1373,6 +1514,12 @@ function ensureViewerStyle(): void {
         height: 48px;
         border-radius: 8px;
         font-size: 24px;
+      }
+
+      .ehpeek-direction-button {
+        min-width: 56px;
+        padding: 0 10px;
+        font-size: 15px;
       }
 
       .ehpeek-topbar {

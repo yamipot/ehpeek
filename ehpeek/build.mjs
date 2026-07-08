@@ -7,6 +7,7 @@ import { build } from "esbuild";
 const packageDir = path.dirname(fileURLToPath(import.meta.url));
 const outfile = path.join(packageDir, "dist/ehpeek.user.js");
 const texts = JSON.parse(readFileSync(path.join(packageDir, "src/texts.json"), "utf-8"));
+const releaseBuild = process.env.EHPEEK_RELEASE_BUILD === "true";
 const installUrl = userscriptInstallUrl();
 const version = userscriptVersion();
 
@@ -33,6 +34,7 @@ await build({
   format: "iife",
   target: "es2020",
   charset: "utf8",
+  sourcemap: releaseBuild ? false : "linked",
   banner: {
     js: metadata,
   },
@@ -55,7 +57,7 @@ function commitTimeVersion() {
 function userscriptVersion() {
   const baseVersion = commitTimeVersion();
 
-  if (process.env.EHPEEK_RELEASE_BUILD === "true") {
+  if (releaseBuild) {
     return baseVersion;
   }
 
@@ -63,7 +65,7 @@ function userscriptVersion() {
 }
 
 function userscriptInstallUrl() {
-  if (process.env.EHPEEK_RELEASE_BUILD === "true") {
+  if (releaseBuild) {
     return "https://github.com/yamipot/userscripts/raw/build-master/ehpeek.user.js";
   }
 
