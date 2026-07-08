@@ -1,8 +1,8 @@
 import texts from "./texts.json";
+import { ScrollAnimator, ScrollFlingAnimator } from "./animation";
 import { debugLog } from "./utils";
 
 export type ViewMode = "scroll" | "paged";
-type PagedAnimation = "none" | "native" | "raf";
 type ReadDirection = "ltr" | "rtl";
 type RightTapAction = "previous" | "next";
 
@@ -15,18 +15,10 @@ const DEFAULT_WINDOW_SIZE = 10;
 const DEFAULT_NEAR_CONCURRENT_LOADS = 3;
 const DEFAULT_FAR_CONCURRENT_LOADS = 6;
 const NEAR_LOAD_AHEAD = 3;
-const FALLBACK_ASPECT_RATIO = 1.42;
 const PAGED_SWIPE_THRESHOLD = 24;
 const PAGED_WHEEL_THRESHOLD = 8;
-const PAGED_ANIMATION: PagedAnimation = "raf";
-const PAGED_SMOOTH_SCROLL_MS = 180;
-const PAGED_SCROLL_EASING_POWER = 3;
 const PROGRESS_IDLE_COMMIT_MS = 1000;
-const ANIMATION_FRAME_MIN_DELTA_MS = 1;
-const ANIMATION_FRAME_MAX_DELTA_MS = 32;
-const SCROLL_FLING_MIN_VELOCITY = 0.35;
-const SCROLL_FLING_STOP_VELOCITY = 0.02;
-const SCROLL_FLING_DECAY = 0.0045;
+const FALLBACK_ASPECT_RATIO = 1.42;
 
 export type ViewerPage = {
   url: string;
@@ -55,8 +47,8 @@ export type FullscreenViewerOptions = {
   onDisableReader?: () => void;
 };
 
-type PageState = "idle" | "loading" | "ready" | "error";
 type Direction = -1 | 1;
+type PageState = "idle" | "loading" | "ready" | "error";
 type SlotKind = "page" | "blank" | "end";
 
 type PageSlot = {
@@ -73,11 +65,6 @@ type PageSlot = {
   token: number;
 };
 
-type LoadedPageSlot = PageSlot & {
-  kind: "page";
-  meta: ViewerPage;
-};
-
 let activeViewer: FullscreenViewer | null = null;
 
 export function openFullscreenViewer(options: FullscreenViewerOptions): void {
@@ -85,6 +72,60 @@ export function openFullscreenViewer(options: FullscreenViewerOptions): void {
   const viewer = new FullscreenViewer(options);
   activeViewer = viewer;
   viewer.open();
+}
+
+class SlotWindow {
+  slots: PageSlot[];
+
+  constructor(
+    pages: ViewerPage[],
+    private readonly totalPages: number | undefined,
+    private readonly windowSize: number,
+  ) {
+    this.slots = pages.map((page, index) => toPageSlot(page, index));
+  }
+
+  setSlots(slots: PageSlot[]): void {
+    this.slots = slots;
+  }
+
+  windowNumbers(currentPageNumber: number): number[] {
+    const numbers: number[] = [];
+
+    for (let offset = -this.windowSize; offset <= this.windowSize; offset += 1) {
+      numbers.push(currentPageNumber + offset);
+    }
+
+    return numbers;
+  }
+
+  slotFor(displayNumber: number): PageSlot | undefined {
+    return this.slots.find((slot) => slot.x === displayNumber);
+  }
+
+  maxDisplayNumber(): number {
+    return this.totalPages ? this.totalPages + 1 : Number.MAX_SAFE_INTEGER;
+  }
+
+  isRealDisplayNumber(displayNumber: number): boolean {
+    return displayNumber >= 1 && (!this.totalPages || displayNumber <= this.totalPages);
+  }
+
+  slotKindFor(displayNumber: number): SlotKind {
+    if (displayNumber < 1) {
+      return "blank";
+    }
+
+    if (this.totalPages && displayNumber === this.totalPages + 1) {
+      return "end";
+    }
+
+    if (this.totalPages && displayNumber > this.totalPages + 1) {
+      return "blank";
+    }
+
+    return "page";
+  }
 }
 
 class TwoTierImageQueue {
@@ -261,14 +302,13 @@ class TwoTierImageQueue {
 }
 
 class FullscreenViewer {
-  private slots: PageSlot[];
+  private readonly slotWindow: SlotWindow;
   private currentPageNumber: number;
   private direction: Direction = 1;
   private mode: ViewMode = loadViewMode();
   private readDirection: ReadDirection = loadReadDirection();
   private rightTapAction: RightTapAction = loadRightTapAction();
   private readonly totalPages: number | undefined;
-  private readonly windowSize: number;
   private readonly preloadWindowSize: number;
   private readonly imageQueue: TwoTierImageQueue;
   private readonly loadPages: FullscreenViewerOptions["loadPages"];
@@ -291,8 +331,6 @@ class FullscreenViewer {
   private previousDocumentTouchAction = "";
   private scrollFrame: number | null = null;
   private resizeFrame: number | null = null;
-  private flingFrame: number | null = null;
-  private pagedAnimationFrame: number | null = null;
   private pagedScrollCommitTimer: number | null = null;
   private progressCommitTimer: number | null = null;
   private pendingProgressDisplayNumber: number | null = null;
@@ -306,19 +344,18 @@ class FullscreenViewer {
   private dragLastClientY = 0;
   private dragLastMoveTime = 0;
   private dragVelocityY = 0;
-  private flingVelocityY = 0;
-  private flingLastFrameTime = 0;
+  private readonly horizontalScrollAnimator = new ScrollAnimator("x");
+  private readonly scrollFlingAnimator = new ScrollFlingAnimator();
   private syncToken = 0;
   private historyEntry = false;
   private closing = false;
   private closed = false;
 
   constructor(options: FullscreenViewerOptions) {
-    this.slots = options.pages.map((page, index) => toPageSlot(page, index));
+    this.totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : undefined;
+    this.slotWindow = new SlotWindow(options.pages, this.totalPages, options.renderWindowSize ?? DEFAULT_WINDOW_SIZE);
     const startIndex = clamp(options.startIndex, 0, Math.max(0, this.slots.length - 1));
     this.currentPageNumber = this.slots[startIndex]?.x ?? 1;
-    this.totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : undefined;
-    this.windowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE;
     this.preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE;
     this.loadPages = options.loadPages;
     this.onExit = options.onExit;
@@ -331,6 +368,10 @@ class FullscreenViewer {
       options.nearConcurrentLoads ?? DEFAULT_NEAR_CONCURRENT_LOADS,
       options.farConcurrentLoads ?? DEFAULT_FAR_CONCURRENT_LOADS,
     );
+  }
+
+  private get slots(): PageSlot[] {
+    return this.slotWindow.slots;
   }
 
   open(): void {
@@ -515,8 +556,8 @@ class FullscreenViewer {
       window.cancelAnimationFrame(this.resizeFrame);
     }
 
-    this.cancelScrollFling();
-    this.cancelPagedAnimation();
+    this.scrollFlingAnimator.cancel();
+    this.horizontalScrollAnimator.cancel();
 
     if (this.pagedScrollCommitTimer !== null) {
       window.clearTimeout(this.pagedScrollCommitTimer);
@@ -542,7 +583,10 @@ class FullscreenViewer {
   private syncAfterPageChange(options: { scrollIntoView: boolean; scrollBehavior?: ScrollBehavior }): void {
     const token = ++this.syncToken;
     const numbers = this.windowNumbers();
-    const missing = numbers.filter((number) => this.isRealDisplayNumber(number) && !this.loadedSlotFor(number));
+    const missing = numbers.filter((number) => {
+      const slot = this.slotFor(number);
+      return this.isRealDisplayNumber(number) && !slot?.meta;
+    });
 
     this.maintainContainers(numbers, []);
     this.maintainLoadQueue();
@@ -558,8 +602,8 @@ class FullscreenViewer {
   }
 
   private rebuildForCurrentMode(): void {
-    this.cancelScrollFling();
-    this.cancelPagedAnimation();
+    this.scrollFlingAnimator.cancel();
+    this.horizontalScrollAnimator.cancel();
 
     if (this.pagedScrollCommitTimer !== null) {
       window.clearTimeout(this.pagedScrollCommitTimer);
@@ -640,7 +684,7 @@ class FullscreenViewer {
       }
     }
 
-    this.slots = nextSlots;
+    this.slotWindow.setSlots(nextSlots);
     this.slots.forEach((slot, index) => {
       slot.index = index;
     });
@@ -791,47 +835,23 @@ class FullscreenViewer {
   }
 
   private windowNumbers(): number[] {
-    const numbers: number[] = [];
-
-    for (let offset = -this.windowSize; offset <= this.windowSize; offset += 1) {
-      numbers.push(this.currentPageNumber + offset);
-    }
-
-    return numbers;
+    return this.slotWindow.windowNumbers(this.currentPageNumber);
   }
 
   private slotFor(displayNumber: number): PageSlot | undefined {
-    return this.slots.find((slot) => slot.x === displayNumber);
-  }
-
-  private loadedSlotFor(displayNumber: number): LoadedPageSlot | undefined {
-    return this.slots.find(
-      (slot): slot is LoadedPageSlot => slot.kind === "page" && slot.meta !== null && slot.x === displayNumber,
-    );
+    return this.slotWindow.slotFor(displayNumber);
   }
 
   private maxDisplayNumber(): number {
-    return this.totalPages ? this.totalPages + 1 : Number.MAX_SAFE_INTEGER;
+    return this.slotWindow.maxDisplayNumber();
   }
 
   private isRealDisplayNumber(displayNumber: number): boolean {
-    return displayNumber >= 1 && (!this.totalPages || displayNumber <= this.totalPages);
+    return this.slotWindow.isRealDisplayNumber(displayNumber);
   }
 
   private slotKindFor(displayNumber: number): SlotKind {
-    if (displayNumber < 1) {
-      return "blank";
-    }
-
-    if (this.totalPages && displayNumber === this.totalPages + 1) {
-      return "end";
-    }
-
-    if (this.totalPages && displayNumber > this.totalPages + 1) {
-      return "blank";
-    }
-
-    return "page";
+    return this.slotWindow.slotKindFor(displayNumber);
   }
 
   private step(delta: number): void {
@@ -868,11 +888,7 @@ class FullscreenViewer {
     this.pagedScrollCommitTimer = window.setTimeout(() => {
       this.pagedScrollCommitTimer = null;
       this.setCurrentPageNumber(target, true);
-    }, this.pagedAnimationCommitDelay());
-  }
-
-  private pagedAnimationCommitDelay(): number {
-    return PAGED_ANIMATION === "none" ? 0 : PAGED_SMOOTH_SCROLL_MS;
+    }, this.horizontalScrollAnimator.commitDelay());
   }
 
   private scrollToCurrentPage(behavior: ScrollBehavior = "auto"): void {
@@ -986,10 +1002,10 @@ class FullscreenViewer {
   }
 
   private notifyActivePageChange(): void {
-    const page = this.loadedSlotFor(this.currentPageNumber);
+    const slot = this.slotFor(this.currentPageNumber);
 
-    if (page) {
-      this.onActivePageChange?.(page.meta, page.index);
+    if (slot?.meta) {
+      this.onActivePageChange?.(slot.meta, slot.index);
     }
   }
 
@@ -1058,8 +1074,8 @@ class FullscreenViewer {
     }
 
     event.preventDefault();
-    this.cancelScrollFling();
-    this.cancelPagedAnimation();
+    this.scrollFlingAnimator.cancel();
+    this.horizontalScrollAnimator.cancel();
     this.dragging = true;
     this.dragPointerId = event.pointerId;
     this.dragStartClientX = event.clientX;
@@ -1205,51 +1221,17 @@ class FullscreenViewer {
   };
 
   private applyScrollFling(): void {
-    if (!this.scroller || Math.abs(this.dragVelocityY) < SCROLL_FLING_MIN_VELOCITY) {
+    if (!this.scroller) {
       return;
     }
 
-    this.flingVelocityY = -this.dragVelocityY;
-    this.flingLastFrameTime = performance.now();
-    this.flingFrame = window.requestAnimationFrame(this.onScrollFlingFrame);
-  }
-
-  private readonly onScrollFlingFrame = (time: number): void => {
-    if (!this.scroller || this.mode !== "scroll") {
-      this.cancelScrollFling();
-      return;
-    }
-
-    const elapsed = clamp(time - this.flingLastFrameTime, ANIMATION_FRAME_MIN_DELTA_MS, ANIMATION_FRAME_MAX_DELTA_MS);
-    this.flingLastFrameTime = time;
-
-    const previousScrollTop = this.scroller.scrollTop;
-    this.setScrollTop(previousScrollTop + this.flingVelocityY * elapsed);
-
-    if (this.scroller.scrollTop === previousScrollTop) {
-      this.cancelScrollFling();
-      this.updateCurrentFromScroll();
-      return;
-    }
-
-    this.flingVelocityY *= Math.exp(-SCROLL_FLING_DECAY * elapsed);
-
-    if (Math.abs(this.flingVelocityY) < SCROLL_FLING_STOP_VELOCITY) {
-      this.cancelScrollFling();
-      this.updateCurrentFromScroll();
-      return;
-    }
-
-    this.flingFrame = window.requestAnimationFrame(this.onScrollFlingFrame);
-  };
-
-  private cancelScrollFling(): void {
-    if (this.flingFrame !== null) {
-      window.cancelAnimationFrame(this.flingFrame);
-      this.flingFrame = null;
-    }
-
-    this.flingVelocityY = 0;
+    this.scrollFlingAnimator.start({
+      scroller: this.scroller,
+      initialVelocityY: -this.dragVelocityY,
+      setScrollTop: (scrollTop) => this.setScrollTop(scrollTop),
+      canRun: () => !this.closed && this.mode === "scroll",
+      onStop: () => this.updateCurrentFromScroll(),
+    });
   }
 
   private updateCurrentFromScroll(): void {
@@ -1486,61 +1468,7 @@ class FullscreenViewer {
       return;
     }
 
-    this.cancelPagedAnimation();
-
-    if (behavior !== "smooth" || PAGED_ANIMATION === "none") {
-      this.scroller.scrollLeft = left;
-      return;
-    }
-
-    if (PAGED_ANIMATION === "native") {
-      this.scroller.scrollTo({ left, behavior: "smooth" });
-      return;
-    }
-
-    this.animatePagedScrollTo(left);
-  }
-
-  private animatePagedScrollTo(left: number): void {
-    if (!this.scroller) {
-      return;
-    }
-
-    const startLeft = this.scroller.scrollLeft;
-    const delta = left - startLeft;
-    let lastFrameTime = performance.now();
-    let animationTime = 0;
-
-    const step = (time: number): void => {
-      if (!this.scroller) {
-        this.cancelPagedAnimation();
-        return;
-      }
-
-      const elapsed = clamp(time - lastFrameTime, ANIMATION_FRAME_MIN_DELTA_MS, ANIMATION_FRAME_MAX_DELTA_MS);
-      lastFrameTime = time;
-      animationTime += elapsed;
-
-      const progress = clamp(animationTime / PAGED_SMOOTH_SCROLL_MS, 0, 1);
-      const eased = 1 - Math.pow(1 - progress, PAGED_SCROLL_EASING_POWER);
-      this.scroller.scrollLeft = startLeft + delta * eased;
-
-      if (progress >= 1) {
-        this.pagedAnimationFrame = null;
-        return;
-      }
-
-      this.pagedAnimationFrame = window.requestAnimationFrame(step);
-    };
-
-    this.pagedAnimationFrame = window.requestAnimationFrame(step);
-  }
-
-  private cancelPagedAnimation(): void {
-    if (this.pagedAnimationFrame !== null) {
-      window.cancelAnimationFrame(this.pagedAnimationFrame);
-      this.pagedAnimationFrame = null;
-    }
+    this.horizontalScrollAnimator.scrollTo(this.scroller, left, behavior);
   }
 
   private setScrollTop(scrollTop: number): void {
