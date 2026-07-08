@@ -17,7 +17,8 @@ const NEAR_LOAD_AHEAD = 3;
 const FALLBACK_ASPECT_RATIO = 1.42;
 const PAGED_SWIPE_THRESHOLD = 24;
 const PAGED_WHEEL_THRESHOLD = 8;
-const PAGED_SMOOTH_SCROLL_MS = 260;
+const PAGED_SMOOTH_SCROLL_MS = 120;
+const PROGRESS_IDLE_COMMIT_MS = 1000;
 
 export type ViewerPage = {
   url: string;
@@ -734,7 +735,7 @@ class FullscreenViewer {
       return texts.viewer.end;
     }
 
-    if (slot.kind === "blank" || !slot.meta) {
+    if (slot.kind === "blank") {
       return "";
     }
 
@@ -1203,10 +1204,11 @@ class FullscreenViewer {
     }
 
     this.progressDragging = true;
-    this.pendingProgressDisplayNumber = displayNumber;
-    this.updatePageNumberText(displayNumber);
+    const target = clamp(Math.round(displayNumber), 1, this.maxDisplayNumber());
+    this.pendingProgressDisplayNumber = target;
+    this.previewProgressPage(target);
     this.cancelProgressCommit();
-    this.progressCommitTimer = window.setTimeout(() => this.onProgressCommit(), 1500);
+    this.progressCommitTimer = window.setTimeout(() => this.onProgressCommit(), PROGRESS_IDLE_COMMIT_MS);
   };
 
   private readonly onProgressCommit = (): void => {
@@ -1228,6 +1230,20 @@ class FullscreenViewer {
     if (this.pageNumberLabel) {
       this.pageNumberLabel.textContent = this.pageNumberText(displayNumber);
     }
+  }
+
+  private previewProgressPage(displayNumber: number): void {
+    const target = clamp(Math.round(displayNumber), 1, this.maxDisplayNumber());
+
+    if (target !== this.currentPageNumber) {
+      this.direction = target > this.currentPageNumber ? 1 : -1;
+      this.currentPageNumber = target;
+    }
+
+    ++this.syncToken;
+    this.maintainContainers(this.windowNumbers(), []);
+    this.scrollToCurrentPage();
+    this.updatePageNumberText(target);
   }
 
   private cancelProgressCommit(): void {
