@@ -19,6 +19,9 @@ const PAGED_SWIPE_THRESHOLD = 24;
 const PAGED_WHEEL_THRESHOLD = 8;
 const PAGED_SMOOTH_SCROLL_MS = 240;
 const PROGRESS_IDLE_COMMIT_MS = 1000;
+const SCROLL_FLING_MIN_VELOCITY = 0.35;
+const SCROLL_FLING_STOP_VELOCITY = 0.02;
+const SCROLL_FLING_DECAY = 0.0045;
 
 export type ViewerPage = {
   url: string;
@@ -283,6 +286,7 @@ class FullscreenViewer {
   private previousDocumentTouchAction = "";
   private scrollFrame: number | null = null;
   private resizeFrame: number | null = null;
+  private flingFrame: number | null = null;
   private pagedScrollCommitTimer: number | null = null;
   private progressCommitTimer: number | null = null;
   private pendingProgressDisplayNumber: number | null = null;
@@ -293,6 +297,11 @@ class FullscreenViewer {
   private dragStartClientX = 0;
   private dragStartClientY = 0;
   private dragStartScroll = 0;
+  private dragLastClientY = 0;
+  private dragLastMoveTime = 0;
+  private dragVelocityY = 0;
+  private flingVelocityY = 0;
+  private flingLastFrameTime = 0;
   private syncToken = 0;
   private historyEntry = false;
   private closing = false;
@@ -499,6 +508,8 @@ class FullscreenViewer {
     if (this.resizeFrame !== null) {
       window.cancelAnimationFrame(this.resizeFrame);
     }
+
+    this.cancelScrollFling();
 
     if (this.pagedScrollCommitTimer !== null) {
       window.clearTimeout(this.pagedScrollCommitTimer);
@@ -1013,11 +1024,15 @@ class FullscreenViewer {
     }
 
     event.preventDefault();
+    this.cancelScrollFling();
     this.dragging = true;
     this.dragPointerId = event.pointerId;
     this.dragStartClientX = event.clientX;
     this.dragStartClientY = event.clientY;
     this.dragStartScroll = this.mode === "paged" ? this.scroller.scrollLeft : this.scroller.scrollTop;
+    this.dragLastClientY = event.clientY;
+    this.dragLastMoveTime = event.timeStamp;
+    this.dragVelocityY = 0;
     debugLog("drag start", {
       pointerId: event.pointerId,
       pointerType: event.pointerType,
@@ -1053,6 +1068,10 @@ class FullscreenViewer {
       this.scroller.scrollLeft = this.dragStartScroll - (event.clientX - this.dragStartClientX);
     } else {
       const nextScrollTop = this.dragStartScroll - (event.clientY - this.dragStartClientY);
+      const elapsed = Math.max(1, event.timeStamp - this.dragLastMoveTime);
+      this.dragVelocityY = (event.clientY - this.dragLastClientY) / elapsed;
+      this.dragLastClientY = event.clientY;
+      this.dragLastMoveTime = event.timeStamp;
       debugLog("drag move", {
         pointerType: event.pointerType,
         clientY: event.clientY,
@@ -1098,6 +1117,7 @@ class FullscreenViewer {
       if (Math.abs(dx) >= 8 || Math.abs(dy) >= 8) {
         this.suppressNextClick = true;
         this.setScrollTop(this.scroller?.scrollTop ?? 0);
+        this.applyScrollFling();
         this.updateCurrentFromScroll();
       } else {
         this.suppressNextClick = true;
@@ -1148,6 +1168,54 @@ class FullscreenViewer {
       this.updateCurrentFromScroll();
     });
   };
+
+  private applyScrollFling(): void {
+    if (!this.scroller || Math.abs(this.dragVelocityY) < SCROLL_FLING_MIN_VELOCITY) {
+      return;
+    }
+
+    this.flingVelocityY = -this.dragVelocityY;
+    this.flingLastFrameTime = performance.now();
+    this.flingFrame = window.requestAnimationFrame(this.onScrollFlingFrame);
+  }
+
+  private readonly onScrollFlingFrame = (time: number): void => {
+    if (!this.scroller || this.mode !== "scroll") {
+      this.cancelScrollFling();
+      return;
+    }
+
+    const elapsed = Math.min(32, Math.max(1, time - this.flingLastFrameTime));
+    this.flingLastFrameTime = time;
+
+    const previousScrollTop = this.scroller.scrollTop;
+    this.setScrollTop(previousScrollTop + this.flingVelocityY * elapsed);
+
+    if (this.scroller.scrollTop === previousScrollTop) {
+      this.cancelScrollFling();
+      this.updateCurrentFromScroll();
+      return;
+    }
+
+    this.flingVelocityY *= Math.exp(-SCROLL_FLING_DECAY * elapsed);
+
+    if (Math.abs(this.flingVelocityY) < SCROLL_FLING_STOP_VELOCITY) {
+      this.cancelScrollFling();
+      this.updateCurrentFromScroll();
+      return;
+    }
+
+    this.flingFrame = window.requestAnimationFrame(this.onScrollFlingFrame);
+  };
+
+  private cancelScrollFling(): void {
+    if (this.flingFrame !== null) {
+      window.cancelAnimationFrame(this.flingFrame);
+      this.flingFrame = null;
+    }
+
+    this.flingVelocityY = 0;
+  }
 
   private updateCurrentFromScroll(): void {
     if (!this.scroller) {
