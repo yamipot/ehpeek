@@ -2,6 +2,7 @@ import texts from "./texts.json";
 import { debugLog } from "./utils";
 
 export type ViewMode = "scroll" | "paged";
+type PagedAnimation = "none" | "native" | "raf";
 type ReadDirection = "ltr" | "rtl";
 type RightTapAction = "previous" | "next";
 
@@ -17,8 +18,12 @@ const NEAR_LOAD_AHEAD = 3;
 const FALLBACK_ASPECT_RATIO = 1.42;
 const PAGED_SWIPE_THRESHOLD = 24;
 const PAGED_WHEEL_THRESHOLD = 8;
+const PAGED_ANIMATION: PagedAnimation = "raf";
 const PAGED_SMOOTH_SCROLL_MS = 180;
+const PAGED_SCROLL_EASING_POWER = 3;
 const PROGRESS_IDLE_COMMIT_MS = 1000;
+const ANIMATION_FRAME_MIN_DELTA_MS = 1;
+const ANIMATION_FRAME_MAX_DELTA_MS = 32;
 const SCROLL_FLING_MIN_VELOCITY = 0.35;
 const SCROLL_FLING_STOP_VELOCITY = 0.02;
 const SCROLL_FLING_DECAY = 0.0045;
@@ -287,6 +292,7 @@ class FullscreenViewer {
   private scrollFrame: number | null = null;
   private resizeFrame: number | null = null;
   private flingFrame: number | null = null;
+  private pagedAnimationFrame: number | null = null;
   private pagedScrollCommitTimer: number | null = null;
   private progressCommitTimer: number | null = null;
   private pendingProgressDisplayNumber: number | null = null;
@@ -510,6 +516,7 @@ class FullscreenViewer {
     }
 
     this.cancelScrollFling();
+    this.cancelPagedAnimation();
 
     if (this.pagedScrollCommitTimer !== null) {
       window.clearTimeout(this.pagedScrollCommitTimer);
@@ -552,6 +559,7 @@ class FullscreenViewer {
 
   private rebuildForCurrentMode(): void {
     this.cancelScrollFling();
+    this.cancelPagedAnimation();
 
     if (this.pagedScrollCommitTimer !== null) {
       window.clearTimeout(this.pagedScrollCommitTimer);
@@ -860,7 +868,11 @@ class FullscreenViewer {
     this.pagedScrollCommitTimer = window.setTimeout(() => {
       this.pagedScrollCommitTimer = null;
       this.setCurrentPageNumber(target, true);
-    }, PAGED_SMOOTH_SCROLL_MS);
+    }, this.pagedAnimationCommitDelay());
+  }
+
+  private pagedAnimationCommitDelay(): number {
+    return PAGED_ANIMATION === "none" ? 0 : PAGED_SMOOTH_SCROLL_MS;
   }
 
   private scrollToCurrentPage(behavior: ScrollBehavior = "auto"): void {
@@ -1047,6 +1059,7 @@ class FullscreenViewer {
 
     event.preventDefault();
     this.cancelScrollFling();
+    this.cancelPagedAnimation();
     this.dragging = true;
     this.dragPointerId = event.pointerId;
     this.dragStartClientX = event.clientX;
@@ -1207,7 +1220,7 @@ class FullscreenViewer {
       return;
     }
 
-    const elapsed = Math.min(32, Math.max(1, time - this.flingLastFrameTime));
+    const elapsed = clamp(time - this.flingLastFrameTime, ANIMATION_FRAME_MIN_DELTA_MS, ANIMATION_FRAME_MAX_DELTA_MS);
     this.flingLastFrameTime = time;
 
     const previousScrollTop = this.scroller.scrollTop;
@@ -1462,9 +1475,71 @@ class FullscreenViewer {
     }
 
     if (this.horizontal()) {
-      this.scroller.scrollTo({ left: this.scroller.scrollLeft + delta, behavior });
+      this.scrollPagedTo(this.scroller.scrollLeft + delta, behavior);
     } else {
       this.setScrollTop(this.scroller.scrollTop + delta);
+    }
+  }
+
+  private scrollPagedTo(left: number, behavior: ScrollBehavior = "auto"): void {
+    if (!this.scroller) {
+      return;
+    }
+
+    this.cancelPagedAnimation();
+
+    if (behavior !== "smooth" || PAGED_ANIMATION === "none") {
+      this.scroller.scrollLeft = left;
+      return;
+    }
+
+    if (PAGED_ANIMATION === "native") {
+      this.scroller.scrollTo({ left, behavior: "smooth" });
+      return;
+    }
+
+    this.animatePagedScrollTo(left);
+  }
+
+  private animatePagedScrollTo(left: number): void {
+    if (!this.scroller) {
+      return;
+    }
+
+    const startLeft = this.scroller.scrollLeft;
+    const delta = left - startLeft;
+    let lastFrameTime = performance.now();
+    let animationTime = 0;
+
+    const step = (time: number): void => {
+      if (!this.scroller) {
+        this.cancelPagedAnimation();
+        return;
+      }
+
+      const elapsed = clamp(time - lastFrameTime, ANIMATION_FRAME_MIN_DELTA_MS, ANIMATION_FRAME_MAX_DELTA_MS);
+      lastFrameTime = time;
+      animationTime += elapsed;
+
+      const progress = clamp(animationTime / PAGED_SMOOTH_SCROLL_MS, 0, 1);
+      const eased = 1 - Math.pow(1 - progress, PAGED_SCROLL_EASING_POWER);
+      this.scroller.scrollLeft = startLeft + delta * eased;
+
+      if (progress >= 1) {
+        this.pagedAnimationFrame = null;
+        return;
+      }
+
+      this.pagedAnimationFrame = window.requestAnimationFrame(step);
+    };
+
+    this.pagedAnimationFrame = window.requestAnimationFrame(step);
+  }
+
+  private cancelPagedAnimation(): void {
+    if (this.pagedAnimationFrame !== null) {
+      window.cancelAnimationFrame(this.pagedAnimationFrame);
+      this.pagedAnimationFrame = null;
     }
   }
 
