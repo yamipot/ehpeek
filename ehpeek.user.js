@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         ehpeek: E-H/ExH viewer
 // @namespace    ehpeek
-// @version      260709.1641
+// @version      260709.1756
 // @description  A mobile-optimized E-H/ExH viewer
 // @match        *://e-hentai.org/*
 // @match        *://exhentai.org/*
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_deleteValue
+// @grant        GM_listValues
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
 // @run-at       document-end
@@ -28,6 +30,9 @@
       rightTapPrevious: "Right tap goes to previous page",
       rightTapNext: "Right tap goes to next page",
       disableReader: "Disable Ehpeek Reader",
+      startReading: "Read",
+      continueReading: "Continue",
+      pages: "Pages",
       endPage: "End",
       end: "End of gallery. Tap to exit.",
       failedPrefix: "Failed"
@@ -2004,15 +2009,15 @@
   }
 
   // src/components/BetterPageBar.tsx
-  var BETTER_PAGE_BAR_CLASS = "ehpeek-better-page-bar", BETTER_PAGE_BAR_TOP_CLASS = "ehpeek-better-page-bar-top", BETTER_PAGE_BAR_BOTTOM_CLASS = "ehpeek-better-page-bar-bottom", BETTER_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index", DRAG_PIXEL_STEP = 18, BetterPageBar = class {
+  var BETTER_PAGE_BAR_CLASS = "ehpeek-better-page-bar", BETTER_PAGE_BAR_TOP_CLASS = "ehpeek-better-page-bar-top", BETTER_PAGE_BAR_BOTTOM_CLASS = "ehpeek-better-page-bar-bottom", BETTER_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index", DRAG_PIXEL_STEP = 18, galleryPageBarWindowIndex = null, BetterPageBar = class {
     constructor(options) {
       this.dragStartWindowIndex = 0;
       let maxIndex = Math.max(0, options.maxIndex ?? options.currentIndex), currentIndex = clamp(options.currentIndex, 0, maxIndex);
-      this.currentIndex = currentIndex, this.maxIndex = maxIndex, this.urlForIndex = options.urlForIndex, this.windowIndex = clamp(options.initialWindowIndex ?? currentIndex, 0, maxIndex), this.element = /* @__PURE__ */ h("table", { className: `${BETTER_PAGE_BAR_CLASS} ${options.top ? BETTER_PAGE_BAR_TOP_CLASS : BETTER_PAGE_BAR_BOTTOM_CLASS}` }, /* @__PURE__ */ h("tbody", null)), this.render(), this.installDrag();
+      this.currentIndex = currentIndex, this.maxIndex = maxIndex, this.urlForIndex = options.urlForIndex, this.windowIndex = clamp(galleryPageBarWindowIndex ?? options.initialWindowIndex ?? currentIndex, 0, maxIndex), this.element = /* @__PURE__ */ h("table", { className: `${BETTER_PAGE_BAR_CLASS} ${options.top ? BETTER_PAGE_BAR_TOP_CLASS : BETTER_PAGE_BAR_BOTTOM_CLASS}` }, /* @__PURE__ */ h("tbody", null)), this.render(), this.installDrag();
     }
     render() {
       let body = this.element.tBodies[0] ?? this.element.createTBody(), slots = pageSlots(this.windowIndex, this.currentIndex, this.maxIndex), firstSlotIndex = slots[0]?.pageIndex ?? this.currentIndex, lastSlotIndex = slots[slots.length - 1]?.pageIndex ?? this.currentIndex, currentBeforeWindow = this.currentIndex < firstSlotIndex, currentAfterWindow = this.currentIndex > lastSlotIndex, row = /* @__PURE__ */ h("tr", null, this.linkCell("<<", 0, this.currentIndex === 0), currentBeforeWindow ? this.linkCell(String(this.currentIndex + 1), this.currentIndex, !0) : this.emptyCell(), this.linkCell("<", Math.max(0, this.currentIndex - 1), this.currentIndex === 0), slots.map(
-        (slot) => this.linkCell(String(slot.pageIndex + 1), slot.pageIndex, slot.pageIndex === this.currentIndex)
+        (slot) => slot ? this.linkCell(String(slot.pageIndex + 1), slot.pageIndex, slot.pageIndex === this.currentIndex) : this.emptyCell()
       ), this.linkCell(">", Math.min(this.maxIndex, this.currentIndex + 1), this.currentIndex === this.maxIndex), currentAfterWindow ? this.linkCell(String(this.currentIndex + 1), this.currentIndex, !0) : this.emptyCell(), this.linkCell(">>", this.maxIndex, this.currentIndex === this.maxIndex));
       body.replaceChildren(row), this.element.setAttribute(BETTER_PAGE_BAR_WINDOW_INDEX_ATTR, String(this.windowIndex));
     }
@@ -2032,7 +2037,7 @@
           if (Math.abs(info.dx) < Math.abs(info.dy))
             return;
           let nextIndex = clamp(this.dragStartWindowIndex - acceleratedPageOffset(info.dx), 0, this.maxIndex);
-          nextIndex !== this.windowIndex && (this.windowIndex = nextIndex, this.render());
+          nextIndex !== this.windowIndex && (this.windowIndex = nextIndex, galleryPageBarWindowIndex = nextIndex, this.render());
         },
         onEnd: () => {
           this.element.classList.remove("ehpeek-better-page-bar-dragging");
@@ -2046,11 +2051,16 @@
   function createBetterPageBar(options) {
     return new BetterPageBar(options).element;
   }
+  function setBetterPageBarWindowIndex(index) {
+    galleryPageBarWindowIndex = Math.max(0, Math.round(index));
+  }
   function pageSlots(windowIndex, currentIndex, maxIndex) {
     if (maxIndex + 1 <= 7)
       return range(0, maxIndex).map((pageIndex) => ({ type: "page", pageIndex }));
-    let windowStart = clamp(windowIndex - 3, 0, maxIndex - 6);
-    return range(windowStart, windowStart + 6).map((pageIndex) => ({ type: "page", pageIndex }));
+    let windowStart = clamp(windowIndex - 3, -1, maxIndex - 5);
+    return range(windowStart, windowStart + 6).map(
+      (pageIndex) => pageIndex >= 0 && pageIndex <= maxIndex ? { type: "page", pageIndex } : null
+    );
   }
   function range(start, end) {
     let output = [];
@@ -2505,7 +2515,47 @@
   }
 
   // src/components/EnhanceGallery.ts
-  var PREVIEW_CACHE_LIMIT = 10, galleryThumbEnhancementErrorHandler = null, galleryThumbEnhancementClickInstalled = !1;
+  var PREVIEW_CACHE_LIMIT = 10, CONTINUE_READING_STYLE_ID = "ehpeek-continue-reading-style", CONTINUE_READING_STYLE = `
+.ehpeek-continue-reading {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  background: rgba(18, 18, 18, 0.82);
+  color: #f5f5f5;
+  box-shadow: none;
+  cursor: pointer;
+  text-align: center;
+  font: 700 13px/1.15 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ehpeek-continue-reading:hover {
+  background: rgba(32, 32, 32, 0.9);
+}
+
+.ehpeek-continue-reading-page {
+  display: block;
+  margin-top: 1px;
+  opacity: 0.72;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+@media (max-width: 640px), (pointer: coarse) {
+  .ehpeek-continue-reading {
+    padding: 5px 8px;
+    font-size: 14px;
+  }
+
+  .ehpeek-continue-reading-page {
+    font-size: 12px;
+  }
+}
+`, galleryThumbEnhancementErrorHandler = null, galleryThumbEnhancementClickInstalled = !1;
   function enhanceGalleryThumbsEnabled() {
     return state.gallery.enhanceThumbs.value;
   }
@@ -2575,6 +2625,13 @@
       throw restorePreview2(snapshot), window.history.replaceState(window.history.state, "", previousUrl), replaceGalleryPageBar2(previewPageIndex(), maxPreviewPageIndex2()), error;
     }
   }
+  function installContinueReadingButton(info, onClick) {
+    document.querySelector(".ehpeek-continue-reading")?.remove(), ensureContinueReadingStyle();
+    let detail = document.createElement("span"), button = document.createElement("button");
+    button.type = "button", button.className = "ehpeek-continue-reading", button.title = info.label, button.textContent = info.label, button.addEventListener("click", (event) => {
+      event.preventDefault(), event.stopPropagation(), onClick();
+    }), detail.className = "ehpeek-continue-reading-page", detail.textContent = info.detail, button.append(detail), mountContinueReadingButton(button);
+  }
   function onPageBarClick(event) {
     if (!enhanceGalleryThumbsEnabled() || !(event.target instanceof Element))
       return;
@@ -2583,7 +2640,27 @@
       return;
     event.preventDefault(), event.stopPropagation();
     let url = pageBarUrl(barItem);
-    url && navigateGalleryPreview(url, "push").catch((error) => galleryThumbEnhancementErrorHandler?.(error));
+    if (!url)
+      return;
+    let fromBottomBar = !!barItem.closest(`.${BETTER_PAGE_BAR_BOTTOM_CLASS}`), targetPreviewIndex = previewPageIndexFromUrl(url);
+    targetPreviewIndex !== null && setBetterPageBarWindowIndex(targetPreviewIndex), fromBottomBar && scrollToTopPageBar(), navigateGalleryPreview(url, "push").catch((error) => galleryThumbEnhancementErrorHandler?.(error));
+  }
+  function ensureContinueReadingStyle() {
+    if (document.getElementById(CONTINUE_READING_STYLE_ID))
+      return;
+    let style = document.createElement("style");
+    style.id = CONTINUE_READING_STYLE_ID, style.textContent = CONTINUE_READING_STYLE, document.head.append(style);
+  }
+  function mountContinueReadingButton(button) {
+    let viewerOptions = document.querySelector("#gd5");
+    if (viewerOptions) {
+      viewerOptions.append(button);
+      return;
+    }
+    document.body.append(button);
+  }
+  function scrollToTopPageBar() {
+    document.querySelector(`.${BETTER_PAGE_BAR_TOP_CLASS}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
   }
   function installGalleryPageBar() {
     replaceGalleryPageBar2(previewPageIndex(), maxPreviewPageIndex2());
@@ -2781,6 +2858,63 @@
     style.id = SEARCH_SWIPE_STYLE_ID, style.textContent = EnhanceSearchPage_default, document.head.append(style);
   }
 
+  // src/history.ts
+  var HISTORY_KEY_PREFIX = "ehpeek:history:", HISTORY_COUNT_KEY = "ehpeek:history-count";
+  var ReaderHistorySession = class {
+    constructor(baseRecord) {
+      this.baseRecord = baseRecord;
+      this.pending = null;
+      this.lastSaved = null;
+      this.timer = null;
+      this.flush = () => {
+        this.timer !== null && (window.clearTimeout(this.timer), this.timer = null), this.pending && (this.sameProgress(this.pending, this.lastSaved) || (saveReaderHistory(this.pending), this.lastSaved = this.pending), this.pending = null);
+      };
+      this.onVisibilityChange = () => {
+        document.visibilityState === "hidden" && this.flush();
+      };
+      window.addEventListener("pagehide", this.flush), document.addEventListener("visibilitychange", this.onVisibilityChange);
+    }
+    update(pageNum, totalPages) {
+      if (!pageNum || pageNum <= 0)
+        return;
+      let nextRecord = {
+        ...this.baseRecord,
+        pageNum,
+        totalPages,
+        updatedAt: Date.now()
+      };
+      this.sameProgress(nextRecord, this.lastSaved) || (this.pending = nextRecord, this.schedule());
+    }
+    dispose() {
+      this.flush(), window.removeEventListener("pagehide", this.flush), document.removeEventListener("visibilitychange", this.onVisibilityChange);
+    }
+    schedule() {
+      this.timer === null && (this.timer = window.setTimeout(this.flush, 1e4));
+    }
+    sameProgress(left, right) {
+      return !!(left && right && left.galleryId === right.galleryId && left.token === right.token && left.pageNum === right.pageNum && left.totalPages === right.totalPages);
+    }
+  };
+  function loadReaderHistory(galleryId, token) {
+    return GM_getValue(historyKey(galleryId, token), null);
+  }
+  function saveReaderHistory(record) {
+    let key = historyKey(record.galleryId, record.token), exists = GM_getValue(key, null) !== null;
+    if (GM_setValue(key, record), !exists) {
+      let count = GM_getValue(HISTORY_COUNT_KEY, 0) + 1;
+      GM_setValue(HISTORY_COUNT_KEY, count), count > 2e3 && pruneReaderHistory();
+    }
+  }
+  function historyKey(galleryId, token) {
+    return `${HISTORY_KEY_PREFIX}${galleryId}:${token}`;
+  }
+  function pruneReaderHistory() {
+    let records = GM_listValues().filter((key) => key.startsWith(HISTORY_KEY_PREFIX)).map((key) => ({ key, record: GM_getValue(key, null) })).filter((entry) => entry.record !== null).sort((left, right) => left.record.updatedAt - right.record.updatedAt);
+    for (let entry of records.slice(0, 1e3))
+      GM_deleteValue(entry.key);
+    GM_setValue(HISTORY_COUNT_KEY, Math.max(0, records.length - 1e3));
+  }
+
   // src/main.ts
   var READER_WINDOW_SIZE = 10, menuCommandId = null, settingsMenu = null;
   function updateReaderEnabled(enabled) {
@@ -2808,35 +2942,48 @@
       enhanceSearchPageEnabled: state.search.enhance.value
     };
   }
-  async function openReader(startPageUrl) {
+  async function openReader(startPageUrl, preferredPageNum) {
     if (!state.reader.enabled.value)
       return;
-    let landingIndex = previewPageIndex(), landingPages = collectGalleryPages2(), pageSize = computePreviewPageSize(), maxPreviewIndex = maxPreviewPageIndex2(), provider = new GalleryPageProvider(
+    let pageType2 = extractPageType();
+    if (pageType2.type !== "gallery")
+      return;
+    let landingIndex = previewPageIndex(), landingPages = collectGalleryPages2(), pageSize = computePreviewPageSize(), maxPreviewIndex = maxPreviewPageIndex2(), totalPages = readShowingRange2()?.total, provider = new GalleryPageProvider(
       landingIndex,
       landingPages,
       pageSize,
       maxPreviewIndex,
       READER_WINDOW_SIZE,
       pullPreviewPage
-    ), startUrl = normalizeUrl(startPageUrl), hashPage = peekPageFromHash(), startPageNum = hashPage ?? galleryPageNumber(startUrl), pages = startPageNum ? await provider.loadDisplayPages(provider.displayWindowAround(startPageNum)) : landingPages, startIndex = hashPage !== null ? pages.findIndex((page) => page.pageNum === hashPage) : pages.findIndex((page) => page.url === startUrl);
+    ), startUrl = normalizeUrl(startPageUrl), hashPage = preferredPageNum ?? peekPageFromHash(), startPageNum = hashPage ?? galleryPageNumber(startUrl), pages = startPageNum ? await provider.loadDisplayPages(provider.displayWindowAround(startPageNum)) : landingPages, startIndex = hashPage !== null ? pages.findIndex((page) => page.pageNum === hashPage) : pages.findIndex((page) => page.url === startUrl);
     startIndex < 0 && (startIndex = 0, pages = [{ url: startUrl, aspectRatio: 1.42, pageNum: galleryPageNumber(startUrl) }, ...pages].sort(
       (left, right) => (left.pageNum ?? 0) - (right.pageNum ?? 0)
     ), startIndex = pages.findIndex((page) => page.url === startUrl));
-    let lastPageNum = hashPage ?? galleryPageNumber(startUrl);
-    state.reader.enabled.value && openFullscreenReader({
+    let lastPageNum = hashPage ?? galleryPageNumber(startUrl), historySession = new ReaderHistorySession({
+      galleryId: pageType2.galleryId,
+      token: pageType2.token,
+      galleryUrl: previewUrlForIndex(landingIndex),
+      totalPages
+    });
+    if (!state.reader.enabled.value) {
+      historySession.dispose();
+      return;
+    }
+    openFullscreenReader({
       pages,
       startIndex,
       renderWindowSize: READER_WINDOW_SIZE,
       preloadWindowSize: READER_WINDOW_SIZE,
       nearConcurrentLoads: 3,
       farConcurrentLoads: 6,
-      totalPages: readShowingRange2()?.total,
+      totalPages,
       loadPage: loadEhImagePage,
       loadPages: (pageNums) => provider.loadDisplayPages(pageNums),
       onActivePageChange: (page) => {
-        page.pageNum && (lastPageNum = page.pageNum, enhanceGalleryThumbsEnabled() && replaceGalleryPageBar2(provider.previewIndexForPage(page.pageNum), maxPreviewIndex)), updatePeekLocation(page.pageNum, pageSize, maxPreviewIndex);
+        page.pageNum && (lastPageNum = page.pageNum, enhanceGalleryThumbsEnabled() && replaceGalleryPageBar2(provider.previewIndexForPage(page.pageNum), maxPreviewIndex)), historySession.update(page.pageNum, totalPages), updatePeekLocation(page.pageNum, pageSize, maxPreviewIndex);
       },
       onExit: () => {
+        historySession.dispose(), installContinueReading();
         let exitIndex = lastPageNum ? provider.previewIndexForPage(lastPageNum) : landingIndex, galleryUrl = previewUrlForIndex(exitIndex);
         if (enhanceGalleryThumbsEnabled()) {
           replaceGalleryPageBar2(exitIndex, maxPreviewIndex), navigateGalleryPreview(galleryUrl, "replace").catch(() => {
@@ -2846,7 +2993,9 @@
         }
         exitIndex === landingIndex ? window.history.replaceState(window.history.state, "", galleryUrl) : window.location.replace(galleryUrl);
       },
-      onDisableReader: () => updateReaderEnabled(!1)
+      onDisableReader: () => {
+        historySession.dispose(), updateReaderEnabled(!1);
+      }
     });
   }
   function reportOpenError(error) {
@@ -2883,5 +3032,17 @@
   registerUserscriptMenu();
   var pageType = extractPageType();
   installSettingsMenu();
-  pageType.type === "gallery" ? (installGalleryThumbEnhancement(reportOpenError), document.addEventListener("click", onDocumentClick, !0), state.reader.enabled.value && pageType.peekPage !== null && openReaderFromHash()) : pageType.type === "search" && state.search.enhance.value && installSearchPageSwipeNavigation(pageType);
+  pageType.type === "gallery" ? (installGalleryThumbEnhancement(reportOpenError), installContinueReading(), document.addEventListener("click", onDocumentClick, !0), state.reader.enabled.value && pageType.peekPage !== null && openReaderFromHash()) : pageType.type === "search" && state.search.enhance.value && installSearchPageSwipeNavigation(pageType);
+  function installContinueReading() {
+    if (pageType.type !== "gallery" || !state.reader.enabled.value)
+      return;
+    let record = loadReaderHistory(pageType.galleryId, pageType.token), pageNum = record?.pageNum && record.pageNum > 0 ? record.pageNum : 1, totalPages = record?.totalPages ?? readShowingRange2()?.total, detail = record && totalPages ? `${pageNum}/${totalPages}` : totalPages ? `${totalPages} ${texts_default.reader.pages}` : String(pageNum);
+    installContinueReadingButton({
+      label: record ? texts_default.reader.continueReading : texts_default.reader.startReading,
+      detail
+    }, () => {
+      let page = collectGalleryPages2()[0];
+      page && openReader(page.url, pageNum).catch(reportOpenError);
+    });
+  }
 })();
