@@ -1,5 +1,10 @@
 import type { ReaderPage } from "./Reader";
-import { BETTER_PAGE_BAR_CLASS } from "./BetterPageBar";
+import {
+  BETTER_PAGE_BAR_BOTTOM_CLASS,
+  BETTER_PAGE_BAR_CLASS,
+  BETTER_PAGE_BAR_TOP_CLASS,
+  setBetterPageBarWindowIndex,
+} from "./BetterPageBar";
 import * as eh from "../eh";
 import { state } from "../state";
 import texts from "../texts.json";
@@ -247,6 +252,17 @@ function onPageBarClick(event: MouseEvent): void {
     return;
   }
 
+  const fromBottomBar = Boolean(barItem.closest(`.${BETTER_PAGE_BAR_BOTTOM_CLASS}`));
+  const targetPreviewIndex = eh.previewPageIndexFromUrl(url);
+
+  if (targetPreviewIndex !== null) {
+    setBetterPageBarWindowIndex(targetPreviewIndex);
+  }
+
+  if (fromBottomBar) {
+    scrollToTopPageBar();
+  }
+
   void navigateGalleryPreview(url, "push").catch((error) => galleryThumbEnhancementErrorHandler?.(error));
 }
 
@@ -270,6 +286,10 @@ function mountContinueReadingButton(button: HTMLButtonElement): void {
   }
 
   document.body.append(button);
+}
+
+function scrollToTopPageBar(): void {
+  document.querySelector<HTMLElement>(`.${BETTER_PAGE_BAR_TOP_CLASS}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
 }
 
 function installGalleryPageBar(): void {

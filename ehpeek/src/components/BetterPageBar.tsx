@@ -8,6 +8,7 @@ export const BETTER_PAGE_BAR_BOTTOM_CLASS = "ehpeek-better-page-bar-bottom";
 export const BETTER_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index";
 
 const DRAG_PIXEL_STEP = 18;
+let galleryPageBarWindowIndex: number | null = null;
 
 type PageBarSlot =
   | {
@@ -37,7 +38,7 @@ export class BetterPageBar {
     this.currentIndex = currentIndex;
     this.maxIndex = maxIndex;
     this.urlForIndex = options.urlForIndex;
-    this.windowIndex = clamp(options.initialWindowIndex ?? currentIndex, 0, maxIndex);
+    this.windowIndex = clamp(galleryPageBarWindowIndex ?? options.initialWindowIndex ?? currentIndex, 0, maxIndex);
 
     this.element = (
       <table className={`${BETTER_PAGE_BAR_CLASS} ${options.top ? BETTER_PAGE_BAR_TOP_CLASS : BETTER_PAGE_BAR_BOTTOM_CLASS}`}>
@@ -61,7 +62,7 @@ export class BetterPageBar {
         {currentBeforeWindow ? this.linkCell(String(this.currentIndex + 1), this.currentIndex, true) : this.emptyCell()}
         {this.linkCell("<", Math.max(0, this.currentIndex - 1), this.currentIndex === 0)}
         {slots.map((slot) =>
-          this.linkCell(String(slot.pageIndex + 1), slot.pageIndex, slot.pageIndex === this.currentIndex),
+          slot ? this.linkCell(String(slot.pageIndex + 1), slot.pageIndex, slot.pageIndex === this.currentIndex) : this.emptyCell(),
         )}
         {this.linkCell(">", Math.min(this.maxIndex, this.currentIndex + 1), this.currentIndex === this.maxIndex)}
         {currentAfterWindow ? this.linkCell(String(this.currentIndex + 1), this.currentIndex, true) : this.emptyCell()}
@@ -118,6 +119,7 @@ export class BetterPageBar {
         }
 
         this.windowIndex = nextIndex;
+        galleryPageBarWindowIndex = nextIndex;
         this.render();
       },
       onEnd: () => {
@@ -135,13 +137,19 @@ export function createBetterPageBar(options: BetterPageBarOptions): HTMLTableEle
   return new BetterPageBar(options).element;
 }
 
-function pageSlots(windowIndex: number, currentIndex: number, maxIndex: number): PageBarSlot[] {
+export function setBetterPageBarWindowIndex(index: number): void {
+  galleryPageBarWindowIndex = Math.max(0, Math.round(index));
+}
+
+function pageSlots(windowIndex: number, currentIndex: number, maxIndex: number): Array<PageBarSlot | null> {
   if (maxIndex + 1 <= 7) {
     return range(0, maxIndex).map((pageIndex) => ({ type: "page", pageIndex }));
   }
 
-  const windowStart = clamp(windowIndex - 3, 0, maxIndex - 6);
-  return range(windowStart, windowStart + 6).map((pageIndex) => ({ type: "page", pageIndex }));
+  const windowStart = clamp(windowIndex - 3, -1, maxIndex - 5);
+  return range(windowStart, windowStart + 6).map((pageIndex) =>
+    pageIndex >= 0 && pageIndex <= maxIndex ? { type: "page", pageIndex } : null,
+  );
 }
 
 function range(start: number, end: number): number[] {
