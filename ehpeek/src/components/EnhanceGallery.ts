@@ -1,29 +1,12 @@
 import type { ReaderPage } from "./Reader";
-import { BetterPageBar, BETTER_PAGE_BAR_CLASS } from "./BetterPageBar";
-import betterPageBarCss from "./BetterPageBar.css";
+import { BETTER_PAGE_BAR_CLASS } from "./BetterPageBar";
+import * as eh from "../eh";
 import { state } from "../state";
-import { clamp } from "../utils";
+import { clamp, requestText } from "../utils";
 
-const REQUEST_TIMEOUT_MS = 30000;
 const PREVIEW_CACHE_LIMIT = 10;
-const GALLERY_STYLE_ID = "ehpeek-gallery-style";
 
-type GallerySnapshot = unknown;
-
-type GalleryEnhancement = {
-  currentPreviewIndex: () => number;
-  maxPreviewIndex: () => number | null;
-  previewUrlForIndex: (index: number) => string;
-  previewIndexFromUrl: (url: string) => number | null;
-  renderPageBars: (currentIndex: number, maxIndex: number | null) => void;
-  snapshotPreview: () => GallerySnapshot;
-  installPreviewPlaceholder: () => void;
-  replacePreviewContent: (doc: Document, baseUrl: string) => void;
-  restorePreview: (snapshot: GallerySnapshot) => void;
-  onError: (error: unknown) => void;
-};
-
-let activeEnhancement: GalleryEnhancement | null = null;
+let galleryThumbEnhancementErrorHandler: ((error: unknown) => void) | null = null;
 let galleryThumbEnhancementInstalled = false;
 
 export function enhanceGalleryThumbsEnabled(): boolean {
@@ -32,124 +15,6 @@ export function enhanceGalleryThumbsEnabled(): boolean {
 
 export function toggleEnhanceGalleryThumbs(): void {
   state.gallery.enhanceThumbs.set(!enhanceGalleryThumbsEnabled());
-}
-
-export function previewPageIndexFromUrl(url: string, pageUrl = window.location.href): number | null {
-  try {
-    const parsed = new URL(url, pageUrl);
-    const current = new URL(pageUrl);
-
-    if (parsed.origin !== current.origin || parsed.pathname !== current.pathname) {
-      return null;
-    }
-
-    const value = Number(parsed.searchParams.get("p") || "0");
-    return Number.isFinite(value) && value >= 0 ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-export function previewPageIndex(url = window.location.href): number {
-  try {
-    const value = Number(new URL(url).searchParams.get("p") || "0");
-    return Number.isFinite(value) && value >= 0 ? value : 0;
-  } catch {
-    return 0;
-  }
-}
-
-export function previewUrlForIndex(previewIndex: number, pageUrl = window.location.href): string {
-  const url = new URL(pageUrl);
-
-  if (previewIndex <= 0) {
-    url.searchParams.delete("p");
-  } else {
-    url.searchParams.set("p", String(previewIndex));
-  }
-
-  url.hash = "";
-  return url.href;
-}
-
-export function previewPageIndexForGalleryPage(galleryPage: number, pageSize: number, maxPreviewIndex: number | null): number {
-  const previewIndex = Math.max(0, Math.floor((galleryPage - 1) / pageSize));
-  return maxPreviewIndex === null ? previewIndex : Math.min(previewIndex, maxPreviewIndex);
-}
-
-export function peekPageFromHash(hash = window.location.hash): number | null {
-  const params = new URLSearchParams(hash.replace(/^#/, ""));
-  const page = Number(params.get("peek_page") || "");
-
-  return Number.isFinite(page) && page > 0 ? page : null;
-}
-
-export function galleryPageNumber(url: string): number | undefined {
-  try {
-    const parsed = new URL(url, window.location.href);
-    const match = parsed.pathname.match(/\/(\d+)-(\d+)\/?$/);
-    const pageNumber = Number(match?.[2] || "");
-
-    return Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-export function updatePeekLocation(pageNumber: number | undefined, pageSize: number, maxPreviewIndex: number | null): void {
-  if (!pageNumber || pageNumber <= 0) {
-    return;
-  }
-
-  const url = new URL(window.location.href);
-  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-  const nextValue = String(pageNumber);
-  const nextPreviewIndex = previewPageIndexForGalleryPage(pageNumber, pageSize, maxPreviewIndex);
-  let changed = false;
-
-  if (nextPreviewIndex === 0) {
-    if (url.searchParams.has("p")) {
-      url.searchParams.delete("p");
-      changed = true;
-    }
-  } else if (url.searchParams.get("p") !== String(nextPreviewIndex)) {
-    url.searchParams.set("p", String(nextPreviewIndex));
-    changed = true;
-  }
-
-  if (params.get("peek_page") !== nextValue) {
-    params.set("peek_page", nextValue);
-    changed = true;
-  }
-
-  if (!changed) {
-    return;
-  }
-
-  url.hash = params.toString();
-  window.history.replaceState(window.history.state, "", url.href);
-}
-
-export async function requestText(url: string): Promise<string> {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => {
-    controller.abort();
-  }, REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      credentials: "include",
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    return await response.text();
-  } finally {
-    window.clearTimeout(timeout);
-  }
 }
 
 export class GalleryPageProvider {
@@ -167,7 +32,7 @@ export class GalleryPageProvider {
   }
 
   previewIndexForPage(pageNum: number): number {
-    return previewPageIndexForGalleryPage(pageNum, this.pageSize, this.maxPreviewIndex);
+    return eh.previewPageIndexForGalleryPage(pageNum, this.pageSize, this.maxPreviewIndex);
   }
 
   async loadDisplayPages(pageNums: number[]): Promise<ReaderPage[]> {
@@ -235,24 +100,9 @@ export class GalleryPageProvider {
   }
 }
 
-export function createBetterPageBar(options: {
-  currentIndex: number;
-  maxIndex: number | null;
-  top: boolean;
-  previewUrlForIndex: (index: number) => string;
-}): HTMLTableElement {
-  return new BetterPageBar({
-    currentIndex: options.currentIndex,
-    maxIndex: options.maxIndex,
-    top: options.top,
-    urlForIndex: options.previewUrlForIndex,
-  }).element;
-}
-
-export function installGalleryThumbEnhancement(enhancement: GalleryEnhancement): void {
-  activeEnhancement = enhancement;
-  ensureGalleryStyle();
-  enhancement.renderPageBars(enhancement.currentPreviewIndex(), enhancement.maxPreviewIndex());
+export function installGalleryThumbEnhancement(onError: (error: unknown) => void): void {
+  galleryThumbEnhancementErrorHandler = onError;
+  eh.replaceGalleryPageBar(eh.previewPageIndex(), eh.maxPreviewPageIndex());
 
   if (galleryThumbEnhancementInstalled) {
     return;
@@ -263,14 +113,9 @@ export function installGalleryThumbEnhancement(enhancement: GalleryEnhancement):
 }
 
 export async function navigateGalleryPreview(url: string, historyMode: "push" | "replace"): Promise<void> {
-  if (!activeEnhancement) {
-    window.location.href = url;
-    return;
-  }
-
   const previousUrl = window.location.href;
-  const snapshot = activeEnhancement.snapshotPreview();
-  const targetPreviewIndex = activeEnhancement.previewIndexFromUrl(url);
+  const snapshot = eh.snapshotPreview();
+  const targetPreviewIndex = eh.previewPageIndexFromUrl(url);
 
   if (historyMode === "push") {
     window.history.pushState(window.history.state, "", url);
@@ -279,28 +124,26 @@ export async function navigateGalleryPreview(url: string, historyMode: "push" | 
   }
 
   if (targetPreviewIndex !== null) {
-    activeEnhancement.renderPageBars(targetPreviewIndex, activeEnhancement.maxPreviewIndex());
+    eh.replaceGalleryPageBar(targetPreviewIndex, eh.maxPreviewPageIndex());
   }
 
-  activeEnhancement.installPreviewPlaceholder();
+  eh.installPreviewPlaceholder();
 
   try {
     const html = await requestText(url);
     const doc = new DOMParser().parseFromString(html, "text/html");
 
-    activeEnhancement.replacePreviewContent(doc, url);
+    eh.replacePreviewContent(doc, url);
   } catch (error) {
-    activeEnhancement.restorePreview(snapshot);
+    eh.restorePreview(snapshot);
     window.history.replaceState(window.history.state, "", previousUrl);
-    activeEnhancement.renderPageBars(activeEnhancement.currentPreviewIndex(), activeEnhancement.maxPreviewIndex());
+    eh.replaceGalleryPageBar(eh.previewPageIndex(), eh.maxPreviewPageIndex());
     throw error;
   }
 }
 
 function onPageBarClick(event: MouseEvent): void {
-  const enhancement = activeEnhancement;
-
-  if (!enhancement || !(event.target instanceof Element)) {
+  if (!(event.target instanceof Element)) {
     return;
   }
 
@@ -313,7 +156,7 @@ function onPageBarClick(event: MouseEvent): void {
   event.preventDefault();
   event.stopPropagation();
 
-  const url = pageBarUrl(barItem, enhancement);
+  const url = pageBarUrl(barItem);
 
   if (!url) {
     return;
@@ -324,37 +167,26 @@ function onPageBarClick(event: MouseEvent): void {
     return;
   }
 
-  void navigateGalleryPreview(url, "push").catch(enhancement.onError);
+  void navigateGalleryPreview(url, "push").catch((error) => galleryThumbEnhancementErrorHandler?.(error));
 }
 
-function pageBarUrl(item: HTMLElement, enhancement: GalleryEnhancement): string | null {
+function pageBarUrl(item: HTMLElement): string | null {
   if (item instanceof HTMLAnchorElement) {
-    return enhancement.previewIndexFromUrl(item.href) === null ? null : item.href;
+    return eh.previewPageIndexFromUrl(item.href) === null ? null : item.href;
   }
 
-  const maxPreviewIndex = enhancement.maxPreviewIndex();
+  const maxPreviewIndex = eh.maxPreviewPageIndex();
 
   if (maxPreviewIndex === null) {
     return null;
   }
 
-  const page = window.prompt(`Jump to page: (1-${maxPreviewIndex + 1})`, String(enhancement.currentPreviewIndex() + 1));
+  const page = window.prompt(`Jump to page: (1-${maxPreviewIndex + 1})`, String(eh.previewPageIndex() + 1));
   const pageNumber = Number(page || "");
 
   if (!Number.isFinite(pageNumber)) {
     return null;
   }
 
-  return enhancement.previewUrlForIndex(clamp(Math.round(pageNumber) - 1, 0, maxPreviewIndex));
-}
-
-function ensureGalleryStyle(): void {
-  if (document.getElementById(GALLERY_STYLE_ID)) {
-    return;
-  }
-
-  const style = document.createElement("style");
-  style.id = GALLERY_STYLE_ID;
-  style.textContent = betterPageBarCss;
-  document.head.append(style);
+  return eh.previewUrlForIndex(clamp(Math.round(pageNumber) - 1, 0, maxPreviewIndex));
 }

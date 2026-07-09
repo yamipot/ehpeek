@@ -1,3 +1,5 @@
+const REQUEST_TIMEOUT_MS = 30000;
+
 export function debugLog(message: string, detail?: unknown): void {
   if (!__EHPEEK_DEBUG__) {
     return;
@@ -23,6 +25,28 @@ export function normalizeUrl(url: string, baseUrl = window.location.href): strin
     return new URL(url, baseUrl).href;
   } catch {
     return "";
+  }
+}
+
+export async function requestText(url: string): Promise<string> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => {
+    controller.abort();
+  }, REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      credentials: "include",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return await response.text();
+  } finally {
+    window.clearTimeout(timeout);
   }
 }
 

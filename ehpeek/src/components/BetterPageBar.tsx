@@ -63,6 +63,10 @@ export class BetterPageBar {
   }
 }
 
+export function createBetterPageBar(options: BetterPageBarOptions): HTMLTableElement {
+  return new BetterPageBar(options).element;
+}
+
 function pageIndexes(currentIndex: number, maxIndex: number): Array<number | null> {
   const indexes = new Set<number>([0, maxIndex]);
 
