@@ -20,6 +20,9 @@ const NEAR_LOAD_AHEAD = 3;
 const PAGED_SWIPE_THRESHOLD = 24;
 const PAGED_WHEEL_THRESHOLD = 8;
 const PROGRESS_IDLE_COMMIT_MS = 1000;
+const DOUBLE_TAP_MS = 340;
+const DOUBLE_TAP_DISTANCE = 36;
+const TAP_CANCEL_DISTANCE = 8;
 const FALLBACK_ASPECT_RATIO = 1.42;
 
 export type ReaderPage = {
@@ -237,6 +240,14 @@ class FullscreenReader {
   private scrollFrame: number | null = null;
   private resizeFrame: number | null = null;
   private progressNavigationTimer: number | null = null;
+  private tapTimer: number | null = null;
+  private pendingTap:
+    | {
+        info: GestureTap;
+        event: PointerEvent | MouseEvent;
+        time: number;
+      }
+    | null = null;
   private pendingProgressNavigationPageNum: number | null = null;
   private progressNavigating = false;
   private viewportDrag: ViewportDragState | null = null;
@@ -368,6 +379,7 @@ class FullscreenReader {
 
     this.closed = true;
     this.cancelProgressNavigation();
+    this.cancelPendingTap();
     this.imageQueue.dispose();
     window.removeEventListener("resize", this.onResize);
     window.removeEventListener("popstate", this.onPopState);
@@ -651,6 +663,10 @@ class FullscreenReader {
       return;
     }
 
+    if (Math.abs(info.dx) >= TAP_CANCEL_DISTANCE || Math.abs(info.dy) >= TAP_CANCEL_DISTANCE) {
+      this.cancelPendingTap();
+    }
+
     debugLog("drag move", {
       pointerType: pointerTypeForEvent(event),
       clientY: info.clientY,
@@ -727,6 +743,14 @@ class FullscreenReader {
   private handleTap(info: GestureTap, event: PointerEvent | MouseEvent): void {
     this.viewportDrag = null;
 
+    if (this.consumeDoubleTap(info, event)) {
+      return;
+    }
+
+    this.queueSingleTap(info, event);
+  }
+
+  private runSingleTap(info: GestureTap, event: PointerEvent | MouseEvent): void {
     if (this.zoomOverlay.active()) {
       event.preventDefault();
       return;
@@ -770,12 +794,7 @@ class FullscreenReader {
   }
 
   private handlePinchStart(info: { clientX: number; clientY: number }): boolean {
-    const image = this.loadedImages.get(this.currentPageNum);
-
-    if (!image) {
-      return false;
-    }
-
+    this.cancelPendingTap();
     this.viewport.stopMotion();
     this.viewportDrag = null;
 
@@ -784,8 +803,89 @@ class FullscreenReader {
       return true;
     }
 
+    const image = this.imageAtPoint(info);
+
+    if (!image) {
+      return false;
+    }
+
     this.zoomOverlay.start(image, { centerX: info.clientX, centerY: info.clientY });
     return true;
+  }
+
+  private toggleZoomAtPoint(point: { clientX: number; clientY: number }): boolean {
+    if (this.zoomOverlay.active()) {
+      this.zoomOverlay.close();
+      return true;
+    }
+
+    const image = this.imageAtPoint(point);
+
+    if (!image) {
+      return false;
+    }
+
+    this.viewport.stopMotion();
+    this.viewportDrag = null;
+    this.zoomOverlay.start(image, { centerX: point.clientX, centerY: point.clientY });
+    this.zoomOverlay.movePinch({ centerX: point.clientX, centerY: point.clientY, scale: 2 });
+    this.zoomOverlay.endPinch();
+    return true;
+  }
+
+  private imageAtPoint(point: { clientX: number; clientY: number }): ZoomOverlayImage | null {
+    const pageNum = this.viewport.pageNumAtPoint(point);
+    return pageNum === null ? null : this.loadedImages.get(pageNum) ?? null;
+  }
+
+  private consumeDoubleTap(info: GestureTap, event: PointerEvent | MouseEvent): boolean {
+    const now = event.timeStamp || performance.now();
+    const pending = this.pendingTap;
+    const eventDetail = event instanceof MouseEvent ? event.detail : 0;
+    const nativeDoubleClick = eventDetail >= 2;
+    const nearPendingTap = pending
+      ? now - pending.time <= DOUBLE_TAP_MS && Math.hypot(info.clientX - pending.info.clientX, info.clientY - pending.info.clientY) <= DOUBLE_TAP_DISTANCE
+      : false;
+
+    if (!nativeDoubleClick && !nearPendingTap) {
+      return false;
+    }
+
+    this.cancelPendingTap();
+
+    if (this.toggleZoomAtPoint(info)) {
+      event.preventDefault();
+      return true;
+    }
+
+    return false;
+  }
+
+  private queueSingleTap(info: GestureTap, event: PointerEvent | MouseEvent): void {
+    this.cancelPendingTap();
+    this.pendingTap = {
+      info,
+      event,
+      time: event.timeStamp || performance.now(),
+    };
+    this.tapTimer = window.setTimeout(() => {
+      const pending = this.pendingTap;
+      this.pendingTap = null;
+      this.tapTimer = null;
+
+      if (pending) {
+        this.runSingleTap(pending.info, pending.event);
+      }
+    }, DOUBLE_TAP_MS);
+  }
+
+  private cancelPendingTap(): void {
+    if (this.tapTimer !== null) {
+      window.clearTimeout(this.tapTimer);
+      this.tapTimer = null;
+    }
+
+    this.pendingTap = null;
   }
 
   private readonly onProgressPointerDown = (event: PointerEvent): void => {

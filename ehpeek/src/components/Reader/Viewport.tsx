@@ -282,17 +282,22 @@ export class PagesViewport {
   }
 
   isHitEndPage(point: { clientX: number; clientY: number }): boolean {
+    const pageNum = this.pageNumAtPoint(point);
+    const slot = pageNum === null ? undefined : this.slotFor(pageNum);
+
+    return slot?.kind === "end";
+  }
+
+  pageNumAtPoint(point: { clientX: number; clientY: number }): number | null {
     const element = document.elementFromPoint(point.clientX, point.clientY);
     const pageNode = element instanceof Element ? element.closest<HTMLElement>(".ehpeek-page") : null;
 
     if (!pageNode) {
-      return false;
+      return null;
     }
 
     const pageNum = Number(pageNode.dataset.ehpeekPageNum || "");
-    const slot = Number.isFinite(pageNum) ? this.slotFor(pageNum) : undefined;
-
-    return slot?.kind === "end";
+    return Number.isFinite(pageNum) ? pageNum : null;
   }
 
   startVerticalFlingFromDragVelocity(dragVelocityY: number, onStop: () => void): void {
