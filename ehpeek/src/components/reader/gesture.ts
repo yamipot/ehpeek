@@ -162,6 +162,8 @@ export class PagesGesture {
     }
 
     if (this.drag?.pointerType === "mouse") {
+      // Some userscript/browser combinations start the drag with PointerEvent
+      // but deliver movement through MouseEvent with a different id.
       this.addMouseListeners();
       return;
     }

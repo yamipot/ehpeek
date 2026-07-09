@@ -398,7 +398,7 @@ class FullscreenReader {
 
   private syncAfterPageChange(options: { scrollIntoView: boolean; scrollMotion?: ScrollMotion }): void {
     const token = ++this.syncToken;
-    const numbers = this.windowNumbers();
+    const numbers = this.viewport.windowPageNums(this.currentPageNum, this.renderWindowSize);
     const missing = numbers.filter((number) => this.isRealPageNum(number) && !this.pages.has(number));
 
     this.syncViewportWindow();
@@ -483,10 +483,6 @@ class FullscreenReader {
     return page ? { pageNum, page, index: pageNum - 1 } : null;
   }
 
-  private windowNumbers(): number[] {
-    return this.viewport.windowPageNums(this.currentPageNum, this.renderWindowSize);
-  }
-
   private maxProgressPageNum(): number {
     return this.totalPages ? this.totalPages + 1 : Number.MAX_SAFE_INTEGER;
   }
@@ -495,7 +491,7 @@ class FullscreenReader {
     return pageNum >= 1 && (!this.totalPages || pageNum <= this.totalPages);
   }
 
-  private step(delta: number): void {
+  private turnPageBy(delta: number): void {
     if (state.reader.viewMode.value === "paged") {
       this.animatePagedStep(delta);
       return;
@@ -521,7 +517,7 @@ class FullscreenReader {
 
     this.direction = target > base ? 1 : -1;
     this.pagedTargetPageNumber = target;
-    this.scrollToPage(target, "animated", () => {
+    this.viewport.moveToPage(target, "animated", () => {
       if (this.pagedTargetPageNumber !== target) {
         return;
       }
@@ -532,15 +528,11 @@ class FullscreenReader {
   }
 
   private scrollToCurrentPage(motion: ScrollMotion = "instant"): void {
-    this.scrollToPage(this.currentPageNum, motion);
-  }
-
-  private scrollToPage(pageNum: number, motion: ScrollMotion = "instant", onComplete?: () => void): void {
-    this.viewport.moveToPage(pageNum, motion, onComplete);
+    this.viewport.moveToPage(this.currentPageNum, motion);
   }
 
   private readonly onImageLoaded = (target: LoadTarget, loaded: LoadedReaderPage, token: number): void => {
-    if (!this.windowNumbers().includes(target.pageNum)) {
+    if (!this.viewport.windowPageNums(this.currentPageNum, this.renderWindowSize).includes(target.pageNum)) {
       return;
     }
 
@@ -592,7 +584,7 @@ class FullscreenReader {
   }
 
   private handleKeyboardArrow(direction: "left" | "right"): void {
-    this.step(direction === "left" ? this.leftTapDelta() : this.rightTapDelta());
+    this.turnPageBy(direction === "left" ? this.leftTapDelta() : this.rightTapDelta());
   }
 
   private handleWheel(delta: number, event: WheelEvent): void {
@@ -607,7 +599,7 @@ class FullscreenReader {
     }
 
     if (Math.abs(delta) >= PAGED_WHEEL_THRESHOLD) {
-      this.step(delta > 0 ? this.rightwardDelta() : this.leftwardDelta());
+      this.turnPageBy(delta > 0 ? 1 : -1);
     }
   }
 
@@ -656,10 +648,10 @@ class FullscreenReader {
 
     if (info.dx >= PAGED_SWIPE_THRESHOLD) {
       this.suppressNextClick = true;
-      this.step(this.rightDragDelta());
+      this.turnPageBy(this.rightDragDelta());
     } else if (info.dx <= -PAGED_SWIPE_THRESHOLD) {
       this.suppressNextClick = true;
-      this.step(this.leftDragDelta());
+      this.turnPageBy(this.leftDragDelta());
     } else {
       this.suppressNextClick = true;
       this.scrollToCurrentPage("animated");
@@ -722,7 +714,7 @@ class FullscreenReader {
     if (zone >= 1 / 3 && zone <= 2 / 3) {
       this.toggleToolbar();
     } else {
-      this.step(zone < 1 / 3 ? this.leftTapDelta() : this.rightTapDelta());
+      this.turnPageBy(zone < 1 / 3 ? this.leftTapDelta() : this.rightTapDelta());
     }
   }
 
@@ -771,15 +763,6 @@ class FullscreenReader {
     }
   };
 
-  private updatePageNumberText(pageNum: number): void {
-    this.toolbar.setProgress({
-      pageNum,
-      totalPages: this.totalPages,
-      maxProgressPageNum: Math.max(1, this.maxProgressPageNum()),
-      keepInputValue: true,
-    });
-  }
-
   private navigateProgressPage(pageNum: number): void {
     const target = clamp(Math.round(pageNum), 1, this.maxProgressPageNum());
 
@@ -791,7 +774,12 @@ class FullscreenReader {
     ++this.syncToken;
     this.syncViewportWindow();
     this.scrollToCurrentPage();
-    this.updatePageNumberText(target);
+    this.toolbar.setProgress({
+      pageNum: target,
+      totalPages: this.totalPages,
+      maxProgressPageNum: Math.max(1, this.maxProgressPageNum()),
+      keepInputValue: true,
+    });
   }
 
   private cancelProgressNavigation(): void {
@@ -866,13 +854,6 @@ class FullscreenReader {
     return -this.rightDragDelta();
   }
 
-  private rightwardDelta(): number {
-    return state.reader.readDirection.value === "ltr" ? 1 : -1;
-  }
-
-  private leftwardDelta(): number {
-    return -this.rightwardDelta();
-  }
 
 }
 
