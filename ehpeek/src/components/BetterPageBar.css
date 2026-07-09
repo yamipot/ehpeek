@@ -1,0 +1,88 @@
+.ehpeek-better-page-bar {
+  border-collapse: separate;
+  border-spacing: 4px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ehpeek-better-page-bar-top {
+  margin-top: 2px;
+  margin-bottom: 0;
+}
+
+.ehpeek-better-page-bar-bottom {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.ehpeek-better-page-bar td {
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  vertical-align: middle;
+  user-select: none;
+}
+
+.ehpeek-better-page-bar a,
+.ehpeek-better-page-bar button,
+.ehpeek-better-page-bar span {
+  display: flex;
+  min-width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 8px;
+  font: inherit;
+}
+
+.ehpeek-better-page-bar button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ehpeek-better-page-bar .ptds span {
+  padding: 0 10px;
+}
+
+.ehpeek-preview-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.72;
+}
+
+.ehpeek-preview-placeholder::before {
+  content: "Loading...";
+  font-weight: 700;
+}
+
+@media (pointer: coarse) {
+  .ehpeek-better-page-bar {
+    border-spacing: 6px;
+  }
+
+  .ehpeek-better-page-bar td {
+    min-width: 46px;
+    height: 46px;
+    border-radius: 6px;
+    font-size: 16px;
+  }
+
+  .ehpeek-better-page-bar a,
+  .ehpeek-better-page-bar button,
+  .ehpeek-better-page-bar span {
+    min-width: 46px;
+    height: 46px;
+    padding: 0 12px;
+  }
+
+  .ehpeek-better-page-bar .ptds span {
+    padding: 0 14px;
+  }
+}

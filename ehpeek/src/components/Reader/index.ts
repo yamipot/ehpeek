@@ -7,10 +7,10 @@ import {
   positiveNumber,
 } from "../../utils";
 import type { ScrollMotion } from "../animation";
-import { PagesGesture, type GestureDragEnd, type GestureDragMove, type GestureDragStart, type GestureTap } from "./gesture";
-import { PagesViewport } from "./viewport";
-import { ReaderRoot } from "./root";
-import { Toolbar } from "./toolbar";
+import { PagesGesture, type GestureDragEnd, type GestureDragMove, type GestureDragStart, type GestureTap } from "./Gesture";
+import { PagesViewport } from "./Viewport";
+import { ReaderRoot } from "./Root";
+import { Toolbar } from "./Toolbar";
 
 const DEFAULT_WINDOW_SIZE = 10;
 const DEFAULT_NEAR_CONCURRENT_LOADS = 3;

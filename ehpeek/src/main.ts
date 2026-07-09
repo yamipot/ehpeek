@@ -1,22 +1,40 @@
-import { openFullscreenReader, type LoadedReaderPage, type ReaderPage } from "./components/reader/reader";
+import { openFullscreenReader, type LoadedReaderPage, type ReaderPage } from "./components/Reader";
+import { SettingsMenu } from "./components/SettingsMenu";
+import {
+  createBetterPageBar,
+  enhanceGalleryThumbsEnabled,
+  GalleryPageProvider,
+  galleryPageNumber,
+  installGalleryThumbEnhancement,
+  navigateGalleryPreview,
+  peekPageFromHash,
+  previewPageIndex,
+  previewPageIndexFromUrl,
+  previewUrlForIndex,
+  requestText,
+  toggleEnhanceGalleryThumbs,
+  updatePeekLocation,
+} from "./components/EnhanceGallery";
 import texts from "./texts.json";
 import { state } from "./state";
-import { clamp, normalizeUrl } from "./utils";
+import { normalizeUrl } from "./utils";
 
-const REQUEST_TIMEOUT_MS = 30000;
-const PREVIEW_CACHE_LIMIT = 10;
-const SETTINGS_ROOT_ID = "ehpeek-settings-root";
-const SETTINGS_TRIGGER_ID = "ehpeek-settings-trigger";
-const SETTINGS_MENU_ID = "ehpeek-settings-menu";
-const SETTINGS_READER_ID = "ehpeek-reader-setting";
-const SETTINGS_STYLE_ID = "ehpeek-settings-style";
+const BETTER_PAGE_BAR_TOP_CLASS = "ehpeek-better-page-bar-top";
+const BETTER_PAGE_BAR_BOTTOM_CLASS = "ehpeek-better-page-bar-bottom";
+const PREVIEW_PLACEHOLDER_CLASS = "ehpeek-preview-placeholder";
 const READER_WINDOW_SIZE = 10;
 
+type PreviewSnapshot = {
+  description: Node | null;
+  thumbs: Node | null;
+};
+
 let menuCommandId: number | string | null = null;
+let settingsMenu: SettingsMenu | null = null;
 
 function updateReaderEnabled(enabled: boolean): void {
   state.reader.enabled.set(enabled);
-  updateSettingsMenu();
+  settingsMenu?.update();
   registerUserscriptMenu();
 }
 
@@ -49,64 +67,23 @@ function isImagePageUrl(url: string): boolean {
   }
 }
 
+function toggleEnhanceGalleryThumbsSetting(): void {
+  toggleEnhanceGalleryThumbs();
+  settingsMenu?.update();
+}
+
+function settingsMenuState() {
+  return {
+    readerEnabled: state.reader.enabled.value,
+    enhanceGalleryThumbsEnabled: enhanceGalleryThumbsEnabled(),
+  };
+}
+
 function imageAspectRatio(image: HTMLImageElement | null): number {
   const width = image?.naturalWidth || image?.width || Number(image?.getAttribute("width") || "");
   const height = image?.naturalHeight || image?.height || Number(image?.getAttribute("height") || "");
 
   return width > 0 && height > 0 ? height / width : 1.42;
-}
-
-function galleryPageNumber(url: string): number | undefined {
-  try {
-    const parsed = new URL(url, window.location.href);
-    const match = parsed.pathname.match(/\/(\d+)-(\d+)\/?$/);
-    const pageNumber = Number(match?.[2] || "");
-
-    return Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function peekPageFromHash(): number | null {
-  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-  const page = Number(params.get("peek_page") || "");
-
-  return Number.isFinite(page) && page > 0 ? page : null;
-}
-
-function updatePeekLocation(pageNumber: number | undefined, pageSize: number): void {
-  if (!pageNumber || pageNumber <= 0) {
-    return;
-  }
-
-  const url = new URL(window.location.href);
-  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-  const nextValue = String(pageNumber);
-  const previewIndex = previewPageIndexForGalleryPage(pageNumber, pageSize);
-  let changed = false;
-
-  if (previewIndex === 0) {
-    if (url.searchParams.has("p")) {
-      url.searchParams.delete("p");
-      changed = true;
-    }
-  } else if (url.searchParams.get("p") !== String(previewIndex)) {
-    url.searchParams.set("p", String(previewIndex));
-    changed = true;
-  }
-
-  if (params.get("peek_page") !== nextValue) {
-    params.set("peek_page", nextValue);
-    changed = true;
-  }
-
-  if (!changed) {
-    return;
-  }
-
-  url.hash = params.toString();
-  window.history.replaceState(window.history.state, "", url.href);
 }
 
 function collectGalleryPages(root: ParentNode = document, baseUrl = window.location.href): ReaderPage[] {
@@ -134,12 +111,6 @@ function collectGalleryPages(root: ParentNode = document, baseUrl = window.locat
   return pages.sort((left, right) => (left.pageNum ?? Number.MAX_SAFE_INTEGER) - (right.pageNum ?? Number.MAX_SAFE_INTEGER));
 }
 
-function previewPageIndex(): number {
-  const value = Number(new URL(window.location.href).searchParams.get("p") || "0");
-  return Number.isFinite(value) && value >= 0 ? value : 0;
-}
-
-// The gallery's "Showing A - B of C images" line describes the current preview page.
 function readShowingRange(root: ParentNode = document): { start: number; end: number; total: number } | null {
   const text = root.querySelector(".gpc")?.textContent ?? "";
   const match = text.match(/([\d,]+)\s*-\s*([\d,]+)\s+of\s+([\d,]+)/i);
@@ -201,28 +172,6 @@ function maxPreviewPageIndex(root: ParentNode = document, baseUrl = window.locat
   return Math.max(...indexes);
 }
 
-function previewUrlForIndex(previewIndex: number): string {
-  const url = new URL(window.location.href);
-
-  if (previewIndex <= 0) {
-    url.searchParams.delete("p");
-  } else {
-    url.searchParams.set("p", String(previewIndex));
-  }
-
-  url.hash = "";
-  return url.href;
-}
-
-function previewPageIndexForGalleryPage(galleryPage: number, pageSize: number): number {
-  const previewIndex = Math.max(0, Math.floor((galleryPage - 1) / pageSize));
-  const maxPreviewIndex = maxPreviewPageIndex();
-
-  return maxPreviewIndex === null ? previewIndex : Math.min(previewIndex, maxPreviewIndex);
-}
-
-// Collect the image pages of a single preview page. `landingIndex`/`landingPages` capture the
-// preview page shown in the document at open time, since the URL's `p` is rewritten while reading.
 async function collectPreviewPage(index: number, landingIndex: number, landingPages: ReaderPage[]): Promise<ReaderPage[]> {
   if (index === landingIndex) {
     return landingPages;
@@ -246,28 +195,6 @@ function findClickedImageLink(target: EventTarget | null): HTMLAnchorElement | n
   }
 
   return null;
-}
-
-async function requestText(url: string): Promise<string> {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => {
-    controller.abort();
-  }, REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      credentials: "include",
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    return await response.text();
-  } finally {
-    window.clearTimeout(timeout);
-  }
 }
 
 function numericAttribute(element: Element | null, attribute: string): number | null {
@@ -296,95 +223,19 @@ async function loadEhImagePage(page: ReaderPage): Promise<LoadedReaderPage> {
   };
 }
 
-class EhGalleryPageProvider {
-  private readonly previewCache = new Map<number, ReaderPage[]>();
-
-  constructor(
-    private readonly landingIndex: number,
-    private readonly landingPages: ReaderPage[],
-    private readonly pageSize: number,
-    private readonly maxPreviewIndex: number | null,
-    private readonly windowSize: number,
-  ) {
-    this.previewCache.set(landingIndex, landingPages);
-  }
-
-  previewIndepageNumForPage(pageNum: number): number {
-    const previewIndex = Math.max(0, Math.floor((pageNum - 1) / this.pageSize));
-    return this.maxPreviewIndex === null ? previewIndex : Math.min(previewIndex, this.maxPreviewIndex);
-  }
-
-  async loadDisplayPages(pageNums: number[]): Promise<ReaderPage[]> {
-    const previewIndexes = Array.from(new Set(pageNums.map((pageNum) => this.previewIndepageNumForPage(pageNum)))).filter(
-      (value) => value >= 0 && (this.maxPreviewIndex === null || value <= this.maxPreviewIndex),
-    );
-    const requested = new Set(pageNums);
-    const chunks = await Promise.all(previewIndexes.map((index) => this.cachedPreviewPage(index)));
-    const byUrl = new Map<string, ReaderPage>();
-
-    for (const page of chunks.flat()) {
-      if (page.pageNum && requested.has(page.pageNum)) {
-        byUrl.set(page.url, page);
-      }
-    }
-
-    return Array.from(byUrl.values()).sort(
-      (left, right) => (left.pageNum ?? Number.MAX_SAFE_INTEGER) - (right.pageNum ?? Number.MAX_SAFE_INTEGER),
-    );
-  }
-
-  displayWindowAround(pageNum: number): number[] {
-    const numbers: number[] = [];
-
-    for (let offset = -this.windowSize; offset <= this.windowSize; offset += 1) {
-      const value = pageNum + offset;
-
-      if (value > 0) {
-        numbers.push(value);
-      }
-    }
-
-    return numbers;
-  }
-
-  private async cachedPreviewPage(index: number): Promise<ReaderPage[]> {
-    const boundedIndex = this.maxPreviewIndex === null ? index : Math.min(index, this.maxPreviewIndex);
-
-    if (boundedIndex < 0) {
-      return [];
-    }
-
-    const cached = this.previewCache.get(boundedIndex);
-
-    if (cached) {
-      this.previewCache.delete(boundedIndex);
-      this.previewCache.set(boundedIndex, cached);
-      return cached;
-    }
-
-    const pages = await collectPreviewPage(boundedIndex, this.landingIndex, this.landingPages);
-    this.previewCache.set(boundedIndex, pages);
-
-    while (this.previewCache.size > PREVIEW_CACHE_LIMIT) {
-      const oldest = this.previewCache.keys().next().value;
-
-      if (oldest === undefined) {
-        break;
-      }
-
-      this.previewCache.delete(oldest);
-    }
-
-    return pages;
-  }
-}
-
 async function openReader(startPageUrl: string): Promise<void> {
   const landingIndex = previewPageIndex();
   const landingPages = collectGalleryPages();
   const pageSize = computePreviewPageSize();
   const maxPreviewIndex = maxPreviewPageIndex();
-  const provider = new EhGalleryPageProvider(landingIndex, landingPages, pageSize, maxPreviewIndex, READER_WINDOW_SIZE);
+  const provider = new GalleryPageProvider(
+    landingIndex,
+    landingPages,
+    pageSize,
+    maxPreviewIndex,
+    READER_WINDOW_SIZE,
+    collectPreviewPage,
+  );
   const startUrl = normalizeUrl(startPageUrl);
   const hashPage = peekPageFromHash();
 
@@ -416,13 +267,22 @@ async function openReader(startPageUrl: string): Promise<void> {
     onActivePageChange: (page) => {
       if (page.pageNum) {
         lastPageNum = page.pageNum;
+        renderPageBars(provider.previewIndexForPage(page.pageNum), maxPreviewIndex);
       }
 
-      updatePeekLocation(page.pageNum, pageSize);
+      updatePeekLocation(page.pageNum, pageSize, maxPreviewIndex);
     },
     onExit: () => {
-      const exitIndex = lastPageNum ? provider.previewIndepageNumForPage(lastPageNum) : landingIndex;
+      const exitIndex = lastPageNum ? provider.previewIndexForPage(lastPageNum) : landingIndex;
       const galleryUrl = previewUrlForIndex(exitIndex);
+      renderPageBars(exitIndex, maxPreviewIndex);
+
+      if (enhanceGalleryThumbsEnabled()) {
+        void navigateGalleryPreview(galleryUrl, "replace").catch(() => {
+          window.location.replace(galleryUrl);
+        });
+        return;
+      }
 
       // If the page underneath already shows this preview page, keep it (just fix the URL);
       // otherwise navigate the gallery to the preview page the reader ended on.
@@ -442,153 +302,103 @@ function reportOpenError(error: unknown): void {
   window.alert(message);
 }
 
-function ensureSettingsStyle(): void {
-  if (document.getElementById(SETTINGS_STYLE_ID)) {
+function renderPageBars(currentIndex: number, maxIndex: number | null): void {
+  const originals = Array.from(document.querySelectorAll<HTMLElement>(".ptt, .ptb"));
+  const topSource = originals.find((item) => item.classList.contains("ptt")) ?? originals[0];
+  const bottomSource = originals.find((item) => item.classList.contains("ptb")) ?? originals[1] ?? originals[0];
+
+  if (topSource) {
+    renderPageBarAt(topSource, true, currentIndex, maxIndex);
+  }
+
+  if (bottomSource) {
+    renderPageBarAt(bottomSource, false, currentIndex, maxIndex);
+  }
+
+  for (const original of originals) {
+    original.hidden = true;
+  }
+}
+
+function renderPageBarAt(source: HTMLElement, top: boolean, currentIndex: number, maxIndex: number | null): void {
+  const className = top ? BETTER_PAGE_BAR_TOP_CLASS : BETTER_PAGE_BAR_BOTTOM_CLASS;
+  const existing = document.querySelector<HTMLElement>(`.${className}`);
+  const pageBar = createBetterPageBar({
+    currentIndex,
+    maxIndex,
+    top,
+    previewUrlForIndex,
+  });
+
+  if (existing) {
+    existing.replaceWith(pageBar);
+  } else {
+    source.insertAdjacentElement("afterend", pageBar);
+  }
+}
+
+function snapshotPreview(): PreviewSnapshot {
+  return {
+    description: document.querySelector(".gpc")?.cloneNode(true) ?? null,
+    thumbs: document.querySelector("#gdt")?.cloneNode(true) ?? null,
+  };
+}
+
+function installPreviewPlaceholder(): void {
+  const current = document.querySelector<HTMLElement>("#gdt");
+
+  if (!current) {
     return;
   }
 
-  const style = document.createElement("style");
-  style.id = SETTINGS_STYLE_ID;
-  style.textContent = `
-    #${SETTINGS_MENU_ID} {
-      position: fixed;
-      z-index: 2147483646;
-      min-width: 190px;
-      padding: 6px;
-      border: 1px solid currentColor;
-      border-radius: 4px;
-      background: Canvas;
-      color: CanvasText;
-      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
-    }
-
-    #${SETTINGS_MENU_ID}[hidden] {
-      display: none;
-    }
-
-    #${SETTINGS_READER_ID} {
-      display: flex;
-      width: 100%;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 6px 8px;
-      border: 0;
-      border-radius: 3px;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-      font: inherit;
-      text-align: left;
-    }
-
-    #${SETTINGS_READER_ID}:hover {
-      background: color-mix(in srgb, currentColor 10%, transparent);
-    }
-
-    #${SETTINGS_READER_ID}::after {
-      content: "";
-      flex: 0 0 auto;
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: #2faa44;
-    }
-
-    #${SETTINGS_READER_ID}[aria-checked="false"]::after {
-      background: #999;
-    }
-  `;
-  document.head.append(style);
+  const rect = current.getBoundingClientRect();
+  const placeholder = document.createElement("div");
+  placeholder.id = "gdt";
+  placeholder.className = PREVIEW_PLACEHOLDER_CLASS;
+  placeholder.style.minHeight = `${Math.max(160, Math.round(rect.height))}px`;
+  placeholder.setAttribute("aria-busy", "true");
+  current.replaceWith(placeholder);
 }
 
-function positionSettingsMenu(): void {
-  const trigger = document.getElementById(SETTINGS_TRIGGER_ID);
-  const menu = document.getElementById(SETTINGS_MENU_ID);
+function replacePreviewContent(doc: Document, baseUrl: string): void {
+  replaceFirstElement(".gpc", doc);
+  replaceFirstElement("#gdt", doc);
+  renderPageBars(previewPageIndexFromUrl(baseUrl) ?? previewPageIndex(), maxPreviewPageIndex(doc, baseUrl));
+}
 
-  if (!trigger || !menu || menu.hidden) {
+function replaceFirstElement(selector: string, doc: Document): void {
+  const current = document.querySelector(selector);
+  const incoming = doc.querySelector(selector);
+
+  if (!current || !incoming) {
     return;
   }
 
-  const gap = 4;
-  const edgePadding = 8;
-  const triggerRect = trigger.getBoundingClientRect();
-  const menuRect = menu.getBoundingClientRect();
-  const left = clamp(triggerRect.right - menuRect.width, edgePadding, window.innerWidth - menuRect.width - edgePadding);
-  const top = clamp(triggerRect.bottom + gap, edgePadding, window.innerHeight - menuRect.height - edgePadding);
-
-  menu.style.left = `${left}px`;
-  menu.style.top = `${top}px`;
+  current.replaceWith(document.importNode(incoming, true));
 }
 
-function updateSettingsMenu(): void {
-  const trigger = document.getElementById(SETTINGS_TRIGGER_ID);
-  const setting = document.getElementById(SETTINGS_READER_ID);
-  const menu = document.getElementById(SETTINGS_MENU_ID);
+function restorePreview(snapshot: unknown): void {
+  const preview = snapshot as PreviewSnapshot;
+  const currentDescription = document.querySelector(".gpc");
+  const currentThumbs = document.querySelector("#gdt");
 
-  if (trigger) {
-    trigger.textContent = texts.settings.menuLabel;
-    trigger.setAttribute("aria-expanded", String(menu ? !menu.hidden : false));
-    trigger.setAttribute("aria-haspopup", "menu");
+  if (preview.description && currentDescription) {
+    currentDescription.replaceWith(preview.description);
   }
 
-  const enabled = state.reader.enabled.value;
-
-  if (setting) {
-    setting.setAttribute("aria-checked", String(enabled));
-    setting.textContent = enabled ? texts.settings.readerOn : texts.settings.readerOff;
-    setting.title = enabled ? texts.settings.disableReader : texts.settings.enableReader;
-  }
-
-  positionSettingsMenu();
-}
-
-function closeSettingsMenu(): void {
-  const menu = document.getElementById(SETTINGS_MENU_ID);
-
-  if (!menu || menu.hidden) {
-    return;
-  }
-
-  menu.hidden = true;
-  updateSettingsMenu();
-}
-
-function toggleSettingsMenu(): void {
-  const menu = document.getElementById(SETTINGS_MENU_ID);
-
-  if (!menu) {
-    return;
-  }
-
-  const nextHidden = !menu.hidden;
-  menu.hidden = nextHidden;
-  updateSettingsMenu();
-
-  if (!nextHidden) {
-    positionSettingsMenu();
+  if (preview.thumbs && currentThumbs) {
+    currentThumbs.replaceWith(preview.thumbs);
   }
 }
 
 function openSettingsMenu(): void {
-  if (!document.getElementById(SETTINGS_ROOT_ID)) {
-    installSettingsMenu();
-  }
-
-  const menu = document.getElementById(SETTINGS_MENU_ID);
-
-  if (!menu) {
-    return;
-  }
-
-  menu.hidden = false;
-  updateSettingsMenu();
-  positionSettingsMenu();
+  installSettingsMenu();
+  settingsMenu?.open();
 }
 
 function installSettingsMenu(): void {
-  if (document.getElementById(SETTINGS_ROOT_ID)) {
-    updateSettingsMenu();
+  if (settingsMenu) {
+    settingsMenu.update();
     return;
   }
 
@@ -601,70 +411,25 @@ function installSettingsMenu(): void {
     return;
   }
 
-  ensureSettingsStyle();
-
-  const root = document.createElement(topNav ? "div" : "span");
-  root.id = SETTINGS_ROOT_ID;
-
-  const trigger = topNav ? document.createElement("a") : document.createElement("button");
-  trigger.id = SETTINGS_TRIGGER_ID;
-  if (trigger instanceof HTMLAnchorElement) {
-    trigger.href = "#";
-  } else {
-    trigger.type = "button";
-  }
-  trigger.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    toggleSettingsMenu();
+  settingsMenu = new SettingsMenu(topNav ? "a" : "button", settingsMenuState, {
+    onReaderToggle: toggleReader,
+    onEnhanceGalleryThumbsToggle: toggleEnhanceGalleryThumbsSetting,
   });
-
-  const menu = document.createElement("div");
-  menu.id = SETTINGS_MENU_ID;
-  menu.hidden = true;
-
-  const readerSetting = document.createElement("button");
-  readerSetting.id = SETTINGS_READER_ID;
-  readerSetting.type = "button";
-  readerSetting.setAttribute("role", "switch");
-  readerSetting.addEventListener("click", (event) => {
-    event.stopPropagation();
-    toggleReader();
-  });
-
-  menu.append(readerSetting);
-  root.append(trigger, menu);
 
   if (topNav) {
-    topNav.append(root);
+    settingsMenu.mount(topNav);
   } else {
     const wrapper = document.createElement("div");
     wrapper.style.textAlign = "right";
-    wrapper.append(root);
 
     if (thumbnailContainer) {
       anchor?.parentElement?.insertBefore(wrapper, anchor);
     } else {
       anchor?.insertAdjacentElement("afterend", wrapper);
     }
+
+    settingsMenu.mount(wrapper);
   }
-
-  document.addEventListener("click", (event) => {
-    if (event.target instanceof Element && event.target.closest(`#${SETTINGS_ROOT_ID}`)) {
-      return;
-    }
-
-    closeSettingsMenu();
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      closeSettingsMenu();
-    }
-  });
-  window.addEventListener("resize", positionSettingsMenu);
-  window.addEventListener("scroll", positionSettingsMenu, true);
-
-  updateSettingsMenu();
 }
 
 function onDocumentClick(event: MouseEvent): void {
@@ -702,6 +467,18 @@ registerUserscriptMenu();
 
 if (/^\/g\/\d+\/[^/]+\/?$/i.test(window.location.pathname)) {
   installSettingsMenu();
+  installGalleryThumbEnhancement({
+    currentPreviewIndex: () => previewPageIndex(),
+    maxPreviewIndex: () => maxPreviewPageIndex(),
+    previewUrlForIndex,
+    previewIndexFromUrl: (url) => previewPageIndexFromUrl(url),
+    renderPageBars,
+    snapshotPreview,
+    installPreviewPlaceholder,
+    replacePreviewContent,
+    restorePreview,
+    onError: reportOpenError,
+  });
   document.addEventListener("click", onDocumentClick, true);
   if (state.reader.enabled.value) {
     void openReaderFromHash();

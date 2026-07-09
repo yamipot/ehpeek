@@ -19,7 +19,11 @@
     "readerOn": "Reader: on",
     "readerOff": "Reader: off",
     "enableReader": "Enable Ehpeek Reader",
-    "disableReader": "Disable Ehpeek Reader"
+    "disableReader": "Disable Ehpeek Reader",
+    "enhanceGalleryThumbsOn": "Enhance gallery thumbs: on",
+    "enhanceGalleryThumbsOff": "Enhance gallery thumbs: off",
+    "enableEnhanceGalleryThumbs": "Enable enhanced gallery thumbs",
+    "disableEnhanceGalleryThumbs": "Disable enhanced gallery thumbs"
   },
   "errors": {
     "imageNotFound": "Image not found",

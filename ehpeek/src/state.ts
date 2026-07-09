@@ -17,6 +17,9 @@ export const state = {
     readDirection: persisted<ReadDirection>("ehpeek:reader:read-direction", "rtl"),
     rightTapAction: persisted<RightTapAction>("ehpeek:reader:right-tap-action", "previous"),
   },
+  gallery: {
+    enhanceThumbs: persisted("ehpeek:gallery:enhance-thumbs", true),
+  },
 } as const;
 
 function persisted<T>(key: string, defaultValue: T): StateValue<T> {

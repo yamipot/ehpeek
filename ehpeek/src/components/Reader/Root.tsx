@@ -1,6 +1,6 @@
 import { h } from "../../jsx";
 import type { ReadDirection, ViewMode } from "../../state";
-import readerCss from "./reader.css";
+import readerCss from "./Reader.css";
 
 const VIEWER_ID = "ehpeek-reader";
 const STYLE_ID = "ehpeek-reader-style";
