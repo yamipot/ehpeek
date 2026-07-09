@@ -2,8 +2,6 @@ import { debugLog, targetSummary } from "../../utils";
 import { PointerDrag, type PointerDragEnd, type PointerDragMove, type PointerDragStart } from "../common/pointerDrag";
 
 const TAP_MOVE_THRESHOLD = 8;
-const SUPPRESS_CLICK_MAX_AGE_MS = 500;
-const SUPPRESS_CLICK_DISTANCE_PX = 24;
 
 export type GesturePoint = {
   clientX: number;
@@ -40,14 +38,6 @@ export class PagesGesture {
     lastClientY: number;
     moved: boolean;
   } | null = null;
-  private suppressedClick:
-    | {
-        clientX: number;
-        clientY: number;
-        until: number;
-      }
-    | null = null;
-
   constructor(
     private readonly target: HTMLElement,
     private readonly handlers: {
@@ -69,7 +59,6 @@ export class PagesGesture {
       onEnd: this.onDragEnd,
       shouldSuppressClick: () => true,
     });
-    target.addEventListener("click", this.onClick);
     target.addEventListener("scroll", this.onScroll);
     target.addEventListener("wheel", this.onWheel);
   }
@@ -79,7 +68,6 @@ export class PagesGesture {
     this.passiveTap = null;
     this.target.classList.remove("ehpeek-scroller-dragging");
     this.removePassiveTapListeners();
-    this.target.removeEventListener("click", this.onClick);
     this.target.removeEventListener("scroll", this.onScroll);
     this.target.removeEventListener("wheel", this.onWheel);
   }
@@ -170,25 +158,6 @@ export class PagesGesture {
     return Boolean(target.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']"));
   }
 
-  private onClick = (event: MouseEvent): void => {
-    if (this.shouldSuppressClickEvent(event)) {
-      this.suppressedClick = null;
-      event.preventDefault();
-      return;
-    }
-
-    this.handlers.onTap(
-      {
-        pointerId: null,
-        clientX: event.clientX,
-        clientY: event.clientY,
-        dx: 0,
-        dy: 0,
-      },
-      event,
-    );
-  };
-
   private onWheel = (event: WheelEvent): void => {
     const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
     this.handlers.onWheel(delta, event);
@@ -254,11 +223,6 @@ export class PagesGesture {
       return;
     }
 
-    this.suppressedClick = {
-      clientX: event.clientX,
-      clientY: event.clientY,
-      until: performance.now() + SUPPRESS_CLICK_MAX_AGE_MS,
-    };
     this.handlers.onTap(
       {
         pointerId: event.pointerId,
@@ -296,28 +260,5 @@ export class PagesGesture {
     tap: NonNullable<PagesGesture["passiveTap"]>,
   ): boolean {
     return event.pointerId === tap.pointerId && event.pointerType === tap.pointerType;
-  }
-
-  private shouldSuppressClickEvent(event: MouseEvent): boolean {
-    const suppressedClick = this.suppressedClick;
-
-    if (!suppressedClick) {
-      return false;
-    }
-
-    if (performance.now() > suppressedClick.until) {
-      this.suppressedClick = null;
-      return false;
-    }
-
-    const closeToTap =
-      Math.abs(event.clientX - suppressedClick.clientX) <= SUPPRESS_CLICK_DISTANCE_PX &&
-      Math.abs(event.clientY - suppressedClick.clientY) <= SUPPRESS_CLICK_DISTANCE_PX;
-
-    if (!closeToTap) {
-      this.suppressedClick = null;
-    }
-
-    return closeToTap;
   }
 }
