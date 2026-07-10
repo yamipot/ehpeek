@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ehpeek: E-H/ExH viewer
 // @namespace    ehpeek
-// @version      260710.1114
+// @version      260710.1446
 // @description  A mobile-optimized E-H/ExH viewer
 // @match        *://e-hentai.org/*
 // @match        *://exhentai.org/*
@@ -33,6 +33,7 @@
       download: "Download",
       startReading: "Read",
       continueReading: "Continue",
+      loading: "Loading...",
       pages: "Pages",
       endPage: "End",
       end: "End of gallery. Tap to exit.",
@@ -137,34 +138,39 @@
     return `${target.tagName.toLowerCase()}${id}${className}`;
   }
 
-  // src/components/common/pointerDrag.ts
-  var PointerDrag = class {
+  // src/components/common/pointerGesture.ts
+  var PointerGesture = class {
     constructor(target, handlers) {
       this.target = target;
       this.handlers = handlers;
       this.mousePointerId = -1;
+      this.pinchPointers = /* @__PURE__ */ new Map();
       this.drag = null;
-      this.suppressedClick = null;
-      this.onClick = (event) => {
-        this.shouldSuppressClickEvent(event) && (this.suppressedClick = null, event.preventDefault(), event.stopPropagation(), this.handlers.onSuppressClick?.(event));
-      };
+      this.passiveTap = null;
+      this.pinch = null;
       this.onDragStart = (event) => {
         event.preventDefault();
       };
       this.onPointerDown = (event) => {
-        event.pointerType === "mouse" && event.button !== 0 || this.handlers.shouldStart && !this.handlers.shouldStart(event) || (event.preventDefault(), this.start(event.pointerId, event.pointerType, event.clientX, event.clientY, event), event.pointerType === "mouse" && this.addMouseListeners());
+        if (!(event.pointerType === "mouse" && event.button !== 0) && !this.trackPinchPointerDown(event) && !this.pinch) {
+          if (this.handlers.shouldCaptureDrag && !this.handlers.shouldCaptureDrag(event)) {
+            this.beginPassiveTap(event);
+            return;
+          }
+          event.preventDefault(), this.start(event.pointerId, event.pointerType, event.clientX, event.clientY, event), event.pointerType === "mouse" && this.addMouseListeners();
+        }
       };
       this.onMouseDown = (event) => {
-        event.button !== 0 || typeof PointerEvent < "u" || this.drag || this.handlers.shouldStart && !this.handlers.shouldStart(event) || (event.preventDefault(), this.start(this.mousePointerId, "mouse", event.clientX, event.clientY, event), this.addMouseListeners());
+        event.button !== 0 || typeof PointerEvent < "u" || this.drag || this.handlers.shouldCaptureDrag && !this.handlers.shouldCaptureDrag(event) || (event.preventDefault(), this.start(this.mousePointerId, "mouse", event.clientX, event.clientY, event), this.addMouseListeners());
       };
       this.onPointerMove = (event) => {
         !this.drag || event.pointerId !== this.drag.pointerId || (this.move(event.clientX, event.clientY, event), event.preventDefault());
       };
       this.onPointerUp = (event) => {
-        !this.drag || event.pointerId !== this.drag.pointerId || this.finish(event.clientX, event.clientY, event);
+        !this.drag || event.pointerId !== this.drag.pointerId || (this.finish(event.clientX, event.clientY, event), this.releasePinchPointer(event));
       };
       this.onPointerCancel = (event) => {
-        !this.drag || event.pointerId !== this.drag.pointerId || this.finish(event.clientX, event.clientY, event);
+        !this.drag || event.pointerId !== this.drag.pointerId || (this.finish(event.clientX, event.clientY, event), this.releasePinchPointer(event));
       };
       this.onMouseMove = (event) => {
         !this.drag || this.drag.pointerType !== "mouse" || (this.move(event.clientX, event.clientY, event), event.preventDefault());
@@ -172,10 +178,35 @@
       this.onMouseUp = (event) => {
         !this.drag || this.drag.pointerType !== "mouse" || this.finish(event.clientX, event.clientY, event);
       };
-      target.addEventListener("click", this.onClick, !0), target.addEventListener("pointerdown", this.onPointerDown), target.addEventListener("mousedown", this.onMouseDown), target.addEventListener("dragstart", this.onDragStart);
+      this.onPassiveTapMove = (event) => {
+        this.trackPassiveTap(event);
+      };
+      this.onPassiveTapEnd = (event) => {
+        this.endPassiveTap(event);
+      };
+      this.onPinchPointerMove = (event) => {
+        if (!this.pinch || !this.pinchPointers.has(event.pointerId))
+          return;
+        this.pinchPointers.set(event.pointerId, {
+          clientX: event.clientX,
+          clientY: event.clientY
+        });
+        let snapshot = this.pinchSnapshot();
+        snapshot && (this.handlers.onPinchMove?.(
+          {
+            ...snapshot,
+            scale: snapshot.distance / this.pinch.startDistance
+          },
+          event
+        ), event.preventDefault());
+      };
+      this.onPinchPointerEnd = (event) => {
+        this.pinchPointers.has(event.pointerId) && (this.pinchPointers.delete(event.pointerId), !(!this.pinch || this.pinchPointers.size >= 2) && (this.handlers.onPinchEnd?.(), this.clearPinch(), event.preventDefault()));
+      };
+      target.addEventListener("pointerdown", this.onPointerDown), target.addEventListener("mousedown", this.onMouseDown), target.addEventListener("dragstart", this.onDragStart);
     }
     dispose() {
-      this.drag && (this.target.releasePointerCapture?.(this.drag.pointerId), this.drag = null), this.removePointerListeners(), this.removeMouseListeners(), this.target.removeEventListener("click", this.onClick, !0), this.target.removeEventListener("pointerdown", this.onPointerDown), this.target.removeEventListener("mousedown", this.onMouseDown), this.target.removeEventListener("dragstart", this.onDragStart);
+      this.drag && (this.target.releasePointerCapture?.(this.drag.pointerId), this.drag = null), this.clearPinch(), this.passiveTap = null, this.removePointerListeners(), this.removeMouseListeners(), this.removePassiveTapListeners(), this.target.removeEventListener("pointerdown", this.onPointerDown), this.target.removeEventListener("mousedown", this.onMouseDown), this.target.removeEventListener("dragstart", this.onDragStart);
     }
     dragging() {
       return this.drag !== null;
@@ -191,6 +222,7 @@
         startClientY: clientY,
         lastClientY: clientY,
         lastMoveTime: event.timeStamp,
+        startTarget: event.target,
         velocityY: 0
       }, this.target.classList.add("ehpeek-dragging"), this.target.setPointerCapture?.(pointerId), this.addPointerListeners(), this.handlers.onStart?.({ pointerId, clientX, clientY }, event);
     }
@@ -224,20 +256,7 @@
         dy: clientY - drag.startClientY,
         velocityY: drag.velocityY
       };
-      (this.handlers.shouldSuppressClick?.(info) ?? (Math.abs(info.dx) > 8 || Math.abs(info.dy) > 8)) && (this.suppressedClick = {
-        clientX,
-        clientY,
-        until: performance.now() + 500
-      }), this.handlers.onEnd?.(info, event);
-    }
-    shouldSuppressClickEvent(event) {
-      let suppressedClick = this.suppressedClick;
-      if (!suppressedClick)
-        return !1;
-      if (performance.now() > suppressedClick.until)
-        return this.suppressedClick = null, !1;
-      let closeToDragEnd = Math.abs(event.clientX - suppressedClick.clientX) <= 24 && Math.abs(event.clientY - suppressedClick.clientY) <= 24;
-      return closeToDragEnd || (this.suppressedClick = null), closeToDragEnd;
+      Math.abs(info.dx) < this.tapMoveThreshold() && Math.abs(info.dy) < this.tapMoveThreshold() && this.handlers.onTap?.({ ...info, startTarget: drag.startTarget }, event), this.handlers.onEnd?.(info, event);
     }
     addPointerListeners() {
       this.target.addEventListener("pointermove", this.onPointerMove), this.target.addEventListener("pointerup", this.onPointerUp), this.target.addEventListener("pointercancel", this.onPointerCancel);
@@ -251,6 +270,86 @@
     removeMouseListeners() {
       window.removeEventListener("mousemove", this.onMouseMove, !0), window.removeEventListener("mouseup", this.onMouseUp, !0);
     }
+    beginPassiveTap(event) {
+      this.handlers.shouldObserveTap?.(event) && (this.passiveTap = {
+        pointerId: event.pointerId,
+        pointerType: event.pointerType,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        lastClientX: event.clientX,
+        lastClientY: event.clientY,
+        startTarget: event.target,
+        moved: !1
+      }, this.addPassiveTapListeners());
+    }
+    trackPassiveTap(event) {
+      let tap = this.passiveTap;
+      !tap || !this.matchesPassiveTapPointer(event, tap) || (tap.lastClientX = event.clientX, tap.lastClientY = event.clientY, (Math.abs(event.clientX - tap.startClientX) >= this.tapMoveThreshold() || Math.abs(event.clientY - tap.startClientY) >= this.tapMoveThreshold()) && (tap.moved = !0));
+    }
+    endPassiveTap(event) {
+      let tap = this.passiveTap;
+      if (!tap || !this.matchesPassiveTapPointer(event, tap) || (this.passiveTap = null, this.removePassiveTapListeners(), this.releasePinchPointer(event), event.type === "pointercancel"))
+        return;
+      let dx = event.clientX - tap.startClientX, dy = event.clientY - tap.startClientY;
+      tap.moved || Math.abs(dx) >= this.tapMoveThreshold() || Math.abs(dy) >= this.tapMoveThreshold() || this.handlers.onTap?.(
+        {
+          pointerId: event.pointerId,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          dx,
+          dy,
+          velocityY: 0,
+          startTarget: tap.startTarget
+        },
+        event
+      );
+    }
+    addPassiveTapListeners() {
+      document.addEventListener("pointermove", this.onPassiveTapMove, !0), document.addEventListener("pointerup", this.onPassiveTapEnd, !0), document.addEventListener("pointercancel", this.onPassiveTapEnd, !0);
+    }
+    removePassiveTapListeners() {
+      document.removeEventListener("pointermove", this.onPassiveTapMove, !0), document.removeEventListener("pointerup", this.onPassiveTapEnd, !0), document.removeEventListener("pointercancel", this.onPassiveTapEnd, !0);
+    }
+    trackPinchPointerDown(event) {
+      if (!this.handlers.onPinchStart || event.pointerType === "mouse" || (this.pinchPointers.set(event.pointerId, {
+        clientX: event.clientX,
+        clientY: event.clientY
+      }), this.pinch || this.pinchPointers.size !== 2))
+        return !1;
+      let snapshot = this.pinchSnapshot();
+      return !snapshot || !this.handlers.onPinchStart(snapshot, event) ? !1 : (this.cancel(), this.passiveTap = null, this.removePassiveTapListeners(), this.pinch = {
+        startDistance: snapshot.distance
+      }, this.addPinchListeners(), event.preventDefault(), event.stopPropagation(), !0);
+    }
+    addPinchListeners() {
+      document.addEventListener("pointermove", this.onPinchPointerMove, !0), document.addEventListener("pointerup", this.onPinchPointerEnd, !0), document.addEventListener("pointercancel", this.onPinchPointerEnd, !0);
+    }
+    removePinchListeners() {
+      document.removeEventListener("pointermove", this.onPinchPointerMove, !0), document.removeEventListener("pointerup", this.onPinchPointerEnd, !0), document.removeEventListener("pointercancel", this.onPinchPointerEnd, !0);
+    }
+    clearPinch() {
+      this.pinch = null, this.pinchPointers.clear(), this.removePinchListeners();
+    }
+    releasePinchPointer(event) {
+      this.pinch || this.pinchPointers.delete(event.pointerId);
+    }
+    pinchSnapshot() {
+      let points = Array.from(this.pinchPointers.values());
+      if (points.length < 2)
+        return null;
+      let [first, second] = points, dx = second.clientX - first.clientX, dy = second.clientY - first.clientY;
+      return {
+        clientX: (first.clientX + second.clientX) / 2,
+        clientY: (first.clientY + second.clientY) / 2,
+        distance: Math.hypot(dx, dy)
+      };
+    }
+    tapMoveThreshold() {
+      return this.handlers.tapMoveThreshold ?? 8;
+    }
+    matchesPassiveTapPointer(event, tap) {
+      return event.pointerId === tap.pointerId && event.pointerType === tap.pointerType;
+    }
   };
 
   // src/components/Reader/Gesture.ts
@@ -258,9 +357,6 @@
     constructor(target, handlers) {
       this.target = target;
       this.handlers = handlers;
-      this.pinchPointers = /* @__PURE__ */ new Map();
-      this.pinch = null;
-      this.passiveTap = null;
       this.onKeydown = (event) => {
         if (!this.shouldIgnoreKeyboardEvent(event)) {
           if (event.key === "Escape") {
@@ -274,49 +370,8 @@
           event.key === "ArrowRight" && (event.preventDefault(), this.handlers.onKeyboardArrow("right"));
         }
       };
-      this.shouldStartDrag = (event) => !(event instanceof PointerEvent) || this.pinch ? !1 : (event.pointerType, event.button, event.buttons, targetSummary(event.target), event.pointerType === "mouse" && event.button !== 0 ? (event.button, event.buttons, !1) : this.handlers.shouldStartDrag(event) ? !0 : (this.beginPassiveTap(event), !1));
-      this.onPinchPointerDown = (event) => {
-        if (event.pointerType === "mouse" || (this.pinchPointers.set(event.pointerId, {
-          clientX: event.clientX,
-          clientY: event.clientY
-        }), this.pinchPointers.size !== 2 || this.pinch))
-          return;
-        let snapshot = this.pinchSnapshot();
-        !snapshot || !this.handlers.onPinchStart(
-          {
-            clientX: snapshot.centerX,
-            clientY: snapshot.centerY,
-            distance: snapshot.distance
-          },
-          event
-        ) || (this.pointerDrag.cancel(), this.passiveTap = null, this.removePassiveTapListeners(), this.pinch = {
-          startDistance: snapshot.distance
-        }, this.addPinchListeners(), event.preventDefault(), event.stopPropagation());
-      };
-      this.onPinchPointerMove = (event) => {
-        if (!this.pinch || !this.pinchPointers.has(event.pointerId))
-          return;
-        this.pinchPointers.set(event.pointerId, {
-          clientX: event.clientX,
-          clientY: event.clientY
-        });
-        let snapshot = this.pinchSnapshot();
-        snapshot && (this.handlers.onPinchMove(
-          {
-            clientX: snapshot.centerX,
-            clientY: snapshot.centerY,
-            distance: snapshot.distance,
-            scale: snapshot.distance / this.pinch.startDistance
-          },
-          event
-        ), event.preventDefault());
-      };
-      this.onPinchPointerEnd = (event) => {
-        this.pinchPointers.has(event.pointerId) && (this.pinchPointers.delete(event.pointerId), !(!this.pinch || this.pinchPointers.size >= 2) && (this.handlers.onPinchEnd(), this.clearPinch(), event.preventDefault()));
-      };
-      this.onPinchPointerRelease = (event) => {
-        this.pinch || this.pinchPointers.delete(event.pointerId);
-      };
+      this.shouldStartDrag = (event) => event instanceof PointerEvent ? (event.pointerType, event.button, event.buttons, targetSummary(event.target), event.pointerType === "mouse" && event.button !== 0 ? (event.button, event.buttons, !1) : this.handlers.shouldStartDrag(event)) : !1;
+      this.shouldObserveTap = (event) => event instanceof PointerEvent && event.pointerType !== "mouse" && !this.handlers.shouldStartDrag(event);
       this.onDragStart = (info, event) => {
         this.target.classList.add("ehpeek-scroller-dragging"), this.handlers.onDragStart(info, event);
       };
@@ -324,11 +379,14 @@
         this.handlers.onDragMove(info, event);
       };
       this.onDragEnd = (info, event) => {
-        if (this.target.classList.remove("ehpeek-scroller-dragging"), Math.abs(info.dx) < TAP_MOVE_THRESHOLD && Math.abs(info.dy) < TAP_MOVE_THRESHOLD) {
-          this.handlers.onTap(info, event);
-          return;
-        }
-        this.handlers.onDragEnd(info, event);
+        this.target.classList.remove("ehpeek-scroller-dragging"), !(Math.abs(info.dx) < TAP_MOVE_THRESHOLD && Math.abs(info.dy) < TAP_MOVE_THRESHOLD) && this.handlers.onDragEnd(info, event);
+      };
+      this.onTap = (info, event) => {
+        this.handlers.onTap(info, event);
+      };
+      this.onPinchStart = (info, event) => this.handlers.onPinchStart(info, event);
+      this.onPinchMove = (info, event) => {
+        this.handlers.onPinchMove(info, event);
       };
       this.onWheel = (event) => {
         let delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
@@ -337,91 +395,30 @@
       this.onScroll = () => {
         this.handlers.onNativeScroll();
       };
-      this.onPassiveTapMove = (event) => {
-        this.trackPassiveTap(event);
-      };
-      this.onPassiveTapEnd = (event) => {
-        this.endPassiveTap(event);
-      };
-      this.pointerDrag = new PointerDrag(target, {
-        shouldStart: this.shouldStartDrag,
+      this.pointerGesture = new PointerGesture(target, {
+        shouldCaptureDrag: this.shouldStartDrag,
         onStart: this.onDragStart,
         onMove: this.onDragMove,
         onEnd: this.onDragEnd,
-        shouldSuppressClick: () => !0
-      }), target.addEventListener("pointerdown", this.onPinchPointerDown, !0), target.addEventListener("pointerup", this.onPinchPointerRelease, !0), target.addEventListener("pointercancel", this.onPinchPointerRelease, !0), target.addEventListener("scroll", this.onScroll), target.addEventListener("wheel", this.onWheel);
+        onTap: this.onTap,
+        tapMoveThreshold: TAP_MOVE_THRESHOLD,
+        shouldObserveTap: this.shouldObserveTap,
+        onPinchStart: this.onPinchStart,
+        onPinchMove: this.onPinchMove,
+        onPinchEnd: this.handlers.onPinchEnd
+      }), target.addEventListener("scroll", this.onScroll), target.addEventListener("wheel", this.onWheel);
     }
     dispose() {
-      this.pointerDrag.dispose(), this.clearPinch(), this.passiveTap = null, this.target.classList.remove("ehpeek-scroller-dragging"), this.removePassiveTapListeners(), this.target.removeEventListener("pointerdown", this.onPinchPointerDown, !0), this.target.removeEventListener("pointerup", this.onPinchPointerRelease, !0), this.target.removeEventListener("pointercancel", this.onPinchPointerRelease, !0), this.target.removeEventListener("scroll", this.onScroll), this.target.removeEventListener("wheel", this.onWheel);
+      this.pointerGesture.dispose(), this.target.classList.remove("ehpeek-scroller-dragging"), this.target.removeEventListener("scroll", this.onScroll), this.target.removeEventListener("wheel", this.onWheel);
     }
     dragging() {
-      return this.pointerDrag.dragging();
+      return this.pointerGesture.dragging();
     }
     shouldIgnoreKeyboardEvent(event) {
       if (event.isComposing)
         return !0;
       let target = event.target;
       return target instanceof Element ? !!target.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']") : !1;
-    }
-    beginPassiveTap(event) {
-      event.pointerType !== "mouse" && (this.passiveTap = {
-        pointerId: event.pointerId,
-        pointerType: event.pointerType,
-        startClientX: event.clientX,
-        startClientY: event.clientY,
-        lastClientX: event.clientX,
-        lastClientY: event.clientY,
-        moved: !1
-      }, this.addPassiveTapListeners());
-    }
-    trackPassiveTap(event) {
-      let tap = this.passiveTap;
-      !tap || !this.matchesPassiveTapPointer(event, tap) || (tap.lastClientX = event.clientX, tap.lastClientY = event.clientY, (Math.abs(event.clientX - tap.startClientX) >= TAP_MOVE_THRESHOLD || Math.abs(event.clientY - tap.startClientY) >= TAP_MOVE_THRESHOLD) && (tap.moved = !0));
-    }
-    endPassiveTap(event) {
-      let tap = this.passiveTap;
-      if (!tap || !this.matchesPassiveTapPointer(event, tap) || (this.passiveTap = null, this.removePassiveTapListeners(), event.type === "pointercancel"))
-        return;
-      let dx = event.clientX - tap.startClientX, dy = event.clientY - tap.startClientY;
-      tap.moved || Math.abs(dx) >= TAP_MOVE_THRESHOLD || Math.abs(dy) >= TAP_MOVE_THRESHOLD || this.handlers.onTap(
-        {
-          pointerId: event.pointerId,
-          clientX: event.clientX,
-          clientY: event.clientY,
-          dx,
-          dy
-        },
-        event
-      );
-    }
-    addPassiveTapListeners() {
-      document.addEventListener("pointermove", this.onPassiveTapMove, !0), document.addEventListener("pointerup", this.onPassiveTapEnd, !0), document.addEventListener("pointercancel", this.onPassiveTapEnd, !0);
-    }
-    removePassiveTapListeners() {
-      document.removeEventListener("pointermove", this.onPassiveTapMove, !0), document.removeEventListener("pointerup", this.onPassiveTapEnd, !0), document.removeEventListener("pointercancel", this.onPassiveTapEnd, !0);
-    }
-    addPinchListeners() {
-      document.addEventListener("pointermove", this.onPinchPointerMove, !0), document.addEventListener("pointerup", this.onPinchPointerEnd, !0), document.addEventListener("pointercancel", this.onPinchPointerEnd, !0);
-    }
-    removePinchListeners() {
-      document.removeEventListener("pointermove", this.onPinchPointerMove, !0), document.removeEventListener("pointerup", this.onPinchPointerEnd, !0), document.removeEventListener("pointercancel", this.onPinchPointerEnd, !0);
-    }
-    clearPinch() {
-      this.pinch = null, this.pinchPointers.clear(), this.removePinchListeners();
-    }
-    pinchSnapshot() {
-      let points = Array.from(this.pinchPointers.values());
-      if (points.length < 2)
-        return null;
-      let [first, second] = points, dx = second.clientX - first.clientX, dy = second.clientY - first.clientY;
-      return {
-        centerX: (first.clientX + second.clientX) / 2,
-        centerY: (first.clientY + second.clientY) / 2,
-        distance: Math.hypot(dx, dy)
-      };
-    }
-    matchesPassiveTapPointer(event, tap) {
-      return event.pointerId === tap.pointerId && event.pointerType === tap.pointerType;
     }
   };
 
@@ -1205,13 +1202,13 @@
   }
 
   // src/components/Reader/Toolbar.tsx
-  var READER_ACTIONS_CLASS = "flex flex-row gap-8px pointer-events-auto", READER_BUTTON_CLASS = "w-46px h-40px px-10px py-0 border rounded-6px color-reader-button cursor-pointer font-sans textsize-sm font-700 leading-1", READER_DISABLE_BUTTON_CLASS = "w-46px px-10px textsize-sm uppercase", READER_DIRECTION_BUTTON_CLASS = "w-46px px-10px textsize-sm", READER_PAGENO_CLASS = "fixed top-[calc(62px+env(safe-area-inset-top,0px))] left-1/2 z-3 min-w-64px py-4px px-10px rounded-6px bg-[rgba(15,15,15,0.34)] color-reader-text font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap text-center -translate-x-1/2 pointer-events-none", READER_PROGRESS_CLASS = "w-full h-48px m-0 px-12px py-0 color-reader-accent cursor-grab touch-none select-none [-webkit-appearance:none] [appearance:none]", READER_PROGRESSBAR_CLASS = "fixed right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out", READER_TOPBAR_CLASS = "fixed top-[calc(10px+env(safe-area-inset-top,0px))] right-10px z-3 flex justify-end pointer-events-none";
+  var READER_BUTTON_CLASS = "control-reader-btn border color-button-reader cursor-pointer font-sans textsize-sm font-700 leading-1";
   function toolbarDom(handlers) {
-    let toolbar, modeButton, readDirectionButton, rightTapButton, pageNumberLabel, progressInput, disableReaderButton, topbar = /* @__PURE__ */ h("div", { className: `ehpeek-topbar ${READER_TOPBAR_CLASS}`, onClick: stopEvent, onPointerDown: stopEvent, onWheel: stopEvent }, /* @__PURE__ */ h("div", { className: `ehpeek-actions ${READER_ACTIONS_CLASS}` }, /* @__PURE__ */ h(
+    let toolbar, modeButton, readDirectionButton, rightTapButton, pageNumberLabel, progressInput, disableReaderButton, topbar = /* @__PURE__ */ h("div", { className: "ehpeek-topbar fixed top-[calc(10px+env(safe-area-inset-top,0px))] right-10px z-3 flex justify-end pointer-events-none", onClick: stopEvent, onPointerDown: stopEvent, onWheel: stopEvent }, /* @__PURE__ */ h("div", { className: "ehpeek-actions flex flex-row gap-8px pointer-events-auto" }, /* @__PURE__ */ h(
       "button",
       {
         type: "button",
-        className: `ehpeek-button ehpeek-direction-button ehpeek-control-hidden ${READER_BUTTON_CLASS} ${READER_DIRECTION_BUTTON_CLASS}`,
+        className: `ehpeek-button ehpeek-direction-button ehpeek-control-hidden ${READER_BUTTON_CLASS}`,
         ref: (node) => {
           readDirectionButton = node;
         },
@@ -1221,7 +1218,7 @@
       "button",
       {
         type: "button",
-        className: `ehpeek-button ehpeek-direction-button ehpeek-control-hidden ${READER_BUTTON_CLASS} ${READER_DIRECTION_BUTTON_CLASS}`,
+        className: `ehpeek-button ehpeek-direction-button ehpeek-control-hidden ${READER_BUTTON_CLASS}`,
         ref: (node) => {
           rightTapButton = node;
         },
@@ -1241,7 +1238,7 @@
       "button",
       {
         type: "button",
-        className: `ehpeek-button ehpeek-disable-button ehpeek-control-hidden ${READER_BUTTON_CLASS} ${READER_DISABLE_BUTTON_CLASS}`,
+        className: `ehpeek-button ehpeek-disable-button ehpeek-control-hidden ${READER_BUTTON_CLASS} uppercase`,
         title: texts_default.reader.disableReader,
         ref: (node) => {
           disableReaderButton = node;
@@ -1252,7 +1249,7 @@
     ), /* @__PURE__ */ h("button", { type: "button", className: `ehpeek-button ${READER_BUTTON_CLASS}`, title: texts_default.reader.close, onClick: handlers.onCloseClick }, "X"))), pageNumber = /* @__PURE__ */ h(
       "div",
       {
-        className: `ehpeek-pageno ${READER_PAGENO_CLASS}`,
+        className: "ehpeek-pageno fixed top-[calc(62px+env(safe-area-inset-top,0px))] left-1/2 z-3 min-w-64px py-4px px-10px rounded-6px color-reader-badge color-reader-text font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap text-center -translate-x-1/2 pointer-events-none",
         ref: (node) => {
           pageNumberLabel = node;
         }
@@ -1260,7 +1257,7 @@
     ), progress = /* @__PURE__ */ h(
       "div",
       {
-        className: `ehpeek-progressbar ehpeek-toolbar-hidden ${READER_PROGRESSBAR_CLASS}`,
+        className: "ehpeek-progressbar ehpeek-toolbar-hidden fixed right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out",
         ref: (node) => {
           toolbar = node;
         },
@@ -1272,7 +1269,7 @@
         "input",
         {
           type: "range",
-          className: `ehpeek-progress ${READER_PROGRESS_CLASS}`,
+          className: "ehpeek-progress w-full control-range m-0 color-progress-reader cursor-grab touch-none select-none [-webkit-appearance:none] [appearance:none]",
           min: "1",
           step: "1",
           ref: (node) => {
@@ -1922,73 +1919,13 @@
     return "pointerType" in event ? event.pointerType : "mouse";
   }
 
-  // src/components/SettingsMenu.css
-  var SettingsMenu_default = `.ehpeek-settings-menu[hidden] {
-  display: none;
-}
-
-.ehpeek-settings-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.ehpeek-settings-apply:hover,
-.ehpeek-settings-close:hover {
-  background: rgba(240, 179, 90, 0.12);
-}
-
-.ehpeek-settings-item::after {
-  content: "";
-  flex: 0 0 auto;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: #4ec46a;
-}
-
-.ehpeek-settings-item[aria-checked="false"]::after {
-  background: #8c8f96;
-}
-
-@media (max-width: 760px) {
-  html.ehpeek-touch-ui .ehpeek-settings-menu {
-    min-width: min(92vw, 520px);
-    padding: 8px;
-    font-size: 30px;
-    line-height: 1.2;
-  }
-
-  html.ehpeek-touch-ui .ehpeek-settings-item {
-    min-height: 80px;
-    gap: 20px;
-    padding: 18px 26px;
-  }
-
-  html.ehpeek-touch-ui .ehpeek-settings-actions {
-    gap: 10px;
-    margin-top: 8px;
-  }
-
-  html.ehpeek-touch-ui .ehpeek-settings-apply,
-  html.ehpeek-touch-ui .ehpeek-settings-close {
-    min-height: 80px;
-    padding: 18px 26px;
-  }
-
-  html.ehpeek-touch-ui .ehpeek-settings-item::after {
-    width: 18px;
-    height: 18px;
-  }
-}
-`;
-
   // src/components/SettingsMenu.tsx
-  var STYLE_ID2 = "ehpeek-settings-style", SETTINGS_BUTTON_CLASS = "block w-full py-7px px-10px border color-border rounded-3px bg-transparent color-accent cursor-pointer font-inherit text-center", SETTINGS_ITEM_CLASS = "flex w-full items-center justify-between gap-16px min-h-52px py-10px px-12px border-0 border-b border-b-[rgba(255,255,255,0.1)] rounded-3px bg-transparent color-text cursor-pointer font-inherit text-left";
   function settingsMenuDom(triggerTagName, handlers) {
     let trigger, readerSetting, enhanceSearchGridsSetting, enhanceThumbsGridsSetting, touchUiSetting, applyButton, closeButton, switchItemDom = (onClick, assign) => /* @__PURE__ */ h(
       "button",
       {
         type: "button",
-        className: `ehpeek-settings-item ${SETTINGS_ITEM_CLASS}`,
+        className: "ehpeek-settings-item ehpeek-ui-state-dot flex w-full items-center justify-between gap-16px touch:gap-20px control-action border-0 border-b color-border-subtle-b bg-transparent color-text color-item-hover cursor-pointer font-inherit text-left textsize-md",
         role: "switch",
         onClick,
         ref: (node) => assign(node)
@@ -1997,14 +1934,14 @@
       "button",
       {
         type: "button",
-        className: `${className} ${SETTINGS_BUTTON_CLASS}`,
+        className: `${className} block w-full control-btn color-btn cursor-pointer font-inherit text-center textsize-md`,
         onClick,
         ref: (node) => assign(node)
       }
     ), root = triggerTagName === "a" ? /* @__PURE__ */ h("div", { className: "ehpeek-settings-root" }, /* @__PURE__ */ h(
       "a",
       {
-        className: "ehpeek-settings-trigger",
+        className: "ehpeek-settings-trigger textsize-sm font-inherit",
         href: "#",
         onClick: handlers.onTriggerClick,
         ref: (node) => {
@@ -2015,13 +1952,13 @@
       "button",
       {
         type: "button",
-        className: "ehpeek-settings-trigger",
+        className: "ehpeek-settings-trigger textsize-sm font-inherit",
         onClick: handlers.onTriggerClick,
         ref: (node) => {
           trigger = node;
         }
       }
-    )), menu = /* @__PURE__ */ h("div", { className: "ehpeek-settings-menu fixed z-[2147483646] min-w-260px p-8px border color-border rounded-4px color-elevated color-text textsize-md leading-[1.2]", hidden: !0 }, switchItemDom(handlers.onReaderClick, (node) => {
+    )), menu = /* @__PURE__ */ h("div", { className: "ehpeek-settings-menu fixed z-[2147483646] min-w-260px touch:min-w-[min(92vw,520px)] p-8px border color-border rounded-4px color-elevated color-text textsize-md leading-[1.2]", hidden: !0, style: "display: none;" }, switchItemDom(handlers.onReaderClick, (node) => {
       readerSetting = node;
     }), switchItemDom(handlers.onEnhanceSearchClick, (node) => {
       enhanceSearchGridsSetting = node;
@@ -2029,7 +1966,7 @@
       enhanceThumbsGridsSetting = node;
     }), switchItemDom(handlers.onTouchUiClick, (node) => {
       touchUiSetting = node;
-    }), /* @__PURE__ */ h("div", { className: "ehpeek-settings-actions grid grid-cols-[1fr_1fr] gap-8px mt-6px" }, actionButtonDom("ehpeek-settings-apply", handlers.onApplyClick, (node) => {
+    }), /* @__PURE__ */ h("div", { className: "ehpeek-settings-actions grid grid-cols-[1fr_1fr] gap-8px touch:gap-10px mt-6px touch:mt-8px" }, actionButtonDom("ehpeek-settings-apply", handlers.onApplyClick, (node) => {
       applyButton = node;
     }), actionButtonDom("ehpeek-settings-close", handlers.onCloseClick, (node) => {
       closeButton = node;
@@ -2051,7 +1988,7 @@
         menu.hidden || (menu.style.top = "24px", menu.style.right = "24px", menu.style.left = "");
       },
       setOpen(open) {
-        menu.hidden = !open, trigger.setAttribute("aria-expanded", String(open)), trigger.setAttribute("aria-haspopup", "menu");
+        menu.hidden = !open, menu.style.display = open ? "" : "none", trigger.setAttribute("aria-expanded", String(open)), trigger.setAttribute("aria-haspopup", "menu");
       },
       update(draft, labels) {
         trigger.textContent = texts_default.settings.menuLabel, updateSwitch(readerSetting, draft.readerEnabled, labels.reader), updateSwitch(enhanceSearchGridsSetting, draft.enhanceSearchGridsEnabled, labels.enhanceSearch), updateSwitch(enhanceThumbsGridsSetting, draft.enhanceThumbsGridsEnabled, labels.enhanceThumbs), updateSwitch(touchUiSetting, draft.touchUiEnabled, labels.touchUi), applyButton.textContent = labels.apply, closeButton.textContent = labels.close;
@@ -2087,7 +2024,7 @@
       }), this.root = this.dom.root, this.update();
     }
     mount(parent) {
-      ensureSettingsStyle(), this.dom.mount(parent), this.bindGlobalEvents(), this.update();
+      this.dom.mount(parent), this.bindGlobalEvents(), this.update();
     }
     open() {
       this.resetDraft(), this.dom.setOpen(!0), this.update(), this.dom.position();
@@ -2122,17 +2059,11 @@
       }), window.addEventListener("resize", () => this.dom.position()), window.addEventListener("scroll", () => this.dom.position(), !0);
     }
   };
-  function ensureSettingsStyle() {
-    if (document.getElementById(STYLE_ID2))
-      return;
-    let style = document.createElement("style");
-    style.id = STYLE_ID2, style.textContent = SettingsMenu_default, document.head.append(style);
-  }
 
   // src/components/Enhance/ScrollPageBar.tsx
-  var SCROLL_PAGE_BAR_CLASS = "ehpeek-scroll-page-bar", SCROLL_PAGE_BAR_TOP_CLASS = "ehpeek-scroll-page-bar-top", SCROLL_PAGE_BAR_BOTTOM_CLASS = "ehpeek-scroll-page-bar-bottom", SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index", DRAG_PIXEL_STEP = 18, PAGE_BAR_BOTTOM_CLASS = "mt-0 mb-10px", PAGE_BAR_CELL_CLASS = "min-w-34px h-34px p-0 rounded-4px cursor-pointer text-center align-middle select-none", PAGE_BAR_CLASS = "border-separate border-spacing-4px mx-auto touch-pan-y", PAGE_BAR_EMPTY_CLASS = "cursor-default", PAGE_BAR_LINK_CLASS = "flex min-w-34px h-34px items-center justify-center box-border px-8px py-0 border border-current rounded-4px bg-transparent font-inherit no-underline", PAGE_BAR_TOP_CLASS = "mt-2px mb-0", galleryPageBarWindowIndex = null;
-  function scrollPageBarDom(top) {
-    let body = /* @__PURE__ */ h("tbody", null), element = /* @__PURE__ */ h("table", { className: `${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}` }, body);
+  var SCROLL_PAGE_BAR_CLASS = "ehpeek-scroll-page-bar", SCROLL_PAGE_BAR_TOP_CLASS = "ehpeek-scroll-page-bar-top", SCROLL_PAGE_BAR_BOTTOM_CLASS = "ehpeek-scroll-page-bar-bottom", SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index", DRAG_PIXEL_STEP = 18, PAGE_BAR_BOTTOM_CLASS = "mt-0 mb-10px", PAGE_BAR_CELL_CLASS = "control-page p-0 cursor-pointer text-center align-middle select-none", PAGE_BAR_CLASS = "w-max mx-auto touch-pan-y", PAGE_BAR_LINK_CLASS = "flex control-page items-center justify-center box-border px-0 py-0 border border-current bg-transparent textsize-sm font-inherit no-underline hover:no-underline active:no-underline", PAGE_BAR_TABLE_CLASS = "border-separate border-spacing-4px touch:border-spacing-6px", PAGE_BAR_TOP_CLASS = "mt-2px mb-0", galleryPageBarWindowIndex = null;
+  function scrollPageBarDom(top, draggable) {
+    let body = /* @__PURE__ */ h("tbody", null), table = /* @__PURE__ */ h("table", { className: PAGE_BAR_TABLE_CLASS }, body), element = /* @__PURE__ */ h("div", { className: `${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}` }, table);
     return {
       element,
       render(row, windowIndex) {
@@ -2153,13 +2084,13 @@
     return current ? /* @__PURE__ */ h("td", { className: `ptds ${PAGE_BAR_CELL_CLASS}` }, /* @__PURE__ */ h("span", { className: PAGE_BAR_LINK_CLASS }, text)) : /* @__PURE__ */ h("td", { className: PAGE_BAR_CELL_CLASS }, /* @__PURE__ */ h("a", { className: PAGE_BAR_LINK_CLASS, href: urlForIndex(pageIndex), "data-page-index": String(pageIndex) }, text));
   }
   function pageBarEmptyCellDom() {
-    return /* @__PURE__ */ h("td", { className: `ehpeek-scroll-page-bar-empty ${PAGE_BAR_CELL_CLASS} ${PAGE_BAR_EMPTY_CLASS}` }, /* @__PURE__ */ h("span", { className: PAGE_BAR_LINK_CLASS }));
+    return /* @__PURE__ */ h("td", { className: `ehpeek-scroll-page-bar-empty ${PAGE_BAR_CELL_CLASS} cursor-default` }, /* @__PURE__ */ h("span", { className: `${PAGE_BAR_LINK_CLASS} invisible` }));
   }
   var ScrollPageBar = class {
     constructor(options) {
       this.dragStartWindowIndex = 0;
       let maxIndex = Math.max(0, options.maxIndex ?? options.currentIndex), currentIndex = clamp(options.currentIndex, 0, maxIndex);
-      this.currentIndex = currentIndex, this.maxIndex = maxIndex, this.urlForIndex = options.urlForIndex, this.windowIndex = clamp(galleryPageBarWindowIndex ?? options.initialWindowIndex ?? currentIndex, 0, maxIndex), this.dom = scrollPageBarDom(options.top), this.element = this.dom.element, this.render(), this.installDrag();
+      this.currentIndex = currentIndex, this.maxIndex = maxIndex, this.urlForIndex = options.urlForIndex, this.windowIndex = clamp(galleryPageBarWindowIndex ?? options.initialWindowIndex ?? currentIndex, 0, maxIndex), this.dom = scrollPageBarDom(options.top, this.draggable()), this.element = this.dom.element, this.render(), this.installDrag();
     }
     render() {
       let slots = pageSlots(this.windowIndex, this.currentIndex, this.maxIndex), firstSlotIndex = slots[0]?.pageIndex ?? this.currentIndex, lastSlotIndex = slots[slots.length - 1]?.pageIndex ?? this.currentIndex, currentBeforeWindow = this.currentIndex < firstSlotIndex, currentAfterWindow = this.currentIndex > lastSlotIndex, row = pageBarRowDom({
@@ -2173,8 +2104,8 @@
       this.dom.render(row, this.windowIndex);
     }
     installDrag() {
-      new PointerDrag(this.element, {
-        shouldStart: () => this.draggable(),
+      new PointerGesture(this.element, {
+        shouldCaptureDrag: () => this.draggable(),
         onStart: () => {
           this.dragStartWindowIndex = this.windowIndex, this.dom.setDragging(!0);
         },
@@ -2186,11 +2117,16 @@
         },
         onEnd: () => {
           this.dom.setDragging(!1);
-        }
+        },
+        onTap: (info) => this.tapPageLink(info)
       });
     }
     draggable() {
       return this.maxIndex + 1 > 7;
+    }
+    tapPageLink(info) {
+      let link = info.startTarget instanceof Element ? info.startTarget.closest("a[data-page-index]") : null;
+      !link || !this.element.contains(link) || link.click();
     }
   };
   function createScrollPageBar(options) {
@@ -2218,71 +2154,8 @@
     return direction * pages;
   }
 
-  // src/components/Enhance/ScrollPageBar.css
-  var ScrollPageBar_default = `.ehpeek-scroll-page-bar-dragging {
-  cursor: grabbing;
-}
-
-.ehpeek-scroll-page-bar-dragging td {
-  cursor: grabbing;
-}
-
-.ehpeek-scroll-page-bar button {
-  color: inherit;
-  cursor: pointer;
-}
-
-.ehpeek-scroll-page-bar a:hover,
-.ehpeek-scroll-page-bar button:hover {
-  text-decoration: none;
-}
-
-.ehpeek-scroll-page-bar a:active,
-.ehpeek-scroll-page-bar button:active {
-  text-decoration: none;
-}
-
-.ehpeek-scroll-page-bar .ptds span,
-.ehpeek-scroll-page-bar .ptds a {
-  padding: 0 10px;
-}
-
-.ehpeek-scroll-page-bar .ehpeek-scroll-page-bar-empty span {
-  visibility: hidden;
-}
-
-.ehpeek-preview-placeholder::before {
-  content: "Loading...";
-  font-weight: 700;
-}
-
-@media (pointer: coarse) {
-  .ehpeek-scroll-page-bar {
-    border-spacing: 6px;
-  }
-
-  .ehpeek-scroll-page-bar td {
-    min-width: 38px;
-    height: 38px;
-    border-radius: 6px;
-  }
-
-  .ehpeek-scroll-page-bar a,
-  .ehpeek-scroll-page-bar button,
-  .ehpeek-scroll-page-bar span {
-    min-width: 38px;
-    height: 38px;
-    padding: 0 10px;
-  }
-
-  .ehpeek-scroll-page-bar .ptds span {
-    padding: 0 12px;
-  }
-}
-`;
-
   // src/eh/dom.ts
-  var GALLERY_STYLE_ID = "ehpeek-gallery-style", TOUCH_GALLERY_PANEL_PAGE_STYLE_ID = "ehpeek-touch-gallery-panel-page-style", TOUCH_TOP_BAR_PAGE_STYLE_ID = "ehpeek-touch-top-bar-page-style", SCROLL_PAGE_BAR_TOP_CLASS2 = "ehpeek-scroll-page-bar-top", SCROLL_PAGE_BAR_BOTTOM_CLASS2 = "ehpeek-scroll-page-bar-bottom", PREVIEW_PLACEHOLDER_CLASS = "ehpeek-preview-placeholder flex items-center justify-center opacity-72", TOUCH_GALLERY_PANEL_PAGE_CSS = `
+  var TOUCH_GALLERY_PANEL_PAGE_STYLE_ID = "ehpeek-touch-gallery-panel-page-style", TOUCH_TOP_BAR_PAGE_STYLE_ID = "ehpeek-touch-top-bar-page-style", TOUCH_GALLERY_PANEL_PAGE_CSS = `
   :root {
     --ehpeek-touch-gallery-gutter: clamp(16px, 2.5vw, 36px);
   }
@@ -2300,11 +2173,6 @@
     margin-right: auto !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
-  }
-
-  #gd2,
-  #gd5 {
-    display: none !important;
   }
 
   body #gdt[class],
@@ -2330,10 +2198,6 @@
     min-height: 150px;
     align-items: center;
     justify-content: center;
-  }
-
-  .ehpeek-touch-gallery-rating #gdr {
-    margin: 0 !important;
   }
 `, TOUCH_TOP_BAR_PAGE_CSS = "";
   function imageAspectRatio(image) {
@@ -2400,7 +2264,6 @@
     return !(link instanceof HTMLAnchorElement) || extractPageType2(link.href).type !== "image" ? null : link.querySelector("img") || link.closest("#gdt, .gdtm, .gdtl") ? link : null;
   }
   function replaceGalleryPageBar(options) {
-    ensureGalleryStyle();
     let originals = Array.from(document.querySelectorAll(".ptt, .ptb")), topSource = originals.find((item) => item.classList.contains("ptt")) ?? originals[0], bottomSource = originals.find((item) => item.classList.contains("ptb")) ?? originals[1] ?? originals[0];
     topSource && replaceGalleryPageBarAt(topSource, !0, options), bottomSource && replaceGalleryPageBarAt(bottomSource, !1, options);
     for (let original of originals)
@@ -2417,7 +2280,7 @@
     if (!current)
       return;
     let rect = current.getBoundingClientRect(), placeholder = document.createElement("div");
-    placeholder.id = "gdt", placeholder.className = PREVIEW_PLACEHOLDER_CLASS, placeholder.style.minHeight = `${Math.max(160, Math.round(rect.height))}px`, placeholder.setAttribute("aria-busy", "true"), current.replaceWith(placeholder);
+    placeholder.id = "gdt", placeholder.className = "ehpeek-preview-placeholder flex items-center justify-center opacity-72", placeholder.style.minHeight = `${Math.max(160, Math.round(rect.height))}px`, placeholder.setAttribute("aria-busy", "true"), placeholder.textContent = texts_default.reader.loading, current.replaceWith(placeholder);
   }
   function replacePreviewContent(doc) {
     replaceFirstElement(".gpc", doc), replaceFirstElement("#gdt", doc);
@@ -2457,8 +2320,13 @@
     return original?.parentElement ? (original.replaceWith(topBar), !0) : !1;
   }
   function mountTouchGalleryPanel(panel) {
-    let original = document.querySelector("#gmid");
-    return original?.parentElement ? (original.parentElement.classList.add("ehpeek-touch-gallery-host"), original.replaceWith(panel), !0) : !1;
+    let host = document.querySelector("#gmid")?.parentElement ?? document.querySelector("#gleft")?.parentElement;
+    if (!host)
+      return !1;
+    host.classList.add("ehpeek-touch-gallery-host");
+    for (let child of Array.from(host.children))
+      child.hidden = !0;
+    return host.prepend(panel), !0;
   }
   function readTouchTopBarInfo() {
     let navItems = Array.from(document.querySelectorAll("#nb a[href]")).map((link) => {
@@ -2493,7 +2361,7 @@
     };
   }
   function replaceGalleryPageBarAt(source, top, options) {
-    let className = top ? SCROLL_PAGE_BAR_TOP_CLASS2 : SCROLL_PAGE_BAR_BOTTOM_CLASS2, existing = document.querySelector(`.${className}`), initialWindowIndex = existing ? Number(existing.getAttribute(SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR) || "") : void 0, pageBar = createScrollPageBar({
+    let className = top ? "ehpeek-scroll-page-bar-top" : "ehpeek-scroll-page-bar-bottom", existing = document.querySelector(`.${className}`), initialWindowIndex = existing ? Number(existing.getAttribute(SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR) || "") : void 0, pageBar = createScrollPageBar({
       currentIndex: options.currentIndex,
       initialWindowIndex: Number.isFinite(initialWindowIndex) ? initialWindowIndex : void 0,
       maxIndex: options.maxIndex,
@@ -2521,12 +2389,6 @@
       (item) => item.textContent?.includes("build_rangebar()")
     ), script = document.createElement("script");
     script.type = incomingScript.type || "text/javascript", script.textContent = incomingScript.textContent, currentScript ? currentScript.replaceWith(script) : searchNavigationBars()[0]?.before(script);
-  }
-  function ensureGalleryStyle() {
-    if (document.getElementById(GALLERY_STYLE_ID))
-      return;
-    let style = document.createElement("style");
-    style.id = GALLERY_STYLE_ID, style.textContent = ScrollPageBar_default, document.head.append(style);
   }
   function readGalleryMeta() {
     let entries = Array.from(document.querySelectorAll("#gdd tr")).map((row) => {
@@ -2653,9 +2515,11 @@ body {
 .ehpeek-touch-gallery-cover {
   display: flex;
   align-self: center;
-  width: 100%;
+  justify-self: center;
+  width: auto;
+  max-width: 100%;
+  height: 100%;
   aspect-ratio: 2 / 3;
-  height: auto;
   max-height: 100%;
   align-items: center;
   justify-content: center;
@@ -2807,10 +2671,10 @@ body {
   z-index: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  min-height: 87px;
+  min-height: var(--ehpeek-control-primary-height);
   margin: -18px max(14px, env(safe-area-inset-right, 0px)) 0 max(14px, env(safe-area-inset-left, 0px));
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: var(--ehpeek-control-radius-sm);
   background: #3f4249;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
 }
@@ -2820,7 +2684,7 @@ body {
   min-width: 0;
   align-items: center;
   justify-content: center;
-  padding: 12px 15px;
+  padding: var(--ehpeek-control-action-padding-y) 15px;
   border: 0;
   background: transparent;
   color: #f0b35a;
@@ -2875,8 +2739,8 @@ body {
 
 .ehpeek-touch-gallery-actions-menu-button {
   display: inline-flex;
-  width: 44px;
-  height: 44px;
+  width: var(--ehpeek-control-icon-size);
+  height: var(--ehpeek-control-icon-size);
   align-items: center;
   justify-content: center;
   border: 0;
@@ -2913,7 +2777,7 @@ body {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  min-height: 56px;
+  min-height: var(--ehpeek-control-menu-item-min-height);
   padding: 14px 18px;
   border: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -2962,7 +2826,7 @@ body {
 .ehpeek-touch-gallery-tags a,
 .ehpeek-touch-gallery-tag {
   display: inline-flex;
-  min-height: 51px;
+  min-height: var(--ehpeek-control-tag-min-height);
   align-items: center;
   padding: 0 21px;
   border: 1px solid #8d7454;
@@ -2979,7 +2843,7 @@ body {
 `;
 
   // src/components/Enhance/TouchGalleryPanel.tsx
-  var STYLE_ID3 = "ehpeek-touch-gallery-panel-style";
+  var STYLE_ID2 = "ehpeek-touch-gallery-panel-style";
   function textBlockDom(className, text) {
     let element = /* @__PURE__ */ h("div", { className });
     return element.textContent = text, element;
@@ -3086,10 +2950,10 @@ body {
     wrapper.style.setProperty("--ehpeek-rating-scale", String(scale)), wrapper.style.setProperty("--ehpeek-rating-height", `${Math.ceil(scalerRect.height * scale)}px`), shell.remove(), shell.style.position = previousStyle.position, shell.style.visibility = previousStyle.visibility, shell.style.pointerEvents = previousStyle.pointerEvents, shell.style.left = previousStyle.left, shell.style.top = previousStyle.top, shell.style.width = previousStyle.width;
   }
   function ensureTouchGalleryPanelStyle() {
-    if (document.getElementById(STYLE_ID3))
+    if (document.getElementById(STYLE_ID2))
       return;
     let style = document.createElement("style");
-    style.id = STYLE_ID3, style.textContent = TouchGalleryPanel_default, document.head.append(style);
+    style.id = STYLE_ID2, style.textContent = TouchGalleryPanel_default, document.head.append(style);
   }
 
   // src/components/Enhance/TouchTopBar.css
@@ -3106,7 +2970,7 @@ body {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  min-height: 72px;
+  min-height: var(--ehpeek-control-touch-min-height);
   padding: 18px 24px;
   border: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -3118,20 +2982,17 @@ body {
   text-decoration: none;
 }
 
-@media (max-width: 760px) {
-  .ehpeek-touch-top-bar-menu-item,
-  .ehpeek-touch-top-bar-menu-panel .ehpeek-settings-trigger {
-    min-height: 80px;
-    padding: 18px 26px;
-    font-size: 30px;
-  }
+html.ehpeek-touch-ui .ehpeek-touch-top-bar-menu-item,
+html.ehpeek-touch-ui .ehpeek-touch-top-bar-menu-panel .ehpeek-settings-trigger {
+  padding: 18px 26px;
+  font-size: 30px;
 }
 `;
 
   // src/components/Enhance/TouchTopBar.tsx
-  var STYLE_ID4 = "ehpeek-touch-top-bar-style", TOUCH_ICON_BUTTON_CLASS = "inline-flex w-44px h-44px items-center justify-center border-0 bg-transparent color-text textsize-lg leading-1 no-underline", TOUCH_MENU_PANEL_CLASS = "fixed top-[max(64px,calc(env(safe-area-inset-top,0px)+8px))] right-[max(24px,calc(env(safe-area-inset-right,0px)+24px))] z-[2147483645] flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border color-border rounded-4px color-elevated", TOUCH_TOPBAR_CLASS = "relative z-[2147483640] flex box-border w-full min-h-56px items-center justify-between color-surface color-text font-sans";
+  var STYLE_ID3 = "ehpeek-touch-top-bar-style", TOUCH_ICON_BUTTON_CLASS = "inline-flex control-icon border-0 bg-transparent color-text text-28px leading-1 no-underline";
   function touchTopBarDom(info) {
-    let menu = touchTopBarMenuDom(info.navItems), root = /* @__PURE__ */ h("nav", { className: `ehpeek-touch-top-bar ${TOUCH_TOPBAR_CLASS}` }, /* @__PURE__ */ h("a", { className: `ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`, href: info.homeHref }, "⌂"), menu.element);
+    let menu = touchTopBarMenuDom(info.navItems), root = /* @__PURE__ */ h("nav", { className: "ehpeek-touch-top-bar relative z-[2147483640] flex box-border w-full min-h-56px items-center justify-between color-surface color-text font-sans" }, /* @__PURE__ */ h("a", { className: `ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`, href: info.homeHref }, "⌂"), menu.element);
     return {
       root,
       closeMenu: menu.close,
@@ -3161,7 +3022,7 @@ body {
     ), /* @__PURE__ */ h(
       "div",
       {
-        className: `ehpeek-touch-top-bar-menu-panel ${TOUCH_MENU_PANEL_CLASS}`,
+        className: "ehpeek-touch-top-bar-menu-panel fixed top-[max(64px,calc(env(safe-area-inset-top,0px)+8px))] right-[max(24px,calc(env(safe-area-inset-right,0px)+24px))] z-[2147483645] flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border color-border rounded-4px color-elevated",
         hidden: !0,
         ref: (node) => {
           panel = node;
@@ -3195,10 +3056,63 @@ body {
     }
   };
   function ensureTouchTopBarStyle() {
-    if (document.getElementById(STYLE_ID4))
+    if (document.getElementById(STYLE_ID3))
       return;
     let style = document.createElement("style");
-    style.id = STYLE_ID4, style.textContent = TouchTopBar_default, document.head.append(style);
+    style.id = STYLE_ID3, style.textContent = TouchTopBar_default, document.head.append(style);
+  }
+
+  // src/components/Enhance/Misc.tsx
+  function createGalleryReadButton(info, onClick) {
+    return readButtonDom(
+      info,
+      "ehpeek-continue-reading block box-border w-full max-w-full mt-4px control-compact border color-panel-reader-btn shadow-none cursor-pointer text-center font-sans textsize-sm font-700 leading-[1.15]",
+      "ehpeek-continue-reading-page block mt-1px opacity-72 textsize-xs font-600",
+      onClick
+    );
+  }
+  function createTouchGalleryReadButton(info, onClick) {
+    return readButtonDom(
+      info,
+      "ehpeek-continue-reading ehpeek-touch-gallery-primary-button flex-col",
+      "ehpeek-continue-reading-page block mt-2px color-accent textsize-sm font-600 opacity-78 normal-case",
+      onClick
+    );
+  }
+  function removeGalleryReadButton() {
+    document.querySelector(".ehpeek-continue-reading")?.remove();
+  }
+  var SwipeIndicator = class {
+    constructor() {
+      this.element = /* @__PURE__ */ h(
+        "div",
+        {
+          className: "ehpeek-swipe-indicator fixed top-1/2 z-[2147483645] hidden w-42px h-108px items-center justify-center border color-search-swipe rounded-22px text-52px font-sans font-300 leading-1 pointer-events-none select-none transition-opacity duration-120 ease-in-out",
+          "aria-hidden": "true"
+        }
+      ), this.element.style.setProperty("--ehpeek-swipe-pull", "0px"), this.element.style.backdropFilter = "blur(8px)";
+    }
+    show(direction, progress) {
+      let clampedProgress = Math.min(1, Math.max(0, progress)), pull = Math.round(48 * clampedProgress);
+      this.element.hidden = !1, this.element.style.display = "flex", this.element.textContent = direction === "left" ? "‹" : "›", this.element.style.left = direction === "right" ? "6px" : "", this.element.style.right = direction === "left" ? "6px" : "", this.element.style.opacity = String(0.35 + clampedProgress * 0.65), this.element.style.setProperty("--ehpeek-swipe-pull", `${pull}px`), this.element.style.transform = direction === "left" ? "translate(calc(42px - var(--ehpeek-swipe-pull)), -50%)" : "translate(calc(-42px + var(--ehpeek-swipe-pull)), -50%)";
+    }
+    hide() {
+      this.element.hidden = !0, this.element.style.display = "none", this.element.style.opacity = "", this.element.style.left = "", this.element.style.right = "", this.element.style.transform = "", this.element.style.setProperty("--ehpeek-swipe-pull", "0px");
+    }
+  };
+  function readButtonDom(info, buttonClassName, detailClassName, onClick) {
+    return /* @__PURE__ */ h(
+      "button",
+      {
+        type: "button",
+        className: buttonClassName,
+        onClick: (event) => {
+          event.preventDefault(), event.stopPropagation(), onClick();
+        }
+      },
+      info.label,
+      /* @__PURE__ */ h("span", { className: detailClassName }, info.detail)
+    );
   }
 
   // src/eh/index.ts
@@ -3375,7 +3289,7 @@ body {
   }
 
   // src/components/Enhance/EnhanceThumbsGrids.tsx
-  var PREVIEW_CACHE_LIMIT = 10, galleryThumbEnhancementErrorHandler = null, galleryThumbEnhancementClickInstalled = !1;
+  var PREVIEW_CACHE_LIMIT = 10, SWIPE_MIN_DISTANCE = 96, SWIPE_INTENT_DISTANCE = 28, HORIZONTAL_INTENT_RATIO = 2.2, SWIPE_MAX_VERTICAL_RATIO = 0.38, THUMBS_SWIPE_WRAPPER_CLASS = "ehpeek-thumbs-swipe-wrapper", galleryThumbEnhancementErrorHandler = null, galleryThumbEnhancementClickInstalled = !1, swipeElement = null, swipeIndicator = null, swipeState = null, galleryNavigationLoading = !1, installedSwipeElements = /* @__PURE__ */ new WeakSet();
   function enhanceThumbsGridsEnabled() {
     return state.gallery.enhanceThumbs.value;
   }
@@ -3429,85 +3343,29 @@ body {
     }
   };
   function installEnhanceThumbsGrids(onError) {
-    galleryThumbEnhancementErrorHandler = onError, enhanceThumbsGridsEnabled() && installGalleryPageBar(), !galleryThumbEnhancementClickInstalled && (galleryThumbEnhancementClickInstalled = !0, document.addEventListener("click", onPageBarClick, !0));
+    galleryThumbEnhancementErrorHandler = onError, enhanceThumbsGridsEnabled() && (installGalleryPageBar(), installThumbsGridSwipe()), !galleryThumbEnhancementClickInstalled && (galleryThumbEnhancementClickInstalled = !0, document.addEventListener("click", onPageBarClick, !0));
   }
-  async function navigateGalleryPreview(url, historyMode) {
+  async function navigateGalleryPreview(url, options = {}) {
+    if (galleryNavigationLoading)
+      return;
     let previousUrl = window.location.href, snapshot = snapshotPreview2(), targetPreviewIndex = previewPageIndexFromUrl(url);
-    historyMode === "push" ? window.history.pushState(window.history.state, "", url) : window.history.replaceState(window.history.state, "", url), targetPreviewIndex !== null && replaceGalleryPageBar2(targetPreviewIndex, maxPreviewPageIndex2()), installPreviewPlaceholder2();
+    galleryNavigationLoading = !0, swipeElement?.setAttribute("aria-busy", "true"), window.history.replaceState(window.history.state, "", url), targetPreviewIndex !== null && (setScrollPageBarWindowIndex(targetPreviewIndex), replaceGalleryPageBar2(targetPreviewIndex, maxPreviewPageIndex2())), options.scrollToPageBar && scrollToPageBar(options.scrollToPageBar), installPreviewPlaceholder2();
     try {
       let html = await requestText(url), doc = new DOMParser().parseFromString(html, "text/html");
-      replacePreviewContent2(doc, url);
+      replacePreviewContent2(doc, url), installThumbsGridSwipe(), options.scrollToPageBar && scrollToPageBar(options.scrollToPageBar);
     } catch (error) {
       throw restorePreview2(snapshot), window.history.replaceState(window.history.state, "", previousUrl), replaceGalleryPageBar2(previewPageIndex(), maxPreviewPageIndex2()), error;
+    } finally {
+      galleryNavigationLoading = !1, swipeElement?.removeAttribute("aria-busy");
     }
   }
-  function onPageBarClick(event) {
-    if (!enhanceThumbsGridsEnabled() || !(event.target instanceof Element))
+  function installThumbsGridSwipe() {
+    if (!enhanceThumbsGridsEnabled())
       return;
-    let barItem = event.target.closest(`.${SCROLL_PAGE_BAR_CLASS} a[data-page-index], .${SCROLL_PAGE_BAR_CLASS} button[data-page-jump]`);
-    if (!barItem)
-      return;
-    event.preventDefault(), event.stopPropagation();
-    let url = pageBarUrl(barItem);
-    if (!url)
-      return;
-    let fromBottomBar = !!barItem.closest(`.${SCROLL_PAGE_BAR_BOTTOM_CLASS}`), targetPreviewIndex = previewPageIndexFromUrl(url);
-    targetPreviewIndex !== null && setScrollPageBarWindowIndex(targetPreviewIndex), fromBottomBar && scrollToTopPageBar(), navigateGalleryPreview(url, "push").catch((error) => galleryThumbEnhancementErrorHandler?.(error));
-  }
-  function scrollToTopPageBar() {
-    document.querySelector(`.${SCROLL_PAGE_BAR_TOP_CLASS}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
-  }
-  function installGalleryPageBar() {
-    replaceGalleryPageBar2(previewPageIndex(), maxPreviewPageIndex2());
-  }
-  function pageBarUrl(item) {
-    if (item instanceof HTMLAnchorElement)
-      return previewPageIndexFromUrl(item.href) === null ? null : item.href;
-    let maxPreviewIndex = maxPreviewPageIndex2();
-    if (maxPreviewIndex === null)
-      return null;
-    let page = window.prompt(`Jump to page: (1-${maxPreviewIndex + 1})`, String(previewPageIndex() + 1)), pageNumber = Number(page || "");
-    return Number.isFinite(pageNumber) ? previewUrlForIndex(clamp(Math.round(pageNumber) - 1, 0, maxPreviewIndex)) : null;
-  }
-
-  // src/components/Enhance/EnhanceSearchGrids.css
-  var EnhanceSearchGrids_default = `.ehpeek-search-swipe-indicator {
-  --ehpeek-search-swipe-pull: 0px;
-  backdrop-filter: blur(8px);
-}
-
-.ehpeek-search-swipe-indicator-active {
-  display: flex;
-}
-
-.ehpeek-search-swipe-indicator-left {
-  right: 6px;
-  transform: translate(calc(42px - var(--ehpeek-search-swipe-pull)), -50%);
-}
-
-.ehpeek-search-swipe-indicator-right {
-  left: 6px;
-  transform: translate(calc(-42px + var(--ehpeek-search-swipe-pull)), -50%);
-}
-
-.ehpeek-search-swipe-indicator-disabled {
-  color: rgba(255, 255, 255, 0.34);
-  background: rgba(16, 16, 16, 0.22);
-}
-`;
-
-  // src/components/Enhance/EnhanceSearchGrids.tsx
-  var SWIPE_MIN_DISTANCE = 96, SWIPE_INTENT_DISTANCE = 28, HORIZONTAL_INTENT_RATIO = 2.2, SWIPE_MAX_VERTICAL_RATIO = 0.38, SEARCH_SWIPE_STYLE_ID = "ehpeek-search-swipe-style", SEARCH_SWIPE_WRAPPER_CLASS = "ehpeek-search-swipe-wrapper", SEARCH_SWIPE_OVERLAY_CLASS = "ehpeek-search-swipe-overlay", SEARCH_SWIPE_INDICATOR_CLASS = "ehpeek-search-swipe-indicator", SEARCH_SWIPE_INDICATOR_ACTIVE_CLASS = "ehpeek-search-swipe-indicator-active", SEARCH_SWIPE_INDICATOR_LEFT_CLASS = "ehpeek-search-swipe-indicator-left", SEARCH_SWIPE_INDICATOR_RIGHT_CLASS = "ehpeek-search-swipe-indicator-right", SEARCH_SWIPE_INDICATOR_DISABLED_CLASS = "ehpeek-search-swipe-indicator-disabled", SEARCH_SWIPE_INDICATOR_STYLE_CLASS = "fixed top-1/2 z-[2147483645] hidden w-42px h-108px items-center justify-center border color-dim-border rounded-22px bg-[rgba(16,16,16,0.38)] text-[rgba(255,255,255,0.88)] text-52px font-sans font-300 leading-1 pointer-events-none select-none transition-opacity duration-120 ease-in-out", SEARCH_SWIPE_OVERLAY_STYLE_CLASS = "absolute inset-0 z-2 bg-transparent overscroll-x-contain touch-pan-y", SEARCH_SWIPE_WRAPPER_STYLE_CLASS = "relative", installed = !1, overlayElement = null, indicatorElement = null, swipeState = null, searchNavigationLoading = !1;
-  function installEnhanceSearchGrids(pageType2) {
-    if (installed || pageType2.type !== "search" || !searchPageNavigation2())
-      return;
-    let resultList = searchResultList2();
-    resultList?.parentElement && (installed = !0, ensureSearchSwipeStyle(), installResultListEnhancement(resultList), document.addEventListener("click", onSearchNavigationClick, !0));
-  }
-  function installResultListEnhancement(resultList) {
-    overlayElement = installResultListOverlayDom(resultList), new PointerDrag(overlayElement, {
+    let thumbs = document.querySelector("#gdt");
+    thumbs?.parentElement && (swipeElement = installThumbsGridSwipeDom(thumbs), !installedSwipeElements.has(swipeElement) && (installedSwipeElements.add(swipeElement), new PointerGesture(swipeElement, {
       onStart: () => {
-        swipeState = { horizontal: !1, cancelled: !1, suppressClick: !1 }, hideSwipeIndicator();
+        swipeState = { horizontal: !1, cancelled: !1 }, hideSwipeIndicator();
       },
       onMove: (info, event) => {
         updateSwipeState(info, event), updateSwipeIndicator(info);
@@ -3515,45 +3373,24 @@ body {
       onEnd: (info, event) => {
         navigateBySwipe(info, event), swipeState = null, hideSwipeIndicator();
       },
-      shouldSuppressClick: () => swipeState?.suppressClick ?? !1,
-      onSuppressClick: () => {
-        swipeState = null, hideSwipeIndicator();
+      onTap: (info) => {
+        clickFromStartTarget(info.startTarget, info.clientX, info.clientY);
       }
-    }), overlayElement.addEventListener("click", onOverlayClick);
+    })));
   }
-  function installResultListOverlayDom(resultList) {
-    let overlay, existingWrapper = resultList.parentElement?.classList.contains(SEARCH_SWIPE_WRAPPER_CLASS) ? resultList.parentElement : null, wrapper = existingWrapper ?? /* @__PURE__ */ h("div", { className: `${SEARCH_SWIPE_WRAPPER_CLASS} ${SEARCH_SWIPE_WRAPPER_STYLE_CLASS}` });
-    return wrapper.querySelectorAll(`:scope > .${SEARCH_SWIPE_OVERLAY_CLASS}`).forEach((item) => item.remove()), overlay = /* @__PURE__ */ h("div", { className: `${SEARCH_SWIPE_OVERLAY_CLASS} ${SEARCH_SWIPE_OVERLAY_STYLE_CLASS}`, "aria-hidden": "true" }, /* @__PURE__ */ h(
-      "div",
-      {
-        className: `${SEARCH_SWIPE_INDICATOR_CLASS} ${SEARCH_SWIPE_INDICATOR_STYLE_CLASS}`,
-        "aria-hidden": "true",
-        ref: (node) => {
-          indicatorElement = node;
-        }
-      }
-    )), existingWrapper || (resultList.before(wrapper), wrapper.append(resultList)), wrapper.append(overlay), overlay;
+  function installThumbsGridSwipeDom(thumbs) {
+    let existingWrapper = thumbs.parentElement?.classList.contains(THUMBS_SWIPE_WRAPPER_CLASS) ? thumbs.parentElement : null, wrapper = existingWrapper ?? /* @__PURE__ */ h("div", { className: `${THUMBS_SWIPE_WRAPPER_CLASS} relative` }), indicator = new SwipeIndicator();
+    return swipeIndicator = indicator, existingWrapper || (thumbs.before(wrapper), wrapper.append(thumbs)), wrapper.querySelectorAll(":scope > .ehpeek-swipe-indicator").forEach((item) => item.remove()), wrapper.append(indicator.element), wrapper;
   }
-  function onOverlayClick(event) {
-    swipeState?.suppressClick || (event.preventDefault(), event.stopPropagation(), forwardClickThroughOverlay(event.clientX, event.clientY));
-  }
-  function onSearchNavigationClick(event) {
-    let link = findSearchNavigationLink2(event.target);
-    link && (event.preventDefault(), event.stopPropagation(), navigateSearchPage(link.href, isNextPageOrJump(link)));
-  }
-  function forwardClickThroughOverlay(clientX, clientY) {
-    if (!overlayElement)
+  function clickFromStartTarget(startTarget, clientX, clientY) {
+    if (!(startTarget instanceof Element))
       return;
-    overlayElement.style.pointerEvents = "none";
-    let target = document.elementFromPoint(clientX, clientY);
-    if (overlayElement.style.pointerEvents = "", !(target instanceof Element))
-      return;
-    let link = target.closest("a[href]");
+    let link = startTarget.closest("a[href]");
     if (link) {
       link.click();
       return;
     }
-    target.dispatchEvent(
+    startTarget.dispatchEvent(
       new MouseEvent("click", {
         bubbles: !0,
         cancelable: !0,
@@ -3571,22 +3408,22 @@ body {
         swipeState.cancelled = !0, hideSwipeIndicator();
         return;
       }
-      absX >= SWIPE_INTENT_DISTANCE && absX >= absY * HORIZONTAL_INTENT_RATIO && (swipeState.horizontal = !0, swipeState.suppressClick = !0, event.preventDefault());
+      absX >= SWIPE_INTENT_DISTANCE && absX >= absY * HORIZONTAL_INTENT_RATIO && (swipeState.horizontal = !0, event.preventDefault());
     }
   }
   function updateSwipeIndicator(info) {
-    if (!indicatorElement || !swipeState?.horizontal || swipeState.cancelled)
+    if (!swipeIndicator || !swipeState?.horizontal || swipeState.cancelled)
       return;
-    let direction = info.dx < 0 ? "left" : "right", availableUrl = swipeUrlForDelta(info.dx), progress = Math.min(1, Math.max(0, (Math.abs(info.dx) - SWIPE_INTENT_DISTANCE) / (SWIPE_MIN_DISTANCE - SWIPE_INTENT_DISTANCE))), pull = Math.round(48 * progress);
-    indicatorElement.textContent = direction === "left" ? "‹" : "›", indicatorElement.classList.add(SEARCH_SWIPE_INDICATOR_ACTIVE_CLASS), indicatorElement.classList.toggle(SEARCH_SWIPE_INDICATOR_LEFT_CLASS, direction === "left"), indicatorElement.classList.toggle(SEARCH_SWIPE_INDICATOR_RIGHT_CLASS, direction === "right"), indicatorElement.classList.toggle(SEARCH_SWIPE_INDICATOR_DISABLED_CLASS, !availableUrl), indicatorElement.style.opacity = String(0.35 + progress * 0.65), indicatorElement.style.setProperty("--ehpeek-search-swipe-pull", `${pull}px`);
+    let direction = info.dx < 0 ? "left" : "right";
+    if (!swipeUrlForDelta(info.dx)) {
+      swipeIndicator.hide();
+      return;
+    }
+    let progress = Math.min(1, Math.max(0, (Math.abs(info.dx) - SWIPE_INTENT_DISTANCE) / (SWIPE_MIN_DISTANCE - SWIPE_INTENT_DISTANCE)));
+    swipeIndicator.show(direction, progress);
   }
   function hideSwipeIndicator() {
-    indicatorElement && (indicatorElement.classList.remove(
-      SEARCH_SWIPE_INDICATOR_ACTIVE_CLASS,
-      SEARCH_SWIPE_INDICATOR_LEFT_CLASS,
-      SEARCH_SWIPE_INDICATOR_RIGHT_CLASS,
-      SEARCH_SWIPE_INDICATOR_DISABLED_CLASS
-    ), indicatorElement.style.opacity = "", indicatorElement.style.removeProperty("--ehpeek-search-swipe-pull"));
+    swipeIndicator?.hide();
   }
   function navigateBySwipe(info, event) {
     if (!swipeState?.horizontal || swipeState.cancelled)
@@ -3595,22 +3432,150 @@ body {
     if (absX < SWIPE_MIN_DISTANCE || absY > absX * SWIPE_MAX_VERTICAL_RATIO)
       return;
     let url = swipeUrlForDelta(dx);
-    url && (swipeState.suppressClick = !0, event.preventDefault(), navigateSearchPage(url, dx < 0));
+    url && (event.preventDefault(), navigateGalleryPreview(url, { scrollToPageBar: dx < 0 ? "top" : "bottom" }).catch(
+      (error) => galleryThumbEnhancementErrorHandler?.(error)
+    ));
+  }
+  function swipeUrlForDelta(dx) {
+    let currentIndex = previewPageIndex(), maxIndex = maxPreviewPageIndex2(), nextIndex = dx < 0 ? currentIndex + 1 : currentIndex - 1;
+    return nextIndex < 0 || maxIndex !== null && nextIndex > maxIndex ? null : previewUrlForIndex(nextIndex);
+  }
+  function onPageBarClick(event) {
+    if (!enhanceThumbsGridsEnabled() || !(event.target instanceof Element))
+      return;
+    let barItem = event.target.closest(`.${SCROLL_PAGE_BAR_CLASS} a[data-page-index], .${SCROLL_PAGE_BAR_CLASS} button[data-page-jump]`);
+    if (!barItem)
+      return;
+    event.preventDefault(), event.stopPropagation();
+    let url = pageBarUrl(barItem);
+    if (!url)
+      return;
+    let targetPreviewIndex = previewPageIndexFromUrl(url);
+    targetPreviewIndex !== null && setScrollPageBarWindowIndex(targetPreviewIndex), navigateGalleryPreview(url, { scrollToPageBar: pageBarScrollTarget(barItem, targetPreviewIndex) }).catch(
+      (error) => galleryThumbEnhancementErrorHandler?.(error)
+    );
+  }
+  function pageBarScrollTarget(item, targetPreviewIndex) {
+    if (item instanceof HTMLButtonElement)
+      return "top";
+    let currentIndex = previewPageIndex(), maxIndex = maxPreviewPageIndex2();
+    return targetPreviewIndex !== null && (targetPreviewIndex === currentIndex - 1 || targetPreviewIndex === maxIndex) ? "bottom" : "top";
+  }
+  function scrollToPageBar(target) {
+    let selector = target === "top" ? `.${SCROLL_PAGE_BAR_TOP_CLASS}` : `.${SCROLL_PAGE_BAR_BOTTOM_CLASS}`, block = target === "top" ? "start" : "end";
+    document.querySelector(selector)?.scrollIntoView({ block, behavior: "smooth" });
+  }
+  function installGalleryPageBar() {
+    replaceGalleryPageBar2(previewPageIndex(), maxPreviewPageIndex2());
+  }
+  function pageBarUrl(item) {
+    if (item instanceof HTMLAnchorElement)
+      return previewPageIndexFromUrl(item.href) === null ? null : item.href;
+    let maxPreviewIndex = maxPreviewPageIndex2();
+    if (maxPreviewIndex === null)
+      return null;
+    let page = window.prompt(`Jump to page: (1-${maxPreviewIndex + 1})`, String(previewPageIndex() + 1)), pageNumber = Number(page || "");
+    return Number.isFinite(pageNumber) ? previewUrlForIndex(clamp(Math.round(pageNumber) - 1, 0, maxPreviewIndex)) : null;
+  }
+
+  // src/components/Enhance/EnhanceSearchGrids.tsx
+  var SWIPE_MIN_DISTANCE2 = 96, SWIPE_INTENT_DISTANCE2 = 28, HORIZONTAL_INTENT_RATIO2 = 2.2, SWIPE_MAX_VERTICAL_RATIO2 = 0.38, SEARCH_SWIPE_WRAPPER_CLASS = "ehpeek-search-swipe-wrapper", installed = !1, swipeElement2 = null, swipeIndicator2 = null, swipeState2 = null, searchNavigationLoading = !1, installedSwipeElements2 = /* @__PURE__ */ new WeakSet();
+  function installEnhanceSearchGrids(pageType2) {
+    if (installed || pageType2.type !== "search" || !searchPageNavigation2())
+      return;
+    let resultList = searchResultList2();
+    resultList?.parentElement && (installed = !0, installResultListEnhancement(resultList), document.addEventListener("click", onSearchNavigationClick, !0));
+  }
+  function installResultListEnhancement(resultList) {
+    swipeElement2 = installResultListSwipeDom(resultList), !installedSwipeElements2.has(swipeElement2) && (installedSwipeElements2.add(swipeElement2), new PointerGesture(swipeElement2, {
+      onStart: () => {
+        swipeState2 = { horizontal: !1, cancelled: !1 }, hideSwipeIndicator2();
+      },
+      onMove: (info, event) => {
+        updateSwipeState2(info, event), updateSwipeIndicator2(info);
+      },
+      onEnd: (info, event) => {
+        navigateBySwipe2(info, event), swipeState2 = null, hideSwipeIndicator2();
+      },
+      onTap: (info) => {
+        clickFromStartTarget2(info.startTarget, info.clientX, info.clientY);
+      }
+    }));
+  }
+  function installResultListSwipeDom(resultList) {
+    let existingWrapper = resultList.parentElement?.classList.contains(SEARCH_SWIPE_WRAPPER_CLASS) ? resultList.parentElement : null, wrapper = existingWrapper ?? /* @__PURE__ */ h("div", { className: `${SEARCH_SWIPE_WRAPPER_CLASS} relative` }), indicator = new SwipeIndicator();
+    return swipeIndicator2 = indicator, existingWrapper || (resultList.before(wrapper), wrapper.append(resultList)), wrapper.querySelectorAll(":scope > .ehpeek-swipe-indicator").forEach((item) => item.remove()), wrapper.append(indicator.element), wrapper;
+  }
+  function onSearchNavigationClick(event) {
+    let link = findSearchNavigationLink2(event.target);
+    link && (event.preventDefault(), event.stopPropagation(), navigateSearchPage(link.href, isNextPageOrJump(link)));
+  }
+  function clickFromStartTarget2(startTarget, clientX, clientY) {
+    if (!(startTarget instanceof Element))
+      return;
+    let link = startTarget.closest("a[href]");
+    if (link) {
+      link.click();
+      return;
+    }
+    startTarget.dispatchEvent(
+      new MouseEvent("click", {
+        bubbles: !0,
+        cancelable: !0,
+        clientX,
+        clientY
+      })
+    );
+  }
+  function updateSwipeState2(info, event) {
+    if (!swipeState2)
+      return;
+    let dx = info.dx, dy = info.dy, absX = Math.abs(dx), absY = Math.abs(dy);
+    if (!(swipeState2.horizontal || swipeState2.cancelled)) {
+      if (absY >= SWIPE_INTENT_DISTANCE2 && absY > absX) {
+        swipeState2.cancelled = !0, hideSwipeIndicator2();
+        return;
+      }
+      absX >= SWIPE_INTENT_DISTANCE2 && absX >= absY * HORIZONTAL_INTENT_RATIO2 && (swipeState2.horizontal = !0, event.preventDefault());
+    }
+  }
+  function updateSwipeIndicator2(info) {
+    if (!swipeIndicator2 || !swipeState2?.horizontal || swipeState2.cancelled)
+      return;
+    let direction = info.dx < 0 ? "left" : "right";
+    if (!swipeUrlForDelta2(info.dx)) {
+      swipeIndicator2.hide();
+      return;
+    }
+    let progress = Math.min(1, Math.max(0, (Math.abs(info.dx) - SWIPE_INTENT_DISTANCE2) / (SWIPE_MIN_DISTANCE2 - SWIPE_INTENT_DISTANCE2)));
+    swipeIndicator2.show(direction, progress);
+  }
+  function hideSwipeIndicator2() {
+    swipeIndicator2?.hide();
+  }
+  function navigateBySwipe2(info, event) {
+    if (!swipeState2?.horizontal || swipeState2.cancelled)
+      return;
+    let dx = info.dx, dy = info.dy, absX = Math.abs(dx), absY = Math.abs(dy);
+    if (absX < SWIPE_MIN_DISTANCE2 || absY > absX * SWIPE_MAX_VERTICAL_RATIO2)
+      return;
+    let url = swipeUrlForDelta2(dx);
+    url && (event.preventDefault(), navigateSearchPage(url, dx < 0));
   }
   async function navigateSearchPage(url, scrollToTopNavigation) {
     if (!searchNavigationLoading) {
-      searchNavigationLoading = !0, overlayElement?.setAttribute("aria-busy", "true"), scrollSearchNavigationIntoView(scrollToTopNavigation);
+      searchNavigationLoading = !0, swipeElement2?.setAttribute("aria-busy", "true"), scrollSearchNavigationIntoView(scrollToTopNavigation);
       try {
         let resultList = await replaceSearchPageContentFromUrl(url);
         window.history.pushState(window.history.state, "", url), installResultListEnhancement(resultList);
       } catch (error) {
         console.error("[ehpeek]", error);
       } finally {
-        searchNavigationLoading = !1, overlayElement?.removeAttribute("aria-busy");
+        searchNavigationLoading = !1, swipeElement2?.removeAttribute("aria-busy");
       }
     }
   }
-  function swipeUrlForDelta(dx) {
+  function swipeUrlForDelta2(dx) {
     let nav = searchPageNavigation2();
     return nav ? dx < 0 ? nav.nextUrl : nav.previousUrl : null;
   }
@@ -3626,71 +3591,6 @@ body {
   function isNextPageOrJump(link) {
     let id = link.id.toLowerCase();
     return id.endsWith("next") || id.endsWith("last");
-  }
-  function ensureSearchSwipeStyle() {
-    if (document.getElementById(SEARCH_SWIPE_STYLE_ID))
-      return;
-    let style = document.createElement("style");
-    style.id = SEARCH_SWIPE_STYLE_ID, style.textContent = EnhanceSearchGrids_default, document.head.append(style);
-  }
-
-  // src/components/Enhance/ReadButton.css
-  var ReadButton_default = `.ehpeek-gallery-actions {
-  box-sizing: border-box;
-}
-
-.ehpeek-continue-reading:hover {
-  background: rgba(32, 32, 32, 0.9);
-}
-
-.ehpeek-touch-gallery-primary-actions .ehpeek-continue-reading {
-  min-height: 87px;
-  margin: 0;
-  padding: 12px 15px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: #f0b35a;
-  box-shadow: none;
-  font-size: 26px;
-  text-transform: uppercase;
-}
-
-.ehpeek-touch-gallery-primary-actions .ehpeek-continue-reading-page {
-  margin-top: 2px;
-  color: #f0b35a;
-  font-size: 18px;
-  opacity: 0.78;
-  text-transform: none;
-}
-`;
-
-  // src/components/Enhance/ReadButton.tsx
-  var STYLE_ID5 = "ehpeek-continue-reading-style";
-  function installReadButton(info, onClick, mountMobileButton) {
-    document.querySelector(".ehpeek-continue-reading")?.remove(), ensureReadButtonStyle();
-    let button = /* @__PURE__ */ h(
-      "button",
-      {
-        type: "button",
-        className: "ehpeek-continue-reading block box-border w-full max-w-full mt-4px py-4px px-8px border rounded-4px color-soft-panel shadow-none cursor-pointer text-center font-sans textsize-sm font-700 leading-[1.15]",
-        onClick: (event) => {
-          event.preventDefault(), event.stopPropagation(), onClick();
-        }
-      },
-      info.label,
-      /* @__PURE__ */ h("span", { className: "ehpeek-continue-reading-page block mt-1px opacity-72 textsize-xs font-600" }, info.detail)
-    );
-    mountMobileButton?.(button) || mountGalleryContinueReadingButton2(button);
-  }
-  function uninstallReadButton() {
-    document.querySelector(".ehpeek-continue-reading")?.remove();
-  }
-  function ensureReadButtonStyle() {
-    if (document.getElementById(STYLE_ID5))
-      return;
-    let style = document.createElement("style");
-    style.id = STYLE_ID5, style.textContent = ReadButton_default, document.head.append(style);
   }
 
   // src/history.ts
@@ -3751,31 +3651,106 @@ body {
   }
 
   // ehpeek-uno-css:ehpeek:uno.css
-  var ehpeek_uno_default = `/* layer: shortcuts */
-.color-reader-accent{accent-color:#f3f3f3;}
-.color-border{--un-border-opacity:1;border-color:rgb(141 116 84 / var(--un-border-opacity));}
-.color-dim-border{--un-border-opacity:0.18;border-color:rgba(255, 255, 255, var(--un-border-opacity));}
-.color-reader-button{--un-border-opacity:0.18;border-color:rgba(255, 255, 255, var(--un-border-opacity));--un-bg-opacity:0.88;background-color:rgba(35, 35, 35, var(--un-bg-opacity));--un-text-opacity:1;color:rgb(243 243 243 / var(--un-text-opacity));}
-.color-soft-panel{--un-border-opacity:0.18;border-color:rgba(255, 255, 255, var(--un-border-opacity));--un-bg-opacity:0.82;background-color:rgba(18, 18, 18, var(--un-bg-opacity));--un-text-opacity:1;color:rgb(245 245 245 / var(--un-text-opacity));}
-.color-elevated{--un-bg-opacity:1;background-color:rgb(63 66 73 / var(--un-bg-opacity));--un-shadow:0 8px 24px var(--un-shadow-color, rgba(0, 0, 0, 0.38));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
-.color-surface{--un-bg-opacity:1;background-color:rgb(79 83 91 / var(--un-bg-opacity));}
-.textsize-lg{font-size:28px;}
-.textsize-md{font-size:20px;}
-.textsize-sm{font-size:14px;}
+  var ehpeek_uno_default = `/* layer: preflights */
+*,::before,::after{--un-rotate:0;--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-scale-x:1;--un-scale-y:1;--un-scale-z:1;--un-skew-x:0;--un-skew-y:0;--un-translate-x:0;--un-translate-y:0;--un-translate-z:0;--un-pan-x: ;--un-pan-y: ;--un-pinch-zoom: ;--un-scroll-snap-strictness:proximity;--un-ordinal: ;--un-slashed-zero: ;--un-numeric-figure: ;--un-numeric-spacing: ;--un-numeric-fraction: ;--un-border-spacing-x:0;--un-border-spacing-y:0;--un-ring-offset-shadow:0 0 rgb(0 0 0 / 0);--un-ring-shadow:0 0 rgb(0 0 0 / 0);--un-shadow-inset: ;--un-shadow:0 0 rgb(0 0 0 / 0);--un-ring-inset: ;--un-ring-offset-width:0px;--un-ring-offset-color:#fff;--un-ring-width:0px;--un-ring-color:rgb(147 197 253 / 0.5);--un-blur: ;--un-brightness: ;--un-contrast: ;--un-drop-shadow: ;--un-grayscale: ;--un-hue-rotate: ;--un-invert: ;--un-saturate: ;--un-sepia: ;--un-backdrop-blur: ;--un-backdrop-brightness: ;--un-backdrop-contrast: ;--un-backdrop-grayscale: ;--un-backdrop-hue-rotate: ;--un-backdrop-invert: ;--un-backdrop-opacity: ;--un-backdrop-saturate: ;--un-backdrop-sepia: ;}::backdrop{--un-rotate:0;--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-scale-x:1;--un-scale-y:1;--un-scale-z:1;--un-skew-x:0;--un-skew-y:0;--un-translate-x:0;--un-translate-y:0;--un-translate-z:0;--un-pan-x: ;--un-pan-y: ;--un-pinch-zoom: ;--un-scroll-snap-strictness:proximity;--un-ordinal: ;--un-slashed-zero: ;--un-numeric-figure: ;--un-numeric-spacing: ;--un-numeric-fraction: ;--un-border-spacing-x:0;--un-border-spacing-y:0;--un-ring-offset-shadow:0 0 rgb(0 0 0 / 0);--un-ring-shadow:0 0 rgb(0 0 0 / 0);--un-shadow-inset: ;--un-shadow:0 0 rgb(0 0 0 / 0);--un-ring-inset: ;--un-ring-offset-width:0px;--un-ring-offset-color:#fff;--un-ring-width:0px;--un-ring-color:rgb(147 197 253 / 0.5);--un-blur: ;--un-brightness: ;--un-contrast: ;--un-drop-shadow: ;--un-grayscale: ;--un-hue-rotate: ;--un-invert: ;--un-saturate: ;--un-sepia: ;--un-backdrop-blur: ;--un-backdrop-brightness: ;--un-backdrop-contrast: ;--un-backdrop-grayscale: ;--un-backdrop-hue-rotate: ;--un-backdrop-invert: ;--un-backdrop-opacity: ;--un-backdrop-saturate: ;--un-backdrop-sepia: ;}
+
+:root {
+  --ehpeek-color-accent: #f0b35a;
+  --ehpeek-color-border: #8d7454;
+  --ehpeek-color-border-soft: rgba(255, 255, 255, 0.18);
+  --ehpeek-color-border-subtle: rgba(255, 255, 255, 0.1);
+  --ehpeek-color-accent-hover-bg: rgba(240, 179, 90, 0.12);
+  --ehpeek-color-elevated: #3f4249;
+  --ehpeek-color-item-hover: rgba(255, 255, 255, 0.08);
+  --ehpeek-color-reader-text: #f3f3f3;
+  --ehpeek-color-state-off: #8c8f96;
+  --ehpeek-color-state-on: #4ec46a;
+  --ehpeek-color-surface: #4f535b;
+  --ehpeek-color-text: #f1f1f1;
+  --ehpeek-control-action-min-height: 52px;
+  --ehpeek-control-action-padding-x: 12px;
+  --ehpeek-control-action-padding-y: 10px;
+  --ehpeek-control-btn-padding-x: 10px;
+  --ehpeek-control-btn-padding-y: 7px;
+  --ehpeek-control-compact-padding-x: 8px;
+  --ehpeek-control-compact-padding-y: 4px;
+  --ehpeek-control-icon-size: 44px;
+  --ehpeek-control-menu-item-min-height: 56px;
+  --ehpeek-control-page-size: 34px;
+  --ehpeek-control-primary-height: 87px;
+  --ehpeek-control-radius-pill: 999px;
+  --ehpeek-control-radius-md: 4px;
+  --ehpeek-control-radius-reader: 6px;
+  --ehpeek-control-radius-sm: 3px;
+  --ehpeek-control-reader-button-height: 40px;
+  --ehpeek-control-reader-button-width: 46px;
+  --ehpeek-control-tag-min-height: 51px;
+  --ehpeek-control-toggle-dot-size: 10px;
+  --ehpeek-control-toggle-dot-touch-size: 18px;
+  --ehpeek-control-touch-min-height: 80px;
+}
+
+.ehpeek-ui-state-dot::after {
+  content: "";
+  flex: 0 0 auto;
+  width: var(--ehpeek-control-toggle-dot-size);
+  height: var(--ehpeek-control-toggle-dot-size);
+  border-radius: var(--ehpeek-control-radius-pill);
+  background: var(--ehpeek-color-state-on);
+}
+
+.ehpeek-ui-state-dot[aria-checked="false"]::after {
+  background: var(--ehpeek-color-state-off);
+}
+
+html.ehpeek-touch-ui .ehpeek-ui-state-dot::after {
+  width: var(--ehpeek-control-toggle-dot-touch-size);
+  height: var(--ehpeek-control-toggle-dot-touch-size);
+}
+
+/* layer: shortcuts */
+.color-progress-reader{accent-color:#f3f3f3;}
+.control-action{min-height:var(--ehpeek-control-action-min-height);border-radius:var(--ehpeek-control-radius-sm);padding-top:var(--ehpeek-control-action-padding-y);padding-bottom:var(--ehpeek-control-action-padding-y);padding-left:var(--ehpeek-control-action-padding-x);padding-right:var(--ehpeek-control-action-padding-x);}
+html.ehpeek-touch-ui .control-action,
+html.ehpeek-touch-ui .control-btn{min-height:var(--ehpeek-control-touch-min-height);padding-top:18px;padding-bottom:18px;padding-left:26px;padding-right:26px;}
+.control-icon{width:var(--ehpeek-control-icon-size);height:var(--ehpeek-control-icon-size);align-items:center;justify-content:center;}
+.control-page{width:var(--ehpeek-control-page-size);height:var(--ehpeek-control-page-size);border-radius:var(--ehpeek-control-radius-md);}
+html.ehpeek-touch-ui .control-page{width:38px;height:38px;border-radius:var(--ehpeek-control-radius-reader);}
+.control-range{height:48px;padding-left:12px;padding-right:12px;padding-top:0;padding-bottom:0;}
+.control-reader-btn{width:var(--ehpeek-control-reader-button-width);height:var(--ehpeek-control-reader-button-height);border-radius:var(--ehpeek-control-radius-reader);padding-left:var(--ehpeek-control-btn-padding-x);padding-right:var(--ehpeek-control-btn-padding-x);padding-top:0;padding-bottom:0;}
+.color-btn{border-width:1px;border-color:var(--ehpeek-color-border);background-color:transparent;color:var(--ehpeek-color-accent);}
+.color-border{border-color:var(--ehpeek-color-border);}
+.color-button-reader{border-color:var(--ehpeek-color-border-soft);--un-bg-opacity:0.88;background-color:rgba(35, 35, 35, var(--un-bg-opacity));color:var(--ehpeek-color-reader-text);}
+.color-panel-reader-btn{--un-border-opacity:0.18;border-color:rgba(255, 255, 255, var(--un-border-opacity));--un-bg-opacity:0.82;background-color:rgba(18, 18, 18, var(--un-bg-opacity));--un-text-opacity:1;color:rgb(245 245 245 / var(--un-text-opacity));}
+.color-search-swipe{border-color:var(--ehpeek-color-border-soft);--un-bg-opacity:0.38;background-color:rgba(16, 16, 16, var(--un-bg-opacity));--un-text-opacity:0.88;color:rgba(255, 255, 255, var(--un-text-opacity));}
+.color-border-subtle-b{border-bottom-color:var(--ehpeek-color-border-subtle);}
+.control-btn{border-radius:var(--ehpeek-control-radius-sm);padding-top:var(--ehpeek-control-btn-padding-y);padding-bottom:var(--ehpeek-control-btn-padding-y);padding-left:var(--ehpeek-control-btn-padding-x);padding-right:var(--ehpeek-control-btn-padding-x);}
+.control-compact{border-radius:var(--ehpeek-control-radius-md);padding-top:var(--ehpeek-control-compact-padding-y);padding-bottom:var(--ehpeek-control-compact-padding-y);padding-left:var(--ehpeek-control-compact-padding-x);padding-right:var(--ehpeek-control-compact-padding-x);}
+.color-elevated{background-color:var(--ehpeek-color-elevated);--un-shadow:0 8px 24px var(--un-shadow-color, rgba(0, 0, 0, 0.38));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
+.color-reader-badge{--un-bg-opacity:0.34;background-color:rgba(15, 15, 15, var(--un-bg-opacity));}
+.color-surface{background-color:var(--ehpeek-color-surface);}
+.color-btn:hover{background-color:var(--ehpeek-color-accent-hover-bg);}
+.color-item-hover:hover{background-color:var(--ehpeek-color-item-hover);}
+.color-panel-reader-btn:hover{background-color:var(--ehpeek-color-accent-hover-bg);}
+.textsize-md,
+html.ehpeek-touch-ui .textsize-sm{font-size:20px;}
+html.ehpeek-touch-ui .textsize-md{font-size:26px;}
+.textsize-sm,
+html.ehpeek-touch-ui .textsize-xs{font-size:14px;}
 .textsize-xs{font-size:11px;}
-.color-accent{--un-text-opacity:1;color:rgb(240 179 90 / var(--un-text-opacity));}
-.color-reader-text{--un-text-opacity:1;color:rgb(243 243 243 / var(--un-text-opacity));}
-.color-text{--un-text-opacity:1;color:rgb(241 241 241 / var(--un-text-opacity));}
+.color-accent{color:var(--ehpeek-color-accent);}
+.color-reader-text{color:var(--ehpeek-color-reader-text);}
+.color-text{color:var(--ehpeek-color-text);}
 /* layer: default */
 .\\[-webkit-appearance\\:none\\]{-webkit-appearance:none;}
 .\\[appearance\\:none\\]{appearance:none;}
 .pointer-events-auto{pointer-events:auto;}
 .pointer-events-none{pointer-events:none;}
 .visible{visibility:visible;}
+.invisible{visibility:hidden;}
 .absolute{position:absolute;}
 .fixed{position:fixed;}
 .relative{position:relative;}
-.inset-0{inset:0;}
 .bottom-\\[calc\\(12px\\+env\\(safe-area-inset-bottom\\,0px\\)\\)\\]{bottom:calc(12px + env(safe-area-inset-bottom,0px));}
 .left-\\[max\\(12px\\,env\\(safe-area-inset-left\\,0px\\)\\)\\]{left:max(12px,env(safe-area-inset-left,0px));}
 .left-1\\/2{left:50%;}
@@ -3802,28 +3777,23 @@ body {
 .mt-2px{margin-top:2px;}
 .mt-4px{margin-top:4px;}
 .mt-6px{margin-top:6px;}
+html.ehpeek-touch-ui .touch\\:mt-8px{margin-top:8px;}
 .box-border{box-sizing:border-box;}
 .block{display:block;}
 .\\!hidden{display:none !important;}
 .hidden{display:none;}
 .h-108px{height:108px;}
-.h-34px{height:34px;}
-.h-40px{height:40px;}
-.h-44px{height:44px;}
-.h-48px{height:48px;}
 .h1{height:0.25rem;}
 .max-w-\\[min\\(78vw\\,320px\\)\\]{max-width:min(78vw,320px);}
 .max-w-full{max-width:100%;}
-.min-h-52px{min-height:52px;}
 .min-h-56px{min-height:56px;}
 .min-w-260px{min-width:260px;}
 .min-w-285px{min-width:285px;}
-.min-w-34px{min-width:34px;}
 .min-w-64px{min-width:64px;}
 .w-42px{width:42px;}
-.w-44px{width:44px;}
-.w-46px{width:46px;}
 .w-full{width:100%;}
+.w-max{width:max-content;}
+html.ehpeek-touch-ui .touch\\:min-w-\\[min\\(92vw\\,520px\\)\\]{min-width:min(92vw,520px);}
 .flex{display:flex;}
 .inline-flex{display:inline-flex;}
 .flex-row{flex-direction:row;}
@@ -3833,6 +3803,7 @@ body {
 .border-collapse{border-collapse:collapse;}
 .border-separate{border-collapse:separate;}
 .border-spacing-4px{--un-border-spacing-x:4px;--un-border-spacing-y:4px;border-spacing:var(--un-border-spacing-x) var(--un-border-spacing-y);}
+html.ehpeek-touch-ui .touch\\:border-spacing-6px{--un-border-spacing-x:6px;--un-border-spacing-y:6px;border-spacing:var(--un-border-spacing-x) var(--un-border-spacing-y);}
 .-translate-x-1\\/2{--un-translate-x:-50%;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
 .transform{transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
 .cursor-default{cursor:default;}
@@ -3848,36 +3819,30 @@ body {
 .justify-between{justify-content:space-between;}
 .gap-16px{gap:16px;}
 .gap-8px{gap:8px;}
+html.ehpeek-touch-ui .touch\\:gap-10px{gap:10px;}
+html.ehpeek-touch-ui .touch\\:gap-20px{gap:20px;}
 .overflow-hidden{overflow:hidden;}
-.overscroll-x-contain{overscroll-behavior-x:contain;}
 .whitespace-nowrap{white-space:nowrap;}
 .border{border-width:1px;}
 .border-0{border-width:0px;}
 .border-b{border-bottom-width:1px;}
 .border-current{border-color:currentColor;}
-.border-b-\\[rgba\\(255\\,255\\,255\\,0\\.1\\)\\]{--un-border-opacity:0.1;--un-border-bottom-opacity:var(--un-border-opacity);border-bottom-color:rgba(255, 255, 255, var(--un-border-bottom-opacity));}
 .rounded-22px{border-radius:22px;}
-.rounded-3px{border-radius:3px;}
 .rounded-4px{border-radius:4px;}
 .rounded-6px{border-radius:6px;}
-.bg-\\[rgba\\(15\\,15\\,15\\,0\\.34\\)\\]{--un-bg-opacity:0.34;background-color:rgba(15, 15, 15, var(--un-bg-opacity));}
-.bg-\\[rgba\\(16\\,16\\,16\\,0\\.38\\)\\]{--un-bg-opacity:0.38;background-color:rgba(16, 16, 16, var(--un-bg-opacity));}
 .bg-transparent{background-color:transparent;}
 .p-0{padding:0;}
 .p-8px{padding:8px;}
 .px{padding-left:1rem;padding-right:1rem;}
+.px-0{padding-left:0;padding-right:0;}
 .px-10px{padding-left:10px;padding-right:10px;}
-.px-12px{padding-left:12px;padding-right:12px;}
-.px-8px{padding-left:8px;padding-right:8px;}
 .py-0{padding-top:0;padding-bottom:0;}
-.py-10px{padding-top:10px;padding-bottom:10px;}
 .py-4px{padding-top:4px;padding-bottom:4px;}
-.py-7px{padding-top:7px;padding-bottom:7px;}
 .text-center{text-align:center;}
 .text-left{text-align:left;}
 .align-middle{vertical-align:middle;}
+.text-28px{font-size:28px;}
 .text-52px{font-size:52px;}
-.text-\\[rgba\\(255\\,255\\,255\\,0\\.88\\)\\]{--un-text-opacity:0.88;color:rgba(255, 255, 255, var(--un-text-opacity));}
 .font-300{font-weight:300;}
 .font-600{font-weight:600;}
 .font-700{font-weight:700;}
@@ -3889,10 +3854,13 @@ body {
 .font-sans{font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";}
 .uppercase{text-transform:uppercase;}
 .lowercase{text-transform:lowercase;}
+.normal-case{text-transform:none;}
 .no-underline{text-decoration:none;}
+.hover\\:no-underline:hover{text-decoration:none;}
+.active\\:no-underline:active{text-decoration:none;}
 .opacity-72{opacity:0.72;}
+.opacity-78{opacity:0.78;}
 .shadow-none{--un-shadow:0 0 var(--un-shadow-color, rgb(0 0 0 / 0));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
-.backdrop-filter{-webkit-backdrop-filter:var(--un-backdrop-blur) var(--un-backdrop-brightness) var(--un-backdrop-contrast) var(--un-backdrop-grayscale) var(--un-backdrop-hue-rotate) var(--un-backdrop-invert) var(--un-backdrop-opacity) var(--un-backdrop-saturate) var(--un-backdrop-sepia);backdrop-filter:var(--un-backdrop-blur) var(--un-backdrop-brightness) var(--un-backdrop-contrast) var(--un-backdrop-grayscale) var(--un-backdrop-hue-rotate) var(--un-backdrop-invert) var(--un-backdrop-opacity) var(--un-backdrop-saturate) var(--un-backdrop-sepia);}
 .transition-\\[opacity\\,transform\\]{transition-property:opacity,transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
 .transition-opacity{transition-property:opacity;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
 .duration-120{transition-duration:120ms;}
@@ -3900,19 +3868,19 @@ body {
 .ease-in-out{transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);}`;
 
   // src/styles/uno.ts
-  var STYLE_ID6 = "ehpeek-uno-style";
+  var STYLE_ID4 = "ehpeek-uno-style";
   function installUnoStyle() {
-    if (!ehpeek_uno_default || document.getElementById(STYLE_ID6))
+    if (!ehpeek_uno_default || document.getElementById(STYLE_ID4))
       return;
     let style = document.createElement("style");
-    style.id = STYLE_ID6, style.textContent = ehpeek_uno_default, document.head.append(style);
+    style.id = STYLE_ID4, style.textContent = ehpeek_uno_default, document.head.append(style);
   }
 
   // src/main.ts
   var READER_WINDOW_SIZE = 10, menuCommandId = null, settingsMenu = null, touchGalleryPanel = null, touchTopBar = null;
   installUnoStyle();
   function updateReaderEnabled(enabled) {
-    state.reader.enabled.set(enabled), pageType.type === "gallery" && (enabled ? installContinueReading() : uninstallReadButton()), settingsMenu?.update(), registerUserscriptMenu();
+    state.reader.enabled.set(enabled), pageType.type === "gallery" && (enabled ? installContinueReading() : removeGalleryReadButton()), settingsMenu?.update(), registerUserscriptMenu();
   }
   function registerUserscriptMenu() {
     typeof GM_registerMenuCommand == "function" && (menuCommandId !== null && typeof GM_unregisterMenuCommand == "function" && (GM_unregisterMenuCommand(menuCommandId), menuCommandId = null), menuCommandId = GM_registerMenuCommand(
@@ -3975,7 +3943,7 @@ body {
         historySession.dispose(), installContinueReading();
         let exitIndex = lastPageNum ? provider.previewIndexForPage(lastPageNum) : landingIndex, galleryUrl = previewUrlForIndex(exitIndex);
         if (enhanceThumbsGridsEnabled()) {
-          replaceGalleryPageBar2(exitIndex, maxPreviewIndex), navigateGalleryPreview(galleryUrl, "replace").catch(() => {
+          replaceGalleryPageBar2(exitIndex, maxPreviewIndex), navigateGalleryPreview(galleryUrl).catch(() => {
             window.location.replace(galleryUrl);
           });
           return;
@@ -4033,17 +4001,13 @@ body {
   function installContinueReading() {
     if (pageType.type !== "gallery" || !state.reader.enabled.value)
       return;
-    let record = loadReaderHistory(pageType.galleryId, pageType.token), pageNum = record?.pageNum && record.pageNum > 0 ? record.pageNum : 1, totalPages = record?.totalPages ?? readShowingRange2()?.total, detail = record && totalPages ? `${pageNum}/${totalPages}` : totalPages ? `${totalPages} ${texts_default.reader.pages}` : String(pageNum), galleryPanel = state.touch.enabled.value ? installTouchGalleryPanel() : null;
-    installReadButton(
-      {
-        label: record ? texts_default.reader.continueReading : texts_default.reader.startReading,
-        detail
-      },
-      () => {
-        let page = collectGalleryPages2()[0];
-        page && openReader(page.url, pageNum).catch(reportOpenError);
-      },
-      (button) => galleryPanel?.mountContinueButton(button) ?? !1
-    );
+    let record = loadReaderHistory(pageType.galleryId, pageType.token), pageNum = record?.pageNum && record.pageNum > 0 ? record.pageNum : 1, totalPages = record?.totalPages ?? readShowingRange2()?.total, detail = record && totalPages ? `${pageNum}/${totalPages}` : totalPages ? `${totalPages} ${texts_default.reader.pages}` : String(pageNum), galleryPanel = state.touch.enabled.value ? installTouchGalleryPanel() : null, info = {
+      label: record ? texts_default.reader.continueReading : texts_default.reader.startReading,
+      detail
+    }, onClick = () => {
+      let page = collectGalleryPages2()[0];
+      page && openReader(page.url, pageNum).catch(reportOpenError);
+    };
+    removeGalleryReadButton(), !galleryPanel?.mountContinueButton(createTouchGalleryReadButton(info, onClick)) && mountGalleryContinueReadingButton2(createGalleryReadButton(info, onClick));
   }
 })();
