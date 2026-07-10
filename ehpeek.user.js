@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ehpeek: E-H/ExH viewer
 // @namespace    ehpeek
-// @version      260709.1756
+// @version      260710.0325
 // @description  A mobile-optimized E-H/ExH viewer
 // @match        *://e-hentai.org/*
 // @match        *://exhentai.org/*
@@ -30,6 +30,7 @@
       rightTapPrevious: "Right tap goes to previous page",
       rightTapNext: "Right tap goes to next page",
       disableReader: "Disable Ehpeek Reader",
+      download: "Download",
       startReading: "Read",
       continueReading: "Continue",
       pages: "Pages",
@@ -42,16 +43,12 @@
       menuLabel: "Ehpeek",
       readerOn: "Reader: on",
       readerOff: "Reader: off",
-      enableReader: "Enable Ehpeek Reader",
-      disableReader: "Disable Ehpeek Reader",
-      enhanceGalleryThumbsOn: "Enhance gallery thumbs: on",
-      enhanceGalleryThumbsOff: "Enhance gallery thumbs: off",
-      enableEnhanceGalleryThumbs: "Enable enhanced gallery thumbs",
-      disableEnhanceGalleryThumbs: "Disable enhanced gallery thumbs",
-      enhanceSearchPageOn: "Enhance search page: on",
-      enhanceSearchPageOff: "Enhance search page: off",
-      enableEnhanceSearchPage: "Enable enhanced search page",
-      disableEnhanceSearchPage: "Disable enhanced search page"
+      enhanceSearchOn: "Enhance Search Grids: on",
+      enhanceSearchOff: "Enhance Search Grids: off",
+      enhanceThumbsOn: "Enhance Thumbs Preview: on",
+      enhanceThumbsOff: "Enhance Thumbs Preview: off",
+      touchUiOn: "Touch UI: on",
+      touchUiOff: "Touch UI: off"
     },
     errors: {
       imageNotFound: "Image not found",
@@ -71,10 +68,13 @@
       rightTapAction: persisted("ehpeek:reader:right-tap-action", "previous")
     },
     gallery: {
-      enhanceThumbs: persisted("ehpeek:gallery:enhance-thumbs", !0)
+      enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", !0)
     },
     search: {
-      enhance: persisted("ehpeek:search:enhance", !0)
+      enhance: persisted("ehpeek:enhance-search:enabled", !0)
+    },
+    touch: {
+      enabled: persisted("ehpeek:touch-ui:enabled", !0)
     }
   };
   function persisted(key, defaultValue) {
@@ -587,12 +587,23 @@
       return !slot || slot.kind !== "page" || slot.state !== "idle" ? null : (slot.state = "loading", slot.token += 1, this.refreshSlot(slot), slot.token);
     }
     createPageImage(pageNum, slotImage) {
-      let image = document.createElement("img");
-      return image.className = "ehpeek-image", image.alt = `Page ${pageNum}`, image.decoding = "async", image.loading = "eager", image.draggable = !1, image.setAttribute("fetchpriority", slotImage.highPriority ? "high" : "low"), image.src = slotImage.imageUrl, slotImage.width && slotImage.height && (image.width = slotImage.width, image.height = slotImage.height), image;
+      let image = /* @__PURE__ */ h(
+        "img",
+        {
+          className: "ehpeek-image",
+          alt: `Page ${pageNum}`,
+          decoding: "async",
+          loading: "eager",
+          draggable: !1,
+          fetchpriority: slotImage.highPriority ? "high" : "low",
+          src: slotImage.imageUrl
+        }
+      );
+      return slotImage.width && slotImage.height && (image.width = slotImage.width, image.height = slotImage.height), image;
     }
     setPageImage(pageNum, token, slotImage, image) {
       let slot = this.slotFor(pageNum);
-      return !slot || slot.token !== token || !slot.view ? !1 : (slot.state = "ready", slot.imageUrl = slotImage.imageUrl, slot.width = slotImage.width, slot.height = slotImage.height, this.applySlotSize(slot), slot.view.frame.replaceChildren(image), !0);
+      return !slot || slot.token !== token || !slot.view ? !1 : (slot.state = "ready", slot.imageUrl = slotImage.imageUrl, slot.width = positiveDimension(image.naturalWidth) ?? slotImage.width, slot.height = positiveDimension(image.naturalHeight) ?? slotImage.height, this.applySlotSize(slot), slot.view.frame.replaceChildren(image), !0);
     }
     setPageError(pageNum, token, errorMessage) {
       let slot = this.slotFor(pageNum);
@@ -710,11 +721,7 @@
       this.strip.append(view.node);
     }
     createSlotView(index, pageNum) {
-      let node = document.createElement("section");
-      node.className = "ehpeek-page";
-      let frame = document.createElement("div");
-      frame.className = "ehpeek-frame", node.append(frame);
-      let view = { node, frame };
+      let frame, view = { node: /* @__PURE__ */ h("section", { className: "ehpeek-page" }, /* @__PURE__ */ h("div", { className: "ehpeek-frame", ref: (element) => frame = element })), frame };
       return this.setSlotOrder(view, index, index + 1), this.setSlotPageNum(view, pageNum), view;
     }
     removeSlotView(view) {
@@ -734,8 +741,8 @@
       view.node.style.setProperty("--ehpeek-page-height", `${frameHeight + 8}px`), view.node.style.setProperty("--ehpeek-frame-width", `${frameWidth}px`), view.node.style.setProperty("--ehpeek-frame-height", `${frameHeight}px`);
     }
     setSlotPlaceholder(view, content) {
-      let placeholder = document.createElement("div");
-      placeholder.className = content.state === "error" ? "ehpeek-error" : "ehpeek-placeholder", placeholder.classList.toggle("ehpeek-placeholder-end", content.kind === "end"), placeholder.textContent = this.slotPlaceholderText(content), view.frame.replaceChildren(placeholder);
+      let placeholder = /* @__PURE__ */ h("div", { className: content.state === "error" ? "ehpeek-error" : "ehpeek-placeholder" }, this.slotPlaceholderText(content));
+      placeholder.classList.toggle("ehpeek-placeholder-end", content.kind === "end"), view.frame.replaceChildren(placeholder);
     }
     createSlot(pageNum, kind) {
       return {
@@ -798,6 +805,9 @@
       return content.kind === "end" ? texts_default.reader.end : content.kind === "blank" ? "" : String(content.pageNum);
     }
   };
+  function positiveDimension(value) {
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
 
   // src/components/Reader/Reader.css
   var Reader_default = `#ehpeek-reader {
@@ -1926,13 +1936,15 @@
     constructor(triggerTagName, state2, handlers) {
       this.state = state2;
       this.handlers = handlers;
-      this.root = document.createElement(triggerTagName === "a" ? "div" : "span"), this.root.className = "ehpeek-settings-root", this.trigger = this.createTrigger(triggerTagName), this.menu = /* @__PURE__ */ h("div", { className: "ehpeek-settings-menu", hidden: !0 }), this.readerSetting = this.createSwitchButton(() => {
+      this.root = triggerTagName === "a" ? /* @__PURE__ */ h("div", { className: "ehpeek-settings-root" }) : /* @__PURE__ */ h("span", { className: "ehpeek-settings-root" }), this.trigger = this.createTrigger(triggerTagName), this.menu = /* @__PURE__ */ h("div", { className: "ehpeek-settings-menu", hidden: !0 }), this.readerSetting = this.createSwitchButton(() => {
         this.handlers.onReaderToggle();
-      }), this.enhanceGalleryThumbsSetting = this.createSwitchButton(() => {
-        this.handlers.onEnhanceGalleryThumbsToggle(), this.update();
-      }), this.enhanceSearchPageSetting = this.createSwitchButton(() => {
-        this.handlers.onEnhanceSearchPageToggle(), this.update();
-      }), this.menu.append(this.readerSetting, this.enhanceGalleryThumbsSetting, this.enhanceSearchPageSetting), this.root.append(this.trigger, this.menu), this.update();
+      }), this.enhanceThumbsGridsSetting = this.createSwitchButton(() => {
+        this.handlers.onEnhanceThumbsGridsToggle(), this.update();
+      }), this.enhanceSearchGridsSetting = this.createSwitchButton(() => {
+        this.handlers.onEnhanceSearchGridsToggle(), this.update();
+      }), this.touchUiSetting = this.createSwitchButton(() => {
+        this.handlers.onTouchUiToggle(), this.update();
+      }), this.menu.append(this.readerSetting, this.enhanceSearchGridsSetting, this.enhanceThumbsGridsSetting, this.touchUiSetting), this.root.append(this.trigger, this.menu), this.update();
     }
     mount(parent) {
       ensureSettingsStyle(), parent.append(this.root), this.bindGlobalEvents(), this.update();
@@ -1948,25 +1960,26 @@
       this.trigger.textContent = texts_default.settings.menuLabel, this.trigger.setAttribute("aria-expanded", String(!this.menu.hidden)), this.trigger.setAttribute("aria-haspopup", "menu"), this.updateSwitch(
         this.readerSetting,
         current.readerEnabled,
-        current.readerEnabled ? texts_default.settings.readerOn : texts_default.settings.readerOff,
-        current.readerEnabled ? texts_default.settings.disableReader : texts_default.settings.enableReader
+        current.readerEnabled ? texts_default.settings.readerOn : texts_default.settings.readerOff
       ), this.updateSwitch(
-        this.enhanceGalleryThumbsSetting,
-        current.enhanceGalleryThumbsEnabled,
-        current.enhanceGalleryThumbsEnabled ? texts_default.settings.enhanceGalleryThumbsOn : texts_default.settings.enhanceGalleryThumbsOff,
-        current.enhanceGalleryThumbsEnabled ? texts_default.settings.disableEnhanceGalleryThumbs : texts_default.settings.enableEnhanceGalleryThumbs
+        this.enhanceSearchGridsSetting,
+        current.enhanceSearchGridsEnabled,
+        current.enhanceSearchGridsEnabled ? texts_default.settings.enhanceSearchOn : texts_default.settings.enhanceSearchOff
       ), this.updateSwitch(
-        this.enhanceSearchPageSetting,
-        current.enhanceSearchPageEnabled,
-        current.enhanceSearchPageEnabled ? texts_default.settings.enhanceSearchPageOn : texts_default.settings.enhanceSearchPageOff,
-        current.enhanceSearchPageEnabled ? texts_default.settings.disableEnhanceSearchPage : texts_default.settings.enableEnhanceSearchPage
+        this.enhanceThumbsGridsSetting,
+        current.enhanceThumbsGridsEnabled,
+        current.enhanceThumbsGridsEnabled ? texts_default.settings.enhanceThumbsOn : texts_default.settings.enhanceThumbsOff
+      ), this.updateSwitch(
+        this.touchUiSetting,
+        current.touchUiEnabled,
+        current.touchUiEnabled ? texts_default.settings.touchUiOn : texts_default.settings.touchUiOff
       ), this.position();
     }
     createTrigger(tagName) {
-      let trigger = document.createElement(tagName);
-      return trigger.className = "ehpeek-settings-trigger", trigger instanceof HTMLAnchorElement ? trigger.href = "#" : trigger.type = "button", trigger.addEventListener("click", (event) => {
+      let onClick = (event) => {
         event.preventDefault(), event.stopPropagation(), this.toggle();
-      }), trigger;
+      };
+      return tagName === "a" ? /* @__PURE__ */ h("a", { className: "ehpeek-settings-trigger", href: "#", onClick }) : /* @__PURE__ */ h("button", { type: "button", className: "ehpeek-settings-trigger", onClick });
     }
     createSwitchButton(onClick) {
       return /* @__PURE__ */ h(
@@ -1981,17 +1994,14 @@
         }
       );
     }
-    updateSwitch(button, checked, label, title) {
-      button.setAttribute("aria-checked", String(checked)), button.textContent = label, button.title = title;
+    updateSwitch(button, checked, label) {
+      button.setAttribute("aria-checked", String(checked)), button.textContent = label, button.removeAttribute("title");
     }
     toggle() {
       this.menu.hidden = !this.menu.hidden, this.update(), this.menu.hidden || this.position();
     }
     position() {
-      if (this.menu.hidden)
-        return;
-      let gap = 4, edgePadding = 8, triggerRect = this.trigger.getBoundingClientRect(), menuRect = this.menu.getBoundingClientRect(), left = clamp(triggerRect.right - menuRect.width, edgePadding, window.innerWidth - menuRect.width - edgePadding), top = clamp(triggerRect.bottom + gap, edgePadding, window.innerHeight - menuRect.height - edgePadding);
-      this.menu.style.left = `${left}px`, this.menu.style.top = `${top}px`;
+      this.menu.hidden || (this.menu.style.top = "8px", this.menu.style.right = "8px", this.menu.style.left = "");
     }
     bindGlobalEvents() {
       document.addEventListener("click", (event) => {
@@ -2008,30 +2018,30 @@
     style.id = STYLE_ID2, style.textContent = SettingsMenu_default, document.head.append(style);
   }
 
-  // src/components/BetterPageBar.tsx
-  var BETTER_PAGE_BAR_CLASS = "ehpeek-better-page-bar", BETTER_PAGE_BAR_TOP_CLASS = "ehpeek-better-page-bar-top", BETTER_PAGE_BAR_BOTTOM_CLASS = "ehpeek-better-page-bar-bottom", BETTER_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index", DRAG_PIXEL_STEP = 18, galleryPageBarWindowIndex = null, BetterPageBar = class {
+  // src/components/Enhance/ScrollPageBar.tsx
+  var SCROLL_PAGE_BAR_CLASS = "ehpeek-scroll-page-bar", SCROLL_PAGE_BAR_TOP_CLASS = "ehpeek-scroll-page-bar-top", SCROLL_PAGE_BAR_BOTTOM_CLASS = "ehpeek-scroll-page-bar-bottom", SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index", DRAG_PIXEL_STEP = 18, galleryPageBarWindowIndex = null, ScrollPageBar = class {
     constructor(options) {
       this.dragStartWindowIndex = 0;
       let maxIndex = Math.max(0, options.maxIndex ?? options.currentIndex), currentIndex = clamp(options.currentIndex, 0, maxIndex);
-      this.currentIndex = currentIndex, this.maxIndex = maxIndex, this.urlForIndex = options.urlForIndex, this.windowIndex = clamp(galleryPageBarWindowIndex ?? options.initialWindowIndex ?? currentIndex, 0, maxIndex), this.element = /* @__PURE__ */ h("table", { className: `${BETTER_PAGE_BAR_CLASS} ${options.top ? BETTER_PAGE_BAR_TOP_CLASS : BETTER_PAGE_BAR_BOTTOM_CLASS}` }, /* @__PURE__ */ h("tbody", null)), this.render(), this.installDrag();
+      this.currentIndex = currentIndex, this.maxIndex = maxIndex, this.urlForIndex = options.urlForIndex, this.windowIndex = clamp(galleryPageBarWindowIndex ?? options.initialWindowIndex ?? currentIndex, 0, maxIndex), this.element = /* @__PURE__ */ h("table", { className: `${SCROLL_PAGE_BAR_CLASS} ${options.top ? SCROLL_PAGE_BAR_TOP_CLASS : SCROLL_PAGE_BAR_BOTTOM_CLASS}` }, /* @__PURE__ */ h("tbody", null)), this.render(), this.installDrag();
     }
     render() {
       let body = this.element.tBodies[0] ?? this.element.createTBody(), slots = pageSlots(this.windowIndex, this.currentIndex, this.maxIndex), firstSlotIndex = slots[0]?.pageIndex ?? this.currentIndex, lastSlotIndex = slots[slots.length - 1]?.pageIndex ?? this.currentIndex, currentBeforeWindow = this.currentIndex < firstSlotIndex, currentAfterWindow = this.currentIndex > lastSlotIndex, row = /* @__PURE__ */ h("tr", null, this.linkCell("<<", 0, this.currentIndex === 0), currentBeforeWindow ? this.linkCell(String(this.currentIndex + 1), this.currentIndex, !0) : this.emptyCell(), this.linkCell("<", Math.max(0, this.currentIndex - 1), this.currentIndex === 0), slots.map(
         (slot) => slot ? this.linkCell(String(slot.pageIndex + 1), slot.pageIndex, slot.pageIndex === this.currentIndex) : this.emptyCell()
       ), this.linkCell(">", Math.min(this.maxIndex, this.currentIndex + 1), this.currentIndex === this.maxIndex), currentAfterWindow ? this.linkCell(String(this.currentIndex + 1), this.currentIndex, !0) : this.emptyCell(), this.linkCell(">>", this.maxIndex, this.currentIndex === this.maxIndex));
-      body.replaceChildren(row), this.element.setAttribute(BETTER_PAGE_BAR_WINDOW_INDEX_ATTR, String(this.windowIndex));
+      body.replaceChildren(row), this.element.setAttribute(SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR, String(this.windowIndex));
     }
     linkCell(text, pageIndex, current) {
       return current ? /* @__PURE__ */ h("td", { className: "ptds" }, /* @__PURE__ */ h("span", null, text)) : /* @__PURE__ */ h("td", null, /* @__PURE__ */ h("a", { href: this.urlForIndex(pageIndex), "data-page-index": String(pageIndex) }, text));
     }
     emptyCell() {
-      return /* @__PURE__ */ h("td", { className: "ehpeek-better-page-bar-empty" }, /* @__PURE__ */ h("span", null));
+      return /* @__PURE__ */ h("td", { className: "ehpeek-scroll-page-bar-empty" }, /* @__PURE__ */ h("span", null));
     }
     installDrag() {
       new PointerDrag(this.element, {
         shouldStart: () => this.draggable(),
         onStart: () => {
-          this.dragStartWindowIndex = this.windowIndex, this.element.classList.add("ehpeek-better-page-bar-dragging");
+          this.dragStartWindowIndex = this.windowIndex, this.element.classList.add("ehpeek-scroll-page-bar-dragging");
         },
         onMove: (info) => {
           if (Math.abs(info.dx) < Math.abs(info.dy))
@@ -2040,7 +2050,7 @@
           nextIndex !== this.windowIndex && (this.windowIndex = nextIndex, galleryPageBarWindowIndex = nextIndex, this.render());
         },
         onEnd: () => {
-          this.element.classList.remove("ehpeek-better-page-bar-dragging");
+          this.element.classList.remove("ehpeek-scroll-page-bar-dragging");
         }
       });
     }
@@ -2048,10 +2058,10 @@
       return this.maxIndex + 1 > 7;
     }
   };
-  function createBetterPageBar(options) {
-    return new BetterPageBar(options).element;
+  function createScrollPageBar(options) {
+    return new ScrollPageBar(options).element;
   }
-  function setBetterPageBarWindowIndex(index) {
+  function setScrollPageBarWindowIndex(index) {
     galleryPageBarWindowIndex = Math.max(0, Math.round(index));
   }
   function pageSlots(windowIndex, currentIndex, maxIndex) {
@@ -2073,8 +2083,8 @@
     return direction * pages;
   }
 
-  // src/components/BetterPageBar.css
-  var BetterPageBar_default = `.ehpeek-better-page-bar {
+  // src/components/Enhance/ScrollPageBar.css
+  var ScrollPageBar_default = `.ehpeek-scroll-page-bar {
   border-collapse: separate;
   border-spacing: 4px;
   margin-left: auto;
@@ -2082,17 +2092,17 @@
   touch-action: pan-y;
 }
 
-.ehpeek-better-page-bar-top {
+.ehpeek-scroll-page-bar-top {
   margin-top: 2px;
   margin-bottom: 0;
 }
 
-.ehpeek-better-page-bar-bottom {
+.ehpeek-scroll-page-bar-bottom {
   margin-top: 0;
   margin-bottom: 10px;
 }
 
-.ehpeek-better-page-bar td {
+.ehpeek-scroll-page-bar td {
   min-width: 34px;
   height: 34px;
   padding: 0;
@@ -2103,17 +2113,17 @@
   user-select: none;
 }
 
-.ehpeek-better-page-bar-dragging {
+.ehpeek-scroll-page-bar-dragging {
   cursor: grabbing;
 }
 
-.ehpeek-better-page-bar-dragging td {
+.ehpeek-scroll-page-bar-dragging td {
   cursor: grabbing;
 }
 
-.ehpeek-better-page-bar a,
-.ehpeek-better-page-bar button,
-.ehpeek-better-page-bar span {
+.ehpeek-scroll-page-bar a,
+.ehpeek-scroll-page-bar button,
+.ehpeek-scroll-page-bar span {
   display: flex;
   min-width: 34px;
   height: 34px;
@@ -2128,31 +2138,31 @@
   text-decoration: none;
 }
 
-.ehpeek-better-page-bar button {
+.ehpeek-scroll-page-bar button {
   color: inherit;
   cursor: pointer;
 }
 
-.ehpeek-better-page-bar a:hover,
-.ehpeek-better-page-bar button:hover {
+.ehpeek-scroll-page-bar a:hover,
+.ehpeek-scroll-page-bar button:hover {
   text-decoration: none;
 }
 
-.ehpeek-better-page-bar a:active,
-.ehpeek-better-page-bar button:active {
+.ehpeek-scroll-page-bar a:active,
+.ehpeek-scroll-page-bar button:active {
   text-decoration: none;
 }
 
-.ehpeek-better-page-bar .ptds span,
-.ehpeek-better-page-bar .ptds a {
+.ehpeek-scroll-page-bar .ptds span,
+.ehpeek-scroll-page-bar .ptds a {
   padding: 0 10px;
 }
 
-.ehpeek-better-page-bar .ehpeek-better-page-bar-empty {
+.ehpeek-scroll-page-bar .ehpeek-scroll-page-bar-empty {
   cursor: default;
 }
 
-.ehpeek-better-page-bar .ehpeek-better-page-bar-empty span {
+.ehpeek-scroll-page-bar .ehpeek-scroll-page-bar-empty span {
   visibility: hidden;
 }
 
@@ -2169,32 +2179,75 @@
 }
 
 @media (pointer: coarse) {
-  .ehpeek-better-page-bar {
+  .ehpeek-scroll-page-bar {
     border-spacing: 6px;
   }
 
-  .ehpeek-better-page-bar td {
+  .ehpeek-scroll-page-bar td {
     min-width: 38px;
     height: 38px;
     border-radius: 6px;
   }
 
-  .ehpeek-better-page-bar a,
-  .ehpeek-better-page-bar button,
-  .ehpeek-better-page-bar span {
+  .ehpeek-scroll-page-bar a,
+  .ehpeek-scroll-page-bar button,
+  .ehpeek-scroll-page-bar span {
     min-width: 38px;
     height: 38px;
     padding: 0 10px;
   }
 
-  .ehpeek-better-page-bar .ptds span {
+  .ehpeek-scroll-page-bar .ptds span {
     padding: 0 12px;
   }
 }
 `;
 
   // src/eh/dom.ts
-  var GALLERY_STYLE_ID = "ehpeek-gallery-style", BETTER_PAGE_BAR_TOP_CLASS2 = "ehpeek-better-page-bar-top", BETTER_PAGE_BAR_BOTTOM_CLASS2 = "ehpeek-better-page-bar-bottom", PREVIEW_PLACEHOLDER_CLASS = "ehpeek-preview-placeholder";
+  var GALLERY_STYLE_ID = "ehpeek-gallery-style", TOUCH_GALLERY_PANEL_PAGE_STYLE_ID = "ehpeek-touch-gallery-panel-page-style", TOUCH_TOP_BAR_PAGE_STYLE_ID = "ehpeek-touch-top-bar-page-style", SCROLL_PAGE_BAR_TOP_CLASS2 = "ehpeek-scroll-page-bar-top", SCROLL_PAGE_BAR_BOTTOM_CLASS2 = "ehpeek-scroll-page-bar-bottom", PREVIEW_PLACEHOLDER_CLASS = "ehpeek-preview-placeholder", originalTopBar = null, originalGalleryPanel = null, TOUCH_GALLERY_PANEL_PAGE_CSS = `
+@media (max-width: 760px), (pointer: coarse) {
+  #gd2,
+  #gd5 {
+    display: none !important;
+  }
+
+  .ptt,
+  .ptb,
+  .ehpeek-scroll-page-bar {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #gdt {
+    width: 100% !important;
+    margin: 8px 0 !important;
+    padding: 0 !important;
+    text-align: center !important;
+  }
+
+  #gdt .gdtm,
+  #gdt .gdtl,
+  #gdt > div {
+    display: inline-flex !important;
+    min-width: 132px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    vertical-align: top;
+  }
+
+  #gdt a {
+    display: flex !important;
+    min-height: 150px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ehpeek-touch-gallery-rating #gdr {
+    margin: 0 !important;
+  }
+}
+`, TOUCH_TOP_BAR_PAGE_CSS = "";
   function imageAspectRatio(image) {
     let width = image?.naturalWidth || image?.width || Number(image?.getAttribute("width") || ""), height = image?.naturalHeight || image?.height || Number(image?.getAttribute("height") || "");
     return width > 0 && height > 0 ? height / width : 1.42;
@@ -2266,7 +2319,7 @@
       original.hidden = !0;
   }
   function restoreGalleryPageBar() {
-    document.querySelectorAll(`.${BETTER_PAGE_BAR_TOP_CLASS2}, .${BETTER_PAGE_BAR_BOTTOM_CLASS2}`).forEach((item) => {
+    document.querySelectorAll(`.${SCROLL_PAGE_BAR_TOP_CLASS2}, .${SCROLL_PAGE_BAR_BOTTOM_CLASS2}`).forEach((item) => {
       item.remove();
     }), document.querySelectorAll(".ptt, .ptb").forEach((item) => {
       item.hidden = !1;
@@ -2293,7 +2346,9 @@
     snapshot.description && currentDescription && currentDescription.replaceWith(snapshot.description), snapshot.thumbs && currentThumbs && currentThumbs.replaceWith(snapshot.thumbs);
   }
   function mountSettingsMenu(settingsMenu2) {
-    let thumbnailContainer = document.querySelector("#gdt"), titleContainer = document.querySelector("#gd2, h1"), topNav = document.querySelector("#nb"), anchor = thumbnailContainer ?? titleContainer;
+    let touchTopBarMenu = document.querySelector(".ehpeek-touch-top-bar-menu-panel"), thumbnailContainer = document.querySelector("#gdt"), titleContainer = document.querySelector("#gd2, h1"), topNav = document.querySelector("#nb"), anchor = thumbnailContainer ?? titleContainer;
+    if (touchTopBarMenu)
+      return settingsMenu2.mount(touchTopBarMenu), !0;
     if (topNav)
       return settingsMenu2.mount(topNav), !0;
     if (!anchor?.parentElement)
@@ -2302,10 +2357,75 @@
     return wrapper.style.textAlign = "right", thumbnailContainer ? anchor.parentElement.insertBefore(wrapper, anchor) : anchor.insertAdjacentElement("afterend", wrapper), settingsMenu2.mount(wrapper), !0;
   }
   function settingsMenuTriggerTagName() {
-    return document.querySelector("#nb") ? "a" : "button";
+    return document.querySelector("#nb") && !document.querySelector(".ehpeek-touch-top-bar") ? "a" : "button";
+  }
+  function installTouchGalleryPanelPageStyle() {
+    if (document.getElementById(TOUCH_GALLERY_PANEL_PAGE_STYLE_ID))
+      return;
+    let style = document.createElement("style");
+    style.id = TOUCH_GALLERY_PANEL_PAGE_STYLE_ID, style.textContent = TOUCH_GALLERY_PANEL_PAGE_CSS, document.head.append(style);
+  }
+  function uninstallTouchGalleryPanelPageStyle() {
+    document.getElementById(TOUCH_GALLERY_PANEL_PAGE_STYLE_ID)?.remove();
+  }
+  function installTouchTopBarPageStyle() {
+    if (document.getElementById(TOUCH_TOP_BAR_PAGE_STYLE_ID))
+      return;
+    let style = document.createElement("style");
+    style.id = TOUCH_TOP_BAR_PAGE_STYLE_ID, style.textContent = TOUCH_TOP_BAR_PAGE_CSS, document.head.append(style);
+  }
+  function uninstallTouchTopBarPageStyle() {
+    document.getElementById(TOUCH_TOP_BAR_PAGE_STYLE_ID)?.remove();
+  }
+  function mountTouchTopBar(topBar) {
+    let original = document.querySelector("#nb");
+    return original?.parentElement ? (originalTopBar = original, original.replaceWith(topBar), !0) : !1;
+  }
+  function restoreTouchTopBar() {
+    let current = document.querySelector(".ehpeek-touch-top-bar");
+    current && originalTopBar ? current.replaceWith(originalTopBar) : current?.remove(), originalTopBar = null;
+  }
+  function mountTouchGalleryPanel(panel) {
+    let original = document.querySelector("#gmid");
+    return original?.parentElement ? (originalGalleryPanel = original, original.replaceWith(panel), !0) : !1;
+  }
+  function restoreTouchGalleryPanel() {
+    let current = document.querySelector(".ehpeek-touch-gallery");
+    current && originalGalleryPanel ? current.replaceWith(originalGalleryPanel) : current?.remove(), originalGalleryPanel = null;
+  }
+  function readTouchTopBarInfo() {
+    let navItems = Array.from(document.querySelectorAll("#nb a[href]")).map((link) => {
+      let clone = link.cloneNode(!0);
+      return clone.removeAttribute("id"), clone.className = "ehpeek-touch-top-bar-menu-item", clone;
+    });
+    return {
+      available: navItems.length > 0,
+      navItems,
+      homeHref: navItems.find((item) => item instanceof HTMLAnchorElement)?.href ?? "/"
+    };
+  }
+  function readGalleryInfo() {
+    let meta = readGalleryMeta(), range2 = readShowingRange(), coverSource = document.querySelector("#gd1 img"), coverUrl = coverSource?.currentSrc || coverSource?.src || coverSource?.getAttribute("src") || backgroundImageUrl(document.querySelector("#gd1")), summary = [
+      meta.get("language"),
+      range2?.total ? `${range2.total} ${texts_default.reader.pages.toLowerCase()}` : void 0,
+      meta.get("file size") ?? meta.get("size"),
+      meta.get("favorited"),
+      meta.get("posted") ?? meta.get("parent")
+    ].filter((value) => !!value).slice(0, 6).map((value) => ({ value }));
+    return {
+      available: !!document.querySelector("#gmid"),
+      titleMain: textOf("#gn"),
+      titleSub: textOf("#gj"),
+      category: textOf("#gdc"),
+      cover: coverUrl ? createGalleryCoverImage(coverUrl) : null,
+      summary,
+      actions: readGalleryActions(),
+      rating: readGalleryRating(),
+      tagGroups: readGalleryTagGroups()
+    };
   }
   function replaceGalleryPageBarAt(source, top, options) {
-    let className = top ? BETTER_PAGE_BAR_TOP_CLASS2 : BETTER_PAGE_BAR_BOTTOM_CLASS2, existing = document.querySelector(`.${className}`), initialWindowIndex = existing ? Number(existing.getAttribute(BETTER_PAGE_BAR_WINDOW_INDEX_ATTR) || "") : void 0, pageBar = createBetterPageBar({
+    let className = top ? SCROLL_PAGE_BAR_TOP_CLASS2 : SCROLL_PAGE_BAR_BOTTOM_CLASS2, existing = document.querySelector(`.${className}`), initialWindowIndex = existing ? Number(existing.getAttribute(SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR) || "") : void 0, pageBar = createScrollPageBar({
       currentIndex: options.currentIndex,
       initialWindowIndex: Number.isFinite(initialWindowIndex) ? initialWindowIndex : void 0,
       maxIndex: options.maxIndex,
@@ -2338,7 +2458,679 @@
     if (document.getElementById(GALLERY_STYLE_ID))
       return;
     let style = document.createElement("style");
-    style.id = GALLERY_STYLE_ID, style.textContent = BetterPageBar_default, document.head.append(style);
+    style.id = GALLERY_STYLE_ID, style.textContent = ScrollPageBar_default, document.head.append(style);
+  }
+  function readGalleryMeta() {
+    let entries = Array.from(document.querySelectorAll("#gdd tr")).map((row) => {
+      let cells = Array.from(row.cells), label = cells[0]?.textContent?.trim().replace(/:$/, "").toLowerCase() ?? "", value = cells.slice(1).map((cell) => cell.textContent?.trim() ?? "").filter(Boolean).join(" ");
+      return [label, value];
+    }).filter(([label, value]) => label && value);
+    return new Map(entries);
+  }
+  function readGalleryRating() {
+    let element = document.querySelector("#gdr") ?? document.querySelector("#rating") ?? document.querySelector("#rating_label")?.parentElement ?? null;
+    if (!element)
+      return null;
+    let wrapper = document.createElement("div"), scaler = document.createElement("div");
+    return wrapper.className = "ehpeek-touch-gallery-rating", scaler.className = "ehpeek-touch-gallery-rating-scale", scaler.append(element), wrapper.append(scaler), wrapper;
+  }
+  function readGalleryActions() {
+    return Array.from(document.querySelectorAll("#gd5 a, #gd5 button, #gd5 input[type='button'], #gd5 input[type='submit']")).map((item) => {
+      let clone = item.cloneNode(!0);
+      return clone.removeAttribute("id"), clone.classList.add("ehpeek-touch-gallery-actions-menu-item"), clone;
+    }).slice(0, 6);
+  }
+  function readGalleryTagGroups() {
+    let rows = Array.from(document.querySelectorAll("#taglist tr"));
+    if (rows.length > 0)
+      return rows.map((row) => {
+        let namespace = row.querySelector(".tc, td:first-child")?.textContent?.trim().replace(/:$/, "") || "tag", tags = Array.from(row.querySelectorAll("a")).map(cloneGalleryTag).filter(Boolean).slice(0, 30);
+        return { namespace, tags };
+      }).filter((group) => group.tags.length > 0);
+    let groups = /* @__PURE__ */ new Map();
+    for (let tag of Array.from(document.querySelectorAll("#taglist a")).slice(0, 60)) {
+      let clone = cloneGalleryTag(tag), tags = groups.get("tag") ?? [];
+      tags.push(clone), groups.set("tag", tags);
+    }
+    return Array.from(groups, ([namespace, tags]) => ({ namespace, tags }));
+  }
+  function cloneGalleryTag(tag) {
+    let clone = tag.cloneNode(!0);
+    return clone.removeAttribute("id"), clone;
+  }
+  function findDownloadAction() {
+    let actions = Array.from(document.querySelectorAll("#gd5 a, #gd5 button, #gd5 input[type='button'], #gd5 input[type='submit']"));
+    return actions.find((item) => /download|archive/i.test(item.textContent ?? item.getAttribute("value") ?? "")) ?? actions[0] ?? null;
+  }
+  function clickGalleryDownloadAction() {
+    findDownloadAction()?.click();
+  }
+  function mountGalleryContinueReadingButton(button) {
+    let viewerOptions = document.querySelector("#gd5");
+    if (viewerOptions) {
+      viewerOptions.classList.add("ehpeek-gallery-actions"), viewerOptions.append(button);
+      return;
+    }
+    document.body.append(button);
+  }
+  function textOf(selector) {
+    return document.querySelector(selector)?.textContent?.trim() ?? "";
+  }
+  function createGalleryCoverImage(imageUrl) {
+    let image = document.createElement("img");
+    return image.src = imageUrl, image.alt = "", image.decoding = "async", image.loading = "eager", image;
+  }
+  function backgroundImageUrl(root) {
+    if (!root)
+      return "";
+    for (let item of [root, ...Array.from(root.querySelectorAll("*"))]) {
+      let match = window.getComputedStyle(item).backgroundImage.match(/url\(["']?(.+?)["']?\)/);
+      if (match?.[1])
+        return match[1];
+    }
+    return "";
+  }
+
+  // src/components/Enhance/TouchGalleryPanel.css
+  var TouchGalleryPanel_default = `.ehpeek-touch-gallery {
+  display: none;
+}
+
+@media (max-width: 760px), (pointer: coarse) {
+  html,
+  body {
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    box-sizing: border-box;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    background: #34353b !important;
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+  }
+
+  .ehpeek-touch-gallery {
+    display: flex;
+    box-sizing: border-box;
+    width: 100%;
+    flex-direction: column !important;
+    gap: 0;
+    margin: 0 0 12px;
+    color: #d9d9d9;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .ehpeek-touch-gallery-hero {
+    position: relative;
+    display: grid;
+    height: clamp(260px, 42vh, 340px);
+    padding: 18px max(16px, env(safe-area-inset-right, 0px)) 48px max(16px, env(safe-area-inset-left, 0px));
+    background: #4f535b;
+    color: #f1f1f1;
+  }
+
+  .ehpeek-touch-gallery-summary {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: 36% minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+  }
+
+  .ehpeek-touch-gallery-cover {
+    display: flex;
+    align-self: center;
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    height: auto;
+    max-height: 100%;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .ehpeek-touch-gallery-cover img,
+  .ehpeek-touch-gallery-cover > * {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    margin: 0 auto;
+    object-fit: contain;
+    object-position: center;
+  }
+
+  .ehpeek-touch-gallery-hero-side {
+    display: flex;
+    align-self: stretch;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding-top: 2px;
+  }
+
+  .ehpeek-touch-gallery-heading {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+    overflow: hidden;
+  }
+
+  .ehpeek-touch-gallery-title-main {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    font-size: clamp(22px, 5.9vw, 32px);
+    font-weight: 400;
+    line-height: 1.1;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .ehpeek-touch-gallery-title-sub {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    opacity: 0.88;
+    font-size: clamp(17px, 4.6vw, 25px);
+    line-height: 1.15;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .ehpeek-touch-gallery-category-row {
+    display: flex;
+    width: 100%;
+    min-height: 64px;
+    gap: 4px;
+    align-items: center;
+    margin-top: auto;
+  }
+
+  .ehpeek-touch-gallery-category {
+    min-width: 0;
+    align-self: center;
+    justify-self: start;
+    padding: 6px 12px;
+    background: #34353b;
+    color: #f0b35a;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.1;
+    text-transform: uppercase;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .ehpeek-touch-gallery-rating {
+    position: relative;
+    display: flex !important;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0;
+    width: auto !important;
+    min-height: var(--ehpeek-rating-height, auto) !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    overflow: visible;
+    text-align: left;
+    font-size: 20px;
+    line-height: 1.15;
+  }
+
+  .ehpeek-touch-gallery-rating-scale {
+    width: max-content;
+    max-width: none !important;
+    transform: scale(var(--ehpeek-rating-scale, 1));
+    transform-origin: left top;
+  }
+
+  .ehpeek-touch-gallery-rating img,
+  .ehpeek-touch-gallery-rating input,
+  .ehpeek-touch-gallery-rating button,
+  .ehpeek-touch-gallery-rating table,
+  .ehpeek-touch-gallery-rating tbody,
+  .ehpeek-touch-gallery-rating tr,
+  .ehpeek-touch-gallery-rating td,
+  .ehpeek-touch-gallery-rating > * {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background-color: transparent !important;
+    max-width: 100%;
+    min-height: 24px;
+    height: auto;
+    overflow: visible;
+    touch-action: manipulation;
+  }
+
+  .ehpeek-touch-gallery-rating table {
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+  }
+
+  .ehpeek-touch-gallery-primary {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 87px;
+    margin: -18px max(14px, env(safe-area-inset-right, 0px)) 0 max(14px, env(safe-area-inset-left, 0px));
+    overflow: hidden;
+    border-radius: 3px;
+    background: #3f4249;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
+  }
+
+  .ehpeek-touch-gallery-primary-button {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 15px;
+    border: 0;
+    background: transparent;
+    color: #f0b35a;
+    font-size: 26px;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    touch-action: manipulation;
+  }
+
+  .ehpeek-touch-gallery-primary > * + * {
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .ehpeek-touch-gallery-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 28px max(16px, env(safe-area-inset-right, 0px)) 18px max(16px, env(safe-area-inset-left, 0px));
+    background: #34353b;
+  }
+
+  .ehpeek-touch-gallery-meta {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px 18px;
+    align-items: center;
+    font-size: 27px;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  .ehpeek-touch-gallery-meta-value {
+    display: -webkit-box;
+    min-width: 0;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .ehpeek-touch-gallery-actions-menu {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ehpeek-touch-gallery-actions-menu-button {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: #f1f1f1;
+    font-size: 28px;
+    line-height: 1;
+  }
+
+  .ehpeek-touch-gallery-actions-menu-panel {
+    position: absolute;
+    top: 48px;
+    right: 0;
+    z-index: 2147483644;
+    display: flex;
+    min-width: 285px;
+    max-width: min(78vw, 320px);
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #8d7454;
+    border-radius: 4px;
+    background: #3f4249;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
+  }
+
+  .ehpeek-touch-gallery-actions-menu-panel[hidden] {
+    display: none;
+  }
+
+  .ehpeek-touch-gallery-actions-menu-panel a,
+  .ehpeek-touch-gallery-actions-menu-panel button,
+  .ehpeek-touch-gallery-actions-menu-panel input[type="button"],
+  .ehpeek-touch-gallery-actions-menu-panel input[type="submit"] {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 56px;
+    padding: 14px 18px;
+    border: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: transparent;
+    color: #f1f1f1 !important;
+    font-size: 21px;
+    line-height: 1.2;
+    text-align: left;
+    text-decoration: none;
+  }
+
+  .ehpeek-touch-gallery-tag-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 2px;
+  }
+
+  .ehpeek-touch-gallery-tag-group {
+    display: grid;
+    grid-template-columns: minmax(88px, 28%) minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+  }
+
+  .ehpeek-touch-gallery-tag-group-name {
+    min-height: 34px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: #5b3f5f;
+    color: #f0b35a;
+    font-size: 21px;
+    text-align: center;
+    text-transform: lowercase;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .ehpeek-touch-gallery-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ehpeek-touch-gallery-tags a,
+  .ehpeek-touch-gallery-tag {
+    display: inline-flex;
+    min-height: 51px;
+    align-items: center;
+    padding: 0 21px;
+    border: 1px solid #8d7454;
+    border-radius: 999px;
+    background: #4f535b;
+    color: #f0b35a !important;
+    font-size: 23px;
+    text-decoration: none;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+`;
+
+  // src/components/Enhance/TouchGalleryPanel.tsx
+  var STYLE_ID3 = "ehpeek-touch-gallery-panel-style", MOBILE_QUERY = "(max-width: 760px), (pointer: coarse)", TouchGalleryPanel = class {
+    install() {
+      if (ensureTouchGalleryPanelStyle(), installTouchGalleryPanelPageStyle(), !this.isActive() || document.querySelector(".ehpeek-touch-gallery"))
+        return;
+      let source = readGalleryInfo();
+      if (!source.available)
+        return;
+      let shell = this.createShell(source);
+      this.prepareRatingScale(shell), mountTouchGalleryPanel(shell) || document.body.prepend(shell);
+    }
+    mountContinueButton(button) {
+      if (!this.isActive())
+        return !1;
+      let actions = document.querySelector(".ehpeek-touch-gallery-primary-actions");
+      return actions ? (actions.append(button), !0) : !1;
+    }
+    remove() {
+      restoreTouchGalleryPanel(), document.getElementById(STYLE_ID3)?.remove(), uninstallTouchGalleryPanelPageStyle();
+    }
+    createShell(source) {
+      let cover = /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-cover" }), category = textBlock("ehpeek-touch-gallery-category", source.category), categoryRow = /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-category-row" }), heading = /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-heading" }, textBlock("ehpeek-touch-gallery-title-main", source.titleMain), textBlock("ehpeek-touch-gallery-title-sub", source.titleSub)), primaryActions = /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-primary-actions" }), meta = /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-meta" }), tagGroups = /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-tag-groups" }), content = /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-content" });
+      source.cover && cover.append(source.cover);
+      for (let item of source.summary)
+        meta.append(textBlock("ehpeek-touch-gallery-meta-value", item.value));
+      meta.append(this.createActionsMenu(source.actions)), categoryRow.append(category), source.rating && categoryRow.append(source.rating), content.append(meta);
+      for (let group of source.tagGroups)
+        tagGroups.append(this.createTagGroup(group));
+      return tagGroups.childNodes.length > 0 && content.append(tagGroups), /* @__PURE__ */ h("section", { className: "ehpeek-touch-gallery" }, /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-hero" }, /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-summary" }, cover, /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-hero-side" }, heading, categoryRow))), /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-primary" }, this.createDownloadButton(), primaryActions), content);
+    }
+    createActionsMenu(actions) {
+      let menu = /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-actions-menu" }), panel = /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-actions-menu-panel", hidden: !0 }), button = /* @__PURE__ */ h(
+        "button",
+        {
+          type: "button",
+          className: "ehpeek-touch-gallery-actions-menu-button",
+          "aria-haspopup": "menu",
+          "aria-expanded": "false",
+          onClick: (event) => {
+            event.stopPropagation(), panel.hidden = !panel.hidden, button.setAttribute("aria-expanded", String(!panel.hidden));
+          }
+        },
+        "⋮"
+      );
+      return panel.append(...actions), document.addEventListener("click", (event) => {
+        event.target instanceof Element && menu.contains(event.target) || (panel.hidden = !0, button.setAttribute("aria-expanded", "false"));
+      }), menu.append(button, panel), menu;
+    }
+    createTagGroup(group) {
+      let wrapper = /* @__PURE__ */ h("section", { className: "ehpeek-touch-gallery-tag-group" }), tags = /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-tags" });
+      wrapper.append(textBlock("ehpeek-touch-gallery-tag-group-name", group.namespace));
+      for (let tag of group.tags)
+        tags.append(tag);
+      return wrapper.append(tags), wrapper;
+    }
+    createDownloadButton() {
+      return /* @__PURE__ */ h(
+        "button",
+        {
+          type: "button",
+          className: "ehpeek-touch-gallery-primary-button",
+          onClick: () => {
+            clickGalleryDownloadAction();
+          }
+        },
+        texts_default.reader.download
+      );
+    }
+    isActive() {
+      return window.matchMedia(MOBILE_QUERY).matches;
+    }
+    prepareRatingScale(shell) {
+      let wrapper = shell.querySelector(".ehpeek-touch-gallery-rating"), scaler = shell.querySelector(".ehpeek-touch-gallery-rating-scale");
+      if (!wrapper || !scaler)
+        return;
+      let previousStyle = {
+        position: shell.style.position,
+        visibility: shell.style.visibility,
+        pointerEvents: shell.style.pointerEvents,
+        left: shell.style.left,
+        top: shell.style.top,
+        width: shell.style.width
+      };
+      shell.style.position = "absolute", shell.style.visibility = "hidden", shell.style.pointerEvents = "none", shell.style.left = "0", shell.style.top = "0", shell.style.width = "100%", document.body.append(shell);
+      let wrapperWidth = wrapper.getBoundingClientRect().width, scalerRect = scaler.getBoundingClientRect(), scale = scalerRect.width > 0 && wrapperWidth > 0 ? Math.min(2, Math.max(1, wrapperWidth / scalerRect.width)) : 1;
+      wrapper.style.setProperty("--ehpeek-rating-scale", String(scale)), wrapper.style.setProperty("--ehpeek-rating-height", `${Math.ceil(scalerRect.height * scale)}px`), shell.remove(), shell.style.position = previousStyle.position, shell.style.visibility = previousStyle.visibility, shell.style.pointerEvents = previousStyle.pointerEvents, shell.style.left = previousStyle.left, shell.style.top = previousStyle.top, shell.style.width = previousStyle.width;
+    }
+  };
+  function ensureTouchGalleryPanelStyle() {
+    if (document.getElementById(STYLE_ID3))
+      return;
+    let style = document.createElement("style");
+    style.id = STYLE_ID3, style.textContent = TouchGalleryPanel_default, document.head.append(style);
+  }
+  function textBlock(className, text) {
+    let element = /* @__PURE__ */ h("div", { className });
+    return element.textContent = text, element;
+  }
+
+  // src/components/Enhance/TouchTopBar.css
+  var TouchTopBar_default = `.ehpeek-touch-top-bar {
+  display: none;
+}
+
+@media (max-width: 760px), (pointer: coarse) {
+  .ehpeek-touch-top-bar {
+    position: relative;
+    z-index: 2147483640;
+    display: flex;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 56px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px));
+    background: #4f535b;
+    color: #f1f1f1;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .ehpeek-touch-top-bar-menu {
+    position: relative;
+  }
+
+  .ehpeek-touch-top-bar-home,
+  .ehpeek-touch-top-bar-menu-button {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: #f1f1f1;
+    font-size: 28px;
+    line-height: 1;
+    text-decoration: none;
+  }
+
+  .ehpeek-touch-top-bar-menu-panel {
+    position: fixed;
+    top: max(56px, env(safe-area-inset-top, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    z-index: 2147483645;
+    display: flex;
+    min-width: 285px;
+    max-width: min(78vw, 320px);
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #8d7454;
+    border-radius: 4px;
+    background: #3f4249;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
+  }
+
+  .ehpeek-touch-top-bar-menu-panel[hidden] {
+    display: none;
+  }
+
+  .ehpeek-touch-top-bar-menu-item,
+  .ehpeek-touch-top-bar-menu-panel .ehpeek-settings-trigger {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 63px;
+    padding: 15px 21px;
+    border: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: transparent;
+    color: #f1f1f1 !important;
+    font-size: 24px;
+    line-height: 1.2;
+    text-align: left;
+    text-decoration: none;
+  }
+}
+`;
+
+  // src/components/Enhance/TouchTopBar.tsx
+  var STYLE_ID4 = "ehpeek-touch-top-bar-style", MOBILE_QUERY2 = "(max-width: 760px), (pointer: coarse)", TouchTopBar = class {
+    install() {
+      if (ensureTouchTopBarStyle(), installTouchTopBarPageStyle(), !this.isActive() || document.querySelector(".ehpeek-touch-top-bar"))
+        return;
+      let info = readTouchTopBarInfo();
+      if (!info.available)
+        return;
+      let shell = this.createShell(info);
+      mountTouchTopBar(shell) || document.body.prepend(shell);
+    }
+    remove() {
+      restoreTouchTopBar(), document.getElementById(STYLE_ID4)?.remove(), uninstallTouchTopBarPageStyle();
+    }
+    createShell(info) {
+      return /* @__PURE__ */ h("nav", { className: "ehpeek-touch-top-bar" }, /* @__PURE__ */ h("a", { className: "ehpeek-touch-top-bar-home", href: info.homeHref }, "⌂"), this.createMenu(info.navItems));
+    }
+    createMenu(navItems) {
+      let menu = /* @__PURE__ */ h("div", { className: "ehpeek-touch-top-bar-menu" }), panel = /* @__PURE__ */ h("div", { className: "ehpeek-touch-top-bar-menu-panel", hidden: !0 }), button = /* @__PURE__ */ h(
+        "button",
+        {
+          type: "button",
+          className: "ehpeek-touch-top-bar-menu-button",
+          "aria-haspopup": "menu",
+          "aria-expanded": "false",
+          onClick: (event) => {
+            event.stopPropagation(), panel.hidden = !panel.hidden, button.setAttribute("aria-expanded", String(!panel.hidden));
+          }
+        },
+        "⋮"
+      );
+      return panel.append(...navItems), document.addEventListener("click", (event) => {
+        event.target instanceof Element && menu.contains(event.target) || (panel.hidden = !0, button.setAttribute("aria-expanded", "false"));
+      }), menu.append(button, panel), menu;
+    }
+    isActive() {
+      return window.matchMedia(MOBILE_QUERY2).matches;
+    }
+  };
+  function ensureTouchTopBarStyle() {
+    if (document.getElementById(STYLE_ID4))
+      return;
+    let style = document.createElement("style");
+    style.id = STYLE_ID4, style.textContent = TouchTopBar_default, document.head.append(style);
   }
 
   // src/eh/index.ts
@@ -2509,59 +3301,22 @@
   function settingsMenuTriggerTagName2() {
     return settingsMenuTriggerTagName();
   }
+  function mountGalleryContinueReadingButton2(button) {
+    mountGalleryContinueReadingButton(button);
+  }
   function numericAttribute(element, attribute) {
     let value = Number(element?.getAttribute(attribute) || "");
     return Number.isFinite(value) && value > 0 ? value : null;
   }
 
-  // src/components/EnhanceGallery.ts
-  var PREVIEW_CACHE_LIMIT = 10, CONTINUE_READING_STYLE_ID = "ehpeek-continue-reading-style", CONTINUE_READING_STYLE = `
-.ehpeek-continue-reading {
-  display: block;
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 100%;
-  margin-top: 4px;
-  padding: 4px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 4px;
-  background: rgba(18, 18, 18, 0.82);
-  color: #f5f5f5;
-  box-shadow: none;
-  cursor: pointer;
-  text-align: center;
-  font: 700 13px/1.15 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-
-.ehpeek-continue-reading:hover {
-  background: rgba(32, 32, 32, 0.9);
-}
-
-.ehpeek-continue-reading-page {
-  display: block;
-  margin-top: 1px;
-  opacity: 0.72;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-@media (max-width: 640px), (pointer: coarse) {
-  .ehpeek-continue-reading {
-    padding: 5px 8px;
-    font-size: 14px;
-  }
-
-  .ehpeek-continue-reading-page {
-    font-size: 12px;
-  }
-}
-`, galleryThumbEnhancementErrorHandler = null, galleryThumbEnhancementClickInstalled = !1;
-  function enhanceGalleryThumbsEnabled() {
+  // src/components/Enhance/EnhanceThumbsGrids.tsx
+  var PREVIEW_CACHE_LIMIT = 10, galleryThumbEnhancementErrorHandler = null, galleryThumbEnhancementClickInstalled = !1;
+  function enhanceThumbsGridsEnabled() {
     return state.gallery.enhanceThumbs.value;
   }
-  function toggleEnhanceGalleryThumbs() {
-    let enabled = !enhanceGalleryThumbsEnabled();
-    state.gallery.enhanceThumbs.set(enabled), enabled ? installGalleryPageBar() : restoreGalleryPageBar2();
+  function toggleEnhanceThumbsGrids() {
+    let enabled = !enhanceThumbsGridsEnabled();
+    return state.gallery.enhanceThumbs.set(enabled), enabled;
   }
   var GalleryPageProvider = class {
     constructor(landingIndex, landingPages, pageSize, maxPreviewIndex, windowSize, loadPreviewPage) {
@@ -2612,8 +3367,8 @@
       return pages;
     }
   };
-  function installGalleryThumbEnhancement(onError) {
-    galleryThumbEnhancementErrorHandler = onError, enhanceGalleryThumbsEnabled() && installGalleryPageBar(), !galleryThumbEnhancementClickInstalled && (galleryThumbEnhancementClickInstalled = !0, document.addEventListener("click", onPageBarClick, !0));
+  function installEnhanceThumbsGrids(onError) {
+    galleryThumbEnhancementErrorHandler = onError, enhanceThumbsGridsEnabled() && installGalleryPageBar(), !galleryThumbEnhancementClickInstalled && (galleryThumbEnhancementClickInstalled = !0, document.addEventListener("click", onPageBarClick, !0));
   }
   async function navigateGalleryPreview(url, historyMode) {
     let previousUrl = window.location.href, snapshot = snapshotPreview2(), targetPreviewIndex = previewPageIndexFromUrl(url);
@@ -2625,42 +3380,21 @@
       throw restorePreview2(snapshot), window.history.replaceState(window.history.state, "", previousUrl), replaceGalleryPageBar2(previewPageIndex(), maxPreviewPageIndex2()), error;
     }
   }
-  function installContinueReadingButton(info, onClick) {
-    document.querySelector(".ehpeek-continue-reading")?.remove(), ensureContinueReadingStyle();
-    let detail = document.createElement("span"), button = document.createElement("button");
-    button.type = "button", button.className = "ehpeek-continue-reading", button.title = info.label, button.textContent = info.label, button.addEventListener("click", (event) => {
-      event.preventDefault(), event.stopPropagation(), onClick();
-    }), detail.className = "ehpeek-continue-reading-page", detail.textContent = info.detail, button.append(detail), mountContinueReadingButton(button);
-  }
   function onPageBarClick(event) {
-    if (!enhanceGalleryThumbsEnabled() || !(event.target instanceof Element))
+    if (!enhanceThumbsGridsEnabled() || !(event.target instanceof Element))
       return;
-    let barItem = event.target.closest(`.${BETTER_PAGE_BAR_CLASS} a[data-page-index], .${BETTER_PAGE_BAR_CLASS} button[data-page-jump]`);
+    let barItem = event.target.closest(`.${SCROLL_PAGE_BAR_CLASS} a[data-page-index], .${SCROLL_PAGE_BAR_CLASS} button[data-page-jump]`);
     if (!barItem)
       return;
     event.preventDefault(), event.stopPropagation();
     let url = pageBarUrl(barItem);
     if (!url)
       return;
-    let fromBottomBar = !!barItem.closest(`.${BETTER_PAGE_BAR_BOTTOM_CLASS}`), targetPreviewIndex = previewPageIndexFromUrl(url);
-    targetPreviewIndex !== null && setBetterPageBarWindowIndex(targetPreviewIndex), fromBottomBar && scrollToTopPageBar(), navigateGalleryPreview(url, "push").catch((error) => galleryThumbEnhancementErrorHandler?.(error));
-  }
-  function ensureContinueReadingStyle() {
-    if (document.getElementById(CONTINUE_READING_STYLE_ID))
-      return;
-    let style = document.createElement("style");
-    style.id = CONTINUE_READING_STYLE_ID, style.textContent = CONTINUE_READING_STYLE, document.head.append(style);
-  }
-  function mountContinueReadingButton(button) {
-    let viewerOptions = document.querySelector("#gd5");
-    if (viewerOptions) {
-      viewerOptions.append(button);
-      return;
-    }
-    document.body.append(button);
+    let fromBottomBar = !!barItem.closest(`.${SCROLL_PAGE_BAR_BOTTOM_CLASS}`), targetPreviewIndex = previewPageIndexFromUrl(url);
+    targetPreviewIndex !== null && setScrollPageBarWindowIndex(targetPreviewIndex), fromBottomBar && scrollToTopPageBar(), navigateGalleryPreview(url, "push").catch((error) => galleryThumbEnhancementErrorHandler?.(error));
   }
   function scrollToTopPageBar() {
-    document.querySelector(`.${BETTER_PAGE_BAR_TOP_CLASS}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+    document.querySelector(`.${SCROLL_PAGE_BAR_TOP_CLASS}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
   }
   function installGalleryPageBar() {
     replaceGalleryPageBar2(previewPageIndex(), maxPreviewPageIndex2());
@@ -2675,8 +3409,8 @@
     return Number.isFinite(pageNumber) ? previewUrlForIndex(clamp(Math.round(pageNumber) - 1, 0, maxPreviewIndex)) : null;
   }
 
-  // src/components/EnhanceSearchPage.css
-  var EnhanceSearchPage_default = `.ehpeek-search-swipe-wrapper {
+  // src/components/Enhance/EnhanceSearchGrids.css
+  var EnhanceSearchGrids_default = `.ehpeek-search-swipe-wrapper {
   position: relative;
 }
 
@@ -2733,13 +3467,16 @@
 }
 `;
 
-  // src/components/EnhanceSearchPage.tsx
+  // src/components/Enhance/EnhanceSearchGrids.tsx
   var SWIPE_MIN_DISTANCE = 96, SWIPE_INTENT_DISTANCE = 28, HORIZONTAL_INTENT_RATIO = 2.2, SWIPE_MAX_VERTICAL_RATIO = 0.38, SEARCH_SWIPE_STYLE_ID = "ehpeek-search-swipe-style", SEARCH_SWIPE_WRAPPER_CLASS = "ehpeek-search-swipe-wrapper", SEARCH_SWIPE_OVERLAY_CLASS = "ehpeek-search-swipe-overlay", SEARCH_SWIPE_INDICATOR_CLASS = "ehpeek-search-swipe-indicator", SEARCH_SWIPE_INDICATOR_ACTIVE_CLASS = "ehpeek-search-swipe-indicator-active", SEARCH_SWIPE_INDICATOR_LEFT_CLASS = "ehpeek-search-swipe-indicator-left", SEARCH_SWIPE_INDICATOR_RIGHT_CLASS = "ehpeek-search-swipe-indicator-right", SEARCH_SWIPE_INDICATOR_DISABLED_CLASS = "ehpeek-search-swipe-indicator-disabled", installed = !1, overlayElement = null, indicatorElement = null, swipeState = null, searchNavigationLoading = !1;
-  function installSearchPageSwipeNavigation(pageType2) {
+  function installEnhanceSearchGrids(pageType2) {
     if (installed || pageType2.type !== "search" || !searchPageNavigation2())
       return;
     let resultList = searchResultList2();
     resultList?.parentElement && (installed = !0, ensureSearchSwipeStyle(), installResultListEnhancement(resultList), document.addEventListener("click", onSearchNavigationClick, !0));
+  }
+  function uninstallEnhanceSearchGrids() {
+    overlayElement?.remove(), overlayElement = null, indicatorElement = null, swipeState = null, installed = !1, document.removeEventListener("click", onSearchNavigationClick, !0);
   }
   function installResultListEnhancement(resultList) {
     overlayElement = installResultListOverlay(resultList), new PointerDrag(overlayElement, {
@@ -2776,7 +3513,7 @@
   }
   function onSearchNavigationClick(event) {
     let link = findSearchNavigationLink2(event.target);
-    link && (event.preventDefault(), event.stopPropagation(), navigateSearchPage(link.href));
+    link && (event.preventDefault(), event.stopPropagation(), navigateSearchPage(link.href, isNextPageOrJump(link)));
   }
   function forwardClickThroughOverlay(clientX, clientY) {
     if (!overlayElement)
@@ -2832,14 +3569,14 @@
     if (absX < SWIPE_MIN_DISTANCE || absY > absX * SWIPE_MAX_VERTICAL_RATIO)
       return;
     let url = swipeUrlForDelta(dx);
-    url && (swipeState.suppressClick = !0, event.preventDefault(), navigateSearchPage(url));
+    url && (swipeState.suppressClick = !0, event.preventDefault(), navigateSearchPage(url, dx < 0));
   }
-  async function navigateSearchPage(url) {
+  async function navigateSearchPage(url, scrollToTopNavigation) {
     if (!searchNavigationLoading) {
-      searchNavigationLoading = !0, overlayElement?.setAttribute("aria-busy", "true");
+      searchNavigationLoading = !0, overlayElement?.setAttribute("aria-busy", "true"), scrollSearchNavigationIntoView(scrollToTopNavigation);
       try {
         let resultList = await replaceSearchPageContentFromUrl(url);
-        window.history.pushState(window.history.state, "", url), installResultListEnhancement(resultList), window.scrollTo({ top: 0, behavior: "auto" });
+        window.history.pushState(window.history.state, "", url), installResultListEnhancement(resultList);
       } catch (error) {
         console.error("[ehpeek]", error);
       } finally {
@@ -2851,11 +3588,143 @@
     let nav = searchPageNavigation2();
     return nav ? dx < 0 ? nav.nextUrl : nav.previousUrl : null;
   }
+  function scrollSearchNavigationIntoView(enabled) {
+    if (!enabled)
+      return;
+    let target = document.querySelector(".searchnav");
+    if (!target)
+      return;
+    let rect = target.getBoundingClientRect(), currentTop = window.scrollY, targetTop = Math.max(0, currentTop + rect.top);
+    currentTop <= targetTop || window.scrollTo({ top: targetTop, behavior: "auto" });
+  }
+  function isNextPageOrJump(link) {
+    let id = link.id.toLowerCase();
+    return id.endsWith("next") || id.endsWith("last");
+  }
   function ensureSearchSwipeStyle() {
     if (document.getElementById(SEARCH_SWIPE_STYLE_ID))
       return;
     let style = document.createElement("style");
-    style.id = SEARCH_SWIPE_STYLE_ID, style.textContent = EnhanceSearchPage_default, document.head.append(style);
+    style.id = SEARCH_SWIPE_STYLE_ID, style.textContent = EnhanceSearchGrids_default, document.head.append(style);
+  }
+
+  // src/components/Enhance/ReadButton.css
+  var ReadButton_default = `.ehpeek-gallery-actions {
+  box-sizing: border-box;
+}
+
+.ehpeek-continue-reading {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  background: rgba(18, 18, 18, 0.82);
+  color: #f5f5f5;
+  box-shadow: none;
+  cursor: pointer;
+  text-align: center;
+  font: 700 13px/1.15 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ehpeek-continue-reading:hover {
+  background: rgba(32, 32, 32, 0.9);
+}
+
+.ehpeek-continue-reading-page {
+  display: block;
+  margin-top: 1px;
+  opacity: 0.72;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+@media (max-width: 760px), (pointer: coarse) {
+  .ehpeek-touch-gallery-primary-actions .ehpeek-continue-reading {
+    min-height: 87px;
+    margin: 0;
+    padding: 12px 15px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #f0b35a;
+    box-shadow: none;
+    font-size: 26px;
+    text-transform: uppercase;
+  }
+
+  .ehpeek-touch-gallery-primary-actions .ehpeek-continue-reading-page {
+    margin-top: 2px;
+    color: #f0b35a;
+    font-size: 18px;
+    opacity: 0.78;
+    text-transform: none;
+  }
+
+  .ehpeek-gallery-actions {
+    display: flex;
+    height: auto !important;
+    min-height: 0 !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    overflow: visible !important;
+  }
+
+  .ehpeek-gallery-actions > * {
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+
+  .ehpeek-gallery-actions a,
+  .ehpeek-gallery-actions button,
+  .ehpeek-gallery-actions input[type="button"],
+  .ehpeek-gallery-actions input[type="submit"] {
+    min-height: 63px;
+    touch-action: manipulation;
+  }
+
+  .ehpeek-continue-reading {
+    margin-top: 0;
+    padding: 12px 15px;
+    font-size: 23px;
+  }
+
+  .ehpeek-continue-reading-page {
+    font-size: 18px;
+  }
+}
+`;
+
+  // src/components/Enhance/ReadButton.tsx
+  var STYLE_ID5 = "ehpeek-continue-reading-style";
+  function installReadButton(info, onClick, mountMobileButton) {
+    document.querySelector(".ehpeek-continue-reading")?.remove(), ensureReadButtonStyle();
+    let button = /* @__PURE__ */ h(
+      "button",
+      {
+        type: "button",
+        className: "ehpeek-continue-reading",
+        onClick: (event) => {
+          event.preventDefault(), event.stopPropagation(), onClick();
+        }
+      },
+      info.label,
+      /* @__PURE__ */ h("span", { className: "ehpeek-continue-reading-page" }, info.detail)
+    );
+    mountMobileButton?.(button) || mountGalleryContinueReadingButton2(button);
+  }
+  function uninstallReadButton() {
+    document.querySelector(".ehpeek-continue-reading")?.remove();
+  }
+  function ensureReadButtonStyle() {
+    if (document.getElementById(STYLE_ID5))
+      return;
+    let style = document.createElement("style");
+    style.id = STYLE_ID5, style.textContent = ReadButton_default, document.head.append(style);
   }
 
   // src/history.ts
@@ -2916,9 +3785,9 @@
   }
 
   // src/main.ts
-  var READER_WINDOW_SIZE = 10, menuCommandId = null, settingsMenu = null;
+  var READER_WINDOW_SIZE = 10, menuCommandId = null, settingsMenu = null, touchGalleryPanel = null, touchTopBar = null;
   function updateReaderEnabled(enabled) {
-    state.reader.enabled.set(enabled), settingsMenu?.update(), registerUserscriptMenu();
+    state.reader.enabled.set(enabled), pageType.type === "gallery" && (enabled ? installContinueReading() : uninstallReadButton()), settingsMenu?.update(), registerUserscriptMenu();
   }
   function toggleReader() {
     updateReaderEnabled(!state.reader.enabled.value);
@@ -2929,17 +3798,22 @@
       openSettingsMenu
     ));
   }
-  function toggleEnhanceGalleryThumbsSetting() {
-    toggleEnhanceGalleryThumbs(), settingsMenu?.update();
+  function toggleEnhanceThumbsGridsSetting() {
+    let enabled = toggleEnhanceThumbsGrids();
+    pageType.type === "gallery" && (enabled ? installEnhanceThumbsGrids(reportOpenError) : restoreGalleryPageBar2()), settingsMenu?.update();
   }
-  function toggleEnhanceSearchPageSetting() {
-    state.search.enhance.set(!state.search.enhance.value), settingsMenu?.update();
+  function toggleEnhanceSearchGridsSetting() {
+    state.search.enhance.set(!state.search.enhance.value), state.search.enhance.value && pageType.type === "search" ? installEnhanceSearchGrids(pageType) : pageType.type === "search" && uninstallEnhanceSearchGrids(), settingsMenu?.update();
+  }
+  function toggleTouchUiSetting() {
+    state.touch.enabled.set(!state.touch.enabled.value), state.touch.enabled.value ? (installTouchUi(), pageType.type === "gallery" && installContinueReading()) : (touchTopBar?.remove(), touchGalleryPanel?.remove(), pageType.type === "gallery" && installContinueReading()), settingsMenu?.update();
   }
   function settingsMenuState() {
     return {
       readerEnabled: state.reader.enabled.value,
-      enhanceGalleryThumbsEnabled: enhanceGalleryThumbsEnabled(),
-      enhanceSearchPageEnabled: state.search.enhance.value
+      enhanceThumbsGridsEnabled: enhanceThumbsGridsEnabled(),
+      enhanceSearchGridsEnabled: state.search.enhance.value,
+      touchUiEnabled: state.touch.enabled.value
     };
   }
   async function openReader(startPageUrl, preferredPageNum) {
@@ -2980,12 +3854,12 @@
       loadPage: loadEhImagePage,
       loadPages: (pageNums) => provider.loadDisplayPages(pageNums),
       onActivePageChange: (page) => {
-        page.pageNum && (lastPageNum = page.pageNum, enhanceGalleryThumbsEnabled() && replaceGalleryPageBar2(provider.previewIndexForPage(page.pageNum), maxPreviewIndex)), historySession.update(page.pageNum, totalPages), updatePeekLocation(page.pageNum, pageSize, maxPreviewIndex);
+        page.pageNum && (lastPageNum = page.pageNum, enhanceThumbsGridsEnabled() && replaceGalleryPageBar2(provider.previewIndexForPage(page.pageNum), maxPreviewIndex)), historySession.update(page.pageNum, totalPages), updatePeekLocation(page.pageNum, pageSize, maxPreviewIndex);
       },
       onExit: () => {
         historySession.dispose(), installContinueReading();
         let exitIndex = lastPageNum ? provider.previewIndexForPage(lastPageNum) : landingIndex, galleryUrl = previewUrlForIndex(exitIndex);
-        if (enhanceGalleryThumbsEnabled()) {
+        if (enhanceThumbsGridsEnabled()) {
           replaceGalleryPageBar2(exitIndex, maxPreviewIndex), navigateGalleryPreview(galleryUrl, "replace").catch(() => {
             window.location.replace(galleryUrl);
           });
@@ -3012,9 +3886,19 @@
     }
     settingsMenu = new SettingsMenu(settingsMenuTriggerTagName2(), settingsMenuState, {
       onReaderToggle: toggleReader,
-      onEnhanceGalleryThumbsToggle: toggleEnhanceGalleryThumbsSetting,
-      onEnhanceSearchPageToggle: toggleEnhanceSearchPageSetting
+      onEnhanceThumbsGridsToggle: toggleEnhanceThumbsGridsSetting,
+      onEnhanceSearchGridsToggle: toggleEnhanceSearchGridsSetting,
+      onTouchUiToggle: toggleTouchUiSetting
     }), mountSettingsMenu2(settingsMenu) || (settingsMenu = null);
+  }
+  function installTouchGalleryPanel() {
+    return touchGalleryPanel ?? (touchGalleryPanel = new TouchGalleryPanel()), touchGalleryPanel.install(), touchGalleryPanel;
+  }
+  function installTouchTopBar() {
+    return touchTopBar ?? (touchTopBar = new TouchTopBar()), touchTopBar.install(), touchTopBar;
+  }
+  function installTouchUi() {
+    installTouchTopBar(), pageType.type === "gallery" && installTouchGalleryPanel();
   }
   function onDocumentClick(event) {
     if (!state.reader.enabled.value)
@@ -3031,18 +3915,23 @@
   }
   registerUserscriptMenu();
   var pageType = extractPageType();
+  state.touch.enabled.value && installTouchUi();
   installSettingsMenu();
-  pageType.type === "gallery" ? (installGalleryThumbEnhancement(reportOpenError), installContinueReading(), document.addEventListener("click", onDocumentClick, !0), state.reader.enabled.value && pageType.peekPage !== null && openReaderFromHash()) : pageType.type === "search" && state.search.enhance.value && installSearchPageSwipeNavigation(pageType);
+  pageType.type === "gallery" ? (installEnhanceThumbsGrids(reportOpenError), installContinueReading(), document.addEventListener("click", onDocumentClick, !0), state.reader.enabled.value && pageType.peekPage !== null && openReaderFromHash()) : pageType.type === "search" && state.search.enhance.value && installEnhanceSearchGrids(pageType);
   function installContinueReading() {
     if (pageType.type !== "gallery" || !state.reader.enabled.value)
       return;
-    let record = loadReaderHistory(pageType.galleryId, pageType.token), pageNum = record?.pageNum && record.pageNum > 0 ? record.pageNum : 1, totalPages = record?.totalPages ?? readShowingRange2()?.total, detail = record && totalPages ? `${pageNum}/${totalPages}` : totalPages ? `${totalPages} ${texts_default.reader.pages}` : String(pageNum);
-    installContinueReadingButton({
-      label: record ? texts_default.reader.continueReading : texts_default.reader.startReading,
-      detail
-    }, () => {
-      let page = collectGalleryPages2()[0];
-      page && openReader(page.url, pageNum).catch(reportOpenError);
-    });
+    let record = loadReaderHistory(pageType.galleryId, pageType.token), pageNum = record?.pageNum && record.pageNum > 0 ? record.pageNum : 1, totalPages = record?.totalPages ?? readShowingRange2()?.total, detail = record && totalPages ? `${pageNum}/${totalPages}` : totalPages ? `${totalPages} ${texts_default.reader.pages}` : String(pageNum), galleryPanel = state.touch.enabled.value ? installTouchGalleryPanel() : null;
+    installReadButton(
+      {
+        label: record ? texts_default.reader.continueReading : texts_default.reader.startReading,
+        detail
+      },
+      () => {
+        let page = collectGalleryPages2()[0];
+        page && openReader(page.url, pageNum).catch(reportOpenError);
+      },
+      (button) => galleryPanel?.mountContinueButton(button) ?? !1
+    );
   }
 })();
