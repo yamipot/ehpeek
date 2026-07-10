@@ -95,7 +95,7 @@ html.ehpeek-touch-ui .ehpeek-ui-state-dot::after {
     "control-btn": "py-[var(--ehpeek-control-btn-padding-y)] px-[var(--ehpeek-control-btn-padding-x)] rounded-[var(--ehpeek-control-radius-sm)] touch:min-h-[var(--ehpeek-control-touch-min-height)] touch:py-18px touch:px-26px",
     "control-compact": "py-[var(--ehpeek-control-compact-padding-y)] px-[var(--ehpeek-control-compact-padding-x)] rounded-[var(--ehpeek-control-radius-md)]",
     "control-icon": "w-[var(--ehpeek-control-icon-size)] h-[var(--ehpeek-control-icon-size)] items-center justify-center",
-    "control-page": "min-w-[var(--ehpeek-control-page-size)] h-[var(--ehpeek-control-page-size)] rounded-[var(--ehpeek-control-radius-md)]",
+    "control-page": "w-[var(--ehpeek-control-page-size)] h-[var(--ehpeek-control-page-size)] rounded-[var(--ehpeek-control-radius-md)] touch:w-38px touch:h-38px touch:rounded-[var(--ehpeek-control-radius-reader)]",
     "control-reader-btn": "w-[var(--ehpeek-control-reader-button-width)] h-[var(--ehpeek-control-reader-button-height)] px-[var(--ehpeek-control-btn-padding-x)] py-0 rounded-[var(--ehpeek-control-radius-reader)]",
     "control-range": "h-48px px-12px py-0",
     "textsize-md": "text-20px touch:text-26px",

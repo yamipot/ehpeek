@@ -1,6 +1,6 @@
 import { h } from "../../jsx";
 import { clamp } from "../../utils";
-import { PointerDrag } from "../common/pointerDrag";
+import { PointerDrag, type PointerDragTap } from "../common/pointerDrag";
 
 export const SCROLL_PAGE_BAR_CLASS = "ehpeek-scroll-page-bar";
 export const SCROLL_PAGE_BAR_TOP_CLASS = "ehpeek-scroll-page-bar-top";
@@ -10,8 +10,9 @@ export const SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index";
 const DRAG_PIXEL_STEP = 18;
 const PAGE_BAR_BOTTOM_CLASS = "mt-0 mb-10px";
 const PAGE_BAR_CELL_CLASS = "control-page p-0 cursor-pointer text-center align-middle select-none";
-const PAGE_BAR_CLASS = "border-separate border-spacing-4px mx-auto touch-pan-y";
-const PAGE_BAR_LINK_CLASS = "flex control-page items-center justify-center box-border px-8px py-0 border border-current bg-transparent textsize-sm font-inherit no-underline";
+const PAGE_BAR_CLASS = "relative w-max mx-auto touch-pan-y";
+const PAGE_BAR_LINK_CLASS = "flex control-page items-center justify-center box-border px-0 py-0 border border-current bg-transparent textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
+const PAGE_BAR_TABLE_CLASS = "border-separate border-spacing-4px touch:border-spacing-6px";
 const PAGE_BAR_TOP_CLASS = "mt-2px mb-0";
 let galleryPageBarWindowIndex: number | null = null;
 
@@ -31,11 +32,14 @@ export type ScrollPageBarOptions = {
 
 function scrollPageBarDom(top: boolean) {
   const body = <tbody /> as HTMLTableSectionElement;
+  const table = <table className={PAGE_BAR_TABLE_CLASS}>{body}</table> as HTMLTableElement;
+  const overlay = <div className="absolute inset-0 z-1 cursor-pointer bg-transparent" aria-hidden="true" /> as HTMLDivElement;
   const element = (
-    <table className={`${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}`}>
-      {body}
-    </table>
-  ) as HTMLTableElement;
+    <div className={`${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}`}>
+      {table}
+      {overlay}
+    </div>
+  ) as HTMLDivElement;
 
   return {
     element,
@@ -45,6 +49,14 @@ function scrollPageBarDom(top: boolean) {
     },
     setDragging(dragging: boolean) {
       element.classList.toggle("ehpeek-scroll-page-bar-dragging", dragging);
+    },
+    linkAt(clientX: number, clientY: number): HTMLAnchorElement | null {
+      overlay.style.pointerEvents = "none";
+      const target = document.elementFromPoint(clientX, clientY);
+      overlay.style.pointerEvents = "";
+      const link = target instanceof Element ? target.closest<HTMLAnchorElement>("a[data-page-index]") : null;
+
+      return link && element.contains(link) ? link : null;
     },
   };
 }
@@ -95,13 +107,13 @@ function pageBarLinkCellDom(text: string, pageIndex: number, current: boolean, u
 function pageBarEmptyCellDom(): HTMLTableCellElement {
   return (
     <td className={`ehpeek-scroll-page-bar-empty ${PAGE_BAR_CELL_CLASS} cursor-default`}>
-      <span className={PAGE_BAR_LINK_CLASS} />
+      <span className={`${PAGE_BAR_LINK_CLASS} invisible`} />
     </td>
   ) as HTMLTableCellElement;
 }
 
 export class ScrollPageBar {
-  readonly element: HTMLTableElement;
+  readonly element: HTMLDivElement;
   private readonly dom: ReturnType<typeof scrollPageBarDom>;
   private readonly currentIndex: number;
   private readonly maxIndex: number;
@@ -165,15 +177,27 @@ export class ScrollPageBar {
       onEnd: () => {
         this.dom.setDragging(false);
       },
+      onTap: (info) => this.tapPageLink(info),
+      shouldSuppressClick: (info) => Math.abs(info.dx) > 8 && Math.abs(info.dx) >= Math.abs(info.dy),
     });
   }
 
   private draggable(): boolean {
     return this.maxIndex + 1 > 7;
   }
+
+  private tapPageLink(info: PointerDragTap): void {
+    const link = this.dom.linkAt(info.clientX, info.clientY);
+
+    if (!link) {
+      return;
+    }
+
+    link.click();
+  }
 }
 
-export function createScrollPageBar(options: ScrollPageBarOptions): HTMLTableElement {
+export function createScrollPageBar(options: ScrollPageBarOptions): HTMLDivElement {
   return new ScrollPageBar(options).element;
 }
 

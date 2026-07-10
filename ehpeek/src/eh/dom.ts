@@ -1,11 +1,9 @@
 import { SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR, createScrollPageBar } from "../components/Enhance/ScrollPageBar";
-import scrollPageBarCss from "../components/Enhance/ScrollPageBar.css";
 import type { ReaderPage } from "../components/Reader";
 import type { SettingsMenu } from "../components/SettingsMenu";
 import texts from "../texts.json";
 import { normalizeUrl } from "../utils";
 
-const GALLERY_STYLE_ID = "ehpeek-gallery-style";
 const TOUCH_GALLERY_PANEL_PAGE_STYLE_ID = "ehpeek-touch-gallery-panel-page-style";
 const TOUCH_TOP_BAR_PAGE_STYLE_ID = "ehpeek-touch-top-bar-page-style";
 
@@ -241,8 +239,6 @@ export function replaceGalleryPageBar(options: {
   maxIndex: number | null;
   previewUrlForIndex: (index: number) => string;
 }): void {
-  ensureGalleryStyle();
-
   const originals = Array.from(document.querySelectorAll<HTMLElement>(".ptt, .ptb"));
   const topSource = originals.find((item) => item.classList.contains("ptt")) ?? originals[0];
   const bottomSource = originals.find((item) => item.classList.contains("ptb")) ?? originals[1] ?? originals[0];
@@ -280,6 +276,7 @@ export function installPreviewPlaceholder(): void {
   placeholder.className = "ehpeek-preview-placeholder flex items-center justify-center opacity-72";
   placeholder.style.minHeight = `${Math.max(160, Math.round(rect.height))}px`;
   placeholder.setAttribute("aria-busy", "true");
+  placeholder.textContent = texts.reader.loading;
   current.replaceWith(placeholder);
 }
 
@@ -502,17 +499,6 @@ function replaceSearchRangeScript(doc: Document): void {
   } else {
     searchNavigationBars()[0]?.before(script);
   }
-}
-
-function ensureGalleryStyle(): void {
-  if (document.getElementById(GALLERY_STYLE_ID)) {
-    return;
-  }
-
-  const style = document.createElement("style");
-  style.id = GALLERY_STYLE_ID;
-  style.textContent = scrollPageBarCss;
-  document.head.append(style);
 }
 
 function readGalleryMeta(): Map<string, string> {

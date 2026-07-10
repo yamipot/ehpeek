@@ -11,6 +11,9 @@ export type PointerDragMove = PointerDragStart & {
 };
 
 export type PointerDragEnd = PointerDragMove;
+export type PointerDragTap = PointerDragEnd & {
+  startTarget: EventTarget | null;
+};
 
 const SUPPRESS_CLICK_MAX_AGE_MS = 500;
 const SUPPRESS_CLICK_DISTANCE_PX = 24;
@@ -24,6 +27,7 @@ export class PointerDrag {
     startClientY: number;
     lastClientY: number;
     lastMoveTime: number;
+    startTarget: EventTarget | null;
     velocityY: number;
   } | null = null;
   private suppressedClick:
@@ -41,6 +45,7 @@ export class PointerDrag {
       onStart?: (info: PointerDragStart, event: PointerEvent | MouseEvent) => void;
       onMove?: (info: PointerDragMove, event: PointerEvent | MouseEvent) => void;
       onEnd?: (info: PointerDragEnd, event: PointerEvent | MouseEvent) => void;
+      onTap?: (info: PointerDragTap, event: PointerEvent | MouseEvent) => void;
       onSuppressClick?: (event: MouseEvent) => void;
       shouldSuppressClick?: (info: PointerDragEnd) => boolean;
     },
@@ -89,6 +94,7 @@ export class PointerDrag {
     this.suppressedClick = null;
     event.preventDefault();
     event.stopPropagation();
+    event.stopImmediatePropagation();
     this.handlers.onSuppressClick?.(event);
   };
 
@@ -135,6 +141,7 @@ export class PointerDrag {
       startClientY: clientY,
       lastClientY: clientY,
       lastMoveTime: event.timeStamp,
+      startTarget: event.target,
       velocityY: 0,
     };
 
@@ -234,13 +241,16 @@ export class PointerDrag {
     };
 
     const suppressClick = this.handlers.shouldSuppressClick?.(info) ?? (Math.abs(info.dx) > 8 || Math.abs(info.dy) > 8);
-
     if (suppressClick) {
       this.suppressedClick = {
         clientX,
         clientY,
         until: performance.now() + SUPPRESS_CLICK_MAX_AGE_MS,
       };
+    }
+
+    if (!suppressClick) {
+      this.handlers.onTap?.({ ...info, startTarget: drag.startTarget }, event);
     }
 
     this.handlers.onEnd?.(info, event);
