@@ -1,6 +1,6 @@
 import { h } from "../../jsx";
 import { clamp } from "../../utils";
-import { PointerDrag, type PointerDragTap } from "../common/pointerDrag";
+import { PointerGesture, type PointerDragTap } from "../common/pointerGesture";
 
 export const SCROLL_PAGE_BAR_CLASS = "ehpeek-scroll-page-bar";
 export const SCROLL_PAGE_BAR_TOP_CLASS = "ehpeek-scroll-page-bar-top";
@@ -143,8 +143,8 @@ export class ScrollPageBar {
   }
 
   private installDrag(): void {
-    new PointerDrag(this.element, {
-      shouldStart: () => this.draggable(),
+    new PointerGesture(this.element, {
+      shouldCaptureDrag: () => this.draggable(),
       onStart: () => {
         this.dragStartWindowIndex = this.windowIndex;
         this.dom.setDragging(true);

@@ -1,4 +1,4 @@
-import { PointerDrag, type PointerDragEnd, type PointerDragMove } from "../common/pointerDrag";
+import { PointerGesture, type PointerDragEnd, type PointerDragMove } from "../common/pointerGesture";
 import { SwipeIndicator } from "./Misc";
 import { h } from "../../jsx";
 import * as eh from "../../eh";
@@ -46,7 +46,7 @@ function installResultListEnhancement(resultList: HTMLElement): void {
   }
 
   installedSwipeElements.add(swipeElement);
-  new PointerDrag(swipeElement, {
+  new PointerGesture(swipeElement, {
     onStart: () => {
       swipeState = { horizontal: false, cancelled: false };
       hideSwipeIndicator();

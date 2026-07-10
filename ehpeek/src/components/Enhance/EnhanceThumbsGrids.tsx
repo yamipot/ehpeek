@@ -1,5 +1,5 @@
 import type { ReaderPage } from "../Reader";
-import { PointerDrag, type PointerDragEnd, type PointerDragMove } from "../common/pointerDrag";
+import { PointerGesture, type PointerDragEnd, type PointerDragMove } from "../common/pointerGesture";
 import { SwipeIndicator } from "./Misc";
 import {
   SCROLL_PAGE_BAR_BOTTOM_CLASS,
@@ -201,7 +201,7 @@ function installThumbsGridSwipe(): void {
   }
 
   installedSwipeElements.add(swipeElement);
-  new PointerDrag(swipeElement, {
+  new PointerGesture(swipeElement, {
     onStart: () => {
       swipeState = { horizontal: false, cancelled: false };
       hideSwipeIndicator();
