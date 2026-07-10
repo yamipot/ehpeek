@@ -20,7 +20,6 @@ let searchNavigationLoading = false;
 type SwipeState = {
   horizontal: boolean;
   cancelled: boolean;
-  suppressClick: boolean;
 };
 
 export function installEnhanceSearchGrids(pageType: Extract<PageType, { type: "search" }>): void {
@@ -43,7 +42,7 @@ function installResultListEnhancement(resultList: HTMLElement): void {
   overlayElement = installResultListOverlayDom(resultList);
   new PointerDrag(overlayElement, {
     onStart: () => {
-      swipeState = { horizontal: false, cancelled: false, suppressClick: false };
+      swipeState = { horizontal: false, cancelled: false };
       hideSwipeIndicator();
     },
     onMove: (info, event) => {
@@ -55,13 +54,10 @@ function installResultListEnhancement(resultList: HTMLElement): void {
       swipeState = null;
       hideSwipeIndicator();
     },
-    shouldSuppressClick: () => swipeState?.suppressClick ?? false,
-    onSuppressClick: () => {
-      swipeState = null;
-      hideSwipeIndicator();
+    onTap: (info) => {
+      forwardClickThroughOverlay(info.clientX, info.clientY);
     },
   });
-  overlayElement.addEventListener("click", onOverlayClick);
 }
 
 function installResultListOverlayDom(resultList: HTMLElement): HTMLDivElement {
@@ -87,16 +83,6 @@ function installResultListOverlayDom(resultList: HTMLElement): HTMLDivElement {
 
   wrapper.append(overlay);
   return overlay;
-}
-
-function onOverlayClick(event: MouseEvent): void {
-  if (swipeState?.suppressClick) {
-    return;
-  }
-
-  event.preventDefault();
-  event.stopPropagation();
-  forwardClickThroughOverlay(event.clientX, event.clientY);
 }
 
 function onSearchNavigationClick(event: MouseEvent): void {
@@ -163,7 +149,6 @@ function updateSwipeState(info: PointerDragMove, event: PointerEvent | MouseEven
 
   if (absX >= SWIPE_INTENT_DISTANCE && absX >= absY * HORIZONTAL_INTENT_RATIO) {
     swipeState.horizontal = true;
-    swipeState.suppressClick = true;
     event.preventDefault();
   }
 }
@@ -207,7 +192,6 @@ function navigateBySwipe(info: PointerDragEnd, event: Event): void {
   const url = swipeUrlForDelta(dx);
 
   if (url) {
-    swipeState.suppressClick = true;
     event.preventDefault();
     void navigateSearchPage(url, dx < 0);
   }

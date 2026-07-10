@@ -15,8 +15,7 @@ export type PointerDragTap = PointerDragEnd & {
   startTarget: EventTarget | null;
 };
 
-const SUPPRESS_CLICK_MAX_AGE_MS = 500;
-const SUPPRESS_CLICK_DISTANCE_PX = 24;
+const DEFAULT_TAP_MOVE_THRESHOLD_PX = 8;
 
 export class PointerDrag {
   private mousePointerId = -1;
@@ -30,13 +29,6 @@ export class PointerDrag {
     startTarget: EventTarget | null;
     velocityY: number;
   } | null = null;
-  private suppressedClick:
-    | {
-        clientX: number;
-        clientY: number;
-        until: number;
-      }
-    | null = null;
 
   constructor(
     private readonly target: HTMLElement,
@@ -46,11 +38,9 @@ export class PointerDrag {
       onMove?: (info: PointerDragMove, event: PointerEvent | MouseEvent) => void;
       onEnd?: (info: PointerDragEnd, event: PointerEvent | MouseEvent) => void;
       onTap?: (info: PointerDragTap, event: PointerEvent | MouseEvent) => void;
-      onSuppressClick?: (event: MouseEvent) => void;
-      shouldSuppressClick?: (info: PointerDragEnd) => boolean;
+      tapMoveThreshold?: number;
     },
   ) {
-    target.addEventListener("click", this.onClick, true);
     target.addEventListener("pointerdown", this.onPointerDown);
     target.addEventListener("mousedown", this.onMouseDown);
     target.addEventListener("dragstart", this.onDragStart);
@@ -64,7 +54,6 @@ export class PointerDrag {
 
     this.removePointerListeners();
     this.removeMouseListeners();
-    this.target.removeEventListener("click", this.onClick, true);
     this.target.removeEventListener("pointerdown", this.onPointerDown);
     this.target.removeEventListener("mousedown", this.onMouseDown);
     this.target.removeEventListener("dragstart", this.onDragStart);
@@ -85,18 +74,6 @@ export class PointerDrag {
     this.removePointerListeners();
     this.removeMouseListeners();
   }
-
-  private onClick = (event: MouseEvent): void => {
-    if (!this.shouldSuppressClickEvent(event)) {
-      return;
-    }
-
-    this.suppressedClick = null;
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    this.handlers.onSuppressClick?.(event);
-  };
 
   private onDragStart = (event: DragEvent): void => {
     event.preventDefault();
@@ -240,43 +217,14 @@ export class PointerDrag {
       velocityY: drag.velocityY,
     };
 
-    const suppressClick = this.handlers.shouldSuppressClick?.(info) ?? (Math.abs(info.dx) > 8 || Math.abs(info.dy) > 8);
-    if (suppressClick) {
-      this.suppressedClick = {
-        clientX,
-        clientY,
-        until: performance.now() + SUPPRESS_CLICK_MAX_AGE_MS,
-      };
-    }
+    const isTap = Math.abs(info.dx) < (this.handlers.tapMoveThreshold ?? DEFAULT_TAP_MOVE_THRESHOLD_PX) &&
+      Math.abs(info.dy) < (this.handlers.tapMoveThreshold ?? DEFAULT_TAP_MOVE_THRESHOLD_PX);
 
-    if (!suppressClick) {
+    if (isTap) {
       this.handlers.onTap?.({ ...info, startTarget: drag.startTarget }, event);
     }
 
     this.handlers.onEnd?.(info, event);
-  }
-
-  private shouldSuppressClickEvent(event: MouseEvent): boolean {
-    const suppressedClick = this.suppressedClick;
-
-    if (!suppressedClick) {
-      return false;
-    }
-
-    if (performance.now() > suppressedClick.until) {
-      this.suppressedClick = null;
-      return false;
-    }
-
-    const closeToDragEnd =
-      Math.abs(event.clientX - suppressedClick.clientX) <= SUPPRESS_CLICK_DISTANCE_PX &&
-      Math.abs(event.clientY - suppressedClick.clientY) <= SUPPRESS_CLICK_DISTANCE_PX;
-
-    if (!closeToDragEnd) {
-      this.suppressedClick = null;
-    }
-
-    return closeToDragEnd;
   }
 
   private addPointerListeners(): void {

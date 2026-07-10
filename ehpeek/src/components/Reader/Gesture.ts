@@ -1,5 +1,5 @@
 import { debugLog, targetSummary } from "../../utils";
-import { PointerDrag, type PointerDragEnd, type PointerDragMove, type PointerDragStart } from "../common/pointerDrag";
+import { PointerDrag, type PointerDragEnd, type PointerDragMove, type PointerDragStart, type PointerDragTap } from "../common/pointerDrag";
 
 const TAP_MOVE_THRESHOLD = 8;
 
@@ -72,7 +72,8 @@ export class PagesGesture {
       onStart: this.onDragStart,
       onMove: this.onDragMove,
       onEnd: this.onDragEnd,
-      shouldSuppressClick: () => true,
+      onTap: this.onTap,
+      tapMoveThreshold: TAP_MOVE_THRESHOLD,
     });
     target.addEventListener("pointerdown", this.onPinchPointerDown, true);
     target.addEventListener("pointerup", this.onPinchPointerRelease, true);
@@ -257,11 +258,14 @@ export class PagesGesture {
     this.target.classList.remove("ehpeek-scroller-dragging");
 
     if (Math.abs(info.dx) < TAP_MOVE_THRESHOLD && Math.abs(info.dy) < TAP_MOVE_THRESHOLD) {
-      this.handlers.onTap(info, event);
       return;
     }
 
     this.handlers.onDragEnd(info, event);
+  };
+
+  private onTap = (info: PointerDragTap, event: PointerEvent | MouseEvent): void => {
+    this.handlers.onTap(info, event);
   };
 
   private shouldIgnoreKeyboardEvent(event: KeyboardEvent): boolean {

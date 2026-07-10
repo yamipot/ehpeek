@@ -178,7 +178,6 @@ export class ScrollPageBar {
         this.dom.setDragging(false);
       },
       onTap: (info) => this.tapPageLink(info),
-      shouldSuppressClick: (info) => Math.abs(info.dx) > 8 && Math.abs(info.dx) >= Math.abs(info.dy),
     });
   }
 
