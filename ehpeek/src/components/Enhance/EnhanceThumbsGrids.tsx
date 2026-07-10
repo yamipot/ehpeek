@@ -1,18 +1,37 @@
 import type { ReaderPage } from "../Reader";
+import { PointerDrag, type PointerDragEnd, type PointerDragMove } from "../common/pointerDrag";
+import { SwipeIndicator } from "./Misc";
 import {
   SCROLL_PAGE_BAR_BOTTOM_CLASS,
   SCROLL_PAGE_BAR_CLASS,
   SCROLL_PAGE_BAR_TOP_CLASS,
   setScrollPageBarWindowIndex,
 } from "./ScrollPageBar";
+import { h } from "../../jsx";
 import * as eh from "../../eh";
 import { state } from "../../state";
 import { clamp, requestText } from "../../utils";
 
 const PREVIEW_CACHE_LIMIT = 10;
+const SWIPE_MIN_DISTANCE = 96;
+const SWIPE_INTENT_DISTANCE = 28;
+const HORIZONTAL_INTENT_RATIO = 2.2;
+const SWIPE_MAX_VERTICAL_RATIO = 0.38;
+const THUMBS_SWIPE_WRAPPER_CLASS = "ehpeek-thumbs-swipe-wrapper";
+const THUMBS_SWIPE_OVERLAY_CLASS = "ehpeek-thumbs-swipe-overlay";
 
 let galleryThumbEnhancementErrorHandler: ((error: unknown) => void) | null = null;
 let galleryThumbEnhancementClickInstalled = false;
+let overlayElement: HTMLDivElement | null = null;
+let swipeIndicator: SwipeIndicator | null = null;
+let swipeState: SwipeState | null = null;
+let galleryNavigationLoading = false;
+
+type SwipeState = {
+  horizontal: boolean;
+  cancelled: boolean;
+  suppressClick: boolean;
+};
 
 export function enhanceThumbsGridsEnabled(): boolean {
   return state.gallery.enhanceThumbs.value;
@@ -106,6 +125,7 @@ export function installEnhanceThumbsGrids(onError: (error: unknown) => void): vo
 
   if (enhanceThumbsGridsEnabled()) {
     installGalleryPageBar();
+    installThumbsGridSwipe();
   }
 
   if (galleryThumbEnhancementClickInstalled) {
@@ -116,10 +136,21 @@ export function installEnhanceThumbsGrids(onError: (error: unknown) => void): vo
   document.addEventListener("click", onPageBarClick, true);
 }
 
-export async function navigateGalleryPreview(url: string, historyMode: "push" | "replace"): Promise<void> {
+export async function navigateGalleryPreview(
+  url: string,
+  historyMode: "push" | "replace",
+  options: { scrollToPageBar?: "top" | "bottom" } = {},
+): Promise<void> {
+  if (galleryNavigationLoading) {
+    return;
+  }
+
   const previousUrl = window.location.href;
   const snapshot = eh.snapshotPreview();
   const targetPreviewIndex = eh.previewPageIndexFromUrl(url);
+
+  galleryNavigationLoading = true;
+  overlayElement?.setAttribute("aria-busy", "true");
 
   if (historyMode === "push") {
     window.history.pushState(window.history.state, "", url);
@@ -128,7 +159,12 @@ export async function navigateGalleryPreview(url: string, historyMode: "push" | 
   }
 
   if (targetPreviewIndex !== null) {
+    setScrollPageBarWindowIndex(targetPreviewIndex);
     eh.replaceGalleryPageBar(targetPreviewIndex, eh.maxPreviewPageIndex());
+  }
+
+  if (options.scrollToPageBar) {
+    scrollToPageBar(options.scrollToPageBar);
   }
 
   eh.installPreviewPlaceholder();
@@ -138,12 +174,205 @@ export async function navigateGalleryPreview(url: string, historyMode: "push" | 
     const doc = new DOMParser().parseFromString(html, "text/html");
 
     eh.replacePreviewContent(doc, url);
+    installThumbsGridSwipe();
+    if (options.scrollToPageBar) {
+      scrollToPageBar(options.scrollToPageBar);
+    }
   } catch (error) {
     eh.restorePreview(snapshot);
     window.history.replaceState(window.history.state, "", previousUrl);
     eh.replaceGalleryPageBar(eh.previewPageIndex(), eh.maxPreviewPageIndex());
     throw error;
+  } finally {
+    galleryNavigationLoading = false;
+    overlayElement?.removeAttribute("aria-busy");
   }
+}
+
+function installThumbsGridSwipe(): void {
+  if (!enhanceThumbsGridsEnabled()) {
+    return;
+  }
+
+  const thumbs = document.querySelector<HTMLElement>("#gdt");
+
+  if (!thumbs?.parentElement) {
+    return;
+  }
+
+  overlayElement = installThumbsGridOverlayDom(thumbs);
+  new PointerDrag(overlayElement, {
+    onStart: () => {
+      swipeState = { horizontal: false, cancelled: false, suppressClick: false };
+      hideSwipeIndicator();
+    },
+    onMove: (info, event) => {
+      updateSwipeState(info, event);
+      updateSwipeIndicator(info);
+    },
+    onEnd: (info, event) => {
+      navigateBySwipe(info, event);
+      swipeState = null;
+      hideSwipeIndicator();
+    },
+    shouldSuppressClick: () => swipeState?.suppressClick ?? false,
+    onSuppressClick: () => {
+      swipeState = null;
+      hideSwipeIndicator();
+    },
+  });
+  overlayElement.addEventListener("click", onOverlayClick);
+}
+
+function installThumbsGridOverlayDom(thumbs: HTMLElement): HTMLDivElement {
+  let overlay!: HTMLDivElement;
+  const existingWrapper = thumbs.parentElement?.classList.contains(THUMBS_SWIPE_WRAPPER_CLASS)
+    ? (thumbs.parentElement as HTMLDivElement)
+    : null;
+  const wrapper = existingWrapper ?? (<div className={`${THUMBS_SWIPE_WRAPPER_CLASS} relative`} /> as HTMLDivElement);
+  const indicator = new SwipeIndicator();
+
+  wrapper.querySelectorAll<HTMLElement>(`:scope > .${THUMBS_SWIPE_OVERLAY_CLASS}`).forEach((item) => item.remove());
+  overlay = (
+    <div className={`${THUMBS_SWIPE_OVERLAY_CLASS} absolute inset-0 z-2 bg-transparent overscroll-x-contain touch-pan-y`} aria-hidden="true">
+      {indicator.element}
+    </div>
+  ) as HTMLDivElement;
+  swipeIndicator = indicator;
+
+  if (!existingWrapper) {
+    thumbs.before(wrapper);
+    wrapper.append(thumbs);
+  }
+
+  wrapper.append(overlay);
+  return overlay;
+}
+
+function onOverlayClick(event: MouseEvent): void {
+  if (swipeState?.suppressClick) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  forwardClickThroughOverlay(event.clientX, event.clientY);
+}
+
+function forwardClickThroughOverlay(clientX: number, clientY: number): void {
+  if (!overlayElement) {
+    return;
+  }
+
+  overlayElement.style.pointerEvents = "none";
+  const target = document.elementFromPoint(clientX, clientY);
+  overlayElement.style.pointerEvents = "";
+
+  if (!(target instanceof Element)) {
+    return;
+  }
+
+  const link = target.closest<HTMLAnchorElement>("a[href]");
+
+  if (link) {
+    link.click();
+    return;
+  }
+
+  target.dispatchEvent(
+    new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      clientX,
+      clientY,
+    }),
+  );
+}
+
+function updateSwipeState(info: PointerDragMove, event: PointerEvent | MouseEvent): void {
+  if (!swipeState) {
+    return;
+  }
+
+  const dx = info.dx;
+  const dy = info.dy;
+  const absX = Math.abs(dx);
+  const absY = Math.abs(dy);
+
+  if (swipeState.horizontal || swipeState.cancelled) {
+    return;
+  }
+
+  if (absY >= SWIPE_INTENT_DISTANCE && absY > absX) {
+    swipeState.cancelled = true;
+    hideSwipeIndicator();
+    return;
+  }
+
+  if (absX >= SWIPE_INTENT_DISTANCE && absX >= absY * HORIZONTAL_INTENT_RATIO) {
+    swipeState.horizontal = true;
+    swipeState.suppressClick = true;
+    event.preventDefault();
+  }
+}
+
+function updateSwipeIndicator(info: PointerDragMove): void {
+  if (!swipeIndicator || !swipeState?.horizontal || swipeState.cancelled) {
+    return;
+  }
+
+  const direction = info.dx < 0 ? "left" : "right";
+  const availableUrl = swipeUrlForDelta(info.dx);
+
+  if (!availableUrl) {
+    swipeIndicator.hide();
+    return;
+  }
+
+  const progress = Math.min(1, Math.max(0, (Math.abs(info.dx) - SWIPE_INTENT_DISTANCE) / (SWIPE_MIN_DISTANCE - SWIPE_INTENT_DISTANCE)));
+
+  swipeIndicator.show(direction, progress);
+}
+
+function hideSwipeIndicator(): void {
+  swipeIndicator?.hide();
+}
+
+function navigateBySwipe(info: PointerDragEnd, event: Event): void {
+  if (!swipeState?.horizontal || swipeState.cancelled) {
+    return;
+  }
+
+  const dx = info.dx;
+  const dy = info.dy;
+  const absX = Math.abs(dx);
+  const absY = Math.abs(dy);
+
+  if (absX < SWIPE_MIN_DISTANCE || absY > absX * SWIPE_MAX_VERTICAL_RATIO) {
+    return;
+  }
+
+  const url = swipeUrlForDelta(dx);
+
+  if (url) {
+    swipeState.suppressClick = true;
+    event.preventDefault();
+    void navigateGalleryPreview(url, "push", { scrollToPageBar: dx < 0 ? "top" : "bottom" }).catch((error) =>
+      galleryThumbEnhancementErrorHandler?.(error),
+    );
+  }
+}
+
+function swipeUrlForDelta(dx: number): string | null {
+  const currentIndex = eh.previewPageIndex();
+  const maxIndex = eh.maxPreviewPageIndex();
+  const nextIndex = dx < 0 ? currentIndex + 1 : currentIndex - 1;
+
+  if (nextIndex < 0 || (maxIndex !== null && nextIndex > maxIndex)) {
+    return null;
+  }
+
+  return eh.previewUrlForIndex(nextIndex);
 }
 
 function onPageBarClick(event: MouseEvent): void {
@@ -170,22 +399,37 @@ function onPageBarClick(event: MouseEvent): void {
     return;
   }
 
-  const fromBottomBar = Boolean(barItem.closest(`.${SCROLL_PAGE_BAR_BOTTOM_CLASS}`));
   const targetPreviewIndex = eh.previewPageIndexFromUrl(url);
 
   if (targetPreviewIndex !== null) {
     setScrollPageBarWindowIndex(targetPreviewIndex);
   }
 
-  if (fromBottomBar) {
-    scrollToTopPageBar();
-  }
-
-  void navigateGalleryPreview(url, "push").catch((error) => galleryThumbEnhancementErrorHandler?.(error));
+  void navigateGalleryPreview(url, "push", { scrollToPageBar: pageBarScrollTarget(barItem, targetPreviewIndex) }).catch((error) =>
+    galleryThumbEnhancementErrorHandler?.(error),
+  );
 }
 
-function scrollToTopPageBar(): void {
-  document.querySelector<HTMLElement>(`.${SCROLL_PAGE_BAR_TOP_CLASS}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+function pageBarScrollTarget(item: HTMLElement, targetPreviewIndex: number | null): "top" | "bottom" {
+  if (item instanceof HTMLButtonElement) {
+    return "top";
+  }
+
+  const currentIndex = eh.previewPageIndex();
+  const maxIndex = eh.maxPreviewPageIndex();
+
+  if (targetPreviewIndex !== null && (targetPreviewIndex === currentIndex - 1 || targetPreviewIndex === maxIndex)) {
+    return "bottom";
+  }
+
+  return "top";
+}
+
+function scrollToPageBar(target: "top" | "bottom"): void {
+  const selector = target === "top" ? `.${SCROLL_PAGE_BAR_TOP_CLASS}` : `.${SCROLL_PAGE_BAR_BOTTOM_CLASS}`;
+  const block = target === "top" ? "start" : "end";
+
+  document.querySelector<HTMLElement>(selector)?.scrollIntoView({ block, behavior: "smooth" });
 }
 
 function installGalleryPageBar(): void {
