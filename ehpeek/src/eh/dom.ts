@@ -8,9 +8,6 @@ import { normalizeUrl } from "../utils";
 const GALLERY_STYLE_ID = "ehpeek-gallery-style";
 const TOUCH_GALLERY_PANEL_PAGE_STYLE_ID = "ehpeek-touch-gallery-panel-page-style";
 const TOUCH_TOP_BAR_PAGE_STYLE_ID = "ehpeek-touch-top-bar-page-style";
-const SCROLL_PAGE_BAR_TOP_CLASS = "ehpeek-scroll-page-bar-top";
-const SCROLL_PAGE_BAR_BOTTOM_CLASS = "ehpeek-scroll-page-bar-bottom";
-const PREVIEW_PLACEHOLDER_CLASS = "ehpeek-preview-placeholder flex items-center justify-center opacity-72";
 
 const TOUCH_GALLERY_PANEL_PAGE_CSS = `
   :root {
@@ -280,7 +277,7 @@ export function installPreviewPlaceholder(): void {
   const rect = current.getBoundingClientRect();
   const placeholder = document.createElement("div");
   placeholder.id = "gdt";
-  placeholder.className = PREVIEW_PLACEHOLDER_CLASS;
+  placeholder.className = "ehpeek-preview-placeholder flex items-center justify-center opacity-72";
   placeholder.style.minHeight = `${Math.max(160, Math.round(rect.height))}px`;
   placeholder.setAttribute("aria-busy", "true");
   current.replaceWith(placeholder);
@@ -445,7 +442,7 @@ function replaceGalleryPageBarAt(
     previewUrlForIndex: (index: number) => string;
   },
 ): void {
-  const className = top ? SCROLL_PAGE_BAR_TOP_CLASS : SCROLL_PAGE_BAR_BOTTOM_CLASS;
+  const className = top ? "ehpeek-scroll-page-bar-top" : "ehpeek-scroll-page-bar-bottom";
   const existing = document.querySelector<HTMLElement>(`.${className}`);
   const initialWindowIndex = existing ? Number(existing.getAttribute(SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR) || "") : undefined;
   const pageBar = createScrollPageBar({

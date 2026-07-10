@@ -3,8 +3,6 @@ import texts from "../texts.json";
 import settingsMenuCss from "./SettingsMenu.css";
 
 const STYLE_ID = "ehpeek-settings-style";
-const SETTINGS_BUTTON_CLASS = "block w-full py-7px px-10px border color-border rounded-3px bg-transparent color-accent cursor-pointer font-inherit text-center";
-const SETTINGS_ITEM_CLASS = "flex w-full items-center justify-between gap-16px min-h-52px py-10px px-12px border-0 border-b border-b-[rgba(255,255,255,0.1)] rounded-3px bg-transparent color-text cursor-pointer font-inherit text-left";
 
 export type SettingsMenuState = {
   readerEnabled: boolean;
@@ -39,7 +37,7 @@ function settingsMenuDom(
   ) => (
     <button
       type="button"
-      className={`ehpeek-settings-item ${SETTINGS_ITEM_CLASS}`}
+      className="ehpeek-settings-item flex w-full items-center justify-between gap-16px min-h-52px py-10px px-12px border-0 border-b color-border-subtle-b rounded-3px bg-transparent color-text cursor-pointer font-inherit text-left"
       role="switch"
       onClick={onClick}
       ref={(node: HTMLElement) => assign(node as HTMLButtonElement)}
@@ -53,7 +51,7 @@ function settingsMenuDom(
   ) => (
     <button
       type="button"
-      className={`${className} ${SETTINGS_BUTTON_CLASS}`}
+      className={`${className} block w-full py-7px px-10px border color-border rounded-3px bg-transparent color-accent cursor-pointer font-inherit text-center`}
       onClick={onClick}
       ref={(node: HTMLElement) => assign(node as HTMLButtonElement)}
     />
