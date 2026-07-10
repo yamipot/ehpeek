@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ehpeek: E-H/ExH viewer
 // @namespace    ehpeek
-// @version      260710.1446
+// @version      260710.1508
 // @description  A mobile-optimized E-H/ExH viewer
 // @match        *://e-hentai.org/*
 // @match        *://exhentai.org/*
@@ -2285,6 +2285,11 @@
   function replacePreviewContent(doc) {
     replaceFirstElement(".gpc", doc), replaceFirstElement("#gdt", doc);
   }
+  function prepareThumbsGridSwipeTargets(thumbs) {
+    thumbs.style.touchAction = "pan-y", thumbs.style.userSelect = "none", thumbs.querySelectorAll("a, img, .gdtm, .gdtl").forEach((element) => {
+      element.style.touchAction = "pan-y", element.style.userSelect = "none", element instanceof HTMLImageElement && (element.draggable = !1, element.style.setProperty("-webkit-user-drag", "none"));
+    });
+  }
   function restorePreview(snapshot) {
     let currentDescription = document.querySelector(".gpc"), currentThumbs = document.querySelector("#gdt");
     snapshot.description && currentDescription && currentDescription.replaceWith(snapshot.description), snapshot.thumbs && currentThumbs && currentThumbs.replaceWith(snapshot.thumbs);
@@ -3271,6 +3276,9 @@ html.ehpeek-touch-ui .ehpeek-touch-top-bar-menu-panel .ehpeek-settings-trigger {
   function replacePreviewContent2(doc, baseUrl) {
     replacePreviewContent(doc), replaceGalleryPageBar2(previewPageIndexFromUrl(baseUrl) ?? previewPageIndex(), maxPreviewPageIndex2(doc, baseUrl));
   }
+  function prepareThumbsGridSwipeTargets2(thumbs) {
+    prepareThumbsGridSwipeTargets(thumbs);
+  }
   function restorePreview2(snapshot) {
     restorePreview(snapshot);
   }
@@ -3363,7 +3371,7 @@ html.ehpeek-touch-ui .ehpeek-touch-top-bar-menu-panel .ehpeek-settings-trigger {
     if (!enhanceThumbsGridsEnabled())
       return;
     let thumbs = document.querySelector("#gdt");
-    thumbs?.parentElement && (swipeElement = installThumbsGridSwipeDom(thumbs), !installedSwipeElements.has(swipeElement) && (installedSwipeElements.add(swipeElement), new PointerGesture(swipeElement, {
+    thumbs?.parentElement && (swipeElement = installThumbsGridSwipeDom(thumbs), prepareThumbsGridSwipeTargets2(thumbs), !installedSwipeElements.has(swipeElement) && (installedSwipeElements.add(swipeElement), new PointerGesture(swipeElement, {
       onStart: () => {
         swipeState = { horizontal: !1, cancelled: !1 }, hideSwipeIndicator();
       },
@@ -3479,7 +3487,7 @@ html.ehpeek-touch-ui .ehpeek-touch-top-bar-menu-panel .ehpeek-settings-trigger {
   }
 
   // src/components/Enhance/EnhanceSearchGrids.tsx
-  var SWIPE_MIN_DISTANCE2 = 96, SWIPE_INTENT_DISTANCE2 = 28, HORIZONTAL_INTENT_RATIO2 = 2.2, SWIPE_MAX_VERTICAL_RATIO2 = 0.38, SEARCH_SWIPE_WRAPPER_CLASS = "ehpeek-search-swipe-wrapper", installed = !1, swipeElement2 = null, swipeIndicator2 = null, swipeState2 = null, searchNavigationLoading = !1, installedSwipeElements2 = /* @__PURE__ */ new WeakSet();
+  var SWIPE_MIN_DISTANCE2 = 96, SWIPE_INTENT_DISTANCE2 = 28, HORIZONTAL_INTENT_RATIO2 = 2.2, SWIPE_MAX_VERTICAL_RATIO2 = 0.38, SEARCH_SWIPE_WRAPPER_CLASS = "ehpeek-search-swipe-wrapper", SEARCH_SWIPE_WRAPPER_STYLE = `${SEARCH_SWIPE_WRAPPER_CLASS} relative block w-full overscroll-x-contain touch-pan-y`, installed = !1, swipeElement2 = null, swipeIndicator2 = null, swipeState2 = null, searchNavigationLoading = !1, installedSwipeElements2 = /* @__PURE__ */ new WeakSet();
   function installEnhanceSearchGrids(pageType2) {
     if (installed || pageType2.type !== "search" || !searchPageNavigation2())
       return;
@@ -3503,8 +3511,8 @@ html.ehpeek-touch-ui .ehpeek-touch-top-bar-menu-panel .ehpeek-settings-trigger {
     }));
   }
   function installResultListSwipeDom(resultList) {
-    let existingWrapper = resultList.parentElement?.classList.contains(SEARCH_SWIPE_WRAPPER_CLASS) ? resultList.parentElement : null, wrapper = existingWrapper ?? /* @__PURE__ */ h("div", { className: `${SEARCH_SWIPE_WRAPPER_CLASS} relative` }), indicator = new SwipeIndicator();
-    return swipeIndicator2 = indicator, existingWrapper || (resultList.before(wrapper), wrapper.append(resultList)), wrapper.querySelectorAll(":scope > .ehpeek-swipe-indicator").forEach((item) => item.remove()), wrapper.append(indicator.element), wrapper;
+    let existingWrapper = resultList.parentElement?.classList.contains(SEARCH_SWIPE_WRAPPER_CLASS) ? resultList.parentElement : null, wrapper = existingWrapper ?? /* @__PURE__ */ h("div", { className: SEARCH_SWIPE_WRAPPER_STYLE }), indicator = new SwipeIndicator();
+    return wrapper.className = SEARCH_SWIPE_WRAPPER_STYLE, swipeIndicator2 = indicator, existingWrapper || (resultList.before(wrapper), wrapper.append(resultList)), wrapper.querySelectorAll(":scope > .ehpeek-swipe-indicator").forEach((item) => item.remove()), wrapper.append(indicator.element), wrapper;
   }
   function onSearchNavigationClick(event) {
     let link = findSearchNavigationLink2(event.target);
@@ -3822,6 +3830,7 @@ html.ehpeek-touch-ui .touch\\:border-spacing-6px{--un-border-spacing-x:6px;--un-
 html.ehpeek-touch-ui .touch\\:gap-10px{gap:10px;}
 html.ehpeek-touch-ui .touch\\:gap-20px{gap:20px;}
 .overflow-hidden{overflow:hidden;}
+.overscroll-x-contain{overscroll-behavior-x:contain;}
 .whitespace-nowrap{white-space:nowrap;}
 .border{border-width:1px;}
 .border-0{border-width:0px;}
