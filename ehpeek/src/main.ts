@@ -232,7 +232,7 @@ const pageType = eh.extractPageType();
 installSettingsMenu();
 
 if (pageType.type === "gallery") {
-  installGalleryThumbEnhancement(reportOpenError);
+  installGalleryThumbEnhancement(reportOpenError, openSettingsMenu);
   installContinueReading();
   document.addEventListener("click", onDocumentClick, true);
   if (state.reader.enabled.value && pageType.peekPage !== null) {

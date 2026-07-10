@@ -1,6 +1,5 @@
 import { h } from "../jsx";
 import texts from "../texts.json";
-import { clamp } from "../utils";
 import settingsMenuCss from "./SettingsMenu.css";
 
 const STYLE_ID = "ehpeek-settings-style";
@@ -156,15 +155,9 @@ export class SettingsMenu {
       return;
     }
 
-    const gap = 4;
-    const edgePadding = 8;
-    const triggerRect = this.trigger.getBoundingClientRect();
-    const menuRect = this.menu.getBoundingClientRect();
-    const left = clamp(triggerRect.right - menuRect.width, edgePadding, window.innerWidth - menuRect.width - edgePadding);
-    const top = clamp(triggerRect.bottom + gap, edgePadding, window.innerHeight - menuRect.height - edgePadding);
-
-    this.menu.style.left = `${left}px`;
-    this.menu.style.top = `${top}px`;
+    this.menu.style.top = "8px";
+    this.menu.style.right = "8px";
+    this.menu.style.left = "";
   }
 
   private bindGlobalEvents(): void {
