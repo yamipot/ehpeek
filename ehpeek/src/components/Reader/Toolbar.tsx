@@ -16,7 +16,7 @@ export type PageProgress = {
   keepInputValue?: boolean;
 };
 
-const READER_BUTTON_CLASS = "w-46px h-40px px-10px py-0 border rounded-6px color-button-reader cursor-pointer font-sans textsize-sm font-700 leading-1";
+const READER_BUTTON_CLASS = "control-reader-btn border color-button-reader cursor-pointer font-sans textsize-sm font-700 leading-1";
 
 function toolbarDom(handlers: {
   onReadDirectionClick: () => void;
@@ -100,7 +100,7 @@ function toolbarDom(handlers: {
     >
       <input
         type="range"
-        className="ehpeek-progress w-full h-48px m-0 px-12px py-0 color-progress-reader cursor-grab touch-none select-none [-webkit-appearance:none] [appearance:none]"
+        className="ehpeek-progress w-full control-range m-0 color-progress-reader cursor-grab touch-none select-none [-webkit-appearance:none] [appearance:none]"
         min="1"
         step="1"
         ref={(node: HTMLInputElement) => {

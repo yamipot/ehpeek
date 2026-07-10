@@ -113,7 +113,7 @@ async function generateUnoCss() {
   const content = readSourceFiles(path.join(packageDir, "src"))
     .map((file) => readFileSync(file, "utf-8"))
     .join("\n");
-  const result = await generator.generate(content, { preflights: false });
+  const result = await generator.generate(content, { preflights: true });
 
   return result.css;
 }

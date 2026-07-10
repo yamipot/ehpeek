@@ -11,7 +11,7 @@
   display: block;
   box-sizing: border-box;
   width: 100%;
-  min-height: 72px;
+  min-height: var(--ehpeek-control-touch-min-height);
   padding: 18px 24px;
   border: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -23,11 +23,8 @@
   text-decoration: none;
 }
 
-@media (max-width: 760px) {
-  .ehpeek-touch-top-bar-menu-item,
-  .ehpeek-touch-top-bar-menu-panel .ehpeek-settings-trigger {
-    min-height: 80px;
-    padding: 18px 26px;
-    font-size: 30px;
-  }
+html.ehpeek-touch-ui .ehpeek-touch-top-bar-menu-item,
+html.ehpeek-touch-ui .ehpeek-touch-top-bar-menu-panel .ehpeek-settings-trigger {
+  padding: 18px 26px;
+  font-size: 30px;
 }

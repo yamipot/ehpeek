@@ -9,9 +9,9 @@ export const SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index";
 
 const DRAG_PIXEL_STEP = 18;
 const PAGE_BAR_BOTTOM_CLASS = "mt-0 mb-10px";
-const PAGE_BAR_CELL_CLASS = "min-w-34px h-34px p-0 rounded-4px cursor-pointer text-center align-middle select-none";
+const PAGE_BAR_CELL_CLASS = "control-page p-0 cursor-pointer text-center align-middle select-none";
 const PAGE_BAR_CLASS = "border-separate border-spacing-4px mx-auto touch-pan-y";
-const PAGE_BAR_LINK_CLASS = "flex min-w-34px h-34px items-center justify-center box-border px-8px py-0 border border-current rounded-4px bg-transparent font-inherit no-underline";
+const PAGE_BAR_LINK_CLASS = "flex control-page items-center justify-center box-border px-8px py-0 border border-current bg-transparent textsize-sm font-inherit no-underline";
 const PAGE_BAR_TOP_CLASS = "mt-2px mb-0";
 let galleryPageBarWindowIndex: number | null = null;
 

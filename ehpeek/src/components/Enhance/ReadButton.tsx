@@ -20,7 +20,7 @@ export function installReadButton(
   const button = (
     <button
       type="button"
-      className="ehpeek-continue-reading block box-border w-full max-w-full mt-4px py-4px px-8px border rounded-4px color-panel-reader shadow-none cursor-pointer text-center font-sans textsize-sm font-700 leading-[1.15]"
+      className="ehpeek-continue-reading block box-border w-full max-w-full mt-4px control-compact border color-panel-reader-btn shadow-none cursor-pointer text-center font-sans textsize-sm font-700 leading-[1.15]"
       onClick={(event: MouseEvent) => {
         event.preventDefault();
         event.stopPropagation();

@@ -1,8 +1,5 @@
 import { h } from "../jsx";
 import texts from "../texts.json";
-import settingsMenuCss from "./SettingsMenu.css";
-
-const STYLE_ID = "ehpeek-settings-style";
 
 export type SettingsMenuState = {
   readerEnabled: boolean;
@@ -37,7 +34,7 @@ function settingsMenuDom(
   ) => (
     <button
       type="button"
-      className="ehpeek-settings-item flex w-full items-center justify-between gap-16px min-h-52px py-10px px-12px border-0 border-b color-border-subtle-b rounded-3px bg-transparent color-text cursor-pointer font-inherit text-left"
+      className="ehpeek-settings-item ehpeek-ui-state-dot flex w-full items-center justify-between gap-16px touch:gap-20px control-action border-0 border-b color-border-subtle-b bg-transparent color-text color-item-hover cursor-pointer font-inherit text-left textsize-md"
       role="switch"
       onClick={onClick}
       ref={(node: HTMLElement) => assign(node as HTMLButtonElement)}
@@ -51,7 +48,7 @@ function settingsMenuDom(
   ) => (
     <button
       type="button"
-      className={`${className} block w-full py-7px px-10px border color-border rounded-3px bg-transparent color-accent cursor-pointer font-inherit text-center`}
+      className={`${className} block w-full control-btn color-btn cursor-pointer font-inherit text-center textsize-md`}
       onClick={onClick}
       ref={(node: HTMLElement) => assign(node as HTMLButtonElement)}
     />
@@ -61,7 +58,7 @@ function settingsMenuDom(
     ? (
       <div className="ehpeek-settings-root">
         <a
-          className="ehpeek-settings-trigger"
+          className="ehpeek-settings-trigger textsize-sm font-inherit"
           href="#"
           onClick={handlers.onTriggerClick}
           ref={(node: HTMLElement) => {
@@ -74,7 +71,7 @@ function settingsMenuDom(
       <span className="ehpeek-settings-root">
         <button
           type="button"
-          className="ehpeek-settings-trigger"
+          className="ehpeek-settings-trigger textsize-sm font-inherit"
           onClick={handlers.onTriggerClick}
           ref={(node: HTMLElement) => {
             trigger = node;
@@ -83,7 +80,7 @@ function settingsMenuDom(
       </span>
     ) as HTMLElement;
   const menu = (
-    <div className="ehpeek-settings-menu fixed z-[2147483646] min-w-260px p-8px border color-border rounded-4px color-elevated color-text textsize-md leading-[1.2]" hidden>
+    <div className="ehpeek-settings-menu fixed z-[2147483646] min-w-260px touch:min-w-[min(92vw,520px)] p-8px border color-border rounded-4px color-elevated color-text textsize-md leading-[1.2]" hidden style="display: none;">
       {switchItemDom(handlers.onReaderClick, (node) => {
         readerSetting = node;
       })}
@@ -96,7 +93,7 @@ function settingsMenuDom(
       {switchItemDom(handlers.onTouchUiClick, (node) => {
         touchUiSetting = node;
       })}
-      <div className="ehpeek-settings-actions grid grid-cols-[1fr_1fr] gap-8px mt-6px">
+      <div className="ehpeek-settings-actions grid grid-cols-[1fr_1fr] gap-8px touch:gap-10px mt-6px touch:mt-8px">
         {actionButtonDom("ehpeek-settings-apply", handlers.onApplyClick, (node) => {
           applyButton = node;
         })}
@@ -136,6 +133,7 @@ function settingsMenuDom(
     },
     setOpen(open: boolean) {
       menu.hidden = !open;
+      menu.style.display = open ? "" : "none";
       trigger.setAttribute("aria-expanded", String(open));
       trigger.setAttribute("aria-haspopup", "menu");
     },
@@ -211,7 +209,6 @@ export class SettingsMenu {
   }
 
   mount(parent: Element): void {
-    ensureSettingsStyle();
     this.dom.mount(parent);
     this.bindGlobalEvents();
     this.update();
@@ -284,15 +281,4 @@ export class SettingsMenu {
     window.addEventListener("resize", () => this.dom.position());
     window.addEventListener("scroll", () => this.dom.position(), true);
   }
-}
-
-function ensureSettingsStyle(): void {
-  if (document.getElementById(STYLE_ID)) {
-    return;
-  }
-
-  const style = document.createElement("style");
-  style.id = STYLE_ID;
-  style.textContent = settingsMenuCss;
-  document.head.append(style);
 }

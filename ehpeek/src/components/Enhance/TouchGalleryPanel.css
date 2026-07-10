@@ -201,10 +201,10 @@ body {
   z-index: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  min-height: 87px;
+  min-height: var(--ehpeek-control-primary-height);
   margin: -18px max(14px, env(safe-area-inset-right, 0px)) 0 max(14px, env(safe-area-inset-left, 0px));
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: var(--ehpeek-control-radius-sm);
   background: #3f4249;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
 }
@@ -214,7 +214,7 @@ body {
   min-width: 0;
   align-items: center;
   justify-content: center;
-  padding: 12px 15px;
+  padding: var(--ehpeek-control-action-padding-y) 15px;
   border: 0;
   background: transparent;
   color: #f0b35a;
@@ -269,8 +269,8 @@ body {
 
 .ehpeek-touch-gallery-actions-menu-button {
   display: inline-flex;
-  width: 44px;
-  height: 44px;
+  width: var(--ehpeek-control-icon-size);
+  height: var(--ehpeek-control-icon-size);
   align-items: center;
   justify-content: center;
   border: 0;
@@ -307,7 +307,7 @@ body {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  min-height: 56px;
+  min-height: var(--ehpeek-control-menu-item-min-height);
   padding: 14px 18px;
   border: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -356,7 +356,7 @@ body {
 .ehpeek-touch-gallery-tags a,
 .ehpeek-touch-gallery-tag {
   display: inline-flex;
-  min-height: 51px;
+  min-height: var(--ehpeek-control-tag-min-height);
   align-items: center;
   padding: 0 21px;
   border: 1px solid #8d7454;

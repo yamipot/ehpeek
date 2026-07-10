@@ -3,7 +3,7 @@ import * as eh from "../../eh/dom";
 import touchTopBarCss from "./TouchTopBar.css";
 
 const STYLE_ID = "ehpeek-touch-top-bar-style";
-const TOUCH_ICON_BUTTON_CLASS = "inline-flex w-44px h-44px items-center justify-center border-0 bg-transparent color-text text-28px leading-1 no-underline";
+const TOUCH_ICON_BUTTON_CLASS = "inline-flex control-icon border-0 bg-transparent color-text text-28px leading-1 no-underline";
 
 function touchTopBarDom(info: eh.TouchTopBarInfo) {
   const menu = touchTopBarMenuDom(info.navItems);
