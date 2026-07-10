@@ -53,36 +53,4 @@
     text-transform: none;
   }
 
-  .ehpeek-gallery-actions {
-    display: flex;
-    height: auto !important;
-    min-height: 0 !important;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-    overflow: visible !important;
-  }
-
-  .ehpeek-gallery-actions > * {
-    box-sizing: border-box;
-    max-width: 100%;
-  }
-
-  .ehpeek-gallery-actions a,
-  .ehpeek-gallery-actions button,
-  .ehpeek-gallery-actions input[type="button"],
-  .ehpeek-gallery-actions input[type="submit"] {
-    min-height: 63px;
-    touch-action: manipulation;
-  }
-
-  .ehpeek-continue-reading {
-    margin-top: 0;
-    padding: 12px 15px;
-    font-size: 23px;
-  }
-
-  .ehpeek-continue-reading-page {
-    font-size: 18px;
-  }
 }
