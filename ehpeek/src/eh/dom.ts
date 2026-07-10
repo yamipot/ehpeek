@@ -76,10 +76,16 @@ export type GalleryInfo = {
   category: string;
   categoryClassName: string;
   cover: HTMLElement | null;
+  favorite: GalleryFavoriteInfo;
   summary: GallerySummaryItem[];
   actions: HTMLElement[];
   rating: HTMLElement | null;
   tagGroups: GalleryTagGroup[];
+};
+
+export type GalleryFavoriteInfo = {
+  favorited: boolean;
+  label: string;
 };
 
 export type TouchTopBarInfo = {
@@ -435,6 +441,7 @@ export function readGalleryInfo(): GalleryInfo {
     category: textOf("#gdc"),
     categoryClassName: readGalleryCategoryClassName(),
     cover: coverUrl ? createGalleryCoverImageDom(coverUrl) : null,
+    favorite: readGalleryFavoriteInfo(),
     summary,
     actions: readGalleryActionsDom(),
     rating: readGalleryRatingDom(),
@@ -604,14 +611,20 @@ function cloneGalleryTagDom(tag: HTMLAnchorElement): HTMLElement {
   return clone;
 }
 
-function findDownloadAction(): HTMLElement | null {
-  const actions = Array.from(document.querySelectorAll<HTMLElement>("#gd5 a, #gd5 button, #gd5 input[type='button'], #gd5 input[type='submit']"));
+function readGalleryFavoriteInfo(): GalleryFavoriteInfo {
+  const label = textOf("#favoritelink");
+  const iconTitle = document.querySelector("#fav [title]")?.getAttribute("title")?.trim() ?? "";
+  const text = label || iconTitle;
+  const favorited = /^favorites?\s+\d+/i.test(text);
 
-  return actions.find((item) => /download|archive/i.test(item.textContent ?? item.getAttribute("value") ?? "")) ?? actions[0] ?? null;
+  return {
+    favorited,
+    label: favorited ? text : "Not Favorited",
+  };
 }
 
-export function clickGalleryDownloadAction(): void {
-  findDownloadAction()?.click();
+export function clickGalleryFavoriteAction(): void {
+  document.querySelector<HTMLElement>("#gdf")?.click();
 }
 
 export function mountGalleryContinueReadingButton(button: HTMLButtonElement): void {

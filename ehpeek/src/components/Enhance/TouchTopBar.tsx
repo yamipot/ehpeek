@@ -51,7 +51,7 @@ function touchTopBarMenuDom(navItems: HTMLElement[]) {
         ⋮
       </button>
       <div
-        className="ehpeek-touch-top-bar-menu-panel fixed top-[max(64px,calc(env(safe-area-inset-top,0px)+8px))] right-[max(24px,calc(env(safe-area-inset-right,0px)+24px))] z-[2147483645] flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border color-border rounded-4px color-elevated"
+        className="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+8px)] right-0 z-[2147483645] flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border color-border rounded-4px color-elevated"
         hidden
         ref={(node: HTMLElement) => {
           panel = node;

@@ -1,7 +1,6 @@
 import { h } from "../../jsx";
 import * as eh from "../../eh/dom";
 import type { GalleryInfo, GalleryTagGroup } from "../../eh/dom";
-import texts from "../../texts.json";
 import touchGalleryPanelCss from "./TouchGalleryPanel.css";
 
 const STYLE_ID = "ehpeek-touch-gallery-panel-style";
@@ -38,7 +37,7 @@ function touchGalleryPanelDom(source: GalleryInfo) {
         </div>
       </div>
       <div className="ehpeek-touch-gallery-primary">
-        {touchGalleryDownloadButtonDom()}
+        {touchGalleryFavoriteButtonDom(source)}
         <div
           className="ehpeek-touch-gallery-primary-actions"
           ref={(node: HTMLElement) => {
@@ -130,16 +129,19 @@ function touchGalleryTagGroupDom(group: GalleryTagGroup): HTMLElement {
   ) as HTMLElement;
 }
 
-function touchGalleryDownloadButtonDom(): HTMLButtonElement {
+function touchGalleryFavoriteButtonDom(source: GalleryInfo): HTMLButtonElement {
   return (
     <button
       type="button"
-      className="ehpeek-touch-gallery-primary-button"
+      className={`ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button ${source.favorite.favorited ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`}
       onClick={() => {
-        eh.clickGalleryDownloadAction();
+        eh.clickGalleryFavoriteAction();
       }}
     >
-      {texts.reader.download}
+      <span className="ehpeek-touch-gallery-favorite-icon" aria-hidden="true">
+        {source.favorite.favorited ? "♥" : "♡"}
+      </span>
+      <span>{source.favorite.label}</span>
     </button>
   ) as HTMLButtonElement;
 }
