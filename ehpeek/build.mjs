@@ -1,8 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
+import { createGenerator } from "unocss";
+import unoConfig from "./uno.config.mjs";
 
 const packageDir = path.dirname(fileURLToPath(import.meta.url));
 const outfile = path.join(packageDir, "dist/ehpeek.user.js");
@@ -11,6 +13,7 @@ const releaseBuild = process.env.EHPEEK_RELEASE_BUILD === "true";
 const debugBuild = process.env.EHPEEK_DEBUG === "true";
 const installUrl = userscriptInstallUrl();
 const version = userscriptVersion();
+const unoCss = await generateUnoCss();
 
 const metadata = [
   "// ==UserScript==",
@@ -46,6 +49,7 @@ await build({
   loader: {
     ".css": "text",
   },
+  plugins: [unoCssPlugin(unoCss)],
   minifySyntax: !debugBuild,
   sourcemap: releaseBuild ? false : "linked",
   banner: {
@@ -102,4 +106,50 @@ function devTimeStamp() {
   const parts = Object.fromEntries(formatter.formatToParts(new Date()).map((part) => [part.type, part.value]));
 
   return `${parts.year}${parts.month}${parts.day}.${parts.hour}${parts.minute}${parts.second}`;
+}
+
+async function generateUnoCss() {
+  const generator = await createGenerator(unoConfig);
+  const content = readSourceFiles(path.join(packageDir, "src"))
+    .map((file) => readFileSync(file, "utf-8"))
+    .join("\n");
+  const result = await generator.generate(content, { preflights: false });
+
+  return result.css;
+}
+
+function readSourceFiles(dir) {
+  const output = [];
+
+  for (const entry of readdirSync(dir)) {
+    const file = path.join(dir, entry);
+    const stat = statSync(file);
+
+    if (stat.isDirectory()) {
+      output.push(...readSourceFiles(file));
+      continue;
+    }
+
+    if (/\.(css|ts|tsx)$/.test(file)) {
+      output.push(file);
+    }
+  }
+
+  return output;
+}
+
+function unoCssPlugin(css) {
+  return {
+    name: "ehpeek-uno-css",
+    setup(build) {
+      build.onResolve({ filter: /^ehpeek:uno\.css$/ }, (args) => ({
+        namespace: "ehpeek-uno-css",
+        path: args.path,
+      }));
+      build.onLoad({ filter: /.*/, namespace: "ehpeek-uno-css" }, () => ({
+        contents: css,
+        loader: "text",
+      }));
+    },
+  };
 }

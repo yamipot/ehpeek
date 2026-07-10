@@ -3,6 +3,11 @@ declare module "*.css" {
   export default css;
 }
 
+declare module "ehpeek:uno.css" {
+  const css: string;
+  export default css;
+}
+
 declare const __EHPEEK_DEBUG__: boolean;
 declare const GM_getValue: <T>(key: string, defaultValue: T) => T;
 declare const GM_setValue: <T>(key: string, value: T) => void;

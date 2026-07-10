@@ -10,7 +10,7 @@ const TOUCH_GALLERY_PANEL_PAGE_STYLE_ID = "ehpeek-touch-gallery-panel-page-style
 const TOUCH_TOP_BAR_PAGE_STYLE_ID = "ehpeek-touch-top-bar-page-style";
 const SCROLL_PAGE_BAR_TOP_CLASS = "ehpeek-scroll-page-bar-top";
 const SCROLL_PAGE_BAR_BOTTOM_CLASS = "ehpeek-scroll-page-bar-bottom";
-const PREVIEW_PLACEHOLDER_CLASS = "ehpeek-preview-placeholder";
+const PREVIEW_PLACEHOLDER_CLASS = "ehpeek-preview-placeholder flex items-center justify-center opacity-72";
 
 const TOUCH_GALLERY_PANEL_PAGE_CSS = `
   :root {

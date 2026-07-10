@@ -15,6 +15,7 @@ import texts from "./texts.json";
 import { state } from "./state";
 import { loadReaderHistory, ReaderHistorySession } from "./history";
 import { normalizeUrl } from "./utils";
+import { installUnoStyle } from "./styles/uno";
 
 const READER_WINDOW_SIZE = 10;
 
@@ -22,6 +23,8 @@ let menuCommandId: number | string | null = null;
 let settingsMenu: SettingsMenu | null = null;
 let touchGalleryPanel: TouchGalleryPanel | null = null;
 let touchTopBar: TouchTopBar | null = null;
+
+installUnoStyle();
 
 function updateReaderEnabled(enabled: boolean): void {
   state.reader.enabled.set(enabled);

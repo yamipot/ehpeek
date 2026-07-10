@@ -8,6 +8,12 @@ export const SCROLL_PAGE_BAR_BOTTOM_CLASS = "ehpeek-scroll-page-bar-bottom";
 export const SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index";
 
 const DRAG_PIXEL_STEP = 18;
+const PAGE_BAR_BOTTOM_CLASS = "mt-0 mb-10px";
+const PAGE_BAR_CELL_CLASS = "min-w-34px h-34px p-0 rounded-4px cursor-pointer text-center align-middle select-none";
+const PAGE_BAR_CLASS = "border-separate border-spacing-4px mx-auto touch-pan-y";
+const PAGE_BAR_EMPTY_CLASS = "cursor-default";
+const PAGE_BAR_LINK_CLASS = "flex min-w-34px h-34px items-center justify-center box-border px-8px py-0 border border-current rounded-4px bg-transparent font-inherit no-underline";
+const PAGE_BAR_TOP_CLASS = "mt-2px mb-0";
 let galleryPageBarWindowIndex: number | null = null;
 
 type PageBarSlot =
@@ -27,7 +33,7 @@ export type ScrollPageBarOptions = {
 function scrollPageBarDom(top: boolean) {
   const body = <tbody /> as HTMLTableSectionElement;
   const element = (
-    <table className={`${SCROLL_PAGE_BAR_CLASS} ${top ? SCROLL_PAGE_BAR_TOP_CLASS : SCROLL_PAGE_BAR_BOTTOM_CLASS}`}>
+    <table className={`${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}`}>
       {body}
     </table>
   ) as HTMLTableElement;
@@ -72,15 +78,15 @@ function pageBarRowDom(options: {
 function pageBarLinkCellDom(text: string, pageIndex: number, current: boolean, urlForIndex: (index: number) => string): HTMLTableCellElement {
   if (current) {
     return (
-      <td className="ptds">
-        <span>{text}</span>
+      <td className={`ptds ${PAGE_BAR_CELL_CLASS}`}>
+        <span className={PAGE_BAR_LINK_CLASS}>{text}</span>
       </td>
     ) as HTMLTableCellElement;
   }
 
   return (
-    <td>
-      <a href={urlForIndex(pageIndex)} data-page-index={String(pageIndex)}>
+    <td className={PAGE_BAR_CELL_CLASS}>
+      <a className={PAGE_BAR_LINK_CLASS} href={urlForIndex(pageIndex)} data-page-index={String(pageIndex)}>
         {text}
       </a>
     </td>
@@ -89,8 +95,8 @@ function pageBarLinkCellDom(text: string, pageIndex: number, current: boolean, u
 
 function pageBarEmptyCellDom(): HTMLTableCellElement {
   return (
-    <td className="ehpeek-scroll-page-bar-empty">
-      <span />
+    <td className={`ehpeek-scroll-page-bar-empty ${PAGE_BAR_CELL_CLASS} ${PAGE_BAR_EMPTY_CLASS}`}>
+      <span className={PAGE_BAR_LINK_CLASS} />
     </td>
   ) as HTMLTableCellElement;
 }

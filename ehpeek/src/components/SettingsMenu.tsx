@@ -3,6 +3,8 @@ import texts from "../texts.json";
 import settingsMenuCss from "./SettingsMenu.css";
 
 const STYLE_ID = "ehpeek-settings-style";
+const SETTINGS_BUTTON_CLASS = "block w-full py-7px px-10px border color-border rounded-3px bg-transparent color-accent cursor-pointer font-inherit text-center";
+const SETTINGS_ITEM_CLASS = "flex w-full items-center justify-between gap-16px min-h-52px py-10px px-12px border-0 border-b border-b-[rgba(255,255,255,0.1)] rounded-3px bg-transparent color-text cursor-pointer font-inherit text-left";
 
 export type SettingsMenuState = {
   readerEnabled: boolean;
@@ -37,7 +39,7 @@ function settingsMenuDom(
   ) => (
     <button
       type="button"
-      className="ehpeek-settings-item"
+      className={`ehpeek-settings-item ${SETTINGS_ITEM_CLASS}`}
       role="switch"
       onClick={onClick}
       ref={(node: HTMLElement) => assign(node as HTMLButtonElement)}
@@ -51,7 +53,7 @@ function settingsMenuDom(
   ) => (
     <button
       type="button"
-      className={className}
+      className={`${className} ${SETTINGS_BUTTON_CLASS}`}
       onClick={onClick}
       ref={(node: HTMLElement) => assign(node as HTMLButtonElement)}
     />
@@ -83,7 +85,7 @@ function settingsMenuDom(
       </span>
     ) as HTMLElement;
   const menu = (
-    <div className="ehpeek-settings-menu" hidden>
+    <div className="ehpeek-settings-menu fixed z-[2147483646] min-w-260px p-8px border color-border rounded-4px color-elevated color-text textsize-md leading-[1.2]" hidden>
       {switchItemDom(handlers.onReaderClick, (node) => {
         readerSetting = node;
       })}
@@ -96,7 +98,7 @@ function settingsMenuDom(
       {switchItemDom(handlers.onTouchUiClick, (node) => {
         touchUiSetting = node;
       })}
-      <div className="ehpeek-settings-actions">
+      <div className="ehpeek-settings-actions grid grid-cols-[1fr_1fr] gap-8px mt-6px">
         {actionButtonDom("ehpeek-settings-apply", handlers.onApplyClick, (node) => {
           applyButton = node;
         })}

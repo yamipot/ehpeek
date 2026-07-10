@@ -16,6 +16,9 @@ const SEARCH_SWIPE_INDICATOR_ACTIVE_CLASS = "ehpeek-search-swipe-indicator-activ
 const SEARCH_SWIPE_INDICATOR_LEFT_CLASS = "ehpeek-search-swipe-indicator-left";
 const SEARCH_SWIPE_INDICATOR_RIGHT_CLASS = "ehpeek-search-swipe-indicator-right";
 const SEARCH_SWIPE_INDICATOR_DISABLED_CLASS = "ehpeek-search-swipe-indicator-disabled";
+const SEARCH_SWIPE_INDICATOR_STYLE_CLASS = "fixed top-1/2 z-[2147483645] hidden w-42px h-108px items-center justify-center border color-dim-border rounded-22px bg-[rgba(16,16,16,0.38)] text-[rgba(255,255,255,0.88)] text-52px font-sans font-300 leading-1 pointer-events-none select-none transition-opacity duration-120 ease-in-out";
+const SEARCH_SWIPE_OVERLAY_STYLE_CLASS = "absolute inset-0 z-2 bg-transparent overscroll-x-contain touch-pan-y";
+const SEARCH_SWIPE_WRAPPER_STYLE_CLASS = "relative";
 
 let installed = false;
 let overlayElement: HTMLDivElement | null = null;
@@ -76,13 +79,13 @@ function installResultListOverlayDom(resultList: HTMLElement): HTMLDivElement {
   const existingWrapper = resultList.parentElement?.classList.contains(SEARCH_SWIPE_WRAPPER_CLASS)
     ? (resultList.parentElement as HTMLDivElement)
     : null;
-  const wrapper = existingWrapper ?? (<div className={SEARCH_SWIPE_WRAPPER_CLASS} /> as HTMLDivElement);
+  const wrapper = existingWrapper ?? (<div className={`${SEARCH_SWIPE_WRAPPER_CLASS} ${SEARCH_SWIPE_WRAPPER_STYLE_CLASS}`} /> as HTMLDivElement);
 
   wrapper.querySelectorAll<HTMLElement>(`:scope > .${SEARCH_SWIPE_OVERLAY_CLASS}`).forEach((item) => item.remove());
   overlay = (
-    <div className={SEARCH_SWIPE_OVERLAY_CLASS} aria-hidden="true">
+    <div className={`${SEARCH_SWIPE_OVERLAY_CLASS} ${SEARCH_SWIPE_OVERLAY_STYLE_CLASS}`} aria-hidden="true">
       <div
-        className={SEARCH_SWIPE_INDICATOR_CLASS}
+        className={`${SEARCH_SWIPE_INDICATOR_CLASS} ${SEARCH_SWIPE_INDICATOR_STYLE_CLASS}`}
         aria-hidden="true"
         ref={(node: HTMLElement) => {
           indicatorElement = node as HTMLDivElement;

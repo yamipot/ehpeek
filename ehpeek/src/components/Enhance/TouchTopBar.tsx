@@ -3,12 +3,15 @@ import * as eh from "../../eh/dom";
 import touchTopBarCss from "./TouchTopBar.css";
 
 const STYLE_ID = "ehpeek-touch-top-bar-style";
+const TOUCH_ICON_BUTTON_CLASS = "inline-flex w-44px h-44px items-center justify-center border-0 bg-transparent color-text textsize-lg leading-1 no-underline";
+const TOUCH_MENU_PANEL_CLASS = "fixed top-[max(64px,calc(env(safe-area-inset-top,0px)+8px))] right-[max(24px,calc(env(safe-area-inset-right,0px)+24px))] z-[2147483645] flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border color-border rounded-4px color-elevated";
+const TOUCH_TOPBAR_CLASS = "relative z-[2147483640] flex box-border w-full min-h-56px items-center justify-between color-surface color-text font-sans";
 
 function touchTopBarDom(info: eh.TouchTopBarInfo) {
   const menu = touchTopBarMenuDom(info.navItems);
   const root = (
-    <nav className="ehpeek-touch-top-bar">
-      <a className="ehpeek-touch-top-bar-home" href={info.homeHref}>
+    <nav className={`ehpeek-touch-top-bar ${TOUCH_TOPBAR_CLASS}`}>
+      <a className={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`} href={info.homeHref}>
         ⌂
       </a>
       {menu.element}
@@ -33,10 +36,10 @@ function touchTopBarMenuDom(navItems: HTMLElement[]) {
     button.setAttribute("aria-expanded", String(open));
   };
   const menu = (
-    <div className="ehpeek-touch-top-bar-menu">
+    <div className="ehpeek-touch-top-bar-menu relative">
       <button
         type="button"
-        className="ehpeek-touch-top-bar-menu-button"
+        className={`ehpeek-touch-top-bar-menu-button ${TOUCH_ICON_BUTTON_CLASS}`}
         aria-haspopup="menu"
         aria-expanded="false"
         onClick={(event: MouseEvent) => {
@@ -50,7 +53,7 @@ function touchTopBarMenuDom(navItems: HTMLElement[]) {
         ⋮
       </button>
       <div
-        className="ehpeek-touch-top-bar-menu-panel"
+        className={`ehpeek-touch-top-bar-menu-panel ${TOUCH_MENU_PANEL_CLASS}`}
         hidden
         ref={(node: HTMLElement) => {
           panel = node;

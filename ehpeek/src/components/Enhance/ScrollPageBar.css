@@ -1,55 +1,9 @@
-.ehpeek-scroll-page-bar {
-  border-collapse: separate;
-  border-spacing: 4px;
-  margin-left: auto;
-  margin-right: auto;
-  touch-action: pan-y;
-}
-
-.ehpeek-scroll-page-bar-top {
-  margin-top: 2px;
-  margin-bottom: 0;
-}
-
-.ehpeek-scroll-page-bar-bottom {
-  margin-top: 0;
-  margin-bottom: 10px;
-}
-
-.ehpeek-scroll-page-bar td {
-  min-width: 34px;
-  height: 34px;
-  padding: 0;
-  border-radius: 4px;
-  cursor: pointer;
-  text-align: center;
-  vertical-align: middle;
-  user-select: none;
-}
-
 .ehpeek-scroll-page-bar-dragging {
   cursor: grabbing;
 }
 
 .ehpeek-scroll-page-bar-dragging td {
   cursor: grabbing;
-}
-
-.ehpeek-scroll-page-bar a,
-.ehpeek-scroll-page-bar button,
-.ehpeek-scroll-page-bar span {
-  display: flex;
-  min-width: 34px;
-  height: 34px;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  padding: 0 8px;
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  background: transparent;
-  font: inherit;
-  text-decoration: none;
 }
 
 .ehpeek-scroll-page-bar button {
@@ -72,19 +26,8 @@
   padding: 0 10px;
 }
 
-.ehpeek-scroll-page-bar .ehpeek-scroll-page-bar-empty {
-  cursor: default;
-}
-
 .ehpeek-scroll-page-bar .ehpeek-scroll-page-bar-empty span {
   visibility: hidden;
-}
-
-.ehpeek-preview-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.72;
 }
 
 .ehpeek-preview-placeholder::before {
