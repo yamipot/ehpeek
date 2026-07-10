@@ -18,19 +18,18 @@ const SWIPE_INTENT_DISTANCE = 28;
 const HORIZONTAL_INTENT_RATIO = 2.2;
 const SWIPE_MAX_VERTICAL_RATIO = 0.38;
 const THUMBS_SWIPE_WRAPPER_CLASS = "ehpeek-thumbs-swipe-wrapper";
-const THUMBS_SWIPE_OVERLAY_CLASS = "ehpeek-thumbs-swipe-overlay";
 
 let galleryThumbEnhancementErrorHandler: ((error: unknown) => void) | null = null;
 let galleryThumbEnhancementClickInstalled = false;
-let overlayElement: HTMLDivElement | null = null;
+let swipeElement: HTMLDivElement | null = null;
 let swipeIndicator: SwipeIndicator | null = null;
 let swipeState: SwipeState | null = null;
 let galleryNavigationLoading = false;
+const installedSwipeElements = new WeakSet<HTMLElement>();
 
 type SwipeState = {
   horizontal: boolean;
   cancelled: boolean;
-  suppressClick: boolean;
 };
 
 export function enhanceThumbsGridsEnabled(): boolean {
@@ -149,7 +148,7 @@ export async function navigateGalleryPreview(
   const targetPreviewIndex = eh.previewPageIndexFromUrl(url);
 
   galleryNavigationLoading = true;
-  overlayElement?.setAttribute("aria-busy", "true");
+  swipeElement?.setAttribute("aria-busy", "true");
 
   window.history.replaceState(window.history.state, "", url);
 
@@ -180,7 +179,7 @@ export async function navigateGalleryPreview(
     throw error;
   } finally {
     galleryNavigationLoading = false;
-    overlayElement?.removeAttribute("aria-busy");
+    swipeElement?.removeAttribute("aria-busy");
   }
 }
 
@@ -195,10 +194,16 @@ function installThumbsGridSwipe(): void {
     return;
   }
 
-  overlayElement = installThumbsGridOverlayDom(thumbs);
-  new PointerDrag(overlayElement, {
+  swipeElement = installThumbsGridSwipeDom(thumbs);
+
+  if (installedSwipeElements.has(swipeElement)) {
+    return;
+  }
+
+  installedSwipeElements.add(swipeElement);
+  new PointerDrag(swipeElement, {
     onStart: () => {
-      swipeState = { horizontal: false, cancelled: false, suppressClick: false };
+      swipeState = { horizontal: false, cancelled: false };
       hideSwipeIndicator();
     },
     onMove: (info, event) => {
@@ -210,29 +215,19 @@ function installThumbsGridSwipe(): void {
       swipeState = null;
       hideSwipeIndicator();
     },
-    shouldSuppressClick: () => swipeState?.suppressClick ?? false,
-    onSuppressClick: () => {
-      swipeState = null;
-      hideSwipeIndicator();
+    onTap: (info) => {
+      clickFromStartTarget(info.startTarget, info.clientX, info.clientY);
     },
   });
-  overlayElement.addEventListener("click", onOverlayClick);
 }
 
-function installThumbsGridOverlayDom(thumbs: HTMLElement): HTMLDivElement {
-  let overlay!: HTMLDivElement;
+function installThumbsGridSwipeDom(thumbs: HTMLElement): HTMLDivElement {
   const existingWrapper = thumbs.parentElement?.classList.contains(THUMBS_SWIPE_WRAPPER_CLASS)
     ? (thumbs.parentElement as HTMLDivElement)
     : null;
   const wrapper = existingWrapper ?? (<div className={`${THUMBS_SWIPE_WRAPPER_CLASS} relative`} /> as HTMLDivElement);
   const indicator = new SwipeIndicator();
 
-  wrapper.querySelectorAll<HTMLElement>(`:scope > .${THUMBS_SWIPE_OVERLAY_CLASS}`).forEach((item) => item.remove());
-  overlay = (
-    <div className={`${THUMBS_SWIPE_OVERLAY_CLASS} absolute inset-0 z-2 bg-transparent overscroll-x-contain touch-pan-y`} aria-hidden="true">
-      {indicator.element}
-    </div>
-  ) as HTMLDivElement;
   swipeIndicator = indicator;
 
   if (!existingWrapper) {
@@ -240,41 +235,24 @@ function installThumbsGridOverlayDom(thumbs: HTMLElement): HTMLDivElement {
     wrapper.append(thumbs);
   }
 
-  wrapper.append(overlay);
-  return overlay;
+  wrapper.querySelectorAll<HTMLElement>(":scope > .ehpeek-swipe-indicator").forEach((item) => item.remove());
+  wrapper.append(indicator.element);
+  return wrapper;
 }
 
-function onOverlayClick(event: MouseEvent): void {
-  if (swipeState?.suppressClick) {
+function clickFromStartTarget(startTarget: EventTarget | null, clientX: number, clientY: number): void {
+  if (!(startTarget instanceof Element)) {
     return;
   }
 
-  event.preventDefault();
-  event.stopPropagation();
-  forwardClickThroughOverlay(event.clientX, event.clientY);
-}
-
-function forwardClickThroughOverlay(clientX: number, clientY: number): void {
-  if (!overlayElement) {
-    return;
-  }
-
-  overlayElement.style.pointerEvents = "none";
-  const target = document.elementFromPoint(clientX, clientY);
-  overlayElement.style.pointerEvents = "";
-
-  if (!(target instanceof Element)) {
-    return;
-  }
-
-  const link = target.closest<HTMLAnchorElement>("a[href]");
+  const link = startTarget.closest<HTMLAnchorElement>("a[href]");
 
   if (link) {
     link.click();
     return;
   }
 
-  target.dispatchEvent(
+  startTarget.dispatchEvent(
     new MouseEvent("click", {
       bubbles: true,
       cancelable: true,
@@ -306,7 +284,6 @@ function updateSwipeState(info: PointerDragMove, event: PointerEvent | MouseEven
 
   if (absX >= SWIPE_INTENT_DISTANCE && absX >= absY * HORIZONTAL_INTENT_RATIO) {
     swipeState.horizontal = true;
-    swipeState.suppressClick = true;
     event.preventDefault();
   }
 }
@@ -350,7 +327,6 @@ function navigateBySwipe(info: PointerDragEnd, event: Event): void {
   const url = swipeUrlForDelta(dx);
 
   if (url) {
-    swipeState.suppressClick = true;
     event.preventDefault();
     void navigateGalleryPreview(url, { scrollToPageBar: dx < 0 ? "top" : "bottom" }).catch((error) =>
       galleryThumbEnhancementErrorHandler?.(error),

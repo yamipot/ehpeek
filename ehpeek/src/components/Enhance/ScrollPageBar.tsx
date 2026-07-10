@@ -10,7 +10,7 @@ export const SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index";
 const DRAG_PIXEL_STEP = 18;
 const PAGE_BAR_BOTTOM_CLASS = "mt-0 mb-10px";
 const PAGE_BAR_CELL_CLASS = "control-page p-0 cursor-pointer text-center align-middle select-none";
-const PAGE_BAR_CLASS = "relative w-max mx-auto touch-pan-y";
+const PAGE_BAR_CLASS = "w-max mx-auto touch-pan-y";
 const PAGE_BAR_LINK_CLASS = "flex control-page items-center justify-center box-border px-0 py-0 border border-current bg-transparent textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
 const PAGE_BAR_TABLE_CLASS = "border-separate border-spacing-4px touch:border-spacing-6px";
 const PAGE_BAR_TOP_CLASS = "mt-2px mb-0";
@@ -33,13 +33,9 @@ export type ScrollPageBarOptions = {
 function scrollPageBarDom(top: boolean, draggable: boolean) {
   const body = <tbody /> as HTMLTableSectionElement;
   const table = <table className={PAGE_BAR_TABLE_CLASS}>{body}</table> as HTMLTableElement;
-  const overlay = (
-    <div className={`absolute inset-0 z-1 cursor-pointer bg-transparent ${draggable ? "" : "pointer-events-none"}`} aria-hidden="true" />
-  ) as HTMLDivElement;
   const element = (
     <div className={`${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}`}>
       {table}
-      {overlay}
     </div>
   ) as HTMLDivElement;
 
@@ -51,14 +47,6 @@ function scrollPageBarDom(top: boolean, draggable: boolean) {
     },
     setDragging(dragging: boolean) {
       element.classList.toggle("ehpeek-scroll-page-bar-dragging", dragging);
-    },
-    linkAt(clientX: number, clientY: number): HTMLAnchorElement | null {
-      overlay.style.pointerEvents = "none";
-      const target = document.elementFromPoint(clientX, clientY);
-      overlay.style.pointerEvents = "";
-      const link = target instanceof Element ? target.closest<HTMLAnchorElement>("a[data-page-index]") : null;
-
-      return link && element.contains(link) ? link : null;
     },
   };
 }
@@ -188,9 +176,9 @@ export class ScrollPageBar {
   }
 
   private tapPageLink(info: PointerDragTap): void {
-    const link = this.dom.linkAt(info.clientX, info.clientY);
+    const link = info.startTarget instanceof Element ? info.startTarget.closest<HTMLAnchorElement>("a[data-page-index]") : null;
 
-    if (!link) {
+    if (!link || !this.element.contains(link)) {
       return;
     }
 

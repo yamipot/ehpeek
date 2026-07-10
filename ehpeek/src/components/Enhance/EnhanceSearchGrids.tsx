@@ -9,13 +9,13 @@ const SWIPE_INTENT_DISTANCE = 28;
 const HORIZONTAL_INTENT_RATIO = 2.2;
 const SWIPE_MAX_VERTICAL_RATIO = 0.38;
 const SEARCH_SWIPE_WRAPPER_CLASS = "ehpeek-search-swipe-wrapper";
-const SEARCH_SWIPE_OVERLAY_CLASS = "ehpeek-search-swipe-overlay";
 
 let installed = false;
-let overlayElement: HTMLDivElement | null = null;
+let swipeElement: HTMLDivElement | null = null;
 let swipeIndicator: SwipeIndicator | null = null;
 let swipeState: SwipeState | null = null;
 let searchNavigationLoading = false;
+const installedSwipeElements = new WeakSet<HTMLElement>();
 
 type SwipeState = {
   horizontal: boolean;
@@ -39,8 +39,14 @@ export function installEnhanceSearchGrids(pageType: Extract<PageType, { type: "s
 }
 
 function installResultListEnhancement(resultList: HTMLElement): void {
-  overlayElement = installResultListOverlayDom(resultList);
-  new PointerDrag(overlayElement, {
+  swipeElement = installResultListSwipeDom(resultList);
+
+  if (installedSwipeElements.has(swipeElement)) {
+    return;
+  }
+
+  installedSwipeElements.add(swipeElement);
+  new PointerDrag(swipeElement, {
     onStart: () => {
       swipeState = { horizontal: false, cancelled: false };
       hideSwipeIndicator();
@@ -55,25 +61,18 @@ function installResultListEnhancement(resultList: HTMLElement): void {
       hideSwipeIndicator();
     },
     onTap: (info) => {
-      forwardClickThroughOverlay(info.clientX, info.clientY);
+      clickFromStartTarget(info.startTarget, info.clientX, info.clientY);
     },
   });
 }
 
-function installResultListOverlayDom(resultList: HTMLElement): HTMLDivElement {
-  let overlay!: HTMLDivElement;
+function installResultListSwipeDom(resultList: HTMLElement): HTMLDivElement {
   const existingWrapper = resultList.parentElement?.classList.contains(SEARCH_SWIPE_WRAPPER_CLASS)
     ? (resultList.parentElement as HTMLDivElement)
     : null;
   const wrapper = existingWrapper ?? (<div className={`${SEARCH_SWIPE_WRAPPER_CLASS} relative`} /> as HTMLDivElement);
   const indicator = new SwipeIndicator();
 
-  wrapper.querySelectorAll<HTMLElement>(`:scope > .${SEARCH_SWIPE_OVERLAY_CLASS}`).forEach((item) => item.remove());
-  overlay = (
-    <div className={`${SEARCH_SWIPE_OVERLAY_CLASS} absolute inset-0 z-2 bg-transparent overscroll-x-contain touch-pan-y`} aria-hidden="true">
-      {indicator.element}
-    </div>
-  ) as HTMLDivElement;
   swipeIndicator = indicator;
 
   if (!existingWrapper) {
@@ -81,8 +80,9 @@ function installResultListOverlayDom(resultList: HTMLElement): HTMLDivElement {
     wrapper.append(resultList);
   }
 
-  wrapper.append(overlay);
-  return overlay;
+  wrapper.querySelectorAll<HTMLElement>(":scope > .ehpeek-swipe-indicator").forEach((item) => item.remove());
+  wrapper.append(indicator.element);
+  return wrapper;
 }
 
 function onSearchNavigationClick(event: MouseEvent): void {
@@ -97,27 +97,19 @@ function onSearchNavigationClick(event: MouseEvent): void {
   void navigateSearchPage(link.href, isNextPageOrJump(link));
 }
 
-function forwardClickThroughOverlay(clientX: number, clientY: number): void {
-  if (!overlayElement) {
+function clickFromStartTarget(startTarget: EventTarget | null, clientX: number, clientY: number): void {
+  if (!(startTarget instanceof Element)) {
     return;
   }
 
-  overlayElement.style.pointerEvents = "none";
-  const target = document.elementFromPoint(clientX, clientY);
-  overlayElement.style.pointerEvents = "";
-
-  if (!(target instanceof Element)) {
-    return;
-  }
-
-  const link = target.closest<HTMLAnchorElement>("a[href]");
+  const link = startTarget.closest<HTMLAnchorElement>("a[href]");
 
   if (link) {
     link.click();
     return;
   }
 
-  target.dispatchEvent(
+  startTarget.dispatchEvent(
     new MouseEvent("click", {
       bubbles: true,
       cancelable: true,
@@ -203,7 +195,7 @@ async function navigateSearchPage(url: string, scrollToTopNavigation: boolean): 
   }
 
   searchNavigationLoading = true;
-  overlayElement?.setAttribute("aria-busy", "true");
+  swipeElement?.setAttribute("aria-busy", "true");
   scrollSearchNavigationIntoView(scrollToTopNavigation);
 
   try {
@@ -214,7 +206,7 @@ async function navigateSearchPage(url: string, scrollToTopNavigation: boolean): 
     console.error("[ehpeek]", error);
   } finally {
     searchNavigationLoading = false;
-    overlayElement?.removeAttribute("aria-busy");
+    swipeElement?.removeAttribute("aria-busy");
   }
 }
 
