@@ -195,6 +195,7 @@ function installThumbsGridSwipe(): void {
   }
 
   swipeElement = installThumbsGridSwipeDom(thumbs);
+  eh.prepareThumbsGridSwipeTargets(thumbs);
 
   if (installedSwipeElements.has(swipeElement)) {
     return;

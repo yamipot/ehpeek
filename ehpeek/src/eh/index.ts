@@ -291,6 +291,10 @@ export function replacePreviewContent(doc: Document, baseUrl: string): void {
   replaceGalleryPageBar(previewPageIndexFromUrl(baseUrl) ?? previewPageIndex(), maxPreviewPageIndex(doc, baseUrl));
 }
 
+export function prepareThumbsGridSwipeTargets(thumbs: HTMLElement): void {
+  dom.prepareThumbsGridSwipeTargets(thumbs);
+}
+
 export function restorePreview(snapshot: unknown): void {
   dom.restorePreview(snapshot as PreviewSnapshot);
 }

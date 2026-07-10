@@ -276,6 +276,21 @@ export function replacePreviewContent(doc: Document): void {
   replaceFirstElement("#gdt", doc);
 }
 
+export function prepareThumbsGridSwipeTargets(thumbs: HTMLElement): void {
+  thumbs.style.touchAction = "pan-y";
+  thumbs.style.userSelect = "none";
+
+  thumbs.querySelectorAll<HTMLElement>("a, img, .gdtm, .gdtl").forEach((element) => {
+    element.style.touchAction = "pan-y";
+    element.style.userSelect = "none";
+
+    if (element instanceof HTMLImageElement) {
+      element.draggable = false;
+      element.style.setProperty("-webkit-user-drag", "none");
+    }
+  });
+}
+
 export function restorePreview(snapshot: PreviewSnapshot): void {
   const currentDescription = document.querySelector(".gpc");
   const currentThumbs = document.querySelector("#gdt");
