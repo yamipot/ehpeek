@@ -119,7 +119,7 @@ function onSearchNavigationClick(event: MouseEvent): void {
 
   event.preventDefault();
   event.stopPropagation();
-  void navigateSearchPage(link.href);
+  void navigateSearchPage(link.href, isNextPageOrJump(link));
 }
 
 function forwardClickThroughOverlay(clientX: number, clientY: number): void {
@@ -232,23 +232,23 @@ function navigateBySwipe(info: PointerDragEnd, event: Event): void {
   if (url) {
     swipeState.suppressClick = true;
     event.preventDefault();
-    void navigateSearchPage(url);
+    void navigateSearchPage(url, dx < 0);
   }
 }
 
-async function navigateSearchPage(url: string): Promise<void> {
+async function navigateSearchPage(url: string, scrollToTopNavigation: boolean): Promise<void> {
   if (searchNavigationLoading) {
     return;
   }
 
   searchNavigationLoading = true;
   overlayElement?.setAttribute("aria-busy", "true");
+  scrollSearchNavigationIntoView(scrollToTopNavigation);
 
   try {
     const resultList = await eh.replaceSearchPageContentFromUrl(url);
     window.history.pushState(window.history.state, "", url);
     installResultListEnhancement(resultList);
-    window.scrollTo({ top: 0, behavior: "auto" });
   } catch (error) {
     console.error("[ehpeek]", error);
   } finally {
@@ -265,6 +265,34 @@ function swipeUrlForDelta(dx: number): string | null {
   }
 
   return dx < 0 ? nav.nextUrl : nav.previousUrl;
+}
+
+function scrollSearchNavigationIntoView(enabled: boolean): void {
+  if (!enabled) {
+    return;
+  }
+
+  const target = document.querySelector<HTMLElement>(".searchnav");
+
+  if (!target) {
+    return;
+  }
+
+  const rect = target.getBoundingClientRect();
+  const currentTop = window.scrollY;
+  const targetTop = Math.max(0, currentTop + rect.top);
+
+  if (currentTop <= targetTop) {
+    return;
+  }
+
+  window.scrollTo({ top: targetTop, behavior: "auto" });
+}
+
+function isNextPageOrJump(link: HTMLAnchorElement): boolean {
+  const id = link.id.toLowerCase();
+
+  return id.endsWith("next") || id.endsWith("last");
 }
 
 function ensureSearchSwipeStyle(): void {
