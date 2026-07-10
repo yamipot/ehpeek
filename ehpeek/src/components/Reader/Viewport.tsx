@@ -67,7 +67,97 @@ function pagesViewportDom() {
     </div>
   ) as HTMLElement;
 
-  return { element, scroller, strip };
+  const setOrder = (view: SlotView, visualIndex: number) => {
+    view.node.style.setProperty("order", String(visualIndex));
+    view.node.dataset.ehpeekIndex = String(visualIndex);
+  };
+
+  const setPageNum = (view: SlotView, pageNum: number) => {
+    view.node.dataset.ehpeekPageNum = String(pageNum);
+  };
+
+  const createView = (pageNum: number, visualIndex: number): SlotView => {
+    const view = slotViewDom();
+    setOrder(view, visualIndex);
+    setPageNum(view, pageNum);
+    return view;
+  };
+
+  const appendView = (view: SlotView) => {
+    strip.append(view.node);
+  };
+
+  const removeView = (view: SlotView) => {
+    view.node.remove();
+  };
+
+  const removeStaleViews = (keepNodes: Set<HTMLElement | null>) => {
+    for (const node of Array.from(strip.children)) {
+      if (!keepNodes.has(node as HTMLElement)) {
+        node.remove();
+      }
+    }
+  };
+
+  const viewConnected = (view: SlotView) => view.node.isConnected;
+  const slots = {
+    sync(
+      pageSlots: PageSlot[],
+      options: {
+        refreshSlot: (slot: PageSlot) => void;
+        visualIndex: (slotIndex: number, slotCount: number) => number;
+      },
+    ) {
+      const keepNodes = new Set(pageSlots.map((slot) => slot.view?.node ?? null).filter(Boolean));
+      removeStaleViews(keepNodes);
+
+      for (const slot of pageSlots) {
+        if (slot.view && !viewConnected(slot.view)) {
+          slot.view = null;
+        }
+
+        if (!slot.view) {
+          slot.view = createView(slot.pageNum, options.visualIndex(slot.index, pageSlots.length));
+          appendView(slot.view);
+        }
+
+        options.refreshSlot(slot);
+
+        if (slot.view) {
+          setOrder(slot.view, options.visualIndex(slot.index, pageSlots.length));
+        }
+      }
+    },
+    removeSlot(slot: PageSlot) {
+      if (!slot.view) {
+        return;
+      }
+
+      removeView(slot.view);
+      slot.view = null;
+    },
+    setImage(view: SlotView, image: HTMLImageElement) {
+      view.frame.replaceChildren(image);
+    },
+    setPageNum,
+    setPlaceholder(view: SlotView, content: SlotContent, text: string) {
+      const placeholder = (
+        <div className={content.state === "error" ? "ehpeek-error" : "ehpeek-placeholder"}>
+          {text}
+        </div>
+      ) as HTMLElement;
+
+      placeholder.classList.toggle("ehpeek-placeholder-end", content.kind === "end");
+      view.frame.replaceChildren(placeholder);
+    },
+    setSize(view: SlotView, frameWidth: number, frameHeight: number) {
+      view.node.style.setProperty("--ehpeek-page-height", `${frameHeight + 8}px`);
+      view.node.style.setProperty("--ehpeek-frame-width", `${frameWidth}px`);
+      view.node.style.setProperty("--ehpeek-frame-height", `${frameHeight}px`);
+    },
+  };
+
+  return { element, scroller: new PagesScrollerDom(scroller), slots };
 }
 
 function slotViewDom(): SlotView {
@@ -79,6 +169,87 @@ function slotViewDom(): SlotView {
   ) as HTMLElement;
 
   return { node, frame };
+}
+
+function pageImageDom(pageNum: number, slotImage: ViewportImage): HTMLImageElement {
+  const image = (
+    <img
+      className="ehpeek-image"
+      alt={`Page ${pageNum}`}
+      decoding="async"
+      loading="eager"
+      draggable={false}
+      fetchpriority={slotImage.highPriority ? "high" : "low"}
+      src={slotImage.imageUrl}
+    />
+  ) as HTMLImageElement;
+
+  if (slotImage.width && slotImage.height) {
+    image.width = slotImage.width;
+    image.height = slotImage.height;
+  }
+
+  return image;
+}
+
+class PagesScrollerDom {
+  constructor(readonly element: HTMLElement) {}
+
+  resetPosition(): void {
+    this.element.scrollLeft = 0;
+    this.element.scrollTop = 0;
+  }
+
+  scrollLeft(): number {
+    return this.element.scrollLeft;
+  }
+
+  scrollTop(): number {
+    return this.element.scrollTop;
+  }
+
+  viewportWidth(): number {
+    return this.element.clientWidth || window.innerWidth || 1;
+  }
+
+  viewportHeight(): number {
+    return this.element.clientHeight;
+  }
+
+  moveToLeft(scrollLeft: number): void {
+    this.element.scrollLeft = scrollLeft;
+  }
+
+  moveToTop(scrollTop: number, bounds?: VerticalScrollBounds | null): void {
+    this.element.scrollTop = this.clampedTop(scrollTop, bounds);
+  }
+
+  viewTop(view: SlotView): number {
+    const viewRect = view.node.getBoundingClientRect();
+    const scrollerRect = this.element.getBoundingClientRect();
+    return this.element.scrollTop + viewRect.top - scrollerRect.top;
+  }
+
+  viewOffset(view: SlotView, mode: ViewMode): number {
+    const pageRect = view.node.getBoundingClientRect();
+    const scrollerRect = this.element.getBoundingClientRect();
+    return mode === "paged" ? pageRect.left - scrollerRect.left : pageRect.top - scrollerRect.top;
+  }
+
+  viewContainsViewportTarget(view: SlotView): boolean {
+    const scrollerRect = this.element.getBoundingClientRect();
+    const target = scrollerRect.top + Math.min(80, scrollerRect.height * 0.14);
+    const rect = view.node.getBoundingClientRect();
+    return rect.top <= target && rect.bottom > target;
+  }
+
+  private clampedTop(scrollTop: number, bounds?: VerticalScrollBounds | null): number {
+    if (!bounds) {
+      return scrollTop;
+    }
+
+    return clamp(scrollTop, bounds.min ?? Number.NEGATIVE_INFINITY, bounds.max ?? Number.POSITIVE_INFINITY);
+  }
 }
 
 export class PagesViewport {
@@ -101,7 +272,7 @@ export class PagesViewport {
   }
 
   scrollerElement(): HTMLElement {
-    return this.dom.scroller;
+    return this.dom.scroller.element;
   }
 
   syncWindow(options: PagesViewportWindowOptions): void {
@@ -109,18 +280,18 @@ export class PagesViewport {
     const nextSlots: PageSlot[] = [];
 
     for (const pageNum of this.windowPageNums(options.currentPageNum, options.windowSize)) {
-      const kind = this.slotKindFor(pageNum, options.totalPages);
+      const kind = pageSlotKind(pageNum, options.totalPages);
       const oldSlot = oldSlots.get(pageNum);
-      const slot = oldSlot && oldSlot.kind === kind ? oldSlot : this.createSlot(pageNum, kind);
+      const slot = oldSlot && oldSlot.kind === kind ? oldSlot : createPageSlot(pageNum, kind);
 
       if (kind === "page") {
         const page = options.pages.get(pageNum);
 
         if (page) {
-          this.setSlotMeta(slot, page);
+          applyPageMetaToSlot(slot, page);
         }
       } else {
-        this.clearSlotMeta(slot);
+        clearNonPageSlotMeta(slot);
       }
 
       nextSlots.push(slot);
@@ -142,8 +313,7 @@ export class PagesViewport {
   }
 
   resetPosition(): void {
-    this.dom.scroller.scrollLeft = 0;
-    this.dom.scroller.scrollTop = 0;
+    this.dom.scroller.resetPosition();
   }
 
   stopMotion(): void {
@@ -187,24 +357,7 @@ export class PagesViewport {
   }
 
   createPageImage(pageNum: number, slotImage: ViewportImage): HTMLImageElement {
-    const image = (
-      <img
-        className="ehpeek-image"
-        alt={`Page ${pageNum}`}
-        decoding="async"
-        loading="eager"
-        draggable={false}
-        fetchpriority={slotImage.highPriority ? "high" : "low"}
-        src={slotImage.imageUrl}
-      />
-    ) as HTMLImageElement;
-
-    if (slotImage.width && slotImage.height) {
-      image.width = slotImage.width;
-      image.height = slotImage.height;
-    }
-
-    return image;
+    return pageImageDom(pageNum, slotImage);
   }
 
   setPageImage(pageNum: number, token: number, slotImage: ViewportImage, image: HTMLImageElement): boolean {
@@ -219,7 +372,7 @@ export class PagesViewport {
     slot.width = positiveDimension(image.naturalWidth) ?? slotImage.width;
     slot.height = positiveDimension(image.naturalHeight) ?? slotImage.height;
     this.applySlotSize(slot);
-    slot.view.frame.replaceChildren(image);
+    this.dom.slots.setImage(slot.view, image);
     return true;
   }
 
@@ -247,25 +400,25 @@ export class PagesViewport {
 
   moveBy(delta: number, motion: ScrollMotion = "instant", onComplete?: () => void): void {
     if (this.options.mode() === "paged") {
-      this.horizontalAnimator.scrollTo(this.dom.scroller, this.dom.scroller.scrollLeft + delta, motion, onComplete);
+      this.horizontalAnimator.scrollTo(this.dom.scroller.element, this.dom.scroller.scrollLeft() + delta, motion, onComplete);
       return;
     }
 
-    this.moveToTop(this.dom.scroller.scrollTop + delta);
+    this.moveToTop(this.dom.scroller.scrollTop() + delta);
     onComplete?.();
   }
 
   moveToTop(scrollTop: number): void {
-    this.dom.scroller.scrollTop = this.clampedTop(scrollTop, this.verticalScrollBounds());
+    this.dom.scroller.moveToTop(scrollTop, this.verticalScrollBounds());
   }
 
   startDragPosition(): number {
-    return this.options.mode() === "paged" ? this.dom.scroller.scrollLeft : this.dom.scroller.scrollTop;
+    return this.options.mode() === "paged" ? this.dom.scroller.scrollLeft() : this.dom.scroller.scrollTop();
   }
 
   dragPage(startPosition: number, delta: { dx: number; dy: number }): void {
     if (this.options.mode() === "paged") {
-      this.dom.scroller.scrollLeft = startPosition - delta.dx;
+      this.dom.scroller.moveToLeft(startPosition - delta.dx);
       return;
     }
 
@@ -273,20 +426,20 @@ export class PagesViewport {
   }
 
   scrollTop(): number {
-    return this.dom.scroller.scrollTop;
+    return this.dom.scroller.scrollTop();
   }
 
   viewportWidth(): number {
-    return this.dom.scroller.clientWidth || window.innerWidth || 1;
+    return this.dom.scroller.viewportWidth();
   }
 
   viewportHeight(): number {
-    return this.dom.scroller.clientHeight;
+    return this.dom.scroller.viewportHeight();
   }
 
   pageOffset(pageNum: number): number | null {
     const view = this.slotFor(pageNum)?.view;
-    return view ? this.slotOffsetFromViewport(view, this.options.mode()) : null;
+    return view ? this.dom.scroller.viewOffset(view, this.options.mode()) : null;
   }
 
   centerPageNum(): number | null {
@@ -295,7 +448,7 @@ export class PagesViewport {
         continue;
       }
 
-      if (this.slotContainsViewportTarget(slot.view)) {
+      if (this.dom.scroller.viewContainsViewportTarget(slot.view)) {
         return slot.pageNum;
       }
     }
@@ -324,7 +477,7 @@ export class PagesViewport {
 
   startVerticalFlingFromDragVelocity(dragVelocityY: number, onStop: () => void): void {
     this.flingAnimator.start({
-      scroller: this.dom.scroller,
+      scroller: this.dom.scroller.element,
       initialVelocityY: -dragVelocityY,
       setScrollTop: (scrollTop) => this.moveToTop(scrollTop),
       canRun: () => !this.options.closed() && this.options.mode() === "scroll",
@@ -350,16 +503,14 @@ export class PagesViewport {
 
   private verticalScrollBoundsForViews(firstView: SlotView | null | undefined, lastView: SlotView | null | undefined): VerticalScrollBounds | null {
     const bounds: VerticalScrollBounds = {};
-    const scrollerRect = this.dom.scroller.getBoundingClientRect();
 
     if (firstView) {
-      const firstRect = firstView.node.getBoundingClientRect();
-      bounds.min = this.dom.scroller.scrollTop + firstRect.top - scrollerRect.top;
+      bounds.min = this.dom.scroller.viewTop(firstView);
     }
 
     if (lastView) {
       const lastRect = lastView.node.getBoundingClientRect();
-      const lastTop = this.dom.scroller.scrollTop + lastRect.top - scrollerRect.top;
+      const lastTop = this.dom.scroller.viewTop(lastView);
       bounds.max = lastTop + lastRect.height - this.viewportHeight();
     }
 
@@ -374,179 +525,33 @@ export class PagesViewport {
     return bounds;
   }
 
-  private clampedTop(scrollTop: number, bounds?: VerticalScrollBounds | null): number {
-    if (!bounds) {
-      return scrollTop;
-    }
-
-    return clamp(scrollTop, bounds.min ?? Number.NEGATIVE_INFINITY, bounds.max ?? Number.POSITIVE_INFINITY);
-  }
-
   private slotFor(pageNum: number): PageSlot | undefined {
     return this.slots.find((slot) => slot.pageNum === pageNum);
   }
 
-  private slotKindFor(pageNum: number, totalPages: number | undefined): PageSlotKind {
-    if (pageNum < 1) {
-      return "blank";
-    }
-
-    if (totalPages && pageNum === totalPages + 1) {
-      return "end";
-    }
-
-    if (totalPages && pageNum > totalPages + 1) {
-      return "blank";
-    }
-
-    return "page";
-  }
-
-  private slotContainsViewportTarget(view: SlotView): boolean {
-    const scrollerRect = this.dom.scroller.getBoundingClientRect();
-    const target = scrollerRect.top + Math.min(80, scrollerRect.height * 0.14);
-    const rect = view.node.getBoundingClientRect();
-    return rect.top <= target && rect.bottom > target;
-  }
-
-  private slotOffsetFromViewport(view: SlotView, mode: ViewMode): number {
-    const pageRect = view.node.getBoundingClientRect();
-    const scrollerRect = this.dom.scroller.getBoundingClientRect();
-    return mode === "paged" ? pageRect.left - scrollerRect.left : pageRect.top - scrollerRect.top;
-  }
-
-  private removeStaleSlotNodes(keepNodes: Set<HTMLElement | null>): void {
-    for (const node of Array.from(this.dom.strip.children)) {
-      if (!keepNodes.has(node as HTMLElement)) {
-        node.remove();
-      }
-    }
-  }
-
-  private appendSlotView(view: SlotView): void {
-    this.dom.strip.append(view.node);
-  }
-
-  private createSlotViewDom(index: number, pageNum: number): SlotView {
-    const view = slotViewDom();
-    this.setSlotOrder(view, index, index + 1);
-    this.setSlotPageNum(view, pageNum);
-
-    return view;
-  }
-
-  private removeSlotView(view: SlotView): void {
-    view.node.remove();
-  }
-
-  private slotViewConnected(view: SlotView): boolean {
-    return view.node.isConnected;
-  }
-
-  private setSlotOrder(view: SlotView, index: number, slotCount: number): void {
-    const visualIndex = this.options.mode() === "paged" && this.options.readDirection() === "rtl"
+  private visualSlotIndex(index: number, slotCount: number): number {
+    return this.options.mode() === "paged" && this.options.readDirection() === "rtl"
       ? slotCount - 1 - index
       : index;
-    view.node.style.setProperty("order", String(visualIndex));
-    view.node.dataset.ehpeekIndex = String(visualIndex);
-  }
-
-  private setSlotPageNum(view: SlotView, pageNum: number): void {
-    view.node.dataset.ehpeekPageNum = String(pageNum);
-  }
-
-  private setSlotSize(view: SlotView, frameWidth: number, frameHeight: number): void {
-    view.node.style.setProperty("--ehpeek-page-height", `${frameHeight + 8}px`);
-    view.node.style.setProperty("--ehpeek-frame-width", `${frameWidth}px`);
-    view.node.style.setProperty("--ehpeek-frame-height", `${frameHeight}px`);
   }
 
   private setSlotPlaceholder(view: SlotView, content: SlotContent): void {
-    const placeholder = (
-      <div className={content.state === "error" ? "ehpeek-error" : "ehpeek-placeholder"}>
-        {this.slotPlaceholderText(content)}
-      </div>
-    ) as HTMLElement;
-
-    placeholder.classList.toggle("ehpeek-placeholder-end", content.kind === "end");
-
-    view.frame.replaceChildren(placeholder);
-  }
-
-  private createSlot(pageNum: number, kind: PageSlotKind): PageSlot {
-    return {
-      pageNum,
-      index: 0,
-      kind,
-      state: kind === "page" ? "idle" : "ready",
-      aspectRatio: FALLBACK_ASPECT_RATIO,
-      imageUrl: null,
-      width: null,
-      height: null,
-      view: null,
-      token: 0,
-    };
-  }
-
-  private setSlotMeta(slot: PageSlot, page: PageMeta): void {
-    const aspectRatio = normalizedAspectRatio(page.aspectRatio, FALLBACK_ASPECT_RATIO);
-
-    if (slot.aspectRatio === aspectRatio && slot.state !== "error") {
-      return;
-    }
-
-    slot.aspectRatio = aspectRatio;
-    slot.kind = "page";
-    slot.state = "idle";
-    slot.imageUrl = null;
-    slot.width = null;
-    slot.height = null;
-    slot.token += 1;
-  }
-
-  private clearSlotMeta(slot: PageSlot): void {
-    if (slot.kind === "blank" || slot.kind === "end") {
-      slot.state = "ready";
-      slot.imageUrl = null;
-      slot.width = null;
-      slot.height = null;
-      slot.token += 1;
-    }
+    this.dom.slots.setPlaceholder(view, content, this.slotPlaceholderText(content));
   }
 
   private removeSlot(slot: PageSlot): void {
     slot.token += 1;
 
     if (slot.view) {
-      this.removeSlotView(slot.view);
-      slot.view = null;
+      this.dom.slots.removeSlot(slot);
     }
   }
 
   private renderSlots(): void {
-    const keepNodes = new Set(this.slots.map((slot) => slot.view?.node ?? null).filter(Boolean));
-    this.removeStaleSlotNodes(keepNodes);
-
-    for (const slot of this.slots) {
-      if (slot.view && !this.slotViewConnected(slot.view)) {
-        slot.view = null;
-      }
-
-      this.mountSlot(slot);
-
-      if (slot.view) {
-        this.setSlotOrder(slot.view, slot.index, this.slots.length);
-      }
-    }
-  }
-
-  private mountSlot(slot: PageSlot): void {
-    if (!slot.view) {
-      slot.view = this.createSlotViewDom(slot.index, slot.pageNum);
-      this.appendSlotView(slot.view);
-    }
-
-    this.refreshSlot(slot);
+    this.dom.slots.sync(this.slots, {
+      refreshSlot: (slot) => this.refreshSlot(slot),
+      visualIndex: (slotIndex, slotCount) => this.visualSlotIndex(slotIndex, slotCount),
+    });
   }
 
   private refreshSlot(slot: PageSlot): void {
@@ -554,7 +559,7 @@ export class PagesViewport {
       return;
     }
 
-    this.setSlotPageNum(slot.view, slot.pageNum);
+    this.dom.slots.setPageNum(slot.view, slot.pageNum);
     this.applySlotSize(slot);
 
     if (slot.state === "ready" && slot.imageUrl) {
@@ -583,14 +588,8 @@ export class PagesViewport {
     }
 
     const frameWidth = Math.max(1, this.viewportWidth());
-    const frameHeight = Math.ceil(frameWidth * this.aspectRatioFor(slot));
-    this.setSlotSize(slot.view, frameWidth, frameHeight);
-  }
-
-  private aspectRatioFor(slot: PageSlot): number {
-    return slot.width && slot.height && slot.width > 0 && slot.height > 0
-      ? slot.height / slot.width
-      : normalizedAspectRatio(slot.aspectRatio, FALLBACK_ASPECT_RATIO);
+    const frameHeight = Math.ceil(frameWidth * pageSlotAspectRatio(slot));
+    this.dom.slots.setSize(slot.view, frameWidth, frameHeight);
   }
 
   private slotPlaceholderText(content: SlotContent): string {
@@ -613,4 +612,69 @@ export class PagesViewport {
 
 function positiveDimension(value: number): number | null {
   return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function pageSlotKind(pageNum: number, totalPages: number | undefined): PageSlotKind {
+  if (pageNum < 1) {
+    return "blank";
+  }
+
+  if (totalPages && pageNum === totalPages + 1) {
+    return "end";
+  }
+
+  if (totalPages && pageNum > totalPages + 1) {
+    return "blank";
+  }
+
+  return "page";
+}
+
+function createPageSlot(pageNum: number, kind: PageSlotKind): PageSlot {
+  return {
+    pageNum,
+    index: 0,
+    kind,
+    state: kind === "page" ? "idle" : "ready",
+    aspectRatio: FALLBACK_ASPECT_RATIO,
+    imageUrl: null,
+    width: null,
+    height: null,
+    view: null,
+    token: 0,
+  };
+}
+
+function applyPageMetaToSlot(slot: PageSlot, page: PageMeta): void {
+  const aspectRatio = normalizedAspectRatio(page.aspectRatio, FALLBACK_ASPECT_RATIO);
+
+  if (slot.aspectRatio === aspectRatio && slot.state !== "error") {
+    return;
+  }
+
+  slot.aspectRatio = aspectRatio;
+  slot.kind = "page";
+  slot.state = "idle";
+  slot.imageUrl = null;
+  slot.width = null;
+  slot.height = null;
+  slot.token += 1;
+}
+
+function clearNonPageSlotMeta(slot: PageSlot): void {
+  if (slot.kind !== "blank" && slot.kind !== "end") {
+    return;
+  }
+
+  slot.state = "ready";
+  slot.imageUrl = null;
+  slot.width = null;
+  slot.height = null;
+  slot.token += 1;
+}
+
+function pageSlotAspectRatio(slot: PageSlot): number {
+  return slot.width && slot.height && slot.width > 0 && slot.height > 0
+    ? slot.height / slot.width
+    : normalizedAspectRatio(slot.aspectRatio, FALLBACK_ASPECT_RATIO);
 }

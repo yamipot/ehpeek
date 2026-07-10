@@ -6,6 +6,12 @@ import touchGalleryPanelCss from "./TouchGalleryPanel.css";
 
 const STYLE_ID = "ehpeek-touch-gallery-panel-style";
 
+function textBlockDom(className: string, text: string): HTMLElement {
+  const element = <div className={className} /> as HTMLElement;
+  element.textContent = text;
+  return element;
+}
+
 function touchGalleryPanelDom(source: GalleryInfo) {
   let primaryActions!: HTMLElement;
   const category = textBlockDom(
@@ -223,10 +229,4 @@ function ensureTouchGalleryPanelStyle(): void {
   style.id = STYLE_ID;
   style.textContent = touchGalleryPanelCss;
   document.head.append(style);
-}
-
-function textBlockDom(className: string, text: string): HTMLElement {
-  const element = <div className={className} /> as HTMLElement;
-  element.textContent = text;
-  return element;
 }
