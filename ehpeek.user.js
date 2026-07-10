@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ehpeek: E-H/ExH viewer
 // @namespace    ehpeek
-// @version      260710.1508
+// @version      260710.1542
 // @description  A mobile-optimized E-H/ExH viewer
 // @match        *://e-hentai.org/*
 // @match        *://exhentai.org/*
@@ -37,7 +37,8 @@
       pages: "Pages",
       endPage: "End",
       end: "End of gallery. Tap to exit.",
-      failedPrefix: "Failed"
+      failedPrefix: "Failed",
+      reload: "Reload"
     },
     settings: {
       openSettings: "Settings",
@@ -526,7 +527,7 @@
 
   // src/components/Reader/Viewport.tsx
   var FALLBACK_ASPECT_RATIO = 1.42;
-  function pagesViewportDom() {
+  function pagesViewportDom(options) {
     let scroller, strip, element = /* @__PURE__ */ h(
       "div",
       {
@@ -550,11 +551,11 @@
       for (let node of Array.from(strip.children))
         keepNodes.has(node) || node.remove();
     }, viewConnected = (view) => view.node.isConnected, slots = {
-      sync(pageSlots2, options) {
+      sync(pageSlots2, options2) {
         let keepNodes = new Set(pageSlots2.map((slot) => slot.view?.node ?? null).filter(Boolean));
         removeStaleViews(keepNodes);
         for (let slot of pageSlots2)
-          slot.view && !viewConnected(slot.view) && (slot.view = null), slot.view || (slot.view = createView(slot.pageNum, options.visualIndex(slot.index, pageSlots2.length)), appendView(slot.view)), options.refreshSlot(slot), slot.view && setOrder(slot.view, options.visualIndex(slot.index, pageSlots2.length));
+          slot.view && !viewConnected(slot.view) && (slot.view = null), slot.view || (slot.view = createView(slot.pageNum, options2.visualIndex(slot.index, pageSlots2.length)), appendView(slot.view)), options2.refreshSlot(slot), slot.view && setOrder(slot.view, options2.visualIndex(slot.index, pageSlots2.length));
       },
       removeSlot(slot) {
         slot.view && (removeView(slot.view), slot.view = null);
@@ -564,7 +565,7 @@
       },
       setPageNum,
       setPlaceholder(view, content, text) {
-        let placeholder = /* @__PURE__ */ h("div", { className: content.state === "error" ? "ehpeek-error" : "ehpeek-placeholder" }, text);
+        let placeholder = content.state === "error" ? errorPlaceholderDom(content.pageNum, text, options.onReloadPage) : /* @__PURE__ */ h("div", { className: "ehpeek-placeholder" }, text);
         placeholder.classList.toggle("ehpeek-placeholder-end", content.kind === "end"), view.frame.replaceChildren(placeholder);
       },
       setSize(view, frameWidth, frameHeight) {
@@ -576,6 +577,14 @@
   function slotViewDom() {
     let frame;
     return { node: /* @__PURE__ */ h("section", { className: "ehpeek-page" }, /* @__PURE__ */ h("div", { className: "ehpeek-frame", ref: (element) => frame = element })), frame };
+  }
+  function errorPlaceholderDom(pageNum, text, onReloadPage) {
+    let button = /* @__PURE__ */ h("button", { className: "ehpeek-error-reload", type: "button", "aria-label": texts_default.reader.reload }, /* @__PURE__ */ h("span", { "aria-hidden": "true" }, "↻")), placeholder = /* @__PURE__ */ h("div", { className: "ehpeek-error" }, /* @__PURE__ */ h("div", { className: "ehpeek-error-message" }, text), button), stop = (event) => {
+      event.preventDefault(), event.stopPropagation();
+    };
+    return button.addEventListener("pointerdown", stop), button.addEventListener("click", (event) => {
+      stop(event), onReloadPage(pageNum);
+    }), placeholder;
   }
   function pageImageDom(pageNum, slotImage) {
     let image = /* @__PURE__ */ h(
@@ -638,7 +647,7 @@
       this.slots = [];
       this.horizontalAnimator = new ScrollAnimator("x");
       this.flingAnimator = new ScrollFlingAnimator();
-      this.dom = pagesViewportDom(), this.element = this.dom.element;
+      this.dom = pagesViewportDom({ onReloadPage: options.onReloadPage }), this.element = this.dom.element;
     }
     scrollerElement() {
       return this.dom.scroller.element;
@@ -694,6 +703,10 @@
     setPageError(pageNum, token, errorMessage) {
       let slot = this.slotFor(pageNum);
       return !slot || slot.token !== token ? !1 : (slot.state = "error", this.renderSlotPlaceholder(slot, errorMessage), !0);
+    }
+    resetPageError(pageNum) {
+      let slot = this.slotFor(pageNum);
+      return !slot || slot.kind !== "page" || slot.state !== "error" ? !1 : (slot.state = "idle", this.refreshSlot(slot), !0);
     }
     moveToPage(pageNum, motion = "instant", onComplete) {
       let delta = this.pageOffset(pageNum);
@@ -1012,9 +1025,38 @@
 }
 
 .ehpeek-error {
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
   color: #ffb2a7;
   font-size: 18px;
   font-weight: 700;
+}
+
+.ehpeek-error-message {
+  max-width: min(86vw, 760px);
+  overflow-wrap: anywhere;
+  direction: ltr;
+  unicode-bidi: plaintext;
+}
+
+.ehpeek-error-reload {
+  display: inline-flex;
+  width: 64px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 178, 167, 0.64);
+  border-radius: 999px;
+  background: rgba(255, 178, 167, 0.12);
+  color: #ffddd8;
+  cursor: pointer;
+  font: 700 34px/1 system-ui, sans-serif;
+  touch-action: manipulation;
+}
+
+.ehpeek-error-reload:active {
+  transform: scale(0.96);
 }
 
 .ehpeek-placeholder-end {
@@ -1581,7 +1623,8 @@
         mode: () => state.reader.viewMode.value,
         readDirection: () => state.reader.readDirection.value,
         closed: () => this.closed,
-        totalPages: () => this.totalPages
+        totalPages: () => this.totalPages,
+        onReloadPage: (pageNum) => this.reloadPage(pageNum)
       }), this.zoomOverlay = new ZoomOverlay(), this.toolbar = new Toolbar(
         {
           onReadDirectionClick: () => this.toggleReadDirection(),
@@ -1717,6 +1760,9 @@
     scrollToCurrentPage(motion = "instant") {
       this.viewport.moveToPage(this.currentPageNum, motion);
     }
+    reloadPage(pageNum) {
+      this.viewport.resetPageError(pageNum) && this.maintainLoadQueue();
+    }
     async installImage(target, loaded, token) {
       let imageUrl = loaded.imageUrl, width = positiveNumber(loaded.width), height = positiveNumber(loaded.height), image = this.viewport.createPageImage(target.pageNum, {
         imageUrl,
@@ -1726,7 +1772,9 @@
       });
       try {
         await loadImage(image);
-      } catch {
+      } catch (error) {
+        let message = error instanceof Error ? error.message : texts_default.errors.imageLoadFailed;
+        this.viewport.setPageError(target.pageNum, token, message);
         return;
       }
       this.closed || (this.loadedImages.set(target.pageNum, { pageNum: target.pageNum, imageUrl, width, height }), this.viewport.setPageImage(target.pageNum, token, { imageUrl, highPriority: target.pageNum === this.currentPageNum, width, height }, image));
@@ -2359,6 +2407,7 @@
       category: textOf("#gdc"),
       categoryClassName: readGalleryCategoryClassName(),
       cover: coverUrl ? createGalleryCoverImageDom(coverUrl) : null,
+      favorite: readGalleryFavoriteInfo(),
       summary,
       actions: readGalleryActionsDom(),
       rating: readGalleryRatingDom(),
@@ -2437,12 +2486,15 @@
     let clone = tag.cloneNode(!0);
     return clone.removeAttribute("id"), clone;
   }
-  function findDownloadAction() {
-    let actions = Array.from(document.querySelectorAll("#gd5 a, #gd5 button, #gd5 input[type='button'], #gd5 input[type='submit']"));
-    return actions.find((item) => /download|archive/i.test(item.textContent ?? item.getAttribute("value") ?? "")) ?? actions[0] ?? null;
+  function readGalleryFavoriteInfo() {
+    let label = textOf("#favoritelink"), iconTitle = document.querySelector("#fav [title]")?.getAttribute("title")?.trim() ?? "", text = label || iconTitle, favorited = /^favorites?\s+\d+/i.test(text);
+    return {
+      favorited,
+      label: favorited ? text : "Not Favorited"
+    };
   }
-  function clickGalleryDownloadAction() {
-    findDownloadAction()?.click();
+  function clickGalleryFavoriteAction() {
+    document.querySelector("#gdf")?.click();
   }
   function mountGalleryContinueReadingButton(button) {
     let viewerOptions = document.querySelector("#gd5");
@@ -2687,8 +2739,12 @@ body {
 .ehpeek-touch-gallery-primary-button {
   display: flex;
   min-width: 0;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   padding: var(--ehpeek-control-action-padding-y) 15px;
   border: 0;
   background: transparent;
@@ -2699,6 +2755,30 @@ body {
   text-decoration: none;
   text-transform: uppercase;
   touch-action: manipulation;
+}
+
+.ehpeek-touch-gallery-primary-actions {
+  display: flex;
+  min-width: 0;
+}
+
+.ehpeek-touch-gallery-primary-button > * {
+  max-width: 100%;
+}
+
+.ehpeek-touch-gallery-favorite-button {
+  text-transform: none;
+}
+
+.ehpeek-touch-gallery-favorite-icon {
+  flex: 0 0 auto;
+  color: #f0b35a;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.ehpeek-touch-gallery-favorite-off .ehpeek-touch-gallery-favorite-icon {
+  color: #111;
 }
 
 .ehpeek-touch-gallery-primary > * + * {
@@ -2857,7 +2937,7 @@ body {
     let primaryActions, category = textBlockDom(
       ["ehpeek-touch-gallery-category", source.categoryClassName || "ehpeek-touch-gallery-category-default"].join(" "),
       source.category
-    ), root = /* @__PURE__ */ h("section", { className: "ehpeek-touch-gallery" }, /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-hero" }, /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-summary" }, /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-cover" }, source.cover), /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-hero-side" }, /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-heading" }, textBlockDom("ehpeek-touch-gallery-title-main", source.titleMain), textBlockDom("ehpeek-touch-gallery-title-sub", source.titleSub)), /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-category-row" }, category, source.rating)))), /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-primary" }, touchGalleryDownloadButtonDom(), /* @__PURE__ */ h(
+    ), root = /* @__PURE__ */ h("section", { className: "ehpeek-touch-gallery" }, /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-hero" }, /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-summary" }, /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-cover" }, source.cover), /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-hero-side" }, /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-heading" }, textBlockDom("ehpeek-touch-gallery-title-main", source.titleMain), textBlockDom("ehpeek-touch-gallery-title-sub", source.titleSub)), /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-category-row" }, category, source.rating)))), /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-primary" }, touchGalleryFavoriteButtonDom(source), /* @__PURE__ */ h(
       "div",
       {
         className: "ehpeek-touch-gallery-primary-actions",
@@ -2911,17 +2991,18 @@ body {
   function touchGalleryTagGroupDom(group) {
     return /* @__PURE__ */ h("section", { className: "ehpeek-touch-gallery-tag-group" }, textBlockDom("ehpeek-touch-gallery-tag-group-name", group.namespace), /* @__PURE__ */ h("div", { className: "ehpeek-touch-gallery-tags" }, group.tags));
   }
-  function touchGalleryDownloadButtonDom() {
+  function touchGalleryFavoriteButtonDom(source) {
     return /* @__PURE__ */ h(
       "button",
       {
         type: "button",
-        className: "ehpeek-touch-gallery-primary-button",
+        className: `ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button ${source.favorite.favorited ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`,
         onClick: () => {
-          clickGalleryDownloadAction();
+          clickGalleryFavoriteAction();
         }
       },
-      texts_default.reader.download
+      /* @__PURE__ */ h("span", { className: "ehpeek-touch-gallery-favorite-icon", "aria-hidden": "true" }, source.favorite.favorited ? "♥" : "♡"),
+      /* @__PURE__ */ h("span", null, source.favorite.label)
     );
   }
   var TouchGalleryPanel = class {
@@ -3027,7 +3108,7 @@ html.ehpeek-touch-ui .ehpeek-touch-top-bar-menu-panel .ehpeek-settings-trigger {
     ), /* @__PURE__ */ h(
       "div",
       {
-        className: "ehpeek-touch-top-bar-menu-panel fixed top-[max(64px,calc(env(safe-area-inset-top,0px)+8px))] right-[max(24px,calc(env(safe-area-inset-right,0px)+24px))] z-[2147483645] flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border color-border rounded-4px color-elevated",
+        className: "ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+8px)] right-0 z-[2147483645] flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border color-border rounded-4px color-elevated",
         hidden: !0,
         ref: (node) => {
           panel = node;
@@ -3763,11 +3844,11 @@ html.ehpeek-touch-ui .textsize-xs{font-size:14px;}
 .left-\\[max\\(12px\\,env\\(safe-area-inset-left\\,0px\\)\\)\\]{left:max(12px,env(safe-area-inset-left,0px));}
 .left-1\\/2{left:50%;}
 .right-\\[max\\(12px\\,env\\(safe-area-inset-right\\,0px\\)\\)\\]{right:max(12px,env(safe-area-inset-right,0px));}
-.right-\\[max\\(24px\\,calc\\(env\\(safe-area-inset-right\\,0px\\)\\+24px\\)\\)\\]{right:max(24px,calc(env(safe-area-inset-right,0px) + 24px));}
+.right-0{right:0;}
 .right-10px{right:10px;}
+.top-\\[calc\\(100\\%\\+8px\\)\\]{top:calc(100% + 8px);}
 .top-\\[calc\\(10px\\+env\\(safe-area-inset-top\\,0px\\)\\)\\]{top:calc(10px + env(safe-area-inset-top,0px));}
 .top-\\[calc\\(62px\\+env\\(safe-area-inset-top\\,0px\\)\\)\\]{top:calc(62px + env(safe-area-inset-top,0px));}
-.top-\\[max\\(64px\\,calc\\(env\\(safe-area-inset-top\\,0px\\)\\+8px\\)\\)\\]{top:max(64px,calc(env(safe-area-inset-top,0px) + 8px));}
 .top-1\\/2{top:50%;}
 .z-\\[2147483640\\]{z-index:2147483640;}
 .z-\\[2147483645\\]{z-index:2147483645;}
@@ -3921,11 +4002,14 @@ html.ehpeek-touch-ui .touch\\:gap-20px{gap:20px;}
       maxPreviewIndex,
       READER_WINDOW_SIZE,
       pullPreviewPage
-    ), startUrl = normalizeUrl(startPageUrl), hashPage = preferredPageNum ?? peekPageFromHash(), startPageNum = hashPage ?? galleryPageNumber(startUrl), pages = startPageNum ? await provider.loadDisplayPages(provider.displayWindowAround(startPageNum)) : landingPages, startIndex = hashPage !== null ? pages.findIndex((page) => page.pageNum === hashPage) : pages.findIndex((page) => page.url === startUrl);
-    startIndex < 0 && (startIndex = 0, pages = [{ url: startUrl, aspectRatio: 1.42, pageNum: galleryPageNumber(startUrl) }, ...pages].sort(
-      (left, right) => (left.pageNum ?? 0) - (right.pageNum ?? 0)
-    ), startIndex = pages.findIndex((page) => page.url === startUrl));
-    let lastPageNum = hashPage ?? galleryPageNumber(startUrl), historySession = new ReaderHistorySession({
+    ), startUrl = normalizeUrl(startPageUrl), startPageNum = preferredPageNum ?? peekPageFromHash() ?? galleryPageNumber(startUrl);
+    if (!startPageNum)
+      throw new Error(texts_default.errors.imageNotFound);
+    let pages = [landingPages.find((page) => page.pageNum === startPageNum || page.url === startUrl) ?? {
+      url: startUrl,
+      aspectRatio: 1.42,
+      pageNum: startPageNum
+    }], startIndex = 0, lastPageNum = startPageNum, historySession = new ReaderHistorySession({
       galleryId: pageType2.galleryId,
       token: pageType2.token,
       galleryUrl: previewUrlForIndex(landingIndex),
