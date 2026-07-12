@@ -1,10 +1,49 @@
 type DataValue = boolean | number | string;
 type Child = Node | string | number | boolean | null | undefined;
-type Props = Record<string, unknown> & {
+type OperatorProps<Operator> = [Operator] extends [never] ? {} : {
+  opRef?: (operator: Operator) => void;
+};
+export type Props<
+  T extends Record<string, unknown> = Record<string, unknown>,
+  Element extends HTMLElement = HTMLElement,
+  Operator = never,
+> = T & {
   children?: Child | Child[];
   className?: string;
-  ref?: (node: HTMLElement) => void;
+  ref?: (node: Element) => void;
+} & OperatorProps<Operator>;
+type Component = (props: Props) => HTMLElement | DocumentFragment;
+
+export type ComponentOperator<T extends (props: never) => unknown> =
+  Parameters<T>[0] extends { opRef?: (operator: infer Operator) => void } ? Operator : never;
+
+export function appendClassName(...values: Array<string | false | null | undefined>): string {
+  return values.filter(Boolean).join(" ");
+}
+
+type ApplyPropsOptions<T, Operator> = {
+  props: T;
+  operator?: Operator;
 };
+
+export function applyProps<
+  Element extends HTMLElement,
+  Operator,
+  T extends Props<Record<string, unknown>, Element, Operator>,
+>(
+  options: ApplyPropsOptions<T, Operator>,
+  element: Element,
+): Element {
+  const { operator, props } = options;
+
+  element.className = appendClassName(element.className, props.className);
+  if (operator !== undefined && "opRef" in props && typeof props.opRef === "function") {
+    (props.opRef as (operator: Operator) => void)(operator);
+  }
+  props.ref?.(element);
+
+  return element;
+}
 
 type DataBinding = {
   readonly ehpeekDataBinding: true;
@@ -95,11 +134,15 @@ export class DomData<T extends DataValue> {
   }
 }
 
-export function h(tag: string, props: Props | null, ...children: Child[]): HTMLElement {
+export function h(tag: string | Component, props: Props | null, ...children: Child[]): HTMLElement | DocumentFragment {
+  if (typeof tag === "function") {
+    return tag({ ...(props ?? {}), children });
+  }
+
   const node = document.createElement(tag);
 
   if (props) {
-    applyProps(node, props);
+    applyElementProps(node, props);
   }
 
   appendChildren(node, children);
@@ -108,7 +151,7 @@ export function h(tag: string, props: Props | null, ...children: Child[]): HTMLE
   return node;
 }
 
-function applyProps(node: HTMLElement, props: Props): void {
+function applyElementProps(node: HTMLElement, props: Props): void {
   for (const [name, value] of Object.entries(props)) {
     if (name === "children" || name === "ref" || value === undefined || value === null || value === false) {
       continue;

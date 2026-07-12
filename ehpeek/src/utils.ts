@@ -68,7 +68,7 @@ export function registerGlobalStyle(id: string, css: string): void {
   }
 
   const style = document.createElement("style");
-  style.id = id;
+  style.id = `style-${id}`;
   style.textContent = css;
   document.head.append(style);
 }

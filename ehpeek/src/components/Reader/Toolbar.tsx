@@ -1,4 +1,4 @@
-import { DomData, h } from "../../jsx";
+import { DomData, h, type ComponentOperator } from "../../jsx";
 import type { ReadDirection, RightTapAction, ViewMode } from "../../state";
 import texts from "../../texts.json";
 import { stopEvent } from "../../utils";
@@ -37,15 +37,8 @@ function toolbarDom(handlers: {
   let rightTapButton!: HTMLButtonElement;
   let pageNumberLabel!: HTMLElement;
   let disableReaderButton!: HTMLButtonElement;
+  let progressBar!: ComponentOperator<typeof ProgressBar>;
   const toolbarOpen = new DomData<boolean>();
-  const progressBar = new ProgressBar({
-    className: "text-xl coarse:text-3xl",
-    min: 1,
-    step: 1,
-    onPointerDown: handlers.onProgressPointerDown,
-    onInput: handlers.onProgressInput,
-    onCommit: handlers.onProgressCommit,
-  });
 
   const topbar = (
     <div
@@ -151,7 +144,17 @@ function toolbarDom(handlers: {
       onPointerDown={stopEvent}
       onWheel={stopEvent}
     >
-      {progressBar.element}
+      <ProgressBar
+        opRef={(operator) => {
+          progressBar = operator;
+        }}
+        className="text-xl coarse:text-3xl"
+        min={1}
+        step={1}
+        onPointerDown={handlers.onProgressPointerDown}
+        onInput={handlers.onProgressInput}
+        onCommit={handlers.onProgressCommit}
+      />
     </div>
   ) as HTMLElement;
 
