@@ -59,11 +59,11 @@ function pagesViewportDom(options: { onReloadPage: (pageNum: number) => void }) 
   let strip!: HTMLElement;
   const element = (
     <div
-      className="ehpeek-scroller"
+      className="ehpeek-scroller w-full h-full overflow-auto overscroll-contain scroll-auto touch-pan-y cursor-grab"
       tabIndex={-1}
       ref={(node: HTMLElement) => (scroller = node)}
     >
-      <main className="ehpeek-strip" ref={(node: HTMLElement) => (strip = node)} />
+      <main className="ehpeek-strip flex flex-col w-full min-h-full py-56px px-0 pb-72px" ref={(node: HTMLElement) => (strip = node)} />
     </div>
   ) as HTMLElement;
 
@@ -143,12 +143,11 @@ function pagesViewportDom(options: { onReloadPage: (pageNum: number) => void }) 
     setPlaceholder(view: SlotView, content: SlotContent, text: string) {
       const placeholder =
         content.state === "error" ? errorPlaceholderDom(content.pageNum, text, options.onReloadPage) : (
-          <div className="ehpeek-placeholder">
+          <div className={`ehpeek-placeholder flex w-full h-full items-center justify-center bg-[#151515] text-[rgba(245,245,245,0.72)] leading-1 text-center ${content.kind === "end" ? "p-24px [direction:ltr] text-[clamp(24px,6vw,42px)] font-700 leading-[1.3] [unicode-bidi:plaintext]" : "text-[clamp(88px,25vw,180px)] desktop:text-[clamp(72px,10vw,140px)] font-850"}`}>
             {text}
           </div>
         ) as HTMLElement;
 
-      placeholder.classList.toggle("ehpeek-placeholder-end", content.kind === "end");
       view.frame.replaceChildren(placeholder);
     },
     setSize(view: SlotView, frameWidth: number, frameHeight: number) {
@@ -164,8 +163,8 @@ function pagesViewportDom(options: { onReloadPage: (pageNum: number) => void }) 
 function slotViewDom(): SlotView {
   let frame!: HTMLElement;
   const node = (
-    <section className="ehpeek-page">
-      <div className="ehpeek-frame" ref={(element: HTMLElement) => (frame = element)} />
+    <section className="ehpeek-page flex w-full h-[var(--ehpeek-page-height)] items-start justify-center pb-8px">
+      <div className="ehpeek-frame flex w-[var(--ehpeek-frame-width)] h-[var(--ehpeek-frame-height)] items-center justify-center overflow-hidden" ref={(element: HTMLElement) => (frame = element)} />
     </section>
   ) as HTMLElement;
 
@@ -174,13 +173,13 @@ function slotViewDom(): SlotView {
 
 function errorPlaceholderDom(pageNum: number, text: string, onReloadPage: (pageNum: number) => void): HTMLElement {
   const button = (
-    <button className="ehpeek-error-reload" type="button" aria-label={texts.reader.reload}>
+    <button className="ehpeek-error-reload inline-flex w-64px h-64px items-center justify-center border border-[rgba(255,178,167,0.64)] rounded-[var(--ehpeek-control-radius-pill)] bg-[rgba(255,178,167,0.12)] text-[#ffddd8] cursor-pointer font-sans text-34px font-700 leading-1 active:scale-96 [touch-action:manipulation]" type="button" aria-label={texts.reader.reload}>
       <span aria-hidden="true">↻</span>
     </button>
   ) as HTMLButtonElement;
   const placeholder = (
-    <div className="ehpeek-error">
-      <div className="ehpeek-error-message">{text}</div>
+    <div className="ehpeek-error flex w-full h-full flex-col items-center justify-center gap-18px bg-[#151515] p-24px text-[#ffb2a7] text-center text-18px font-700 leading-1">
+      <div className="ehpeek-error-message max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">{text}</div>
       {button}
     </div>
   ) as HTMLElement;
@@ -200,7 +199,7 @@ function errorPlaceholderDom(pageNum: number, text: string, onReloadPage: (pageN
 function pageImageDom(pageNum: number, slotImage: ViewportImage): HTMLImageElement {
   const image = (
     <img
-      className="ehpeek-image"
+      className="ehpeek-image block w-[var(--ehpeek-frame-width)] h-[var(--ehpeek-frame-height)] object-contain select-none [-webkit-user-drag:none]"
       alt={`Page ${pageNum}`}
       decoding="async"
       loading="eager"

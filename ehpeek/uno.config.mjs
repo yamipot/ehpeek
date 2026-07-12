@@ -1,20 +1,14 @@
-import { defineConfig, presetWind3 } from "unocss";
+import { defineConfig, presetWind3, transformerVariantGroup } from "unocss";
 
 export default defineConfig({
   presets: [presetWind3()],
+  transformers: [transformerVariantGroup()],
   variants: [
-    (matcher) => {
-      const prefix = "touch:";
-
-      if (!matcher.startsWith(prefix)) {
-        return matcher;
-      }
-
-      return {
-        matcher: matcher.slice(prefix.length),
-        selector: (selector) => `html.ehpeek-touch-ui ${selector}`,
-      };
-    },
+    mediaVariant("coarse", "(pointer: coarse)"),
+    mediaVariant("desktop", "(min-width: 760px)"),
+    mediaVariant("landscape", "(orientation: landscape)"),
+    mediaVariant("coarse-landscape", "(orientation: landscape) and (pointer: coarse)"),
+    selectVariant("touch", (s) => `html.ehpeek-touch-ui ${s}`),
   ],
   preflights: [
     {
@@ -112,3 +106,34 @@ html.ehpeek-touch-ui .ehpeek-ui-state-dot::after {
     "textsize-xs": "text-11px touch:text-14px",
   },
 });
+
+function selectVariant(prefix, fSelect) {
+  return (matcher) => {
+    const marker = `${prefix}:`;
+
+    if (!matcher.startsWith(marker)) {
+      return matcher;
+    }
+
+    return {
+      matcher: matcher.slice(marker.length),
+      selector: (selector) => fSelect(selector),
+    };
+  };
+}
+
+
+function mediaVariant(prefix, media) {
+  return (matcher) => {
+    const marker = `${prefix}:`;
+
+    if (!matcher.startsWith(marker)) {
+      return matcher;
+    }
+
+    return {
+      matcher: matcher.slice(marker.length),
+      parent: `@media ${media}`,
+    };
+  };
+}

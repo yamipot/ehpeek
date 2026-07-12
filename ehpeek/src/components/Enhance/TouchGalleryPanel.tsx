@@ -14,10 +14,8 @@ function textBlockDom(className: string, text: string): HTMLElement {
 function touchGalleryPanelDom(source: GalleryInfo) {
   let primaryActions!: HTMLElement;
   const category = textBlockDom(
-    [
-      "ehpeek-touch-gallery-category min-w-0 self-center overflow-hidden text-ellipsis whitespace-nowrap py-6px px-12px text-17px font-700 leading-[1.1] uppercase",
-      source.categoryClassName || "bg-[#34353b] color-accent",
-    ].join(" "),
+    "ehpeek-touch-gallery-category min-w-0 self-center overflow-hidden text-ellipsis whitespace-nowrap py-6px px-12px text-17px font-700 leading-[1.1] uppercase " +
+      (source.categoryClassName || "bg-[#34353b] color-accent"),
     source.category,
   );
   const root = (

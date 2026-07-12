@@ -9,7 +9,6 @@ const SWIPE_INTENT_DISTANCE = 28;
 const HORIZONTAL_INTENT_RATIO = 2.2;
 const SWIPE_MAX_VERTICAL_RATIO = 0.38;
 const SEARCH_SWIPE_WRAPPER_CLASS = "ehpeek-search-swipe-wrapper";
-const SEARCH_SWIPE_WRAPPER_STYLE = `${SEARCH_SWIPE_WRAPPER_CLASS} relative block w-full overscroll-x-contain touch-pan-y`;
 
 let installed = false;
 let swipeElement: HTMLDivElement | null = null;
@@ -71,10 +70,21 @@ function installResultListSwipeDom(resultList: HTMLElement): HTMLDivElement {
   const existingWrapper = resultList.parentElement?.classList.contains(SEARCH_SWIPE_WRAPPER_CLASS)
     ? (resultList.parentElement as HTMLDivElement)
     : null;
-  const wrapper = existingWrapper ?? (<div className={SEARCH_SWIPE_WRAPPER_STYLE} /> as HTMLDivElement);
+  const wrapper =
+    existingWrapper ??
+    (
+      <div
+        className={
+          SEARCH_SWIPE_WRAPPER_CLASS +
+          " relative block w-full overscroll-x-contain touch-pan-y"
+        }
+      />
+    ) as HTMLDivElement;
   const indicator = new SwipeIndicator();
 
-  wrapper.className = SEARCH_SWIPE_WRAPPER_STYLE;
+  wrapper.className =
+    SEARCH_SWIPE_WRAPPER_CLASS +
+    " relative block w-full overscroll-x-contain touch-pan-y";
   swipeIndicator = indicator;
 
   if (!existingWrapper) {

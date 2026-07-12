@@ -11,7 +11,11 @@ export class ReaderRoot {
   private previousDocumentOverflow = "";
 
   constructor(children: HTMLElement[]) {
-    this.element = <div id={VIEWER_ID}>{children}</div> as HTMLElement;
+    this.element = (
+      <div id={VIEWER_ID} className="fixed inset-0 z-[2147483647] bg-[#070707] color-reader-text font-sans text-13px leading-[1.4]">
+        {children}
+      </div>
+    ) as HTMLElement;
   }
 
   mount(focusTarget?: HTMLElement): void {

@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
-import { createGenerator } from "unocss";
+import { createGenerator, expandVariantGroup } from "unocss";
 import unoConfig from "./uno.config.mjs";
 
 const packageDir = path.dirname(fileURLToPath(import.meta.url));
@@ -113,7 +113,7 @@ async function generateUnoCss() {
   const content = readSourceFiles(path.join(packageDir, "src"))
     .map((file) => readFileSync(file, "utf-8"))
     .join("\n");
-  const result = await generator.generate(content, { preflights: true });
+  const result = await generator.generate(expandVariantGroup(content), { preflights: true });
 
   return result.css;
 }

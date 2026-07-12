@@ -29,9 +29,9 @@ export type ZoomDragMove = {
 function zoomOverlayDom() {
   let image!: HTMLImageElement;
   const element = (
-    <div className="ehpeek-zoom-overlay" hidden>
+    <div className="ehpeek-zoom-overlay fixed inset-0 z-4 flex items-center justify-center overflow-hidden bg-[#070707] pointer-events-none" hidden style="display: none;">
       <img
-        className="ehpeek-zoom-image"
+        className="ehpeek-zoom-image block max-w-screen max-h-screen object-contain origin-center select-none will-change-transform [-webkit-user-drag:none]"
         ref={(node: HTMLImageElement) => {
           image = node;
         }}
@@ -58,6 +58,7 @@ function zoomOverlayDom() {
     },
     setOpen(open: boolean) {
       element.hidden = !open;
+      element.style.display = open ? "" : "none";
     },
     setTransform(offsetX: number, offsetY: number, scale: number) {
       image.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;

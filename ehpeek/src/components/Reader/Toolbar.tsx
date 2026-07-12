@@ -16,7 +16,12 @@ export type PageProgress = {
   keepInputValue?: boolean;
 };
 
-const READER_BUTTON_CLASS = "control-reader-btn border color-button-reader cursor-pointer font-sans textsize-sm font-700 leading-1";
+const READER_BUTTON_CLASS = [
+  "control-reader-btn coarse:(w-68px h-60px px-16px rounded-8px text-18px)",
+  "border color-button-reader cursor-pointer font-sans textsize-sm font-700 leading-1",
+].join(" ");
+const TOOLBAR_HIDDEN_CLASS = "opacity-0 translate-y-[calc(100%+16px)] pointer-events-none";
+const TOOLBAR_HIDDEN_CLASSES = TOOLBAR_HIDDEN_CLASS.split(" ");
 
 function toolbarDom(handlers: {
   onReadDirectionClick: () => void;
@@ -37,11 +42,24 @@ function toolbarDom(handlers: {
   let disableReaderButton!: HTMLButtonElement;
 
   const topbar = (
-    <div className="ehpeek-topbar fixed top-[calc(10px+env(safe-area-inset-top,0px))] right-10px z-3 flex justify-end pointer-events-none" onClick={stopEvent} onPointerDown={stopEvent} onWheel={stopEvent}>
+    <div
+      className={
+        // Base.
+        "ehpeek-topbar fixed z-3 flex justify-end pointer-events-none " +
+        // Position.
+        "top-[calc(10px+env(safe-area-inset-top,0px))] right-10px " +
+        "coarse:top-[calc(8px+env(safe-area-inset-top,0px))] coarse:right-8px"
+      }
+      onClick={stopEvent} onPointerDown={stopEvent} onWheel={stopEvent}
+    >
       <div className="ehpeek-actions flex flex-row gap-8px pointer-events-auto">
         <button
           type="button"
-          className={`ehpeek-button ehpeek-direction-button ehpeek-control-hidden ${READER_BUTTON_CLASS}`}
+          className={
+            "ehpeek-button ehpeek-direction-button coarse:(w-68px px-16px text-16px) " +
+            READER_BUTTON_CLASS
+          }
+          hidden
           ref={(node: HTMLButtonElement) => {
             readDirectionButton = node;
           }}
@@ -49,7 +67,11 @@ function toolbarDom(handlers: {
         />
         <button
           type="button"
-          className={`ehpeek-button ehpeek-direction-button ehpeek-control-hidden ${READER_BUTTON_CLASS}`}
+          className={
+            "ehpeek-button ehpeek-direction-button coarse:(w-68px px-16px text-16px) " +
+            READER_BUTTON_CLASS
+          }
+          hidden
           ref={(node: HTMLButtonElement) => {
             rightTapButton = node;
           }}
@@ -57,7 +79,8 @@ function toolbarDom(handlers: {
         />
         <button
           type="button"
-          className={`ehpeek-button ehpeek-control-hidden ${READER_BUTTON_CLASS}`}
+          className={"ehpeek-button " + READER_BUTTON_CLASS}
+          hidden
           ref={(node: HTMLButtonElement) => {
             modeButton = node;
           }}
@@ -65,7 +88,11 @@ function toolbarDom(handlers: {
         />
         <button
           type="button"
-          className={`ehpeek-button ehpeek-disable-button ehpeek-control-hidden ${READER_BUTTON_CLASS} uppercase`}
+          className={
+            "ehpeek-button ehpeek-disable-button coarse:(w-68px text-15px) uppercase " +
+            READER_BUTTON_CLASS
+          }
+          hidden
           title={texts.reader.disableReader}
           ref={(node: HTMLButtonElement) => {
             disableReaderButton = node;
@@ -74,7 +101,7 @@ function toolbarDom(handlers: {
         >
           off
         </button>
-        <button type="button" className={`ehpeek-button ${READER_BUTTON_CLASS}`} title={texts.reader.close} onClick={handlers.onCloseClick}>
+        <button type="button" className={"ehpeek-button " + READER_BUTTON_CLASS} title={texts.reader.close} onClick={handlers.onCloseClick}>
           X
         </button>
       </div>
@@ -82,7 +109,22 @@ function toolbarDom(handlers: {
   ) as HTMLElement;
   const pageNumber = (
     <div
-      className="ehpeek-pageno fixed top-[calc(62px+env(safe-area-inset-top,0px))] left-1/2 z-3 min-w-64px py-4px px-10px rounded-6px color-reader-badge color-reader-text font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap text-center -translate-x-1/2 pointer-events-none"
+      className={
+        // Base.
+        "ehpeek-pageno fixed z-3 pointer-events-none " +
+        // Position.
+        "top-[calc(62px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 " +
+        "coarse:top-[calc(72px+env(safe-area-inset-top,0px))] " +
+        "landscape:top-[calc(54px+env(safe-area-inset-top,0px))] landscape:(left-auto right-10px translate-x-0) " +
+        "coarse-landscape:top-[calc(62px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px " +
+        // Box.
+        "min-w-64px landscape:min-w-0 max-w-none landscape:max-w-[calc(100vw-20px)] coarse-landscape:max-w-[calc(100vw-16px)] " +
+        "py-4px px-10px " +
+        "rounded-6px color-reader-badge color-reader-text " +
+        // Text.
+        "font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap " +
+        "text-center landscape:text-right"
+      }
       ref={(node: HTMLElement) => {
         pageNumberLabel = node;
       }}
@@ -90,7 +132,14 @@ function toolbarDom(handlers: {
   ) as HTMLElement;
   const progress = (
     <div
-      className="ehpeek-progressbar ehpeek-toolbar-hidden fixed right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out"
+      className={
+        // Base.
+        "ehpeek-progressbar fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out " +
+        // Position.
+        "right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] " +
+        // Initial visibility.
+        TOOLBAR_HIDDEN_CLASS
+      }
       ref={(node: HTMLElement) => {
         toolbar = node;
       }}
@@ -100,7 +149,17 @@ function toolbarDom(handlers: {
     >
       <input
         type="range"
-        className="ehpeek-progress w-full control-range m-0 color-progress-reader cursor-grab touch-none select-none [-webkit-appearance:none] [appearance:none]"
+        className={
+          // Base.
+          "ehpeek-progress w-full control-range coarse:(h-72px px-19px) m-0 color-progress-reader " +
+          // Interaction.
+          "cursor-grab active:cursor-grabbing touch-none select-none [-webkit-appearance:none] [appearance:none] " +
+          // Progress fill.
+          "[--ehpeek-progress-fill:0%] [--ehpeek-progress-track-direction:to_right] " +
+          // Thumb size.
+          "[--ehpeek-progress-thumb-size:30px] [--ehpeek-progress-thumb-offset:-11px] " +
+          "coarse:([--ehpeek-progress-thumb-size:43px] [--ehpeek-progress-thumb-offset:-17px])"
+        }
         min="1"
         step="1"
         ref={(node: HTMLInputElement) => {
@@ -116,10 +175,10 @@ function toolbarDom(handlers: {
   ) as HTMLElement;
 
   const setControlHidden = (hidden: boolean) => {
-    modeButton.classList.toggle("ehpeek-control-hidden", hidden);
-    readDirectionButton.classList.toggle("ehpeek-control-hidden", hidden);
-    rightTapButton.classList.toggle("ehpeek-control-hidden", hidden);
-    disableReaderButton.classList.toggle("ehpeek-control-hidden", hidden);
+    modeButton.hidden = hidden;
+    readDirectionButton.hidden = hidden;
+    rightTapButton.hidden = hidden;
+    disableReaderButton.hidden = hidden;
   };
 
   return {
@@ -142,6 +201,8 @@ function toolbarDom(handlers: {
       const rtl = direction === "rtl";
       readDirectionButton.textContent = rtl ? "RL" : "LR";
       readDirectionButton.title = rtl ? texts.reader.readLeftToRight : texts.reader.readRightToLeft;
+      progressInput.dir = rtl ? "rtl" : "ltr";
+      progressInput.style.setProperty("--ehpeek-progress-track-direction", rtl ? "to left" : "to right");
     },
     setRightTapButton(action: RightTapAction) {
       const previous = action === "previous";
@@ -161,7 +222,10 @@ function toolbarDom(handlers: {
       progressInput.style.setProperty("--ehpeek-progress-fill", `${fillPercent}%`);
     },
     toggleToolbar(): boolean {
-      const hidden = toolbar.classList.toggle("ehpeek-toolbar-hidden");
+      const hidden = !toolbar.classList.contains(TOOLBAR_HIDDEN_CLASSES[0]);
+      toolbar.classList.toggle(TOOLBAR_HIDDEN_CLASSES[0], hidden);
+      toolbar.classList.toggle(TOOLBAR_HIDDEN_CLASSES[1], hidden);
+      toolbar.classList.toggle(TOOLBAR_HIDDEN_CLASSES[2], hidden);
       setControlHidden(hidden);
       return !hidden;
     },
