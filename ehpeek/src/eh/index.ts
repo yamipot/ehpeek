@@ -299,8 +299,8 @@ export function restorePreview(snapshot: unknown): void {
   dom.restorePreview(snapshot as PreviewSnapshot);
 }
 
-export function mountSettingsMenu(settingsMenu: Parameters<typeof dom.mountSettingsMenu>[0]): boolean {
-  return dom.mountSettingsMenu(settingsMenu);
+export function mountSettingsMenu(settingsMenu: Parameters<typeof dom.mountSettingsMenu>[0], touchTopBarMenuItemClassName: string): boolean {
+  return dom.mountSettingsMenu(settingsMenu, touchTopBarMenuItemClassName);
 }
 
 export function settingsMenuTriggerTagName(): "a" | "button" {

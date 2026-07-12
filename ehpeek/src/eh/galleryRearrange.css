@@ -1,0 +1,100 @@
+:root {
+  --ehpeek-touch-gallery-gutter: clamp(16px, 2.5vw, 36px);
+}
+
+html,
+body {
+  min-width: 0 !important;
+  overflow-x: hidden !important;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  box-sizing: border-box;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  background: #34353b !important;
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+}
+
+.ehpeek-touch-gallery-host,
+.gpc,
+body #gdt[class],
+#cdiv,
+.ptt,
+.ptb {
+  box-sizing: border-box !important;
+  width: calc(100% - (var(--ehpeek-touch-gallery-gutter) * 2)) !important;
+  max-width: none !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+body #gdt[class],
+.ptt,
+.ptb,
+.ehpeek-scroll-page-bar {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+#gdt .gdtm,
+#gdt .gdtl,
+#gdt > div {
+  display: inline-flex !important;
+  min-width: 132px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: top;
+}
+
+#gdt a {
+  display: flex !important;
+  min-height: 150px;
+  align-items: center;
+  justify-content: center;
+}
+
+.ehpeek-touch-gallery-rating {
+  display: flex !important;
+  min-height: var(--ehpeek-rating-height, auto) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.ehpeek-touch-gallery-rating-scale {
+  width: max-content;
+  max-width: none !important;
+  transform: scale(var(--ehpeek-rating-scale, 1));
+  transform-origin: left top;
+}
+
+.ehpeek-touch-gallery-rating img,
+.ehpeek-touch-gallery-rating input,
+.ehpeek-touch-gallery-rating button,
+.ehpeek-touch-gallery-rating table,
+.ehpeek-touch-gallery-rating tbody,
+.ehpeek-touch-gallery-rating tr,
+.ehpeek-touch-gallery-rating td,
+.ehpeek-touch-gallery-rating > * {
+  max-width: 100%;
+  min-height: 24px;
+  height: auto;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background-color: transparent !important;
+  overflow: visible;
+  touch-action: manipulation;
+}
+
+.ehpeek-touch-gallery-rating table {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+}

@@ -3,59 +3,9 @@ import type { ReaderPage } from "../components/Reader";
 import type { SettingsMenu } from "../components/SettingsMenu";
 import texts from "../texts.json";
 import { normalizeUrl } from "../utils";
+import galleryRearrange from "./galleryRearrange.css";
 
-const TOUCH_GALLERY_PANEL_PAGE_STYLE_ID = "ehpeek-touch-gallery-panel-page-style";
-const TOUCH_TOP_BAR_PAGE_STYLE_ID = "ehpeek-touch-top-bar-page-style";
-const TOUCH_TOP_BAR_MENU_ITEM_CLASS =
-  "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-[var(--ehpeek-control-touch-min-height)] py-18px px-24px touch:px-26px border-0 border-b color-border-subtle-b bg-transparent color-text text-left no-underline text-28px touch:text-30px leading-[1.2]";
-
-const TOUCH_GALLERY_PANEL_PAGE_CSS = `
-  :root {
-    --ehpeek-touch-gallery-gutter: clamp(16px, 2.5vw, 36px);
-  }
-
-  .ehpeek-touch-gallery-host,
-  .gpc,
-  body #gdt[class],
-  #cdiv,
-  .ptt,
-  .ptb {
-    box-sizing: border-box !important;
-    width: calc(100% - (var(--ehpeek-touch-gallery-gutter) * 2)) !important;
-    max-width: none !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-  }
-
-  body #gdt[class],
-  .ptt,
-  .ptb,
-  .ehpeek-scroll-page-bar {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  #gdt .gdtm,
-  #gdt .gdtl,
-  #gdt > div {
-    display: inline-flex !important;
-    min-width: 132px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    vertical-align: top;
-  }
-
-  #gdt a {
-    display: flex !important;
-    min-height: 150px;
-    align-items: center;
-    justify-content: center;
-  }
-`;
-
-const TOUCH_TOP_BAR_PAGE_CSS = "";
+const TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID = "ehpeek-touch-gallery-page-rearrange-style";
 
 export type PreviewSnapshot = {
   description: Node | null;
@@ -312,7 +262,7 @@ export function restorePreview(snapshot: PreviewSnapshot): void {
   }
 }
 
-export function mountSettingsMenu(settingsMenu: SettingsMenu): boolean {
+export function mountSettingsMenu(settingsMenu: SettingsMenu, touchTopBarMenuItemClassName: string): boolean {
   const touchTopBarMenu = document.querySelector(".ehpeek-touch-top-bar-menu-panel");
   const thumbnailContainer = document.querySelector("#gdt");
   const titleContainer = document.querySelector("#gd2, h1");
@@ -323,7 +273,7 @@ export function mountSettingsMenu(settingsMenu: SettingsMenu): boolean {
     settingsMenu.mount(touchTopBarMenu);
     settingsMenu.root
       .querySelector(".ehpeek-settings-trigger")
-      ?.classList.add(...TOUCH_TOP_BAR_MENU_ITEM_CLASS.split(" "));
+      ?.classList.add(...touchTopBarMenuItemClassName.split(" "));
     return true;
   }
 
@@ -354,24 +304,13 @@ export function settingsMenuTriggerTagName(): "a" | "button" {
 }
 
 export function installTouchGalleryPanelPageStyle(): void {
-  if (document.getElementById(TOUCH_GALLERY_PANEL_PAGE_STYLE_ID)) {
+  if (document.getElementById(TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID)) {
     return;
   }
 
   const style = document.createElement("style");
-  style.id = TOUCH_GALLERY_PANEL_PAGE_STYLE_ID;
-  style.textContent = TOUCH_GALLERY_PANEL_PAGE_CSS;
-  document.head.append(style);
-}
-
-export function installTouchTopBarPageStyle(): void {
-  if (document.getElementById(TOUCH_TOP_BAR_PAGE_STYLE_ID)) {
-    return;
-  }
-
-  const style = document.createElement("style");
-  style.id = TOUCH_TOP_BAR_PAGE_STYLE_ID;
-  style.textContent = TOUCH_TOP_BAR_PAGE_CSS;
+  style.id = TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID;
+  style.textContent = galleryRearrange;
   document.head.append(style);
 }
 
@@ -404,11 +343,11 @@ export function mountTouchGalleryPanel(panel: HTMLElement): boolean {
   return true;
 }
 
-export function readTouchTopBarInfo(): TouchTopBarInfo {
+export function readTouchTopBarInfo(menuItemClassName: string): TouchTopBarInfo {
   const navItems = Array.from(document.querySelectorAll<HTMLAnchorElement>("#nb a[href]")).map((link) => {
     const clone = link.cloneNode(true) as HTMLAnchorElement;
     clone.removeAttribute("id");
-    clone.className = TOUCH_TOP_BAR_MENU_ITEM_CLASS;
+    clone.className = menuItemClassName;
     return clone;
   });
 
@@ -419,7 +358,7 @@ export function readTouchTopBarInfo(): TouchTopBarInfo {
   };
 }
 
-export function readGalleryInfo(): GalleryInfo {
+export function readGalleryInfo(actionMenuItemClassName: string, tagClassName: string): GalleryInfo {
   const meta = readGalleryMeta();
   const range = readShowingRange();
   const coverSource = document.querySelector<HTMLImageElement>("#gd1 img");
@@ -448,9 +387,9 @@ export function readGalleryInfo(): GalleryInfo {
     cover: coverUrl ? createGalleryCoverImageDom(coverUrl) : null,
     favorite: readGalleryFavoriteInfo(),
     summary,
-    actions: readGalleryActionsDom(),
+    actions: readGalleryActionsDom(actionMenuItemClassName),
     rating: readGalleryRatingDom(),
-    tagGroups: readGalleryTagGroupsDom(),
+    tagGroups: readGalleryTagGroupsDom(tagClassName),
   };
 }
 
@@ -570,18 +509,18 @@ function readGalleryRatingDom(): HTMLElement | null {
   return wrapper;
 }
 
-function readGalleryActionsDom(): HTMLElement[] {
+function readGalleryActionsDom(actionMenuItemClassName: string): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>("#gd5 a, #gd5 button, #gd5 input[type='button'], #gd5 input[type='submit']"))
     .map((item) => {
       const clone = item.cloneNode(true) as HTMLElement;
       clone.removeAttribute("id");
-      clone.classList.add("ehpeek-touch-gallery-actions-menu-item");
+      clone.className = actionMenuItemClassName;
       return clone;
     })
     .slice(0, 6);
 }
 
-function readGalleryTagGroupsDom(): GalleryTagGroup[] {
+function readGalleryTagGroupsDom(tagClassName: string): GalleryTagGroup[] {
   const rows = Array.from(document.querySelectorAll<HTMLTableRowElement>("#taglist tr"));
 
   if (rows.length > 0) {
@@ -589,7 +528,7 @@ function readGalleryTagGroupsDom(): GalleryTagGroup[] {
       .map((row) => {
         const namespace = row.querySelector(".tc, td:first-child")?.textContent?.trim().replace(/:$/, "") || "tag";
         const tags = Array.from(row.querySelectorAll<HTMLAnchorElement>("a"))
-          .map(cloneGalleryTagDom)
+          .map((tag) => cloneGalleryTagDom(tag, tagClassName))
           .filter(Boolean)
           .slice(0, 30);
 
@@ -601,7 +540,7 @@ function readGalleryTagGroupsDom(): GalleryTagGroup[] {
   const groups = new Map<string, HTMLElement[]>();
 
   for (const tag of Array.from(document.querySelectorAll<HTMLAnchorElement>("#taglist a")).slice(0, 60)) {
-    const clone = cloneGalleryTagDom(tag);
+    const clone = cloneGalleryTagDom(tag, tagClassName);
     const tags = groups.get("tag") ?? [];
     tags.push(clone);
     groups.set("tag", tags);
@@ -610,9 +549,10 @@ function readGalleryTagGroupsDom(): GalleryTagGroup[] {
   return Array.from(groups, ([namespace, tags]) => ({ namespace, tags }));
 }
 
-function cloneGalleryTagDom(tag: HTMLAnchorElement): HTMLElement {
+function cloneGalleryTagDom(tag: HTMLAnchorElement, tagClassName: string): HTMLElement {
   const clone = tag.cloneNode(true) as HTMLElement;
   clone.removeAttribute("id");
+  clone.className = tagClassName;
   return clone;
 }
 
@@ -650,6 +590,7 @@ function textOf(selector: string): string {
 
 function createGalleryCoverImageDom(imageUrl: string): HTMLImageElement {
   const image = document.createElement("img");
+  image.className = "block w-full max-w-full h-full max-h-full mx-auto object-contain object-center";
   image.src = imageUrl;
   image.alt = "";
   image.decoding = "async";

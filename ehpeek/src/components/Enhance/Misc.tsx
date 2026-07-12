@@ -17,7 +17,7 @@ export function createGalleryReadButton(info: ReadButtonInfo, onClick: () => voi
 export function createTouchGalleryReadButton(info: ReadButtonInfo, onClick: () => void): HTMLButtonElement {
   return readButtonDom(
     info,
-    "ehpeek-continue-reading ehpeek-touch-gallery-primary-button flex-col",
+    "ehpeek-continue-reading ehpeek-touch-gallery-primary-button control-primary-action textsize-lg font-700",
     "ehpeek-continue-reading-page block mt-2px color-accent textsize-sm font-600 opacity-78 normal-case",
     onClick,
   );

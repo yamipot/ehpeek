@@ -2,6 +2,8 @@ import { h } from "../../jsx";
 import * as eh from "../../eh/dom";
 
 const TOUCH_ICON_BUTTON_CLASS = "inline-flex control-icon border-0 bg-transparent color-text text-28px leading-1 no-underline";
+export const TOUCH_TOP_BAR_MENU_ITEM_CLASS =
+  "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-[var(--ehpeek-control-touch-min-height)] py-18px px-24px touch:px-26px border-0 border-b color-border-subtle-b bg-transparent color-text text-left no-underline text-28px touch:text-30px leading-[1.2]";
 
 function touchTopBarDom(info: eh.TouchTopBarInfo) {
   const menu = touchTopBarMenuDom(info.navItems);
@@ -82,14 +84,14 @@ function touchTopBarMenuDom(navItems: HTMLElement[]) {
 }
 
 export class TouchTopBar {
-  install(): void {
-    eh.installTouchTopBarPageStyle();
+  constructor(private readonly menuItemClassName: string) {}
 
+  install(): void {
     if (document.querySelector(".ehpeek-touch-top-bar")) {
       return;
     }
 
-    const info = eh.readTouchTopBarInfo();
+    const info = eh.readTouchTopBarInfo(this.menuItemClassName);
 
     if (!info.available) {
       return;

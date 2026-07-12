@@ -1,7 +1,11 @@
 import { openFullscreenReader } from "./components/Reader";
 import { SettingsMenu } from "./components/SettingsMenu";
-import { TouchGalleryPanel } from "./components/Enhance/TouchGalleryPanel";
-import { TouchTopBar } from "./components/Enhance/TouchTopBar";
+import {
+  TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS,
+  TOUCH_GALLERY_TAG_CLASS,
+  TouchGalleryPanel,
+} from "./components/Enhance/TouchGalleryPanel";
+import { TOUCH_TOP_BAR_MENU_ITEM_CLASS, TouchTopBar } from "./components/Enhance/TouchTopBar";
 import {
   enhanceThumbsGridsEnabled,
   GalleryPageProvider,
@@ -19,7 +23,7 @@ import texts from "./texts.json";
 import { state } from "./state";
 import { loadReaderHistory, ReaderHistorySession } from "./history";
 import { normalizeUrl } from "./utils";
-import { installUnoStyle } from "./styles/uno";
+import unoCss from "ehpeek:uno.css";
 
 const READER_WINDOW_SIZE = 10;
 
@@ -28,6 +32,17 @@ let settingsMenu: SettingsMenu | null = null;
 let touchGalleryPanel: TouchGalleryPanel | null = null;
 let touchTopBar: TouchTopBar | null = null;
 
+function installUnoStyle(): void {
+  const STYLE_ID = "ehpeek-uno-style";
+  if (!unoCss || document.getElementById(STYLE_ID)) {
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = STYLE_ID;
+  style.textContent = unoCss;
+  document.head.append(style);
+}
 installUnoStyle();
 
 function updateReaderEnabled(enabled: boolean): void {
@@ -200,19 +215,19 @@ function installSettingsMenu(): void {
     onApply: applySettingsMenuState,
   });
 
-  if (!eh.mountSettingsMenu(settingsMenu)) {
+  if (!eh.mountSettingsMenu(settingsMenu, TOUCH_TOP_BAR_MENU_ITEM_CLASS)) {
     settingsMenu = null;
   }
 }
 
 function installTouchGalleryPanel(): TouchGalleryPanel {
-  touchGalleryPanel ??= new TouchGalleryPanel();
+  touchGalleryPanel ??= new TouchGalleryPanel(TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS, TOUCH_GALLERY_TAG_CLASS);
   touchGalleryPanel.install();
   return touchGalleryPanel;
 }
 
 function installTouchTopBar(): TouchTopBar {
-  touchTopBar ??= new TouchTopBar();
+  touchTopBar ??= new TouchTopBar(TOUCH_TOP_BAR_MENU_ITEM_CLASS);
   touchTopBar.install();
   return touchTopBar;
 }
