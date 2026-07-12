@@ -1,3 +1,5 @@
+import { DomData } from "../../jsx";
+
 export type PointerDragStart = {
   clientX: number;
   clientY: number;
@@ -30,6 +32,7 @@ const DEFAULT_TAP_MOVE_THRESHOLD_PX = 8;
 export class PointerGesture {
   private mousePointerId = -1;
   private readonly pinchPointers = new Map<number, { clientX: number; clientY: number }>();
+  private readonly dragging = new DomData<boolean>();
   private drag: {
     pointerId: number;
     pointerType: string;
@@ -69,6 +72,7 @@ export class PointerGesture {
       tapMoveThreshold?: number;
     },
   ) {
+    this.dragging.bindElement(target, "dragging", false);
     target.addEventListener("pointerdown", this.onPointerDown);
     target.addEventListener("mousedown", this.onMouseDown);
     target.addEventListener("dragstart", this.onDragStart);
@@ -80,6 +84,7 @@ export class PointerGesture {
       this.drag = null;
     }
 
+    this.dragging.value = false;
     this.clearPinch();
     this.passiveTap = null;
     this.removePointerListeners();
@@ -90,7 +95,7 @@ export class PointerGesture {
     this.target.removeEventListener("dragstart", this.onDragStart);
   }
 
-  dragging(): boolean {
+  isDragging(): boolean {
     return this.drag !== null;
   }
 
@@ -101,7 +106,7 @@ export class PointerGesture {
 
     this.target.releasePointerCapture?.(this.drag.pointerId);
     this.drag = null;
-    this.target.classList.remove("ehpeek-dragging");
+    this.dragging.value = false;
     this.removePointerListeners();
     this.removeMouseListeners();
   }
@@ -162,7 +167,7 @@ export class PointerGesture {
       velocityY: 0,
     };
 
-    this.target.classList.add("ehpeek-dragging");
+    this.dragging.value = true;
     this.target.setPointerCapture?.(pointerId);
     this.addPointerListeners();
     this.handlers.onStart?.({ pointerId, clientX, clientY }, event);
@@ -245,7 +250,7 @@ export class PointerGesture {
     }
 
     this.drag = null;
-    this.target.classList.remove("ehpeek-dragging");
+    this.dragging.value = false;
     this.target.releasePointerCapture?.(drag.pointerId);
     this.removePointerListeners();
     this.removeMouseListeners();

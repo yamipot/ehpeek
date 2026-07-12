@@ -8,7 +8,7 @@ export default defineConfig({
     mediaVariant("desktop", "(min-width: 760px)"),
     mediaVariant("landscape", "(orientation: landscape)"),
     mediaVariant("coarse-landscape", "(orientation: landscape) and (pointer: coarse)"),
-    selectVariant("touch", (s) => `html.ehpeek-touch-ui ${s}`),
+    selectVariant("touch", (s) => `html[data-ehpeek-touch-ui="true"] ${s}`),
   ],
   preflights: [
     {
@@ -63,7 +63,7 @@ export default defineConfig({
   background: var(--ehpeek-color-state-off);
 }
 
-html.ehpeek-touch-ui .ehpeek-ui-state-dot::after {
+html[data-ehpeek-touch-ui="true"] .ehpeek-ui-state-dot::after {
   width: var(--ehpeek-control-toggle-dot-touch-size);
   height: var(--ehpeek-control-toggle-dot-touch-size);
 }

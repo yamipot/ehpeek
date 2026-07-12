@@ -72,13 +72,12 @@ export class PagesGesture {
 
   dispose(): void {
     this.pointerGesture.dispose();
-    this.target.classList.remove("ehpeek-scroller-dragging");
     this.target.removeEventListener("scroll", this.onScroll);
     this.target.removeEventListener("wheel", this.onWheel);
   }
 
   dragging(): boolean {
-    return this.pointerGesture.dragging();
+    return this.pointerGesture.isDragging();
   }
 
   onKeydown = (event: KeyboardEvent): void => {
@@ -129,7 +128,6 @@ export class PagesGesture {
   };
 
   private onDragStart = (info: PointerDragStart, event: PointerEvent | MouseEvent): void => {
-    this.target.classList.add("ehpeek-scroller-dragging");
     this.handlers.onDragStart(info, event);
   };
 
@@ -138,8 +136,6 @@ export class PagesGesture {
   };
 
   private onDragEnd = (info: PointerDragEnd, event: PointerEvent | MouseEvent): void => {
-    this.target.classList.remove("ehpeek-scroller-dragging");
-
     if (Math.abs(info.dx) < TAP_MOVE_THRESHOLD && Math.abs(info.dy) < TAP_MOVE_THRESHOLD) {
       return;
     }

@@ -49,7 +49,7 @@ await build({
   loader: {
     ".css": "text",
   },
-  plugins: [unoCssPlugin(unoCss)],
+  plugins: [variantGroupPlugin(), unoCssPlugin(unoCss)],
   minifySyntax: !debugBuild,
   sourcemap: releaseBuild ? false : "linked",
   banner: {
@@ -150,6 +150,28 @@ function unoCssPlugin(css) {
         contents: css,
         loader: "text",
       }));
+    },
+  };
+}
+
+function variantGroupPlugin() {
+  return {
+    name: "ehpeek-variant-group",
+    setup(build) {
+      build.onLoad({ filter: /\.[cm]?[tj]sx?$/ }, (args) => {
+        if (!args.path.startsWith(path.join(packageDir, "src"))) {
+          return null;
+        }
+
+        const source = readFileSync(args.path, "utf-8");
+        const extension = path.extname(args.path);
+        const loader = extension === ".tsx" ? "tsx" : extension === ".ts" ? "ts" : "js";
+
+        return {
+          contents: expandVariantGroup(source),
+          loader,
+        };
+      });
     },
   };
 }

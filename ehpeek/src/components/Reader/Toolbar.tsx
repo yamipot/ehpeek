@@ -1,4 +1,4 @@
-import { h } from "../../jsx";
+import { DomData, h } from "../../jsx";
 import type { ReadDirection, RightTapAction, ViewMode } from "../../state";
 import texts from "../../texts.json";
 import { stopEvent } from "../../utils";
@@ -20,8 +20,6 @@ const READER_BUTTON_CLASS = [
   "control-reader-btn coarse:(w-68px h-60px px-16px rounded-8px text-18px)",
   "border color-button-reader cursor-pointer font-sans textsize-sm font-700 leading-1",
 ].join(" ");
-const TOOLBAR_HIDDEN_CLASS = "opacity-0 translate-y-[calc(100%+16px)] pointer-events-none";
-const TOOLBAR_HIDDEN_CLASSES = TOOLBAR_HIDDEN_CLASS.split(" ");
 
 function toolbarDom(handlers: {
   onReadDirectionClick: () => void;
@@ -33,30 +31,30 @@ function toolbarDom(handlers: {
   onProgressInput: () => void;
   onProgressCommit: () => void;
 }) {
-  let toolbar!: HTMLElement;
   let modeButton!: HTMLButtonElement;
   let readDirectionButton!: HTMLButtonElement;
   let rightTapButton!: HTMLButtonElement;
   let pageNumberLabel!: HTMLElement;
   let progressInput!: HTMLInputElement;
   let disableReaderButton!: HTMLButtonElement;
+  const toolbarOpen = new DomData<boolean>();
 
   const topbar = (
     <div
       className={
         // Base.
-        "ehpeek-topbar fixed z-3 flex justify-end pointer-events-none " +
+        "fixed z-3 flex justify-end pointer-events-none " +
         // Position.
         "top-[calc(10px+env(safe-area-inset-top,0px))] right-10px " +
         "coarse:top-[calc(8px+env(safe-area-inset-top,0px))] coarse:right-8px"
       }
       onClick={stopEvent} onPointerDown={stopEvent} onWheel={stopEvent}
     >
-      <div className="ehpeek-actions flex flex-row gap-8px pointer-events-auto">
+      <div className="flex flex-row gap-8px pointer-events-auto">
         <button
           type="button"
           className={
-            "ehpeek-button ehpeek-direction-button coarse:(w-68px px-16px text-16px) " +
+            "coarse:(w-68px px-16px text-16px) " +
             READER_BUTTON_CLASS
           }
           hidden
@@ -68,7 +66,7 @@ function toolbarDom(handlers: {
         <button
           type="button"
           className={
-            "ehpeek-button ehpeek-direction-button coarse:(w-68px px-16px text-16px) " +
+            "coarse:(w-68px px-16px text-16px) " +
             READER_BUTTON_CLASS
           }
           hidden
@@ -79,7 +77,7 @@ function toolbarDom(handlers: {
         />
         <button
           type="button"
-          className={"ehpeek-button " + READER_BUTTON_CLASS}
+          className={READER_BUTTON_CLASS}
           hidden
           ref={(node: HTMLButtonElement) => {
             modeButton = node;
@@ -89,7 +87,7 @@ function toolbarDom(handlers: {
         <button
           type="button"
           className={
-            "ehpeek-button ehpeek-disable-button coarse:(w-68px text-15px) uppercase " +
+            "coarse:(w-68px text-15px) uppercase " +
             READER_BUTTON_CLASS
           }
           hidden
@@ -101,7 +99,7 @@ function toolbarDom(handlers: {
         >
           off
         </button>
-        <button type="button" className={"ehpeek-button " + READER_BUTTON_CLASS} title={texts.reader.close} onClick={handlers.onCloseClick}>
+        <button type="button" className={READER_BUTTON_CLASS} title={texts.reader.close} onClick={handlers.onCloseClick}>
           X
         </button>
       </div>
@@ -111,7 +109,7 @@ function toolbarDom(handlers: {
     <div
       className={
         // Base.
-        "ehpeek-pageno fixed z-3 pointer-events-none " +
+        "fixed z-3 pointer-events-none " +
         // Position.
         "top-[calc(62px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 " +
         "coarse:top-[calc(72px+env(safe-area-inset-top,0px))] " +
@@ -134,15 +132,13 @@ function toolbarDom(handlers: {
     <div
       className={
         // Base.
-        "ehpeek-progressbar fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out " +
+        "fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out " +
         // Position.
         "right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] " +
-        // Initial visibility.
-        TOOLBAR_HIDDEN_CLASS
+        // Closed state.
+        "[&[data-open=false]]:(opacity-0 translate-y-[calc(100%+16px)] pointer-events-none)"
       }
-      ref={(node: HTMLElement) => {
-        toolbar = node;
-      }}
+      data-open={toolbarOpen.bind(false)}
       onClick={stopEvent}
       onPointerDown={stopEvent}
       onWheel={stopEvent}
@@ -222,12 +218,11 @@ function toolbarDom(handlers: {
       progressInput.style.setProperty("--ehpeek-progress-fill", `${fillPercent}%`);
     },
     toggleToolbar(): boolean {
-      const hidden = !toolbar.classList.contains(TOOLBAR_HIDDEN_CLASSES[0]);
-      toolbar.classList.toggle(TOOLBAR_HIDDEN_CLASSES[0], hidden);
-      toolbar.classList.toggle(TOOLBAR_HIDDEN_CLASSES[1], hidden);
-      toolbar.classList.toggle(TOOLBAR_HIDDEN_CLASSES[2], hidden);
+      const open = !toolbarOpen.value;
+      toolbarOpen.value = open;
+      const hidden = !open;
       setControlHidden(hidden);
-      return !hidden;
+      return open;
     },
   };
 }

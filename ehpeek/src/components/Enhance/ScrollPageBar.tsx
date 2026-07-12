@@ -10,7 +10,7 @@ export const SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index";
 const DRAG_PIXEL_STEP = 18;
 const PAGE_BAR_BOTTOM_CLASS = "mt-0 mb-10px";
 const PAGE_BAR_CELL_CLASS = "control-page p-0 cursor-pointer text-center align-middle select-none";
-const PAGE_BAR_CLASS = "w-max mx-auto touch-pan-y";
+const PAGE_BAR_CLASS = "w-max mx-auto touch-pan-y [&[data-dragging=true]]:select-none";
 const PAGE_BAR_LINK_CLASS = "flex control-page items-center justify-center box-border px-0 py-0 border border-current bg-transparent textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
 const PAGE_BAR_TABLE_CLASS = "border-separate border-spacing-4px touch:border-spacing-6px";
 const PAGE_BAR_TOP_CLASS = "mt-2px mb-0";
@@ -44,9 +44,6 @@ function scrollPageBarDom(top: boolean, draggable: boolean) {
     render(row: HTMLTableRowElement, windowIndex: number) {
       body.replaceChildren(row);
       element.setAttribute(SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR, String(windowIndex));
-    },
-    setDragging(dragging: boolean) {
-      element.classList.toggle("ehpeek-scroll-page-bar-dragging", dragging);
     },
   };
 }
@@ -96,7 +93,7 @@ function pageBarLinkCellDom(text: string, pageIndex: number, current: boolean, u
 
 function pageBarEmptyCellDom(): HTMLTableCellElement {
   return (
-    <td className={`ehpeek-scroll-page-bar-empty ${PAGE_BAR_CELL_CLASS} cursor-default`}>
+    <td className={`${PAGE_BAR_CELL_CLASS} cursor-default`}>
       <span className={`${PAGE_BAR_LINK_CLASS} invisible`} />
     </td>
   ) as HTMLTableCellElement;
@@ -147,7 +144,6 @@ export class ScrollPageBar {
       shouldCaptureDrag: () => this.draggable(),
       onStart: () => {
         this.dragStartWindowIndex = this.windowIndex;
-        this.dom.setDragging(true);
       },
       onMove: (info) => {
         if (Math.abs(info.dx) < Math.abs(info.dy)) {
@@ -163,9 +159,6 @@ export class ScrollPageBar {
         this.windowIndex = nextIndex;
         galleryPageBarWindowIndex = nextIndex;
         this.render();
-      },
-      onEnd: () => {
-        this.dom.setDragging(false);
       },
       onTap: (info) => this.tapPageLink(info),
     });

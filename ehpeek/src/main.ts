@@ -233,7 +233,7 @@ function installTouchTopBar(): TouchTopBar {
 }
 
 function installTouchUi(): void {
-  document.documentElement.classList.add("ehpeek-touch-ui");
+  document.documentElement.dataset.ehpeekTouchUi = "true";
   installTouchTopBar();
 
   if (pageType.type === "gallery") {

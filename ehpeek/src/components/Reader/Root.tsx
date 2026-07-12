@@ -1,18 +1,30 @@
-import { h } from "../../jsx";
+import { DomData, h } from "../../jsx";
 import type { ReadDirection, ViewMode } from "../../state";
 import readerCss from "./Reader.css";
 
 const VIEWER_ID = "ehpeek-reader";
 const STYLE_ID = "ehpeek-reader-style";
+const DEFAULT_READ_DIRECTION: ReadDirection = "rtl";
+const DEFAULT_TOOLBAR_OPEN = false;
+const DEFAULT_VIEW_MODE: ViewMode = "scroll";
 
 export class ReaderRoot {
   readonly element: HTMLElement;
+  private readonly readDirection = new DomData<ReadDirection>();
+  private readonly toolbarOpen = new DomData<boolean>();
+  private readonly viewMode = new DomData<ViewMode>();
   private previousBodyOverflow = "";
   private previousDocumentOverflow = "";
 
   constructor(children: HTMLElement[]) {
     this.element = (
-      <div id={VIEWER_ID} className="fixed inset-0 z-[2147483647] bg-[#070707] color-reader-text font-sans text-13px leading-[1.4]">
+      <div
+        id={VIEWER_ID}
+        className="fixed inset-0 z-[2147483647] bg-[#070707] color-reader-text font-sans text-13px leading-[1.4]"
+        data-read-direction={this.readDirection.bind(DEFAULT_READ_DIRECTION)}
+        data-toolbar-open={this.toolbarOpen.bind(DEFAULT_TOOLBAR_OPEN)}
+        data-view-mode={this.viewMode.bind(DEFAULT_VIEW_MODE)}
+      >
         {children}
       </div>
     ) as HTMLElement;
@@ -32,16 +44,15 @@ export class ReaderRoot {
   }
 
   setMode(mode: ViewMode): void {
-    this.element.classList.toggle("ehpeek-paged", mode === "paged");
+    this.viewMode.value = mode;
   }
 
   setReadDirection(direction: ReadDirection): void {
-    this.element.classList.toggle("ehpeek-read-rtl", direction === "rtl");
-    this.element.classList.toggle("ehpeek-read-ltr", direction === "ltr");
+    this.readDirection.value = direction;
   }
 
   setToolbarOpen(open: boolean): void {
-    this.element.classList.toggle("ehpeek-toolbar-open", open);
+    this.toolbarOpen.value = open;
   }
 
   private lockPageScroll(): void {
