@@ -21,7 +21,20 @@ export type GallerySummaryItem = {
 
 export type GalleryTagGroup = {
   namespace: string;
-  tags: HTMLElement[];
+  tags: GalleryTag[];
+};
+
+export type GalleryTag = {
+  appearance: GalleryTagAppearance;
+  href: string;
+  label: string;
+};
+
+export type GalleryTagAppearance = {
+  backgroundColor: string;
+  borderColor: string;
+  borderStyle: string;
+  color: string;
 };
 
 export type GalleryInfo = {
@@ -352,7 +365,7 @@ export function readTouchTopBarInfo(menuItemClassName: string): TouchTopBarInfo 
   };
 }
 
-export function readGalleryInfo(actionMenuItemClassName: string, tagClassName: string): GalleryInfo {
+export function readGalleryInfo(actionMenuItemClassName: string): GalleryInfo {
   const meta = readGalleryMeta();
   const range = readShowingRange();
   const coverSource = document.querySelector<HTMLImageElement>("#gd1 img");
@@ -383,7 +396,7 @@ export function readGalleryInfo(actionMenuItemClassName: string, tagClassName: s
     summary,
     actions: readGalleryActionsDom(actionMenuItemClassName),
     rating: readGalleryRatingDom(),
-    tagGroups: readGalleryTagGroupsDom(tagClassName),
+    tagGroups: readGalleryTagGroups(),
   };
 }
 
@@ -499,7 +512,7 @@ function readGalleryActionsDom(actionMenuItemClassName: string): HTMLElement[] {
     .slice(0, 6);
 }
 
-function readGalleryTagGroupsDom(tagClassName: string): GalleryTagGroup[] {
+function readGalleryTagGroups(): GalleryTagGroup[] {
   const rows = Array.from(document.querySelectorAll<HTMLTableRowElement>("#taglist tr"));
 
   if (rows.length > 0) {
@@ -507,8 +520,8 @@ function readGalleryTagGroupsDom(tagClassName: string): GalleryTagGroup[] {
       .map((row) => {
         const namespace = row.querySelector(".tc, td:first-child")?.textContent?.trim().replace(/:$/, "") || "tag";
         const tags = Array.from(row.querySelectorAll<HTMLAnchorElement>("a"))
-          .map((tag) => cloneGalleryTagDom(tag, tagClassName))
-          .filter(Boolean)
+          .map(readGalleryTag)
+          .filter((tag): tag is GalleryTag => tag !== null)
           .slice(0, 30);
 
         return { namespace, tags };
@@ -516,23 +529,44 @@ function readGalleryTagGroupsDom(tagClassName: string): GalleryTagGroup[] {
       .filter((group) => group.tags.length > 0);
   }
 
-  const groups = new Map<string, HTMLElement[]>();
+  const groups = new Map<string, GalleryTag[]>();
 
   for (const tag of Array.from(document.querySelectorAll<HTMLAnchorElement>("#taglist a")).slice(0, 60)) {
-    const clone = cloneGalleryTagDom(tag, tagClassName);
+    const galleryTag = readGalleryTag(tag);
+
+    if (!galleryTag) {
+      continue;
+    }
+
     const tags = groups.get("tag") ?? [];
-    tags.push(clone);
+    tags.push(galleryTag);
     groups.set("tag", tags);
   }
 
   return Array.from(groups, ([namespace, tags]) => ({ namespace, tags }));
 }
 
-function cloneGalleryTagDom(tag: HTMLAnchorElement, tagClassName: string): HTMLElement {
-  const clone = tag.cloneNode(true) as HTMLElement;
-  clone.removeAttribute("id");
-  clone.className = tagClassName;
-  return clone;
+function readGalleryTag(tag: HTMLAnchorElement): GalleryTag | null {
+  const label = tag.textContent?.trim() ?? "";
+
+  if (!label || !tag.href) {
+    return null;
+  }
+
+  const container = tag.closest<HTMLElement>("div.gt, div.gtl, div.gtw") ?? tag;
+  const tagStyle = window.getComputedStyle(tag);
+  const containerStyle = window.getComputedStyle(container);
+
+  return {
+    appearance: {
+      backgroundColor: containerStyle.backgroundColor,
+      borderColor: containerStyle.borderColor,
+      borderStyle: containerStyle.borderStyle,
+      color: tagStyle.color,
+    },
+    href: tag.href,
+    label,
+  };
 }
 
 function readGalleryFavoriteInfo(): GalleryFavoriteInfo {

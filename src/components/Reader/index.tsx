@@ -45,7 +45,7 @@ export type FullscreenReaderOptions = {
   nearConcurrentLoads?: number;
   farConcurrentLoads?: number;
   onActivePageChange?: (page: ReaderPage, index: number) => void;
-  onDisableReader?: () => void;
+  onOpenOriginalPage?: (page: ReaderPage) => void;
 };
 
 type ReaderRootState = {
@@ -499,7 +499,7 @@ class ReaderSession {
   private readonly loadPages: FullscreenReaderOptions["loadPages"];
   private readonly onExit: FullscreenReaderOptions["onExit"];
   private readonly onActivePageChange: ((page: ReaderPage, index: number) => void) | undefined;
-  private readonly onDisableReader: (() => void) | undefined;
+  private readonly onOpenOriginalPage: ((page: ReaderPage) => void) | undefined;
   private readonly closeComponent: () => void;
   private readonly isDragging: () => boolean;
   private readonly setRootComponentState: (state: ReaderRootState) => void;
@@ -544,7 +544,7 @@ class ReaderSession {
     this.loadPages = options.loadPages;
     this.onExit = options.onExit;
     this.onActivePageChange = options.onActivePageChange;
-    this.onDisableReader = options.onDisableReader;
+    this.onOpenOriginalPage = options.onOpenOriginalPage;
     this.closeComponent = bindings.close;
     this.isDragging = bindings.isDragging;
     this.setRootComponentState = bindings.setRootState;
@@ -568,10 +568,7 @@ class ReaderSession {
       onRightTapClick: () => this.toggleRightTapAction(),
       onModeClick: () => this.setMode(state.reader.viewMode.value === "paged" ? "scroll" : "paged"),
       onCloseClick: () => this.close(),
-      onDisableReaderClick: () => {
-        this.onDisableReader?.();
-        this.close();
-      },
+      onOpenOriginalPageClick: () => this.openOriginalPage(),
       onOpenChange: (open) => this.setRootState({ toolbarOpen: open }),
       onProgressPointerDown: this.onProgressPointerDown,
       onProgressInput: this.onProgressInput,
@@ -1264,6 +1261,16 @@ class ReaderSession {
       window.clearTimeout(this.progressNavigationTimer);
       this.progressNavigationTimer = null;
     }
+  }
+
+  private openOriginalPage(): void {
+    const page = this.pages.get(this.currentPageNum);
+
+    if (!page || !this.isRealPageNum(this.currentPageNum) || !this.onOpenOriginalPage) {
+      return;
+    }
+
+    this.onOpenOriginalPage(page);
   }
 
   private readonly onResize = (): void => {

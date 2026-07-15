@@ -6,7 +6,7 @@ import {
 } from "./components/Reader";
 import { Fragment, h, render } from "preact";
 import { SettingsMenu } from "./components/SettingsMenu";
-import { TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS, TOUCH_GALLERY_TAG_CLASS, TouchGalleryPanel } from "./components/Enhance/TouchGalleryPanel";
+import { TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS, TouchGalleryPanel } from "./components/Enhance/TouchGalleryPanel";
 import { TOUCH_TOP_BAR_MENU_ITEM_CLASS, TouchTopBar } from "./components/Enhance/TouchTopBar";
 import {
   EnhanceThumbsGrids,
@@ -260,7 +260,7 @@ if (settingsState.touchUiEnabled && !document.querySelector(".ehpeek-touch-top-b
 }
 
 if (settingsState.touchUiEnabled && pageType.type === "gallery") {
-  const touchGalleryInfo = eh.readGalleryInfo(TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS, TOUCH_GALLERY_TAG_CLASS);
+  const touchGalleryInfo = eh.readGalleryInfo(TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS);
 
   if (touchGalleryInfo.available) {
     eh.applyTouchGalleryPanelPageStyle();
@@ -410,10 +410,9 @@ async function openReader(startPageUrl: string, preferredPageNum?: number): Prom
         window.location.replace(galleryUrl);
       }
     },
-    onDisableReader: () => {
+    onOpenOriginalPage: (page) => {
       historySession.dispose();
-      state.reader.enabled.set(false);
-      installContinueReadingButton();
+      window.location.assign(page.url);
     },
   });
 }

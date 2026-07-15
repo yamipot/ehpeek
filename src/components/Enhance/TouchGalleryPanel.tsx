@@ -6,7 +6,6 @@ import { requestText } from "../../utils";
 import { DomNode, DomNodes } from "./Misc";
 
 export const TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item control-touch-menu-item text-21px leading-[1.2]";
-export const TOUCH_GALLERY_TAG_CLASS = "ehpeek-touch-gallery-tag control-tag color-tag text-23px";
 
 export function TouchGalleryPanel(props: {
   onPrimaryActionMount: (mount: HTMLElement | null) => void;
@@ -121,12 +120,20 @@ function TouchGalleryActionsMenu(props: { actions: HTMLElement[] }) {
 
 function TouchGalleryTagGroup(props: { group: GalleryTagGroup }) {
   return (
-    <section className="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(88px,28%)_minmax(0,1fr)] gap-8px items-start">
-      <div className="ehpeek-touch-gallery-tag-group-name control-tag-group color-tag-group text-21px">
+    <section className="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-8px items-start">
+      <div className="ehpeek-touch-gallery-tag-group-name control-tag-group color-tag-group textsize-md">
         {props.group.namespace}
       </div>
       <div className="ehpeek-touch-gallery-tags flex flex-wrap gap-8px">
-        <DomNodes nodes={props.group.tags} clone />
+        {props.group.tags.map((tag) => (
+          <a
+            className="ehpeek-touch-gallery-tag control-tag color-tag textsize-md"
+            href={tag.href}
+            style={tag.appearance}
+          >
+            {tag.label}
+          </a>
+        ))}
       </div>
     </section>
   );
@@ -258,6 +265,12 @@ function TouchGalleryFavoriteOption(props: {
         {props.option.value === "favdel" ? "♡" : "♥"}
       </span>
       <span>{props.option.label}</span>
+      <span
+        className={`ml-auto flex-none color-accent text-24px font-700 leading-1 ${props.option.selected ? "visible" : "invisible"}`}
+        aria-hidden="true"
+      >
+        ✓
+      </span>
     </button>
   );
 }

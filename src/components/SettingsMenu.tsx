@@ -94,7 +94,7 @@ export function SettingsMenu(props: {
   }
 
   return (
-    <div ref={menuRef} className="ehpeek-settings-menu fixed top-24px right-24px z-[2147483646] min-w-260px touch:min-w-[min(92vw,520px)] p-8px border color-border rounded-4px color-elevated color-text textsize-md leading-[1.2]">
+    <div ref={menuRef} className="ehpeek-settings-menu fixed top-24px right-24px z-[2147483646] min-w-260px p-8px border color-border rounded-4px color-elevated color-text textsize-md leading-[1.2]">
       <SwitchButton
         checked={[draft.readerEnabled, texts.settings.readerOn, texts.settings.readerOff]}
         onChange={(value) => {

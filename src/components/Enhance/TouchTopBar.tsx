@@ -7,7 +7,7 @@ const TOUCH_ICON_BUTTON_CLASS = "inline-flex control-icon border-0 bg-transparen
 export const TOUCH_TOP_BAR_MENU_ITEM_CLASS =
   "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-[var(--ehpeek-control-touch-min-height)] py-18px px-24px touch:px-26px border-0 border-b color-border-subtle-b bg-transparent color-text text-left no-underline text-28px touch:text-30px leading-[1.2]";
 
-function TouchTopBarMenu(props: { navItems: HTMLElement[]; onSettingsMenuOpen: () => void }) {
+function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const navItemsRef = useRef<HTMLDivElement>(null);
@@ -57,18 +57,6 @@ function TouchTopBarMenu(props: { navItems: HTMLElement[]; onSettingsMenuOpen: (
           className="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+8px)] right-0 z-[2147483645] flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border color-border rounded-4px color-elevated"
         >
           <div ref={navItemsRef} className="contents" />
-          <button
-            type="button"
-            className={TOUCH_TOP_BAR_MENU_ITEM_CLASS}
-            onClick={(event: MouseEvent) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setOpen(false);
-              props.onSettingsMenuOpen();
-            }}
-          >
-            {texts.settings.menuLabel}
-          </button>
         </div>
       )}
     </div>
@@ -81,7 +69,21 @@ export function TouchTopBar(props: { info: eh.TouchTopBarInfo; onSettingsMenuOpe
       <a className={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`} href={props.info.homeHref}>
         ⌂
       </a>
-      <TouchTopBarMenu navItems={props.info.navItems} onSettingsMenuOpen={props.onSettingsMenuOpen} />
+      <div className="flex items-center gap-2px">
+        <button
+          type="button"
+          className={`ehpeek-touch-top-bar-settings ${TOUCH_ICON_BUTTON_CLASS}`}
+          aria-label={texts.settings.openSettings}
+          title={texts.settings.openSettings}
+          onClick={(event: MouseEvent) => {
+            event.stopPropagation();
+            props.onSettingsMenuOpen();
+          }}
+        >
+          ⚙
+        </button>
+        <TouchTopBarMenu navItems={props.info.navItems} />
+      </div>
     </nav>
   );
 }

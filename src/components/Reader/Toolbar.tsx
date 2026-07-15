@@ -24,8 +24,8 @@ const READER_BUTTON_CLASS = [
 
 export type ToolbarCallbacks = {
   onCloseClick: () => void;
-  onDisableReaderClick: () => void;
   onModeClick: () => void;
+  onOpenOriginalPageClick: () => void;
   onOpenChange: (open: boolean) => void;
   onProgressCommit: (value: number) => void;
   onProgressInput: (value: number) => void;
@@ -99,12 +99,12 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           </button>
           <button
             type="button"
-            className={"coarse:(w-68px text-15px) uppercase " + READER_BUTTON_CLASS}
+            className={"coarse:(w-68px text-24px) text-20px " + READER_BUTTON_CLASS}
             hidden={!open}
-            title={texts.reader.disableReader}
-            onClick={props.callbacks.onDisableReaderClick}
+            title={texts.reader.openOriginalPage}
+            onClick={props.callbacks.onOpenOriginalPageClick}
           >
-            off
+            ⏻
           </button>
           <button type="button" className={READER_BUTTON_CLASS} title={texts.reader.close} onClick={props.callbacks.onCloseClick}>
             X
