@@ -19,6 +19,7 @@ export {
   restorePreview,
   searchPageNavigation,
   searchResultList,
+  searchTopNavigationBar,
   settingsMenuMountTarget,
   showPreviewPlaceholder,
   snapshotPreview,

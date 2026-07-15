@@ -145,6 +145,10 @@ export function searchNavigationBars(root: ParentNode = document): HTMLElement[]
   return Array.from(root.querySelectorAll<HTMLElement>(".searchnav"));
 }
 
+export function searchTopNavigationBar(root: ParentNode = document): HTMLElement | null {
+  return searchNavigationBars(root)[0] ?? null;
+}
+
 export function findSearchNavigationLink(target: EventTarget | null): HTMLAnchorElement | null {
   const link =
     target instanceof Element

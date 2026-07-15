@@ -97,7 +97,7 @@ function onSearchNavigationClick(event: MouseEvent): void {
 
   event.preventDefault();
   event.stopPropagation();
-  void navigateSearchPage(link.href, isNextPageOrJump(link));
+  void navigateSearchPage(link.href);
 }
 
 function updateSwipeIndicator(info: PointerDragEnd): void {
@@ -145,11 +145,11 @@ function navigateBySwipe(info: PointerDragEnd, event: Event): void {
 
   if (url) {
     event.preventDefault();
-    void navigateSearchPage(url, false);
+    void navigateSearchPage(url);
   }
 }
 
-async function navigateSearchPage(url: string, scrollToTopNavigation: boolean): Promise<void> {
+async function navigateSearchPage(url: string): Promise<void> {
   if (searchNavigationLoading) {
     return;
   }
@@ -157,12 +157,12 @@ async function navigateSearchPage(url: string, scrollToTopNavigation: boolean): 
   searchNavigationLoading = true;
   setSearchLoading?.(true);
   swipeElement?.setAttribute("aria-busy", "true");
-  scrollSearchNavigationIntoView(scrollToTopNavigation);
 
   try {
     const resultList = await eh.replaceSearchPageContentFromUrl(url);
     window.history.pushState(window.history.state, "", url);
     setResultListSwipeTarget(resultList);
+    eh.searchTopNavigationBar()?.scrollIntoView({ block: "start", behavior: "auto" });
   } catch (error) {
     console.error("[ehpeek]", error);
   } finally {
@@ -184,32 +184,4 @@ function swipeUrlForDelta(dx: number): string | null {
 
 function swipeProgressForDelta(dx: number): number {
   return Math.min(1, Math.max(0, (Math.abs(dx) - SWIPE_INTENT_DISTANCE) / (SWIPE_MIN_DISTANCE - SWIPE_INTENT_DISTANCE)));
-}
-
-function scrollSearchNavigationIntoView(enabled: boolean): void {
-  if (!enabled) {
-    return;
-  }
-
-  const target = document.querySelector<HTMLElement>(".searchnav");
-
-  if (!target) {
-    return;
-  }
-
-  const rect = target.getBoundingClientRect();
-  const currentTop = window.scrollY;
-  const targetTop = Math.max(0, currentTop + rect.top);
-
-  if (currentTop <= targetTop) {
-    return;
-  }
-
-  window.scrollTo({ top: targetTop, behavior: "auto" });
-}
-
-function isNextPageOrJump(link: HTMLAnchorElement): boolean {
-  const id = link.id.toLowerCase();
-
-  return id.endsWith("next") || id.endsWith("last");
 }
