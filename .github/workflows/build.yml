@@ -1,4 +1,4 @@
-name: Build userscripts
+name: Build ehpeek
 
 on:
   push:
@@ -9,17 +9,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: build-userscripts-${{ github.ref_name }}
+  group: build-ehpeek-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
-  build-ehpeek:
+  build:
     name: Build ehpeek
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: ehpeek
 
     steps:
       - name: Checkout
@@ -30,16 +26,21 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "11"
+
       - name: Install dependencies
-        run: npm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Type check
-        run: npm run check
+        run: pnpm check
 
       - name: Build
         env:
           EHPEEK_RELEASE_BUILD: "true"
-        run: npm run build
+        run: pnpm build
 
       - name: Publish built userscript branch
         if: github.event_name != 'pull_request'
@@ -53,7 +54,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          cp ehpeek/dist/ehpeek.user.js "$artifact"
+          cp dist/ehpeek.user.js "$artifact"
 
           if git ls-remote --exit-code --heads origin "$build_branch" >/dev/null 2>&1; then
             git fetch origin "$build_branch"

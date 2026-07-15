@@ -85,7 +85,7 @@ function userscriptVersion() {
 
 function userscriptInstallUrl() {
   if (releaseBuild) {
-    return "https://github.com/yamipot/userscripts/raw/build-master/ehpeek.user.js";
+    return "https://github.com/yamipot/ehpeek/raw/build-master/ehpeek.user.js";
   }
 
   return pathToFileURL(outfile).href;

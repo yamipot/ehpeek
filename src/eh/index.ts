@@ -14,6 +14,7 @@ export {
   readGalleryInfo,
   readShowingRange,
   readTouchTopBarInfo,
+  replaceGalleryPageBarMounts,
   restorePreview,
   searchPageNavigation,
   searchResultList,
@@ -267,10 +268,6 @@ export async function loadEhImagePage(page: ReaderPage): Promise<LoadedReaderPag
     width: numericAttribute(image, "width"),
     height: numericAttribute(image, "height"),
   };
-}
-
-export function replaceGalleryPageBarMounts(topClassName: string, bottomClassName: string): dom.GalleryPageBarMount[] {
-  return dom.replaceGalleryPageBarMounts(topClassName, bottomClassName);
 }
 
 export function replacePreviewContent(doc: Document): void {
