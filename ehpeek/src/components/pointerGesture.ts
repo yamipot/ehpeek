@@ -14,6 +14,7 @@ export type PointerDragEnd = PointerDragMove;
 export type PointerDragTap = PointerDragEnd & {
   startTarget: EventTarget | null;
 };
+export type PointerDragAxis = "any" | "x" | "y";
 
 export type PointerPinchStart = {
   clientX: number;
@@ -26,8 +27,13 @@ export type PointerPinchMove = PointerPinchStart & {
 };
 
 const DEFAULT_TAP_MOVE_THRESHOLD_PX = 8;
+const DEFAULT_DRAG_START_THRESHOLD_PX = 8;
+const DEFAULT_DRAG_INTENT_RATIO = 1;
 
 export type PointerGestureCallbacks = {
+  dragAxis?: PointerDragAxis;
+  dragIntentRatio?: number;
+  dragStartThreshold?: number;
   shouldCaptureDrag?: (event: PointerEvent | MouseEvent) => boolean;
   shouldObserveTap?: (event: PointerEvent | MouseEvent) => boolean;
   onStart?: (info: PointerDragStart, event: PointerEvent | MouseEvent) => void;
@@ -43,16 +49,9 @@ export type PointerGestureCallbacks = {
 export class PointerGesture {
   private mousePointerId = -1;
   private readonly pinchPointers = new Map<number, { clientX: number; clientY: number }>();
-  private drag: {
-    pointerId: number;
-    pointerType: string;
-    startClientX: number;
-    startClientY: number;
-    lastClientY: number;
-    lastMoveTime: number;
-    startTarget: EventTarget | null;
-    velocityY: number;
-  } | null = null;
+  private drag: GesturePointer | null = null;
+  private suppressClick = false;
+  private suppressClickTimer: number | null = null;
   private passiveTap: {
     pointerId: number;
     pointerType: string;
@@ -75,14 +74,15 @@ export class PointerGesture {
     target.addEventListener("pointerdown", this.onPointerDown);
     target.addEventListener("mousedown", this.onMouseDown);
     target.addEventListener("dragstart", this.onDragStart);
+    target.addEventListener("click", this.onClick, true);
   }
 
   dispose(): void {
-    if (this.drag) {
+    if (this.drag?.captured) {
       this.target.releasePointerCapture?.(this.drag.pointerId);
-      this.drag = null;
     }
 
+    this.drag = null;
     this.setDragging(false);
     this.clearPinch();
     this.passiveTap = null;
@@ -92,10 +92,16 @@ export class PointerGesture {
     this.target.removeEventListener("pointerdown", this.onPointerDown);
     this.target.removeEventListener("mousedown", this.onMouseDown);
     this.target.removeEventListener("dragstart", this.onDragStart);
+    this.target.removeEventListener("click", this.onClick, true);
+
+    if (this.suppressClickTimer !== null) {
+      window.clearTimeout(this.suppressClickTimer);
+      this.suppressClickTimer = null;
+    }
   }
 
   isDragging(): boolean {
-    return this.drag !== null;
+    return this.drag?.active === true;
   }
 
   cancel(): void {
@@ -103,7 +109,10 @@ export class PointerGesture {
       return;
     }
 
-    this.target.releasePointerCapture?.(this.drag.pointerId);
+    if (this.drag.captured) {
+      this.target.releasePointerCapture?.(this.drag.pointerId);
+    }
+
     this.drag = null;
     this.setDragging(false);
     this.removePointerListeners();
@@ -111,7 +120,19 @@ export class PointerGesture {
   }
 
   private onDragStart = (event: DragEvent): void => {
+    if (this.isDragging()) {
+      event.preventDefault();
+    }
+  };
+
+  private onClick = (event: MouseEvent): void => {
+    if (!this.suppressClick) {
+      return;
+    }
+
+    this.suppressClick = false;
     event.preventDefault();
+    event.stopPropagation();
   };
 
   private onPointerDown = (event: PointerEvent): void => {
@@ -132,12 +153,7 @@ export class PointerGesture {
       return;
     }
 
-    event.preventDefault();
     this.start(event.pointerId, event.pointerType, event.clientX, event.clientY, event);
-
-    if (event.pointerType === "mouse") {
-      this.addMouseListeners();
-    }
   };
 
   private onMouseDown = (event: MouseEvent): void => {
@@ -149,27 +165,26 @@ export class PointerGesture {
       return;
     }
 
-    event.preventDefault();
     this.start(this.mousePointerId, "mouse", event.clientX, event.clientY, event);
     this.addMouseListeners();
   };
 
   private start(pointerId: number, pointerType: string, clientX: number, clientY: number, event: PointerEvent | MouseEvent): void {
     this.drag = {
+      active: false,
+      captured: false,
       pointerId,
       pointerType,
       startClientX: clientX,
       startClientY: clientY,
+      lastClientX: clientX,
       lastClientY: clientY,
       lastMoveTime: event.timeStamp,
       startTarget: event.target,
       velocityY: 0,
     };
 
-    this.setDragging(true);
-    this.target.setPointerCapture?.(pointerId);
     this.addPointerListeners();
-    this.callbacks.onStart?.({ pointerId, clientX, clientY }, event);
   }
 
   private onPointerMove = (event: PointerEvent): void => {
@@ -178,7 +193,6 @@ export class PointerGesture {
     }
 
     this.move(event.clientX, event.clientY, event);
-    event.preventDefault();
   };
 
   private onPointerUp = (event: PointerEvent): void => {
@@ -205,7 +219,6 @@ export class PointerGesture {
     }
 
     this.move(event.clientX, event.clientY, event);
-    event.preventDefault();
   };
 
   private onMouseUp = (event: MouseEvent): void => {
@@ -223,8 +236,23 @@ export class PointerGesture {
       return;
     }
 
+    if (!drag.active && this.dragIntent(clientX - drag.startClientX, clientY - drag.startClientY) === "cancel") {
+      this.cancel();
+      return;
+    }
+
+    if (!drag.active && this.dragIntent(clientX - drag.startClientX, clientY - drag.startClientY) !== "start") {
+      this.updateLastMove(drag, clientX, clientY, event);
+      return;
+    }
+
+    if (!drag.active) {
+      this.activateDrag(drag, event);
+    }
+
     const elapsed = Math.max(1, event.timeStamp - drag.lastMoveTime);
     drag.velocityY = (clientY - drag.lastClientY) / elapsed;
+    drag.lastClientX = clientX;
     drag.lastClientY = clientY;
     drag.lastMoveTime = event.timeStamp;
 
@@ -239,6 +267,8 @@ export class PointerGesture {
       },
       event,
     );
+
+    event.preventDefault();
   }
 
   private finish(clientX: number, clientY: number, event: PointerEvent | MouseEvent): void {
@@ -250,7 +280,9 @@ export class PointerGesture {
 
     this.drag = null;
     this.setDragging(false);
-    this.target.releasePointerCapture?.(drag.pointerId);
+    if (drag.captured) {
+      this.target.releasePointerCapture?.(drag.pointerId);
+    }
     this.removePointerListeners();
     this.removeMouseListeners();
 
@@ -265,23 +297,26 @@ export class PointerGesture {
 
     const isTap = Math.abs(info.dx) < this.tapMoveThreshold() && Math.abs(info.dy) < this.tapMoveThreshold();
 
-    if (isTap) {
+    if (!drag.active && isTap) {
       this.callbacks.onTap?.({ ...info, startTarget: drag.startTarget }, event);
     }
 
-    this.callbacks.onEnd?.(info, event);
+    if (drag.active) {
+      this.suppressNextClick();
+      this.callbacks.onEnd?.(info, event);
+    }
   }
 
   private addPointerListeners(): void {
-    this.target.addEventListener("pointermove", this.onPointerMove);
-    this.target.addEventListener("pointerup", this.onPointerUp);
-    this.target.addEventListener("pointercancel", this.onPointerCancel);
+    document.addEventListener("pointermove", this.onPointerMove, true);
+    document.addEventListener("pointerup", this.onPointerUp, true);
+    document.addEventListener("pointercancel", this.onPointerCancel, true);
   }
 
   private removePointerListeners(): void {
-    this.target.removeEventListener("pointermove", this.onPointerMove);
-    this.target.removeEventListener("pointerup", this.onPointerUp);
-    this.target.removeEventListener("pointercancel", this.onPointerCancel);
+    document.removeEventListener("pointermove", this.onPointerMove, true);
+    document.removeEventListener("pointerup", this.onPointerUp, true);
+    document.removeEventListener("pointercancel", this.onPointerCancel, true);
   }
 
   private addMouseListeners(): void {
@@ -512,6 +547,82 @@ export class PointerGesture {
     return this.callbacks.tapMoveThreshold ?? DEFAULT_TAP_MOVE_THRESHOLD_PX;
   }
 
+  private dragStartThreshold(): number {
+    return this.callbacks.dragStartThreshold ?? DEFAULT_DRAG_START_THRESHOLD_PX;
+  }
+
+  private dragIntentRatio(): number {
+    return this.callbacks.dragIntentRatio ?? DEFAULT_DRAG_INTENT_RATIO;
+  }
+
+  private dragAxis(): PointerDragAxis {
+    return this.callbacks.dragAxis ?? "any";
+  }
+
+  private dragIntent(dx: number, dy: number): "pending" | "start" | "cancel" {
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    const threshold = this.dragStartThreshold();
+    const ratio = this.dragIntentRatio();
+
+    if (this.dragAxis() === "x") {
+      if (absY >= threshold && absY > absX) {
+        return "cancel";
+      }
+
+      return absX >= threshold && absX >= absY * ratio ? "start" : "pending";
+    }
+
+    if (this.dragAxis() === "y") {
+      if (absX >= threshold && absX > absY) {
+        return "cancel";
+      }
+
+      return absY >= threshold && absY >= absX * ratio ? "start" : "pending";
+    }
+
+    return Math.hypot(dx, dy) >= threshold ? "start" : "pending";
+  }
+
+  private activateDrag(drag: GesturePointer, event: PointerEvent | MouseEvent): void {
+    drag.active = true;
+    this.setDragging(true);
+    if (event instanceof PointerEvent && this.target.setPointerCapture) {
+      this.target.setPointerCapture(drag.pointerId);
+      drag.captured = true;
+    }
+    this.callbacks.onStart?.(
+      {
+        pointerId: drag.pointerId,
+        clientX: drag.startClientX,
+        clientY: drag.startClientY,
+      },
+      event,
+    );
+    event.preventDefault();
+  }
+
+  private updateLastMove(drag: GesturePointer, clientX: number, clientY: number, event: PointerEvent | MouseEvent): void {
+    const elapsed = Math.max(1, event.timeStamp - drag.lastMoveTime);
+    drag.velocityY = (clientY - drag.lastClientY) / elapsed;
+    drag.lastClientX = clientX;
+    drag.lastClientY = clientY;
+    drag.lastMoveTime = event.timeStamp;
+  }
+
+  private suppressNextClick(): void {
+    this.suppressClick = true;
+
+    if (this.suppressClickTimer !== null) {
+      window.clearTimeout(this.suppressClickTimer);
+    }
+
+    this.suppressClickTimer = window.setTimeout(() => {
+      this.suppressClick = false;
+      this.suppressClickTimer = null;
+    }, 400);
+  }
+
   private setDragging(dragging: boolean): void {
     this.target.dataset.dragging = String(dragging);
   }
@@ -523,3 +634,17 @@ export class PointerGesture {
     return event.pointerId === tap.pointerId && event.pointerType === tap.pointerType;
   }
 }
+
+type GesturePointer = {
+  active: boolean;
+  captured: boolean;
+  pointerId: number;
+  pointerType: string;
+  startClientX: number;
+  startClientY: number;
+  lastClientX: number;
+  lastClientY: number;
+  lastMoveTime: number;
+  startTarget: EventTarget | null;
+  velocityY: number;
+};

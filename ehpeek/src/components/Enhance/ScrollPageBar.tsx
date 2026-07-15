@@ -1,7 +1,6 @@
 import { h } from "preact";
 import { useRef, useState } from "preact/hooks";
 import { clamp } from "../../utils";
-import type { PointerDragTap } from "../pointerGesture";
 import { usePointerGestureElement } from "../PointerGestureSurface";
 
 export const SCROLL_PAGE_BAR_CLASS = "ehpeek-scroll-page-bar";
@@ -73,6 +72,7 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: HTMLDiv
 
   usePointerGestureElement(options.element, {
     shouldCaptureDrag: draggable,
+    dragAxis: "x",
     onStart: () => {
       dragStartWindowIndex.current = windowIndex;
     },
@@ -89,9 +89,6 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: HTMLDiv
 
       galleryPageBarWindowIndex = nextIndex;
       setWindowIndex(nextIndex);
-    },
-    onTap: (info) => {
-      tapPageLink(options.element, info);
     },
   });
 
@@ -110,16 +107,6 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: HTMLDiv
       </tbody>
     </table>
   );
-}
-
-function tapPageLink(element: HTMLElement | null, info: PointerDragTap): void {
-  const link = info.startTarget instanceof Element ? info.startTarget.closest<HTMLAnchorElement>("a[data-page-index]") : null;
-
-  if (!link || !element?.contains(link)) {
-    return;
-  }
-
-  link.click();
 }
 
 export function setScrollPageBarWindowIndex(index: number): void {

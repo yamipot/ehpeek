@@ -38,6 +38,15 @@ export function usePointerGestureElement<E extends HTMLElement>(
 
 function pointerGestureCallbackProxy(callbacksRef: { current: PointerGestureCallbacks }): PointerGestureCallbacks {
   return {
+    get dragAxis() {
+      return callbacksRef.current.dragAxis;
+    },
+    get dragIntentRatio() {
+      return callbacksRef.current.dragIntentRatio;
+    },
+    get dragStartThreshold() {
+      return callbacksRef.current.dragStartThreshold;
+    },
     shouldCaptureDrag: (event) => callbacksRef.current.shouldCaptureDrag?.(event) ?? true,
     shouldObserveTap: (event) => callbacksRef.current.shouldObserveTap?.(event) ?? false,
     onStart: (info, event) => callbacksRef.current.onStart?.(info, event),

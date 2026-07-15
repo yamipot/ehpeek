@@ -323,10 +323,6 @@ function PagesGesture(props: {
     return event instanceof PointerEvent && event.pointerType !== "mouse" && !props.callbacks.shouldStartDrag(event);
   };
   const onDragEnd = (info: PointerDragEnd, event: PointerEvent | MouseEvent): void => {
-    if (Math.abs(info.dx) < TAP_CANCEL_DISTANCE && Math.abs(info.dy) < TAP_CANCEL_DISTANCE) {
-      return;
-    }
-
     props.callbacks.onDragEnd(info, event);
   };
 
@@ -336,6 +332,7 @@ function PagesGesture(props: {
     onMove: props.callbacks.onDragMove,
     onEnd: onDragEnd,
     onTap: props.callbacks.onTap,
+    dragStartThreshold: TAP_CANCEL_DISTANCE,
     tapMoveThreshold: TAP_CANCEL_DISTANCE,
     shouldObserveTap,
     onPinchStart: props.callbacks.onPinchStart,

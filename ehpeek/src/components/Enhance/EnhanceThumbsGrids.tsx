@@ -1,5 +1,5 @@
 import type { ReaderPage } from "../../readerTypes";
-import type { PointerDragEnd, PointerDragMove } from "../pointerGesture";
+import type { PointerDragEnd } from "../pointerGesture";
 import { loadingSpinnerElement } from "../Loading";
 import { usePointerGestureElement } from "../PointerGestureSurface";
 import { SwipeIndicator, type SwipeDirection, type SwipeIndicatorHandle } from "./Misc";
@@ -144,11 +144,10 @@ export function EnhanceThumbsGrids(props: {
 
   usePointerGestureElement(gestureTarget, {
     onStart: () => {
-      swipeState = { horizontal: false, cancelled: false };
+      swipeState = { horizontal: true, cancelled: false };
       hideSwipeIndicator();
     },
-    onMove: (info, event) => {
-      updateSwipeState(info, event);
+    onMove: (info) => {
       updateSwipeIndicator(info);
     },
     onEnd: (info, event) => {
@@ -156,9 +155,9 @@ export function EnhanceThumbsGrids(props: {
       swipeState = null;
       hideSwipeIndicator();
     },
-    onTap: (info) => {
-      clickFromStartTarget(info.startTarget, info.clientX, info.clientY);
-    },
+    dragAxis: "x",
+    dragIntentRatio: HORIZONTAL_INTENT_RATIO,
+    dragStartThreshold: SWIPE_INTENT_DISTANCE,
   });
 
   return props.enabled ? (
@@ -235,55 +234,7 @@ function setThumbsGridSwipeTarget(): void {
   setSwipeGestureTarget?.(thumbs);
 }
 
-function clickFromStartTarget(startTarget: EventTarget | null, clientX: number, clientY: number): void {
-  if (!(startTarget instanceof Element)) {
-    return;
-  }
-
-  const link = startTarget.closest<HTMLAnchorElement>("a[href]");
-
-  if (link) {
-    link.click();
-    return;
-  }
-
-  startTarget.dispatchEvent(
-    new MouseEvent("click", {
-      bubbles: true,
-      cancelable: true,
-      clientX,
-      clientY,
-    }),
-  );
-}
-
-function updateSwipeState(info: PointerDragMove, event: PointerEvent | MouseEvent): void {
-  if (!swipeState) {
-    return;
-  }
-
-  const dx = info.dx;
-  const dy = info.dy;
-  const absX = Math.abs(dx);
-  const absY = Math.abs(dy);
-
-  if (swipeState.horizontal || swipeState.cancelled) {
-    return;
-  }
-
-  if (absY >= SWIPE_INTENT_DISTANCE && absY > absX) {
-    swipeState.cancelled = true;
-    hideSwipeIndicator();
-    return;
-  }
-
-  if (absX >= SWIPE_INTENT_DISTANCE && absX >= absY * HORIZONTAL_INTENT_RATIO) {
-    swipeState.horizontal = true;
-    event.preventDefault();
-  }
-}
-
-function updateSwipeIndicator(info: PointerDragMove): void {
+function updateSwipeIndicator(info: PointerDragEnd): void {
   if (!swipeState?.horizontal || swipeState.cancelled) {
     return;
   }
