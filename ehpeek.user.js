@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ehpeek: E-H/ExH viewer
 // @namespace    ehpeek
-// @version      260715.1523
+// @version      260715.1537
 // @description  A mobile-optimized E-H/ExH viewer
 // @match        *://e-hentai.org/*
 // @match        *://exhentai.org/*
@@ -2362,14 +2362,18 @@ body #gdt[class],
     return currentList.replaceWith(importedList), importedList;
   }
   function maxPreviewPageIndex(root = document, baseUrl = window.location.href) {
-    let indexes = Array.from(root.querySelectorAll("a[href*='?p='], a[href*='&p=']")).map((link) => {
-      try {
-        return Number(new URL(link.getAttribute("href") || "", baseUrl).searchParams.get("p") || "");
-      } catch {
-        return NaN;
-      }
-    }).filter((value) => Number.isFinite(value) && value >= 0);
-    return indexes.length === 0 ? null : Math.max(...indexes);
+    let range2 = readShowingRange(root);
+    if (!range2)
+      return null;
+    let currentIndex;
+    try {
+      let value = Number(new URL(baseUrl, window.location.href).searchParams.get("p") || "0");
+      currentIndex = Number.isFinite(value) && value >= 0 ? value : 0;
+    } catch {
+      return null;
+    }
+    let pageSize = currentIndex === 0 ? range2.end - range2.start + 1 : (range2.start - 1) / currentIndex;
+    return !Number.isInteger(pageSize) || pageSize <= 0 ? null : Math.max(currentIndex, Math.ceil(range2.total / pageSize) - 1);
   }
   function findClickedImageLink(target, extractPageType2) {
     let link = target instanceof Element ? target.closest("a[href]") : null;
@@ -2560,10 +2564,10 @@ body #gdt[class],
       label: favorited ? text : "Not Favorited"
     };
   }
-  function parseGalleryFavoriteOptions(doc) {
+  function parseGalleryFavoriteOptions(doc, favorited) {
     return Array.from(doc.querySelectorAll("input[name='favcat']")).map((input) => ({
       label: input.closest("div[style*='height']")?.textContent?.trim().replace(/\s+/g, " ") || input.value,
-      selected: input.checked,
+      selected: favorited && input.checked,
       value: input.value
     }));
   }
@@ -2706,7 +2710,7 @@ body #gdt[class],
         setOpen(!0), setLoadingState("loading");
         try {
           let html = await requestText(favorite.actionUrl), doc = new DOMParser().parseFromString(html, "text/html");
-          setOptions(parseGalleryFavoriteOptions(doc)), setLoadingState("idle");
+          setOptions(parseGalleryFavoriteOptions(doc, favorite.favorited)), setLoadingState("idle");
         } catch (error) {
           console.error("[ehpeek]", error), setLoadingState("failed");
         }
@@ -3123,11 +3127,11 @@ body #gdt[class],
   async function navigateGalleryPreview(url, options = {}) {
     if (galleryNavigationLoading)
       return;
-    let previousUrl = window.location.href, snapshot = snapshotPreview(), targetPreviewIndex = previewPageIndexFromUrl(url);
-    galleryNavigationLoading = !0, swipeElement?.setAttribute("aria-busy", "true"), window.history.replaceState(window.history.state, "", url), targetPreviewIndex !== null && (setScrollPageBarWindowIndex(targetPreviewIndex), replaceGalleryPageBar?.(targetPreviewIndex, maxPreviewPageIndex())), options.scrollToPageBar && scrollToPageBar(options.scrollToPageBar), showPreviewPlaceholder(loadingSpinnerElement(texts_default.reader.loading, "lg"));
+    let previousUrl = window.location.href, snapshot = snapshotPreview(), targetPreviewIndex = previewPageIndexFromUrl(url), maxPreviewIndex = maxPreviewPageIndex();
+    galleryNavigationLoading = !0, swipeElement?.setAttribute("aria-busy", "true"), window.history.replaceState(window.history.state, "", url), targetPreviewIndex !== null && (setScrollPageBarWindowIndex(targetPreviewIndex), replaceGalleryPageBar?.(targetPreviewIndex, maxPreviewIndex)), options.scrollToPageBar && scrollToPageBar(options.scrollToPageBar), showPreviewPlaceholder(loadingSpinnerElement(texts_default.reader.loading, "lg"));
     try {
-      let html = await requestText(url), doc = new DOMParser().parseFromString(html, "text/html");
-      replacePreviewContent2(doc), replaceGalleryPageBar?.(previewPageIndexFromUrl(url) ?? previewPageIndex(), maxPreviewPageIndex()), setThumbsGridSwipeTarget(), options.scrollToPageBar && scrollToPageBar(options.scrollToPageBar);
+      let html = await requestText(url), doc = new DOMParser().parseFromString(html, "text/html"), nextMaxPreviewIndex = maxPreviewPageIndex(doc, url);
+      replacePreviewContent2(doc), replaceGalleryPageBar?.(previewPageIndexFromUrl(url) ?? previewPageIndex(), nextMaxPreviewIndex), setThumbsGridSwipeTarget(), options.scrollToPageBar && scrollToPageBar(options.scrollToPageBar);
     } catch (error) {
       throw restorePreview(snapshot), window.history.replaceState(window.history.state, "", previousUrl), replaceGalleryPageBar?.(previewPageIndex(), maxPreviewPageIndex()), error;
     } finally {
