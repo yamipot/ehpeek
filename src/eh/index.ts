@@ -4,6 +4,7 @@ import { normalizeUrl, requestText } from "../utils";
 import * as dom from "./dom";
 
 export {
+  applySiteTheme,
   applyTouchGalleryPanelPageStyle,
   findSearchNavigationLink,
   galleryContinueReadingButtonMountTarget,

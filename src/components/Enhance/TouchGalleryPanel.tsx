@@ -5,7 +5,7 @@ import type { GalleryFavoriteInfo, GalleryFavoriteOption, GalleryInfo, GalleryTa
 import { requestText } from "../../utils";
 import { DomNode, DomNodes } from "./Misc";
 
-export const TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item control-touch-menu-item text-21px leading-[1.2]";
+export const TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline text-21px leading-[1.2]";
 
 export function TouchGalleryPanel(props: {
   onPrimaryActionMount: (mount: HTMLElement | null) => void;
@@ -13,8 +13,8 @@ export function TouchGalleryPanel(props: {
 }) {
   const rootRef = useRef<HTMLElement>(null);
   const categoryClassName =
-    "ehpeek-touch-gallery-category min-w-0 self-center overflow-hidden text-ellipsis whitespace-nowrap py-6px px-12px text-17px font-700 leading-[1.1] uppercase " +
-    (props.source.categoryClassName || "bg-[#34353b] color-accent");
+    "ehpeek-touch-gallery-category min-w-0 self-center overflow-hidden text-ellipsis whitespace-nowrap py-sm px-md text-17px font-700 leading-[1.1] uppercase " +
+    (props.source.categoryClassName || "bg-[var(--color-site-page)] ehp-color-site-accent");
 
   useEffect(() => {
     if (rootRef.current) {
@@ -23,8 +23,8 @@ export function TouchGalleryPanel(props: {
   }, []);
 
   return (
-    <section ref={rootRef} className="ehpeek-touch-gallery flex box-border w-full flex-col mb-12px color-text font-sans">
-      <div className="ehpeek-touch-gallery-hero relative grid h-[clamp(260px,42vh,340px)] pt-18px pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] color-surface color-text">
+    <section ref={rootRef} className="ehpeek-touch-gallery flex box-border w-full flex-col mb-12px ehp-color-site-text font-sans">
+      <div className="ehpeek-touch-gallery-hero relative grid h-[clamp(260px,42vh,340px)] pt-18px pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text">
         <div className="ehpeek-touch-gallery-summary grid h-full min-h-0 grid-cols-[36%_minmax(0,1fr)] gap-18px items-start">
           <div className="ehpeek-touch-gallery-cover flex self-center justify-self-center w-auto max-w-full h-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden">
             <DomNode node={props.source.cover} />
@@ -45,16 +45,16 @@ export function TouchGalleryPanel(props: {
           </div>
         </div>
       </div>
-      <div className="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-[var(--ehpeek-control-primary-height)] mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-[var(--ehpeek-control-radius-sm)] color-panel-primary">
+      <div className="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs ehp-color-site-panel-primary">
         <TouchGalleryFavoriteButton source={props.source.favorite} />
         <div
-          className="ehpeek-touch-gallery-primary-actions flex min-w-0 border-l border-[rgba(255,255,255,0.12)]"
+          className="ehpeek-touch-gallery-primary-actions flex min-w-0 border-l border-[var(--color-site-border-subtle)]"
           ref={(node: HTMLElement | null) => {
             props.onPrimaryActionMount(node);
           }}
         />
       </div>
-      <div className="ehpeek-touch-gallery-content flex flex-col gap-16px pt-28px pr-[max(16px,env(safe-area-inset-right,0px))] pb-18px pl-[max(16px,env(safe-area-inset-left,0px))] bg-[#34353b]">
+      <div className="ehpeek-touch-gallery-content flex flex-col gap-16px pt-28px pr-[max(16px,env(safe-area-inset-right,0px))] pb-18px pl-[max(16px,env(safe-area-inset-left,0px))] bg-[var(--color-site-page)] ehp-color-site-text">
         <div className="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-14px gap-x-18px items-center text-27px leading-[1.2] text-center">
           {props.source.summary.map((item) => (
             <div className="ehpeek-touch-gallery-meta-value line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">
@@ -99,7 +99,7 @@ function TouchGalleryActionsMenu(props: { actions: HTMLElement[] }) {
     <div ref={rootRef} className="ehpeek-touch-gallery-actions-menu relative flex min-w-0 items-center justify-center">
       <button
         type="button"
-        className="ehpeek-touch-gallery-actions-menu-button inline-flex control-icon items-center justify-center border-0 bg-transparent color-text text-28px leading-1"
+        className="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text text-28px leading-1"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={(event: MouseEvent) => {
@@ -110,7 +110,7 @@ function TouchGalleryActionsMenu(props: { actions: HTMLElement[] }) {
         ⋮
       </button>
       {open && (
-        <div className="ehpeek-touch-gallery-actions-menu-panel absolute top-48px right-0 z-[2147483644] flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border color-border rounded-[var(--ehpeek-control-radius-md)] color-elevated">
+        <div className="ehpeek-touch-gallery-actions-menu-panel absolute top-48px right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">
           <DomNodes nodes={props.actions} clone />
         </div>
       )}
@@ -121,13 +121,13 @@ function TouchGalleryActionsMenu(props: { actions: HTMLElement[] }) {
 function TouchGalleryTagGroup(props: { group: GalleryTagGroup }) {
   return (
     <section className="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-8px items-start">
-      <div className="ehpeek-touch-gallery-tag-group-name control-tag-group color-tag-group textsize-md">
+      <div className="ehpeek-touch-gallery-tag-group-name min-h-sm overflow-hidden text-ellipsis whitespace-nowrap rounded-xl py-sm px-md text-center lowercase ehp-color-site-tag-group textsize-lg">
         {props.group.namespace}
       </div>
       <div className="ehpeek-touch-gallery-tags flex flex-wrap gap-8px">
         {props.group.tags.map((tag) => (
           <a
-            className="ehpeek-touch-gallery-tag control-tag color-tag textsize-md"
+            className="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-xl px-xl no-underline ehp-color-site-tag textsize-lg"
             href={tag.href}
             style={tag.appearance}
           >
@@ -186,7 +186,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
     <div ref={rootRef} className="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0">
       <button
         type="button"
-        className={`ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button control-primary-action textsize-lg font-700 normal-case ${favorited ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`}
+        className={`ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-10px py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] textsize-xl font-700 normal-case ${favorited ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={(event: MouseEvent) => {
@@ -200,14 +200,14 @@ function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
       >
         <span className="block leading-[1.15]">{favorite.label}</span>
         <span
-          className={`ehpeek-touch-gallery-favorite-icon block mt-2px textsize-md font-600 opacity-78 normal-case leading-[1.15] ${favorited ? "color-accent" : "text-[#111]"}`}
+          className={`ehpeek-touch-gallery-favorite-icon block mt-2px textsize-lg font-600 opacity-78 normal-case leading-[1.15] ${favorited ? "ehp-color-site-accent" : "ehp-color-site-text"}`}
           aria-hidden="true"
         >
           {favorited ? "♥" : "♡"}
         </span>
       </button>
       {open && (
-        <div className="ehpeek-touch-gallery-favorite-panel absolute top-[calc(100%+8px)] left-0 z-[2147483644] flex w-[min(86vw,360px)] flex-col overflow-hidden border color-border rounded-[var(--ehpeek-control-radius-md)] color-elevated">
+        <div className="ehpeek-touch-gallery-favorite-panel absolute top-[calc(100%+8px)] left-0 z-overlay flex w-[min(86vw,360px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">
           {loadingState === "loading" && <TouchGalleryFavoriteStatus text="Loading..." />}
           {loadingState === "failed" && <TouchGalleryFavoriteStatus text="Failed" />}
           {loadingState === "idle" &&
@@ -233,7 +233,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
 
 function TouchGalleryFavoriteStatus(props: { text: string }) {
   return (
-    <div className="ehpeek-touch-gallery-favorite-loading flex min-h-[var(--ehpeek-control-menu-item-min-height)] items-center gap-12px py-14px px-18px border-0 border-b color-border-subtle-b bg-transparent color-text font-inherit text-21px leading-[1.2] text-left">
+    <div className="ehpeek-touch-gallery-favorite-loading flex min-h-lg items-center gap-12px py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit text-21px leading-[1.2] text-left">
       {props.text}
     </div>
   );
@@ -247,7 +247,7 @@ function TouchGalleryFavoriteOption(props: {
   return (
     <button
       type="button"
-      className={`ehpeek-touch-gallery-favorite-option flex min-h-[var(--ehpeek-control-menu-item-min-height)] items-center gap-12px py-14px px-18px border-0 border-b color-border-subtle-b bg-transparent color-text font-inherit text-21px leading-[1.2] text-left ${props.option.value === "favdel" ? "ehpeek-touch-gallery-favorite-option-remove" : ""}`}
+      className={`ehpeek-touch-gallery-favorite-option flex min-h-lg items-center gap-12px py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit text-21px leading-[1.2] text-left ${props.option.value === "favdel" ? "ehpeek-touch-gallery-favorite-option-remove" : ""}`}
       aria-pressed={props.option.selected}
       onClick={(event: MouseEvent) => {
         event.stopPropagation();
@@ -259,14 +259,14 @@ function TouchGalleryFavoriteOption(props: {
       }}
     >
       <span
-        className={`ehpeek-touch-gallery-favorite-option-icon flex-none text-24px leading-1 ${props.option.value === "favdel" ? "text-[#111]" : "color-accent"}`}
+        className={`ehpeek-touch-gallery-favorite-option-icon flex-none text-24px leading-1 ${props.option.value === "favdel" ? "ehp-color-site-text" : "ehp-color-site-accent"}`}
         aria-hidden="true"
       >
         {props.option.value === "favdel" ? "♡" : "♥"}
       </span>
       <span>{props.option.label}</span>
       <span
-        className={`ml-auto flex-none color-accent text-24px font-700 leading-1 ${props.option.selected ? "visible" : "invisible"}`}
+        className={`ml-auto flex-none ehp-color-site-accent text-24px font-700 leading-1 ${props.option.selected ? "visible" : "invisible"}`}
         aria-hidden="true"
       >
         ✓
@@ -308,6 +308,6 @@ function prepareRatingScale(root: HTMLElement): void {
   const scalerRect = scaler.getBoundingClientRect();
   const scale = scalerRect.width > 0 && wrapperWidth > 0 ? Math.min(2, Math.max(1, wrapperWidth / scalerRect.width)) : 1;
 
-  wrapper.style.setProperty("--ehpeek-rating-scale", String(scale));
-  wrapper.style.setProperty("--ehpeek-rating-height", `${Math.ceil(scalerRect.height * scale)}px`);
+  wrapper.style.setProperty("--rating-scale", String(scale));
+  wrapper.style.setProperty("--rating-height", `${Math.ceil(scalerRect.height * scale)}px`);
 }

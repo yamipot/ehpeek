@@ -10,9 +10,9 @@ export type SettingsMenuState = {
 };
 
 const SETTINGS_ACTION_BUTTON_CLASS =
-  "block w-full control-btn color-btn cursor-pointer font-inherit text-center textsize-md";
+  "block w-full min-h-md touch:min-h-xl py-sm px-md touch:py-lg rounded-xs ehp-color-site-btn cursor-pointer font-inherit text-center textsize-lg";
 const SETTINGS_DOT_CLASS =
-  "block flex-none w-[var(--ehpeek-control-toggle-dot-size)] h-[var(--ehpeek-control-toggle-dot-size)] touch:w-[var(--ehpeek-control-toggle-dot-touch-size)] touch:h-[var(--ehpeek-control-toggle-dot-touch-size)] rounded-[var(--ehpeek-control-radius-pill)]";
+  "block flex-none w-10px h-10px touch:w-18px touch:h-18px rounded-full";
 
 function SwitchButton(props: {
   checked: [boolean, string, string];
@@ -28,14 +28,14 @@ function SwitchButton(props: {
   return (
     <button
       type="button"
-      className="flex w-full items-center justify-between gap-16px touch:gap-20px control-action border-0 border-b color-border-subtle-b bg-transparent color-text color-item-hover cursor-pointer font-inherit text-left textsize-md"
+      className="flex w-full min-h-lg touch:min-h-xl items-center justify-between gap-16px touch:gap-20px py-md px-md touch:py-lg rounded-xs border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text ehp-color-site-item-hover cursor-pointer font-inherit text-left textsize-lg"
       onClick={(event: MouseEvent) => {
         event.stopPropagation();
         setValue(!checked);
       }}
     >
       <span>{checked ? labelOn : labelOff}</span>
-      <span className={`${SETTINGS_DOT_CLASS} ${checked ? "bg-[var(--ehpeek-color-state-on)]" : "bg-[var(--ehpeek-color-state-off)]"}`} />
+      <span className={`${SETTINGS_DOT_CLASS} ${checked ? "bg-[var(--color-state-on)]" : "bg-[var(--color-state-off)]"}`} />
     </button>
   );
 }
@@ -94,7 +94,7 @@ export function SettingsMenu(props: {
   }
 
   return (
-    <div ref={menuRef} className="ehpeek-settings-menu fixed top-24px right-24px z-[2147483646] min-w-260px p-8px border color-border rounded-4px color-elevated color-text textsize-md leading-[1.2]">
+    <div ref={menuRef} className="ehpeek-settings-menu fixed top-24px right-24px z-overlay min-w-260px p-sm border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text textsize-lg leading-[1.2]">
       <SwitchButton
         checked={[draft.readerEnabled, texts.settings.readerOn, texts.settings.readerOff]}
         onChange={(value) => {

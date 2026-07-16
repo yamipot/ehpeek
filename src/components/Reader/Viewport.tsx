@@ -142,14 +142,14 @@ function pagesViewportDom(options: { onReloadPage: (pageNum: number) => void }) 
     setPageNum,
     setPlaceholder(elements: SlotElements, content: SlotContent, text: string) {
       const placeholder =
-        content.state === "error" ? errorPlaceholderDom(content.pageNum, text, options.onReloadPage) : placeholderDom(content.kind, text);
+        content.state === "error" ? errorPlaceholderDom(content.pageNum, text, options.onReloadPage) : placeholderDom(content, text);
 
       elements.frame.replaceChildren(placeholder);
     },
     setSize(elements: SlotElements, frameWidth: number, frameHeight: number) {
-      elements.node.style.setProperty("--ehpeek-page-height", `${frameHeight + 8}px`);
-      elements.node.style.setProperty("--ehpeek-frame-width", `${frameWidth}px`);
-      elements.node.style.setProperty("--ehpeek-frame-height", `${frameHeight}px`);
+      elements.node.style.setProperty("--reader-page-height", `${frameHeight + 8}px`);
+      elements.node.style.setProperty("--reader-frame-width", `${frameWidth}px`);
+      elements.node.style.setProperty("--reader-frame-height", `${frameHeight}px`);
     },
   };
 
@@ -160,21 +160,34 @@ function slotElements(): SlotElements {
   const node = document.createElement("section");
   const frame = document.createElement("div");
 
-  node.className = "ehpeek-page flex w-full h-[var(--ehpeek-page-height)] items-start justify-center pb-8px [#ehpeek-reader[data-view-mode=paged]_&]:(flex-[0_0_100%] w-full h-full items-center p-0)";
-  frame.className = "flex w-[var(--ehpeek-frame-width)] h-[var(--ehpeek-frame-height)] items-center justify-center overflow-hidden [#ehpeek-reader[data-view-mode=paged]_&]:(w-full h-full)";
+  node.className = "ehpeek-page flex w-full h-[var(--reader-page-height)] items-start justify-center pb-8px [#ehpeek-reader[data-view-mode=paged]_&]:(flex-[0_0_100%] w-full h-full items-center p-0)";
+  frame.className = "flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [#ehpeek-reader[data-view-mode=paged]_&]:(w-full h-full)";
   node.append(frame);
 
   return { node, frame };
 }
 
-function placeholderDom(kind: PageSlotKind, text: string): HTMLElement {
+function placeholderDom(content: SlotContent, text: string): HTMLElement {
   const placeholder = document.createElement("div");
 
   placeholder.className =
-    "flex w-full h-full items-center justify-center bg-[#151515] text-[rgba(245,245,245,0.72)] leading-1 text-center " +
-    (kind === "end"
-      ? "p-24px [direction:ltr] text-[clamp(24px,6vw,42px)] font-700 leading-[1.3] [unicode-bidi:plaintext]"
+    "flex w-full h-full items-center justify-center bg-[var(--color-surface)] text-[var(--color-muted)] leading-1 text-center " +
+    (content.kind === "end"
+      ? "p-xl [direction:ltr] text-[clamp(24px,6vw,42px)] font-700 leading-[1.3] [unicode-bidi:plaintext]"
       : "text-[clamp(88px,25vw,180px)] desktop:text-[clamp(72px,10vw,140px)] font-850");
+
+  if (content.state === "loading") {
+    const spinner = document.createElement("span");
+
+    spinner.className =
+      "block w-sm h-sm box-border animate-spin rounded-full border-4 border-solid border-[var(--color-border)] border-t-[var(--color-accent)]";
+    spinner.setAttribute("aria-hidden", "true");
+    placeholder.setAttribute("role", "status");
+    placeholder.setAttribute("aria-label", texts.reader.loading);
+    placeholder.append(spinner);
+    return placeholder;
+  }
+
   placeholder.textContent = text;
   return placeholder;
 }
@@ -189,13 +202,13 @@ function errorPlaceholderDom(pageNum: number, text: string, onReloadPage: (pageN
     event.stopPropagation();
   };
 
-  button.className = "inline-flex w-64px h-64px items-center justify-center border border-[rgba(255,178,167,0.64)] rounded-[var(--ehpeek-control-radius-pill)] bg-[rgba(255,178,167,0.12)] text-[#ffddd8] cursor-pointer font-sans text-34px font-700 leading-1 active:scale-96 [touch-action:manipulation]";
+  button.className = "inline-flex w-64px h-64px items-center justify-center border border-[var(--color-danger-border)] rounded-full bg-[var(--color-danger-soft)] text-[var(--color-danger)] cursor-pointer font-sans text-34px font-700 leading-1 active:scale-96 [touch-action:manipulation]";
   button.type = "button";
   button.setAttribute("aria-label", texts.reader.reload);
   icon.setAttribute("aria-hidden", "true");
   icon.textContent = "↻";
   button.append(icon);
-  placeholder.className = "flex w-full h-full flex-col items-center justify-center gap-18px bg-[#151515] p-24px text-[#ffb2a7] text-center text-18px font-700 leading-1";
+  placeholder.className = "flex w-full h-full flex-col items-center justify-center gap-18px bg-[var(--color-surface)] p-xl text-[var(--color-danger)] text-center text-18px font-700 leading-1";
   message.className = "max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]";
   message.textContent = text;
   placeholder.append(message, button);
@@ -210,7 +223,7 @@ function errorPlaceholderDom(pageNum: number, text: string, onReloadPage: (pageN
 function pageImageDom(pageNum: number, slotImage: ViewportImage): HTMLImageElement {
   const image = document.createElement("img");
 
-  image.className = "block w-[var(--ehpeek-frame-width)] h-[var(--ehpeek-frame-height)] object-contain select-none [-webkit-user-drag:none] [#ehpeek-reader[data-view-mode=paged]_&]:(w-full h-full)";
+  image.className = "block w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] object-contain select-none [-webkit-user-drag:none] [#ehpeek-reader[data-view-mode=paged]_&]:(w-full h-full)";
   image.alt = `Page ${pageNum}`;
   image.decoding = "async";
   image.loading = "eager";

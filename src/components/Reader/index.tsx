@@ -285,7 +285,7 @@ function ReaderRoot(props: ReaderRootState & { children: ComponentChildren }) {
   return (
     <div
       id={VIEWER_ID}
-      className="fixed inset-0 z-[2147483647] bg-[#070707] color-reader-text font-sans text-13px leading-[1.4]"
+      className="fixed inset-0 z-reader bg-[var(--color-background)] ehp-color-text font-sans text-13px leading-[1.4]"
       data-read-direction={props.readDirection}
       data-toolbar-open={String(props.toolbarOpen)}
       data-view-mode={props.viewMode}

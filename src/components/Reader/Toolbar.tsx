@@ -18,8 +18,8 @@ export type PageProgress = {
 };
 
 const READER_BUTTON_CLASS = [
-  "control-reader-btn coarse:(w-68px h-60px px-16px rounded-8px text-18px)",
-  "border color-button-reader cursor-pointer font-sans textsize-sm font-700 leading-1",
+  "w-12 h-md px-md py-0 rounded-md coarse:(w-17 h-15 px-lg rounded-lg text-18px)",
+  "border ehp-color-button-reader cursor-pointer font-sans textsize-md font-700 leading-1",
 ].join(" ");
 
 export type ToolbarCallbacks = {
@@ -78,7 +78,7 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
         <div className="flex flex-row gap-8px pointer-events-auto">
           <button
             type="button"
-            className={"coarse:(w-68px px-16px text-16px) " + READER_BUTTON_CLASS}
+            className={"coarse:(w-68px px-lg text-16px) " + READER_BUTTON_CLASS}
             hidden={!open}
             title={readDirectionButton.title}
             onClick={props.callbacks.onReadDirectionClick}
@@ -87,7 +87,7 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           </button>
           <button
             type="button"
-            className={"coarse:(w-68px px-16px text-16px) " + READER_BUTTON_CLASS}
+            className={"coarse:(w-68px px-lg text-16px) " + READER_BUTTON_CLASS}
             hidden={!open}
             title={rightTapButton.title}
             onClick={props.callbacks.onRightTapClick}
@@ -119,8 +119,8 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           "landscape:top-[calc(54px+env(safe-area-inset-top,0px))] landscape:(left-auto right-10px translate-x-0) " +
           "coarse-landscape:top-[calc(62px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px " +
           "min-w-64px landscape:min-w-0 max-w-none landscape:max-w-[calc(100vw-20px)] coarse-landscape:max-w-[calc(100vw-16px)] " +
-          "py-4px px-10px rounded-6px color-reader-badge color-reader-text " +
-          "font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap " +
+          "py-xs px-md rounded-md ehp-color-reader-badge ehp-color-text " +
+          "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap " +
           "text-center landscape:text-right"
         }
       >

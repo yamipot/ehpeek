@@ -1,0 +1,47 @@
+:root {
+  --color-background: #070707;
+  --color-surface: #151515;
+  --color-elevated: #232323;
+  --color-text: #f3f3f3;
+  --color-accent: #4da3ff;
+  --color-danger: #ffb2a7;
+  --color-state-on: #4ec46a;
+  --color-state-off: #8c8f96;
+  --color-shadow: #000000;
+
+  --color-muted: color-mix(in srgb, var(--color-text) 72%, transparent);
+  --color-border: color-mix(in srgb, var(--color-text) 18%, transparent);
+  --color-track: color-mix(in srgb, var(--color-text) 34%, var(--color-background));
+  --color-danger-soft: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  --color-danger-border: color-mix(in srgb, var(--color-danger) 64%, transparent);
+  --color-control: color-mix(in srgb, var(--color-elevated) 88%, transparent);
+  --color-badge: color-mix(in srgb, var(--color-background) 34%, transparent);
+  --color-shadow-panel: color-mix(in srgb, var(--color-shadow) 32%, transparent);
+  --color-shadow-elevated: color-mix(in srgb, var(--color-shadow) 38%, transparent);
+  --color-shadow-control: color-mix(in srgb, var(--color-shadow) 40%, transparent);
+  --color-shadow-floating: color-mix(in srgb, var(--color-shadow) 42%, transparent);
+
+  --color-site-accent-hover: color-mix(in srgb, var(--color-site-accent) 12%, transparent);
+  --color-site-border-subtle: color-mix(in srgb, var(--color-site-border) 16%, transparent);
+  --color-site-item-hover: color-mix(in srgb, var(--color-site-text) 8%, transparent);
+  --color-site-swipe-background: color-mix(in srgb, var(--color-site-elevated) 94%, transparent);
+  --color-site-swipe-border: color-mix(in srgb, var(--color-site-border) 38%, transparent);
+}
+
+:root[data-ehpeek-site="e-hentai"] {
+  --color-site-page: #e3e0d1;
+  --color-site-surface: #edebdf;
+  --color-site-elevated: #f3f0e0;
+  --color-site-text: #5c0d11;
+  --color-site-accent: #8f4701;
+  --color-site-border: #5c0d12;
+}
+
+:root[data-ehpeek-site="exhentai"] {
+  --color-site-page: #34353b;
+  --color-site-surface: #4f535b;
+  --color-site-elevated: #3f4249;
+  --color-site-text: #f1f1f1;
+  --color-site-accent: #f0b35a;
+  --color-site-border: #8d7454;
+}

@@ -30,14 +30,23 @@ import { state } from "./state";
 import { loadReaderHistory, ReaderHistorySession } from "./history";
 import { normalizeUrl } from "./utils";
 import unoCss from "ehpeek:uno.css";
+import themeCss from "./theme.css";
 
 const READER_WINDOW_SIZE = 10;
+const THEME_STYLE_ID = "ehpeek-theme-style";
 const UNO_STYLE_ID = "ehpeek-uno-style";
 
 if (unoCss && !document.getElementById(UNO_STYLE_ID)) {
   const style = document.createElement("style");
   style.id = UNO_STYLE_ID;
   style.textContent = unoCss;
+  document.head.append(style);
+}
+
+if (themeCss && !document.getElementById(THEME_STYLE_ID)) {
+  const style = document.createElement("style");
+  style.id = THEME_STYLE_ID;
+  style.textContent = themeCss;
   document.head.append(style);
 }
 
@@ -87,6 +96,7 @@ function continueReadingState(): { info: ReadButtonInfo; onClick: () => void } |
 
 const pageType = eh.extractPageType();
 const initialSettingsState = settingsMenuState();
+eh.applySiteTheme();
 if (initialSettingsState.touchUiEnabled) {
   document.documentElement.dataset.ehpeekTouchUi = "true";
 }
@@ -224,7 +234,7 @@ if (!settingsState.touchUiEnabled) {
     render(
       <a
         href="#"
-        className="textsize-sm font-inherit"
+            className="textsize-md font-inherit"
         onClick={(event: MouseEvent) => {
           event.preventDefault();
           event.stopPropagation();
@@ -346,11 +356,13 @@ async function openReader(startPageUrl: string, preferredPageNum?: number): Prom
     throw new Error(texts.errors.imageNotFound);
   }
 
-  const seedPage = landingPages.find((page) => page.pageNum === startPageNum || page.url === startUrl) ?? {
-    url: startUrl,
-    aspectRatio: 1.42,
-    pageNum: startPageNum,
-  };
+  const landingPage = landingPages.find((page) => page.pageNum === startPageNum || page.url === startUrl);
+  const seedPage = landingPage ?? (await provider.loadDisplayPages([startPageNum]))[0];
+
+  if (!seedPage || seedPage.pageNum !== startPageNum) {
+    throw new Error(texts.errors.imageNotFound);
+  }
+
   const pages = [seedPage];
   const startIndex = 0;
 

@@ -13,12 +13,12 @@ export function ReadButton(props: {
 }) {
   const buttonClassName =
     props.variant === "touchGallery"
-      ? "ehpeek-continue-reading ehpeek-touch-gallery-primary-button control-primary-action textsize-lg font-700"
-      : "ehpeek-continue-reading block box-border w-full max-w-full mt-4px control-compact color-btn shadow-none cursor-pointer text-center font-sans textsize-sm font-700 leading-[1.15]";
+      ? "ehpeek-continue-reading ehpeek-touch-gallery-primary-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-10px py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] textsize-xl font-700"
+      : "ehpeek-continue-reading block box-border w-full max-w-full mt-4px min-h-sm py-xs px-sm rounded-sm ehp-color-site-btn shadow-none cursor-pointer text-center font-sans textsize-md font-700 leading-[1.15]";
   const detailClassName =
     props.variant === "touchGallery"
-      ? "ehpeek-continue-reading-page block mt-2px color-accent textsize-sm font-600 opacity-78 normal-case"
-      : "ehpeek-continue-reading-page block mt-1px opacity-72 textsize-xs font-600";
+      ? "ehpeek-continue-reading-page block mt-2px ehp-color-site-accent textsize-md font-600 opacity-78 normal-case"
+      : "ehpeek-continue-reading-page block mt-1px opacity-72 textsize-sm font-600";
 
   return (
     <button
@@ -66,7 +66,7 @@ export function SwipeIndicator(props: { handleRef: (handle: SwipeIndicatorHandle
       ref={(element: HTMLDivElement | null) => {
         props.handleRef(element ? handleFor(element) : null);
       }}
-      className="ehpeek-swipe-indicator fixed top-1/2 z-[2147483645] flex w-42px h-108px items-center justify-center border color-search-swipe rounded-22px text-52px font-sans font-300 leading-1 pointer-events-none select-none transition-opacity duration-120 ease-in-out"
+      className="ehpeek-swipe-indicator fixed top-1/2 z-overlay flex w-42px h-108px items-center justify-center border ehp-color-site-swipe rounded-full text-52px font-sans font-300 leading-1 pointer-events-none select-none transition-opacity duration-120 ease-in-out"
       aria-hidden="true"
       style={{
         backdropFilter: "blur(8px)",

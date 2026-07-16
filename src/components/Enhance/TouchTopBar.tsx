@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import * as eh from "../../eh/dom";
 import texts from "../../texts.json";
 
-const TOUCH_ICON_BUTTON_CLASS = "inline-flex control-icon border-0 bg-transparent color-text text-28px leading-1 no-underline";
+const TOUCH_ICON_BUTTON_CLASS = "inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text text-28px leading-1 no-underline";
 export const TOUCH_TOP_BAR_MENU_ITEM_CLASS =
-  "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-[var(--ehpeek-control-touch-min-height)] py-18px px-24px touch:px-26px border-0 border-b color-border-subtle-b bg-transparent color-text text-left no-underline text-28px touch:text-30px leading-[1.2]";
+  "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-xl py-lg px-xl touch:px-xl border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline text-28px touch:text-30px leading-[1.2]";
 
 function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
   const [open, setOpen] = useState(false);
@@ -54,7 +54,7 @@ function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
       </button>
       {open && (
         <div
-          className="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+8px)] right-0 z-[2147483645] flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border color-border rounded-4px color-elevated"
+          className="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+8px)] right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"
         >
           <div ref={navItemsRef} className="contents" />
         </div>
@@ -65,7 +65,7 @@ function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
 
 export function TouchTopBar(props: { info: eh.TouchTopBarInfo; onSettingsMenuOpen: () => void }) {
   return (
-    <nav className="ehpeek-touch-top-bar relative z-[2147483640] flex box-border w-full min-h-56px items-center justify-between py-6px px-[max(16px,env(safe-area-inset-right,0px))] color-surface color-text font-sans">
+    <nav className="ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-56px items-center justify-between py-sm px-[max(16px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans">
       <a className={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`} href={props.info.homeHref}>
         ⌂
       </a>

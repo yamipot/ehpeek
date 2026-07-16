@@ -317,6 +317,10 @@ export function settingsMenuMountTarget(): Element | null {
   return wrapper;
 }
 
+export function applySiteTheme(): void {
+  document.documentElement.dataset.ehpeekSite = window.location.hostname.endsWith("exhentai.org") ? "exhentai" : "e-hentai";
+}
+
 export function applyTouchGalleryPanelPageStyle(): void {
   if (document.getElementById(TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID)) {
     return;

@@ -1,5 +1,5 @@
 :root {
-  --ehpeek-touch-gallery-gutter: clamp(16px, 2.5vw, 36px);
+  --touch-gallery-gutter: clamp(16px, 2.5vw, 36px);
 }
 
 html,
@@ -14,7 +14,7 @@ body {
   box-sizing: border-box;
   padding-left: 0 !important;
   padding-right: 0 !important;
-  background: #34353b !important;
+  background: var(--color-site-page) !important;
   font-size: 14px !important;
   line-height: 1.35 !important;
 }
@@ -26,7 +26,7 @@ body #gdt[class],
 .ptt,
 .ptb {
   box-sizing: border-box !important;
-  width: calc(100% - (var(--ehpeek-touch-gallery-gutter) * 2)) !important;
+  width: calc(100% - (var(--touch-gallery-gutter) * 2)) !important;
   max-width: none !important;
   margin-left: auto !important;
   margin-right: auto !important;
@@ -61,7 +61,7 @@ body #gdt[class],
 
 .ehpeek-touch-gallery-rating {
   display: flex !important;
-  min-height: var(--ehpeek-rating-height, auto) !important;
+  min-height: var(--rating-height, auto) !important;
   margin: 0 !important;
   padding: 0 !important;
   border: 0 !important;
@@ -71,7 +71,7 @@ body #gdt[class],
 .ehpeek-touch-gallery-rating-scale {
   width: max-content;
   max-width: none !important;
-  transform: scale(var(--ehpeek-rating-scale, 1));
+  transform: scale(var(--rating-scale, 1));
   transform-origin: left top;
 }
 

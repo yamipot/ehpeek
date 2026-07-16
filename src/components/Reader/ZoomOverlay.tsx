@@ -34,7 +34,7 @@ function createZoomOverlayDom(): ZoomOverlayDom {
   const element = document.createElement("div");
   const image = document.createElement("img");
 
-  element.className = "fixed inset-0 z-4 flex items-center justify-center overflow-hidden bg-[#070707] pointer-events-none";
+  element.className = "fixed inset-0 z-4 flex items-center justify-center overflow-hidden bg-[var(--color-background)] pointer-events-none";
   element.hidden = true;
   element.style.display = "none";
   image.className = "block max-w-screen max-h-screen object-contain origin-center select-none will-change-transform [-webkit-user-drag:none]";
