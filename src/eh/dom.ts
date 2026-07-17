@@ -103,9 +103,11 @@ export type TouchSearchPanelInfo = {
   clearButton: HTMLInputElement | HTMLButtonElement;
   clearLabel: string;
   fileSearch: HTMLElement | null;
+  historyMount: HTMLSpanElement;
   optionLinks: HTMLElement;
   searchActionMount: HTMLSpanElement;
   searchBox: HTMLElement;
+  searchInput: HTMLInputElement;
   searchLabel: string;
   searchSubmit: HTMLInputElement | HTMLButtonElement;
 };
@@ -241,9 +243,11 @@ export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSear
   const categoryToggleMount = document.createElement("span");
   const searchActionMount = document.createElement("span");
   const clearActionMount = document.createElement("span");
+  const historyMount = document.createElement("span");
   categoryToggleMount.className = "contents";
   searchActionMount.className = "contents";
   clearActionMount.className = "contents";
+  historyMount.className = "contents";
 
   return {
     categories,
@@ -252,9 +256,11 @@ export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSear
     clearButton,
     clearLabel: searchActionLabel(clearButton),
     fileSearch: root.querySelector<HTMLElement>("#fsdiv"),
+    historyMount,
     optionLinks,
     searchActionMount,
     searchBox,
+    searchInput,
     searchLabel: searchActionLabel(searchSubmit),
     searchSubmit,
   };
@@ -309,6 +315,7 @@ export function prepareTouchSearchPanel(info: TouchSearchPanelInfo, optionClassN
 
   info.searchSubmit.replaceWith(info.searchActionMount);
   info.clearButton.replaceWith(info.clearActionMount);
+  document.body.append(info.historyMount);
 
   info.optionLinks.prepend(info.categoryToggleMount);
   info.optionLinks.className = "flex w-full flex-wrap items-center justify-start gap-x-md gap-y-sm !p-0 !text-0";

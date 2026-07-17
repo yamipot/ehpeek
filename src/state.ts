@@ -22,6 +22,7 @@ export const state = {
   },
   search: {
     enhance: persisted("ehpeek:enhance-search:enabled", true),
+    history: persisted<string[]>("ehpeek:search:history", []),
   },
   touch: {
     enabled: persisted("ehpeek:touch-ui:enabled", true),

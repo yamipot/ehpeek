@@ -11,6 +11,7 @@ import {
   TOUCH_SEARCH_OPTION_CLASS,
   TouchSearchAction,
   TouchSearchCategoryToggle,
+  TouchSearchHistory,
   TouchSearchPanel,
 } from "./components/Enhance/TouchSearchPanel";
 import { TOUCH_TOP_BAR_MENU_ITEM_CLASS, TouchTopBar } from "./components/Enhance/TouchTopBar";
@@ -353,6 +354,7 @@ function installTouchSearchPanel(): boolean {
   render(<TouchSearchCategoryToggle source={touchSearchInfo} />, touchSearchInfo.categoryToggleMount);
   render(<TouchSearchAction action="search" source={touchSearchInfo} />, touchSearchInfo.searchActionMount);
   render(<TouchSearchAction action="clear" source={touchSearchInfo} />, touchSearchInfo.clearActionMount);
+  render(<TouchSearchHistory source={touchSearchInfo} />, touchSearchInfo.historyMount);
   return true;
 }
 

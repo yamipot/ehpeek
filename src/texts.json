@@ -46,7 +46,9 @@
   },
   "search": {
     "showCategories": "Show Categories",
-    "hideCategories": "Hide Categories"
+    "hideCategories": "Hide Categories",
+    "history": "Search History",
+    "deleteHistory": "Delete search history item"
   },
   "errors": {
     "imageNotFound": "Image not found",
