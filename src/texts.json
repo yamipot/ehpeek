@@ -44,6 +44,10 @@
     "apply": "Apply",
     "close": "Close"
   },
+  "search": {
+    "showCategories": "Show Categories",
+    "hideCategories": "Hide Categories"
+  },
   "errors": {
     "imageNotFound": "Image not found",
     "downloadFailed": "Download failed",

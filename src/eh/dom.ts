@@ -95,6 +95,18 @@ export type TouchTopBarInfo = {
   favoritesHref: string;
 };
 
+export type TouchSearchPanelInfo = {
+  categories: HTMLTableElement;
+  categoryToggleMount: HTMLSpanElement;
+  clearActionMount: HTMLSpanElement;
+  clearButton: HTMLInputElement;
+  fileSearch: HTMLElement | null;
+  optionLinks: HTMLElement;
+  searchActionMount: HTMLSpanElement;
+  searchBox: HTMLElement;
+  searchSubmit: HTMLInputElement;
+};
+
 type PageType =
   | {
       type: "image";
@@ -196,6 +208,115 @@ export function searchNavigationBars(root: ParentNode = document): HTMLElement[]
 
 export function searchTopNavigationBar(root: ParentNode = document): HTMLElement | null {
   return searchNavigationBars(root)[0] ?? null;
+}
+
+export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSearchPanelInfo | null {
+  const searchBox = root.querySelector<HTMLElement>("#searchbox");
+  const categories = searchBox?.querySelector<HTMLTableElement>("form > table");
+  const advancedPanel = searchBox?.querySelector<HTMLElement>("#advdiv");
+  const optionLinks = advancedPanel?.previousElementSibling;
+  const searchSubmit = searchBox?.querySelector<HTMLInputElement>("input[type='submit']");
+  const clearButton = searchBox?.querySelector<HTMLInputElement>("input[type='button']");
+
+  if (
+    !searchBox ||
+    !categories ||
+    !searchBox.querySelector("#f_search") ||
+    !(optionLinks instanceof HTMLElement) ||
+    !searchSubmit ||
+    !clearButton
+  ) {
+    return null;
+  }
+
+  const categoryToggleMount = document.createElement("span");
+  const searchActionMount = document.createElement("span");
+  const clearActionMount = document.createElement("span");
+  categoryToggleMount.className = "contents";
+  searchActionMount.className = "contents";
+  clearActionMount.className = "contents";
+
+  return {
+    categories,
+    categoryToggleMount,
+    clearActionMount,
+    clearButton,
+    fileSearch: root.querySelector<HTMLElement>("#fsdiv"),
+    optionLinks,
+    searchActionMount,
+    searchBox,
+    searchSubmit,
+  };
+}
+
+export function prepareTouchSearchPanel(info: TouchSearchPanelInfo, optionClassName: string): void {
+  const form = info.searchBox.querySelector<HTMLFormElement>("form");
+  const searchInput = form?.querySelector<HTMLInputElement>("#f_search");
+  const searchControls = searchInput?.parentElement;
+  const advancedPanel = form?.querySelector<HTMLElement>("#advdiv");
+
+  info.searchBox.className =
+    "box-border !w-full !m-0 !p-0 !border-0 !text-left !text-16px " +
+    "[&_.searchadv]:box-border [&_.searchadv]:!w-full [&_.searchadv]:!pt-md [&_.searchadv]:!textsize-sm " +
+    "[&_.searchadv>div]:!flex-wrap [&_.searchadv>div]:!justify-start [&_.searchadv>div]:!gap-sm " +
+    "[&_.searchadv>div>div]:!p-sm";
+
+  if (form) {
+    form.removeAttribute("style");
+    form.className = "flex w-full flex-col gap-md m-0 p-0";
+  }
+
+  info.categories.className = "hidden !w-full !m-0 border-collapse";
+  info.categories.hidden = true;
+  info.optionLinks.insertAdjacentElement("afterend", info.categories);
+  info.categories.tBodies[0]?.classList.add("flex", "flex-wrap", "gap-xs");
+
+  for (const row of Array.from(info.categories.rows)) {
+    row.className = "contents";
+
+    for (const cell of Array.from(row.cells)) {
+      cell.className = "!p-0";
+    }
+  }
+
+  for (const category of Array.from(info.categories.querySelectorAll<HTMLElement>("[id^='cat_']"))) {
+    const colorClass = Array.from(category.classList).find((className) => /^ct(?:[1-9a])$/.test(className));
+    category.className =
+      `${colorClass ? `${colorClass} ` : ""}` +
+      "flex box-border w-auto min-w-104px !h-sm items-center justify-center px-md border rounded-sm text-white text-center textsize-sm font-700 leading-[1.15] whitespace-nowrap shadow-[0_2px_6px_var(--color-shadow-control)] cursor-pointer select-none transition-opacity [touch-action:manipulation] active:opacity-70 [&[data-disabled]]:opacity-40";
+  }
+
+  if (searchControls) {
+    searchControls.className =
+      "grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-start gap-sm !p-0 [&>*:nth-child(n+4)]:col-span-full";
+  }
+
+  if (searchInput) {
+    searchInput.className =
+      "appearance-none !box-border !w-full !h-md min-w-0 col-start-1 row-start-1 !m-0 !py-0 px-lg border ehp-color-site-border rounded-md bg-[var(--color-site-elevated)] ehp-color-site-text text-16px leading-[1.2] outline-none focus:(border-[var(--color-site-accent)] bg-[var(--color-site-elevated)] shadow-[0_0_0_3px_var(--color-site-accent-hover)])";
+  }
+
+  info.searchSubmit.replaceWith(info.searchActionMount);
+  info.clearButton.replaceWith(info.clearActionMount);
+
+  info.optionLinks.prepend(info.categoryToggleMount);
+  info.optionLinks.className = "flex w-full flex-wrap items-center justify-start gap-x-md gap-y-sm !p-0 !text-0";
+
+  for (const link of Array.from(info.optionLinks.querySelectorAll<HTMLAnchorElement>("a"))) {
+    link.className = optionClassName;
+  }
+
+  if (advancedPanel) {
+    advancedPanel.className = "box-border w-full !p-0 ehp-color-site-text";
+  }
+
+  if (info.fileSearch) {
+    info.fileSearch.style.removeProperty("margin-top");
+    info.fileSearch.className =
+      "box-border !w-full !m-0 !mt-0 p-lg border ehp-color-site-border rounded-md bg-[var(--color-site-elevated)] ehp-color-site-text !textsize-sm text-left " +
+      "[&_form]:flex [&_form]:flex-col [&_form]:gap-sm [&_form>div]:!p-0 " +
+      "[&_.searchadv>div]:!flex-wrap [&_.searchadv>div]:!justify-start [&_.searchadv>div]:!gap-sm [&_.searchadv>div>div]:!p-sm";
+  }
 }
 
 export function findSearchNavigationLink(target: EventTarget | null): HTMLAnchorElement | null {
@@ -488,6 +609,17 @@ export function insertTouchTopBar(topBar: HTMLElement): boolean {
   }
 
   original.replaceWith(topBar);
+  return true;
+}
+
+export function insertTouchSearchPanel(panel: HTMLElement): boolean {
+  const original = document.querySelector("#searchbox");
+
+  if (!original?.parentElement) {
+    return false;
+  }
+
+  original.before(panel);
   return true;
 }
 

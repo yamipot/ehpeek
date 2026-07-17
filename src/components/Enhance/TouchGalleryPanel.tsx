@@ -67,25 +67,25 @@ export function TouchGalleryPanel(props: {
 
   return (
     <section className="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans">
-      <div className="ehpeek-touch-gallery-hero relative grid h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text">
+      <div className="ehpeek-touch-gallery-hero relative grid min-h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text">
         <div
-          className={`ehpeek-touch-gallery-summary grid h-full min-h-0 gap-18px items-stretch ${hasCover ? "grid-cols-[minmax(120px,38%)_minmax(0,1fr)]" : "grid-cols-1"}`}
+          className={`ehpeek-touch-gallery-summary grid gap-18px items-stretch ${hasCover ? "grid-cols-[minmax(120px,38%)_minmax(0,1fr)]" : "grid-cols-1"}`}
         >
           {hasCover && (
             <div className="ehpeek-touch-gallery-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">
               <DomNode node={props.source.cover} />
             </div>
           )}
-          <div className="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 min-h-0 flex-col items-start justify-between gap-8px pt-2px">
-            <div className="ehpeek-touch-gallery-heading flex min-w-0 min-h-0 w-full flex-col gap-4px items-start overflow-hidden">
-              <div className="ehpeek-touch-gallery-title-main line-clamp-4 overflow-hidden text-[clamp(23px,6.2vw,34px)] font-400 leading-[1.08] text-left break-anywhere">
+          <div className="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 flex-col items-start gap-8px pt-2px">
+            <div className="ehpeek-touch-gallery-heading flex min-w-0 w-full flex-none flex-col gap-sm items-start pb-xs">
+              <div className="ehpeek-touch-gallery-title-main line-clamp-4 flex-none overflow-hidden text-[clamp(23px,6.2vw,34px)] font-400 leading-[1.16] text-left break-anywhere">
                 {props.source.titleMain}
               </div>
-              <div className="ehpeek-touch-gallery-title-sub line-clamp-3 overflow-hidden opacity-82 text-[clamp(18px,4.8vw,26px)] leading-[1.12] text-left break-anywhere">
+              <div className="ehpeek-touch-gallery-title-sub line-clamp-3 flex-none overflow-hidden opacity-82 text-[clamp(18px,4.8vw,26px)] leading-[1.2] text-left break-anywhere">
                 {props.source.titleSub}
               </div>
             </div>
-            <div className="ehpeek-touch-gallery-category-row flex w-full flex-wrap items-center justify-start gap-x-20px gap-y-10px mt-20px">
+            <div className="ehpeek-touch-gallery-category-row flex w-full flex-none flex-wrap items-center justify-start gap-x-20px gap-y-10px mt-auto pt-md">
               <div
                 className="ehpeek-touch-gallery-category max-w-full flex-none overflow-hidden text-ellipsis whitespace-nowrap rounded-xs py-6px px-10px ehp-color-site-page ehp-color-site-accent text-15px font-700 leading-[1.1] uppercase"
                 style={props.source.categoryAppearance}

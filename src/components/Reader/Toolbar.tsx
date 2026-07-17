@@ -148,13 +148,13 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
       <div
         className={
           "fixed z-3 pointer-events-none " +
-          "top-[calc(70px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 " +
-          "coarse:top-[calc(80px+env(safe-area-inset-top,0px))] " +
-          "landscape:top-[calc(62px+env(safe-area-inset-top,0px))] landscape:(left-auto right-10px translate-x-0) " +
-          "coarse-landscape:top-[calc(74px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px " +
+          "top-[calc(62px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 " +
+          "coarse:top-[calc(60px+env(safe-area-inset-top,0px))] " +
+          "landscape:top-[calc(54px+env(safe-area-inset-top,0px))] landscape:(left-auto right-10px translate-x-0) " +
+          "coarse-landscape:top-[calc(54px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px " +
           "min-w-64px landscape:min-w-0 max-w-none landscape:max-w-[calc(100vw-20px)] coarse-landscape:max-w-[calc(100vw-16px)] " +
           "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text " +
-          "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap " +
+          "font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap " +
           "text-center landscape:text-right"
         }
       >

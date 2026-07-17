@@ -7,6 +7,7 @@ import {
 import { Fragment, h, render } from "preact";
 import { SettingsMenu } from "./components/SettingsMenu";
 import { TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS, TouchGalleryPanel } from "./components/Enhance/TouchGalleryPanel";
+import { TOUCH_SEARCH_OPTION_CLASS, TouchSearchPanel } from "./components/Enhance/TouchSearchPanel";
 import { TOUCH_TOP_BAR_MENU_ITEM_CLASS, TouchTopBar } from "./components/Enhance/TouchTopBar";
 import {
   EnhanceThumbsGrids,
@@ -300,6 +301,19 @@ if (settingsState.touchUiEnabled && pageType.type === "gallery") {
         />,
         mount,
       );
+    }
+  }
+}
+
+if (settingsState.touchUiEnabled && pageType.type === "search" && !document.querySelector(".ehpeek-touch-search-panel")) {
+  const touchSearchInfo = eh.readTouchSearchPanelInfo();
+
+  if (touchSearchInfo) {
+    eh.prepareTouchSearchPanel(touchSearchInfo, TOUCH_SEARCH_OPTION_CLASS);
+    const mount = document.createElement("div");
+
+    if (eh.insertTouchSearchPanel(mount)) {
+      render(<TouchSearchPanel source={touchSearchInfo} />, mount);
     }
   }
 }
