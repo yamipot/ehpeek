@@ -4,8 +4,6 @@ import { normalizeUrl } from "../utils";
 import galleryRearrange from "./galleryRearrange.css";
 
 const TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID = "ehpeek-touch-gallery-page-rearrange-style";
-const TOUCH_COMMENT_SCORE_CLASS_NAME = "!inline-flex min-h-lg items-center !px-md !border !border-[var(--color-site-border)] rounded-md !bg-[var(--color-site-elevated)] cursor-pointer [touch-action:manipulation] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-2px";
-const TOUCH_COMMENT_SCORE_DETAILS_CLASS_NAME = "!static box-border !w-full !mx-0 !mt-sm !mb-0 !p-md !border !border-[var(--color-site-border)] rounded-md !bg-[var(--color-site-elevated)]";
 const TOUCH_FAVORITES_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden";
 const TOUCH_FAVORITES_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden";
 const TOUCH_FAVORITES_NAV_CLASS_NAME = "box-border !max-w-full overflow-x-auto";
@@ -368,8 +366,7 @@ export function prepareTouchGalleryComments(): void {
   const setExpanded = (item: (typeof items)[number], expanded: boolean) => {
     item.trigger.setAttribute("aria-expanded", String(expanded));
     item.details.setAttribute("aria-hidden", String(!expanded));
-    item.details.classList.toggle("!block", expanded);
-    item.details.classList.toggle("!hidden", !expanded);
+    item.details.style.display = expanded ? "" : "none";
   };
 
   for (const item of items) {
@@ -378,8 +375,7 @@ export function prepareTouchGalleryComments(): void {
     }
 
     item.trigger.dataset.ehpeekTouchCommentScore = "true";
-    item.trigger.classList.add(...TOUCH_COMMENT_SCORE_CLASS_NAME.split(" "));
-    item.details.classList.add(...TOUCH_COMMENT_SCORE_DETAILS_CLASS_NAME.split(" "));
+    item.trigger.classList.add("whitespace-nowrap");
     item.trigger.removeAttribute("onmouseover");
     item.trigger.removeAttribute("onmouseout");
     item.trigger.removeAttribute("onclick");
@@ -420,7 +416,7 @@ export function prepareTouchFavoritesPage(): void {
       if (child.classList.contains("fp")) {
         child.classList.add(...TOUCH_FAVORITES_CATEGORY_CLASS_NAME.split(" "));
 
-        if (child.classList.contains("fps")) {
+        if (child.children.length === 0) {
           child.classList.add(...TOUCH_FAVORITES_ALL_CATEGORY_CLASS_NAME.split(" "));
         }
       } else if (child.children.length === 0) {
