@@ -18,8 +18,8 @@ export type PageProgress = {
 };
 
 const READER_BUTTON_CLASS = [
-  "w-12 h-md px-md py-0 rounded-md coarse:(w-17 h-15 px-lg rounded-lg text-18px)",
-  "border ehp-color-button-reader cursor-pointer font-sans textsize-md font-700 leading-1",
+  "inline-flex min-w-lg h-lg items-center justify-center px-md py-0 rounded-md coarse:(min-w-64px h-64px px-lg rounded-lg text-18px)",
+  "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1",
 ].join(" ");
 
 export type ToolbarCallbacks = {
@@ -75,10 +75,10 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div className="flex flex-row gap-8px pointer-events-auto">
+        <div className="flex flex-row gap-md coarse:gap-lg pointer-events-auto">
           <button
             type="button"
-            className={"coarse:(w-68px px-lg text-16px) " + READER_BUTTON_CLASS}
+            className={READER_BUTTON_CLASS}
             hidden={!open}
             title={readDirectionButton.title}
             onClick={props.callbacks.onReadDirectionClick}
@@ -87,7 +87,7 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           </button>
           <button
             type="button"
-            className={"coarse:(w-68px px-lg text-16px) " + READER_BUTTON_CLASS}
+            className={READER_BUTTON_CLASS}
             hidden={!open}
             title={rightTapButton.title}
             onClick={props.callbacks.onRightTapClick}
@@ -99,7 +99,7 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           </button>
           <button
             type="button"
-            className={"coarse:(w-68px text-24px) text-20px " + READER_BUTTON_CLASS}
+            className={"coarse:text-24px text-20px " + READER_BUTTON_CLASS}
             hidden={!open}
             title={texts.reader.openOriginalPage}
             onClick={props.callbacks.onOpenOriginalPageClick}
@@ -114,12 +114,12 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
       <div
         className={
           "fixed z-3 pointer-events-none " +
-          "top-[calc(62px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 " +
-          "coarse:top-[calc(72px+env(safe-area-inset-top,0px))] " +
-          "landscape:top-[calc(54px+env(safe-area-inset-top,0px))] landscape:(left-auto right-10px translate-x-0) " +
-          "coarse-landscape:top-[calc(62px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px " +
+          "top-[calc(70px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 " +
+          "coarse:top-[calc(80px+env(safe-area-inset-top,0px))] " +
+          "landscape:top-[calc(62px+env(safe-area-inset-top,0px))] landscape:(left-auto right-10px translate-x-0) " +
+          "coarse-landscape:top-[calc(74px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px " +
           "min-w-64px landscape:min-w-0 max-w-none landscape:max-w-[calc(100vw-20px)] coarse-landscape:max-w-[calc(100vw-16px)] " +
-          "py-xs px-md rounded-md ehp-color-reader-badge ehp-color-text " +
+          "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text " +
           "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap " +
           "text-center landscape:text-right"
         }

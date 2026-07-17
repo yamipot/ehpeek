@@ -69,7 +69,7 @@ export function TouchTopBar(props: { info: eh.TouchTopBarInfo; onSettingsMenuOpe
       <a className={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`} href={props.info.homeHref}>
         ⌂
       </a>
-      <div className="flex items-center gap-2px">
+      <div className="flex items-center gap-xs">
         <button
           type="button"
           className={`ehpeek-touch-top-bar-settings ${TOUCH_ICON_BUTTON_CLASS}`}

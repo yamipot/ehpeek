@@ -10,7 +10,11 @@ export type SettingsMenuState = {
 };
 
 const SETTINGS_ACTION_BUTTON_CLASS =
-  "block w-full min-h-md touch:min-h-xl py-sm px-md touch:py-lg rounded-xs ehp-color-site-btn cursor-pointer font-inherit text-center textsize-lg";
+  "block w-full min-h-lg py-sm px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98";
+const SETTINGS_APPLY_BUTTON_COLOR =
+  "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-background)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108";
+const SETTINGS_CLOSE_BUTTON_COLOR =
+  "border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]";
 const SETTINGS_DOT_CLASS =
   "block flex-none w-10px h-10px touch:w-18px touch:h-18px rounded-full";
 
@@ -28,7 +32,7 @@ function SwitchButton(props: {
   return (
     <button
       type="button"
-      className="flex w-full min-h-lg touch:min-h-xl items-center justify-between gap-16px touch:gap-20px py-md px-md touch:py-lg rounded-xs border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text ehp-color-site-item-hover cursor-pointer font-inherit text-left textsize-lg"
+      className="flex w-full min-h-lg touch:min-h-xl items-center justify-between gap-lg touch:gap-xl py-md px-md touch:py-lg rounded-xs border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text ehp-color-site-item-hover cursor-pointer font-inherit text-left textsize-lg"
       onClick={(event: MouseEvent) => {
         event.stopPropagation();
         setValue(!checked);
@@ -119,10 +123,10 @@ export function SettingsMenu(props: {
           draft.touchUiEnabled = value;
         }}
       />
-      <div className="ehpeek-settings-actions grid grid-cols-[1fr_1fr] gap-8px touch:gap-10px mt-6px touch:mt-8px">
+      <div className="ehpeek-settings-actions grid grid-cols-2 gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
         <button
           type="button"
-          className={`ehpeek-settings-apply ${SETTINGS_ACTION_BUTTON_CLASS}`}
+          className={`ehpeek-settings-apply ${SETTINGS_ACTION_BUTTON_CLASS} ${SETTINGS_APPLY_BUTTON_COLOR}`}
           onClick={(event: MouseEvent) => {
             event.stopPropagation();
             props.onApply({ ...draft });
@@ -132,7 +136,7 @@ export function SettingsMenu(props: {
         </button>
         <button
           type="button"
-          className={`ehpeek-settings-close ${SETTINGS_ACTION_BUTTON_CLASS}`}
+          className={`ehpeek-settings-close ${SETTINGS_ACTION_BUTTON_CLASS} ${SETTINGS_CLOSE_BUTTON_COLOR}`}
           onClick={(event: MouseEvent) => {
             event.stopPropagation();
             close();

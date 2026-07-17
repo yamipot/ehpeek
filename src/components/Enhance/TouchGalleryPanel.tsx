@@ -14,7 +14,7 @@ export function TouchGalleryPanel(props: {
   const rootRef = useRef<HTMLElement>(null);
   const categoryClassName =
     "ehpeek-touch-gallery-category min-w-0 self-center overflow-hidden text-ellipsis whitespace-nowrap py-sm px-md text-17px font-700 leading-[1.1] uppercase " +
-    (props.source.categoryClassName || "bg-[var(--color-site-page)] ehp-color-site-accent");
+    (props.source.categoryClassName || "ehp-color-site-page ehp-color-site-accent");
 
   useEffect(() => {
     if (rootRef.current) {
@@ -23,29 +23,35 @@ export function TouchGalleryPanel(props: {
   }, []);
 
   return (
-    <section ref={rootRef} className="ehpeek-touch-gallery flex box-border w-full flex-col mb-12px ehp-color-site-text font-sans">
-      <div className="ehpeek-touch-gallery-hero relative grid h-[clamp(260px,42vh,340px)] pt-18px pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text">
-        <div className="ehpeek-touch-gallery-summary grid h-full min-h-0 grid-cols-[36%_minmax(0,1fr)] gap-18px items-start">
+    <section ref={rootRef} className="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans">
+      <div className="ehpeek-touch-gallery-hero relative grid h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text">
+        <div className="ehpeek-touch-gallery-summary grid h-full min-h-0 grid-cols-[36%_minmax(0,1fr)] gap-lg items-start">
           <div className="ehpeek-touch-gallery-cover flex self-center justify-self-center w-auto max-w-full h-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden">
             <DomNode node={props.source.cover} />
           </div>
-          <div className="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 min-h-0 flex-col items-start gap-10px pt-2px">
-            <div className="ehpeek-touch-gallery-heading flex min-w-0 min-h-0 w-full flex-col gap-6px items-start overflow-hidden">
-              <div className="ehpeek-touch-gallery-title-main line-clamp-4 overflow-hidden text-22px text-[clamp(22px,5.9vw,32px)] font-400 leading-[1.1] text-left break-anywhere">
+          <div className="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 min-h-0 flex-col items-start gap-md pt-2px">
+            <div className="ehpeek-touch-gallery-heading flex min-w-0 min-h-0 w-full flex-col gap-sm items-start overflow-hidden">
+              <div
+                className="ehpeek-touch-gallery-title-main line-clamp-4 overflow-hidden text-22px text-[clamp(22px,5.9vw,32px)] font-400 leading-[1.1] text-left break-anywhere"
+                title={props.source.titleMain}
+              >
                 {props.source.titleMain}
               </div>
-              <div className="ehpeek-touch-gallery-title-sub line-clamp-3 overflow-hidden opacity-88 text-[clamp(17px,4.6vw,25px)] leading-[1.15] text-left break-anywhere">
+              <div
+                className="ehpeek-touch-gallery-title-sub line-clamp-3 overflow-hidden opacity-88 text-[clamp(17px,4.6vw,25px)] leading-[1.15] text-left break-anywhere"
+                title={props.source.titleSub}
+              >
                 {props.source.titleSub}
               </div>
             </div>
-            <div className="ehpeek-touch-gallery-category-row flex w-full min-h-64px gap-4px items-center mt-auto">
+            <div className="ehpeek-touch-gallery-category-row flex w-full min-h-64px gap-xs items-center mt-auto">
               <div className={categoryClassName}>{props.source.category}</div>
               <DomNode node={props.source.rating} />
             </div>
           </div>
         </div>
       </div>
-      <div className="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs ehp-color-site-panel-primary">
+      <div className="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]">
         <TouchGalleryFavoriteButton source={props.source.favorite} />
         <div
           className="ehpeek-touch-gallery-primary-actions flex min-w-0 border-l border-[var(--color-site-border-subtle)]"
@@ -54,8 +60,8 @@ export function TouchGalleryPanel(props: {
           }}
         />
       </div>
-      <div className="ehpeek-touch-gallery-content flex flex-col gap-16px pt-28px pr-[max(16px,env(safe-area-inset-right,0px))] pb-18px pl-[max(16px,env(safe-area-inset-left,0px))] bg-[var(--color-site-page)] ehp-color-site-text">
-        <div className="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-14px gap-x-18px items-center text-27px leading-[1.2] text-center">
+      <div className="ehpeek-touch-gallery-content flex flex-col gap-lg pt-xl pr-[max(16px,env(safe-area-inset-right,0px))] pb-lg pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text">
+        <div className="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-md gap-x-lg items-center text-27px leading-[1.2] text-center">
           {props.source.summary.map((item) => (
             <div className="ehpeek-touch-gallery-meta-value line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">
               {item.value}
@@ -64,7 +70,7 @@ export function TouchGalleryPanel(props: {
           <TouchGalleryActionsMenu actions={props.source.actions} />
         </div>
         {props.source.tagGroups.length > 0 && (
-          <div className="ehpeek-touch-gallery-tag-groups flex flex-col gap-10px pt-2px">
+          <div className="ehpeek-touch-gallery-tag-groups flex flex-col gap-md pt-2px">
             {props.source.tagGroups.map((group) => (
               <TouchGalleryTagGroup group={group} />
             ))}
@@ -120,14 +126,14 @@ function TouchGalleryActionsMenu(props: { actions: HTMLElement[] }) {
 
 function TouchGalleryTagGroup(props: { group: GalleryTagGroup }) {
   return (
-    <section className="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-8px items-start">
-      <div className="ehpeek-touch-gallery-tag-group-name min-h-sm overflow-hidden text-ellipsis whitespace-nowrap rounded-xl py-sm px-md text-center lowercase ehp-color-site-tag-group textsize-lg">
+    <section className="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-sm items-start">
+      <div className="ehpeek-touch-gallery-tag-group-name min-h-sm overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-sm px-md text-center lowercase ehp-color-site-accent textsize-lg font-600">
         {props.group.namespace}
       </div>
-      <div className="ehpeek-touch-gallery-tags flex flex-wrap gap-8px">
+      <div className="ehpeek-touch-gallery-tags flex flex-wrap gap-sm">
         {props.group.tags.map((tag) => (
           <a
-            className="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-xl px-xl no-underline ehp-color-site-tag textsize-lg"
+            className="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg no-underline ehp-color-site-text textsize-lg transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"
             href={tag.href}
             style={tag.appearance}
           >
@@ -186,7 +192,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
     <div ref={rootRef} className="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0">
       <button
         type="button"
-        className={`ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-10px py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] textsize-xl font-700 normal-case ${favorited ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`}
+        className={`ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] textsize-xl font-700 normal-case ${favorited ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={(event: MouseEvent) => {
@@ -233,7 +239,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
 
 function TouchGalleryFavoriteStatus(props: { text: string }) {
   return (
-    <div className="ehpeek-touch-gallery-favorite-loading flex min-h-lg items-center gap-12px py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit text-21px leading-[1.2] text-left">
+    <div className="ehpeek-touch-gallery-favorite-loading flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit text-21px leading-[1.2] text-left">
       {props.text}
     </div>
   );
@@ -247,7 +253,7 @@ function TouchGalleryFavoriteOption(props: {
   return (
     <button
       type="button"
-      className={`ehpeek-touch-gallery-favorite-option flex min-h-lg items-center gap-12px py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit text-21px leading-[1.2] text-left ${props.option.value === "favdel" ? "ehpeek-touch-gallery-favorite-option-remove" : ""}`}
+      className={`ehpeek-touch-gallery-favorite-option flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit text-21px leading-[1.2] text-left ${props.option.value === "favdel" ? "ehpeek-touch-gallery-favorite-option-remove" : ""}`}
       aria-pressed={props.option.selected}
       onClick={(event: MouseEvent) => {
         event.stopPropagation();

@@ -10,9 +10,12 @@ export const SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index";
 
 const DRAG_PIXEL_STEP = 18;
 const PAGE_BAR_BOTTOM_CLASS = "mt-0 mb-10px";
-const PAGE_BAR_CELL_CLASS = "w-sm h-sm touch:w-md touch:h-md p-0 rounded-sm touch:rounded-md cursor-pointer text-center align-middle select-none";
+const PAGE_BAR_CELL_CLASS = "!w-sm !h-sm touch:!w-md touch:!h-md !p-0 rounded-sm touch:rounded-md cursor-pointer text-center align-middle select-none";
 const PAGE_BAR_CLASS = "w-max mx-auto touch-pan-y [&[data-dragging=true]]:select-none";
-const PAGE_BAR_LINK_CLASS = "flex w-sm h-sm touch:w-md touch:h-md items-center justify-center box-border px-0 py-0 rounded-sm touch:rounded-md border border-current bg-transparent textsize-xs font-inherit no-underline hover:no-underline active:no-underline";
+const PAGE_BAR_LINK_CLASS = "flex !w-sm !h-sm touch:!w-md touch:!h-md items-center justify-center box-border !p-0 rounded-sm touch:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
+const PAGE_BAR_LINK_COLOR_CLASS = "!border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)]";
+const PAGE_BAR_CURRENT_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)]";
+const PAGE_BAR_DISABLED_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)] opacity-40 cursor-default";
 const PAGE_BAR_TABLE_CLASS = "border-separate border-spacing-4px touch:border-spacing-6px";
 const PAGE_BAR_TOP_CLASS = "mt-2px mb-0";
 let galleryPageBarWindowIndex: number | null = null;
@@ -22,6 +25,8 @@ type PageBarSlot =
       type: "page";
       pageIndex: number;
     };
+
+type PageBarItemState = "link" | "current" | "disabled";
 
 export type ScrollPageBarOptions = {
   currentIndex: number;
@@ -44,18 +49,24 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: HTMLDiv
   const lastSlotIndex = slots[slots.length - 1]?.pageIndex ?? currentIndex;
   const currentBeforeWindow = currentIndex < firstSlotIndex;
   const currentAfterWindow = currentIndex > lastSlotIndex;
-  const linkCell = (text: string, pageIndex: number, current: boolean) => {
-    if (current) {
+  const linkCell = (text: string, pageIndex: number, itemState: PageBarItemState = "link") => {
+    if (itemState !== "link") {
       return (
-        <td className={`ptds ${PAGE_BAR_CELL_CLASS}`}>
-          <span className={PAGE_BAR_LINK_CLASS}>{text}</span>
+        <td className={PAGE_BAR_CELL_CLASS}>
+          <span
+            className={`${PAGE_BAR_LINK_CLASS} ${itemState === "current" ? PAGE_BAR_CURRENT_COLOR_CLASS : PAGE_BAR_DISABLED_COLOR_CLASS}`}
+            aria-current={itemState === "current" ? "page" : undefined}
+            aria-disabled={itemState === "disabled" ? "true" : undefined}
+          >
+            {text}
+          </span>
         </td>
       );
     }
 
     return (
       <td className={PAGE_BAR_CELL_CLASS}>
-        <a className={PAGE_BAR_LINK_CLASS} href={options.urlForIndex(pageIndex)} data-page-index={String(pageIndex)}>
+        <a className={`${PAGE_BAR_LINK_CLASS} ${PAGE_BAR_LINK_COLOR_CLASS}`} href={options.urlForIndex(pageIndex)} data-page-index={String(pageIndex)}>
           {text}
         </a>
       </td>
@@ -63,7 +74,7 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: HTMLDiv
   };
   const emptyCell = () => (
     <td className={`${PAGE_BAR_CELL_CLASS} cursor-default`}>
-      <span className={`${PAGE_BAR_LINK_CLASS} invisible`} />
+      <span className={`${PAGE_BAR_LINK_CLASS} ${PAGE_BAR_LINK_COLOR_CLASS} invisible`} />
     </td>
   );
 
@@ -96,13 +107,15 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: HTMLDiv
     <table className={PAGE_BAR_TABLE_CLASS}>
       <tbody>
         <tr>
-          {linkCell("<<", 0, currentIndex === 0)}
-          {currentBeforeWindow ? linkCell(String(currentIndex + 1), currentIndex, true) : emptyCell()}
-          {linkCell("<", Math.max(0, currentIndex - 1), currentIndex === 0)}
-          {slots.map((slot) => (slot ? linkCell(String(slot.pageIndex + 1), slot.pageIndex, slot.pageIndex === currentIndex) : emptyCell()))}
-          {linkCell(">", Math.min(maxIndex, currentIndex + 1), currentIndex === maxIndex)}
-          {currentAfterWindow ? linkCell(String(currentIndex + 1), currentIndex, true) : emptyCell()}
-          {linkCell(">>", maxIndex, currentIndex === maxIndex)}
+          {linkCell("<<", 0, currentIndex === 0 ? "disabled" : "link")}
+          {currentBeforeWindow ? linkCell(String(currentIndex + 1), currentIndex, "current") : emptyCell()}
+          {linkCell("<", Math.max(0, currentIndex - 1), currentIndex === 0 ? "disabled" : "link")}
+          {slots.map((slot) =>
+            slot ? linkCell(String(slot.pageIndex + 1), slot.pageIndex, slot.pageIndex === currentIndex ? "current" : "link") : emptyCell(),
+          )}
+          {linkCell(">", Math.min(maxIndex, currentIndex + 1), currentIndex === maxIndex ? "disabled" : "link")}
+          {currentAfterWindow ? linkCell(String(currentIndex + 1), currentIndex, "current") : emptyCell()}
+          {linkCell(">>", maxIndex, currentIndex === maxIndex ? "disabled" : "link")}
         </tr>
       </tbody>
     </table>

@@ -1,6 +1,7 @@
 import { h } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { registerGlobalStyle } from "../utils";
+import progressBarCss from "./Misc.css";
 
 const PROGRESS_BAR_CLASS = "ehpeek-progress-bar";
 const PROGRESS_BAR_CLASS_NAME = [
@@ -13,49 +14,7 @@ const PROGRESS_BAR_CLASS_NAME = [
     "[accent-color:var(--color-text)]",
 ].join(" ");
 
-registerGlobalStyle(PROGRESS_BAR_CLASS, `
-.${PROGRESS_BAR_CLASS}::-webkit-slider-runnable-track {
-  height: 0.4em;
-  border-radius: 9999px;
-  background: linear-gradient(
-    var(--progress-bar-track-direction),
-  var(--color-accent) 0 var(--progress-bar-fill),
-  var(--color-track) var(--progress-bar-fill) 100%
-  );
-}
-
-.${PROGRESS_BAR_CLASS}::-webkit-slider-thumb {
-  width: 1.4em;
-  height: 1.4em;
-  margin-top: -0.5em;
-  border: 2px solid var(--color-border);
-  border-radius: 9999px;
-  background: var(--color-text);
-  box-shadow: 0 2px 10px var(--color-shadow-control);
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.${PROGRESS_BAR_CLASS}::-moz-range-track {
-  height: 0.4em;
-  border-radius: 9999px;
-  background: var(--color-track);
-}
-
-.${PROGRESS_BAR_CLASS}::-moz-range-progress {
-  height: 0.4em;
-  border-radius: 9999px;
-  background: var(--color-accent);
-}
-
-.${PROGRESS_BAR_CLASS}::-moz-range-thumb {
-  width: 1.4em;
-  height: 1.4em;
-  border: 2px solid var(--color-border);
-  border-radius: 9999px;
-  background: var(--color-text);
-  box-shadow: 0 2px 10px var(--color-shadow-control);
-}`);
+registerGlobalStyle(PROGRESS_BAR_CLASS, progressBarCss);
 
 export function ProgressBar(props: {
   className?: string;

@@ -1,0 +1,44 @@
+.ehpeek-progress-bar::-webkit-slider-runnable-track {
+  height: 0.4em;
+  border-radius: 9999px;
+  background: linear-gradient(
+    var(--progress-bar-track-direction),
+    var(--color-accent) 0 var(--progress-bar-fill),
+    var(--color-track) var(--progress-bar-fill) 100%
+  );
+}
+
+.ehpeek-progress-bar::-webkit-slider-thumb {
+  width: 1.4em;
+  height: 1.4em;
+  margin-top: -0.5em;
+  border: 2px solid var(--color-border);
+  border-radius: 9999px;
+  background: var(--color-text);
+  box-shadow: 0 2px 10px var(--color-shadow-control);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.ehpeek-progress-bar::-moz-range-track,
+.ehpeek-progress-bar::-moz-range-progress {
+  height: 0.4em;
+  border-radius: 9999px;
+}
+
+.ehpeek-progress-bar::-moz-range-track {
+  background: var(--color-track);
+}
+
+.ehpeek-progress-bar::-moz-range-progress {
+  background: var(--color-accent);
+}
+
+.ehpeek-progress-bar::-moz-range-thumb {
+  width: 1.4em;
+  height: 1.4em;
+  border: 2px solid var(--color-border);
+  border-radius: 9999px;
+  background: var(--color-text);
+  box-shadow: 0 2px 10px var(--color-shadow-control);
+}

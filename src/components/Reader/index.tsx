@@ -18,6 +18,7 @@ import { PagesViewport } from "./Viewport";
 import { initialToolbarState, Toolbar, type PageProgress, type ReaderControls, type ToolbarCallbacks, type ToolbarState } from "./Toolbar";
 import { createZoomOverlay, type ZoomOverlay, type ZoomOverlayImage } from "./ZoomOverlay";
 import { ExternalDomNode } from "../ExternalDom";
+import readerCss from "./index.css";
 
 const VIEWER_ID = "ehpeek-reader";
 const STYLE_ID = "ehpeek-reader-style";
@@ -272,7 +273,7 @@ function ReaderRoot(props: ReaderRootState & { children: ComponentChildren }) {
     const previousDocumentOverflow = document.documentElement.style.overflow;
     const previousBodyOverflow = document.body.style.overflow;
 
-    ensureReaderStyle();
+    registerGlobalStyle(STYLE_ID, readerCss);
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
 
@@ -285,7 +286,7 @@ function ReaderRoot(props: ReaderRootState & { children: ComponentChildren }) {
   return (
     <div
       id={VIEWER_ID}
-      className="fixed inset-0 z-reader bg-[var(--color-background)] ehp-color-text font-sans text-13px leading-[1.4]"
+      className="fixed inset-0 z-reader ehp-color-reader font-sans text-13px leading-[1.4]"
       data-read-direction={props.readDirection}
       data-toolbar-open={String(props.toolbarOpen)}
       data-view-mode={props.viewMode}
@@ -1385,14 +1386,6 @@ function shouldIgnoreKeyboardEvent(event: KeyboardEvent): boolean {
   }
 
   return Boolean(eventTarget.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']"));
-}
-
-function ensureReaderStyle(): void {
-  registerGlobalStyle(STYLE_ID, `
-#ehpeek-reader,
-#ehpeek-reader * {
-  box-sizing: border-box;
-}`);
 }
 
 function pointerTypeForEvent(event: PointerEvent | MouseEvent): string {

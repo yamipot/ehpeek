@@ -58,7 +58,7 @@ function pagesViewportDom(options: { onReloadPage: (pageNum: number) => void }) 
   const strip = document.createElement("main");
 
   scroller.className =
-    "w-full h-full overflow-auto overscroll-contain scroll-auto touch-pan-y cursor-grab control-scroll-hidden " +
+    "w-full h-full overflow-auto overscroll-contain scroll-auto touch-pan-y cursor-grab scrollbar-hidden " +
     "[&[data-dragging=true]]:(cursor-grabbing select-none) " +
     "[#ehpeek-reader[data-view-mode=paged]_&]:(overflow-hidden touch-none select-none)";
   scroller.tabIndex = -1;
@@ -160,7 +160,7 @@ function slotElements(): SlotElements {
   const node = document.createElement("section");
   const frame = document.createElement("div");
 
-  node.className = "ehpeek-page flex w-full h-[var(--reader-page-height)] items-start justify-center pb-8px [#ehpeek-reader[data-view-mode=paged]_&]:(flex-[0_0_100%] w-full h-full items-center p-0)";
+  node.className = "ehpeek-page flex w-full h-[var(--reader-page-height)] items-start justify-center pb-sm [#ehpeek-reader[data-view-mode=paged]_&]:(flex-[0_0_100%] w-full h-full items-center p-0)";
   frame.className = "flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [#ehpeek-reader[data-view-mode=paged]_&]:(w-full h-full)";
   node.append(frame);
 
@@ -171,20 +171,23 @@ function placeholderDom(content: SlotContent, text: string): HTMLElement {
   const placeholder = document.createElement("div");
 
   placeholder.className =
-    "flex w-full h-full items-center justify-center bg-[var(--color-surface)] text-[var(--color-muted)] leading-1 text-center " +
+    "relative flex w-full h-full items-center justify-center bg-[var(--color-surface)] text-[var(--color-muted)] leading-1 text-center " +
     (content.kind === "end"
       ? "p-xl [direction:ltr] text-[clamp(24px,6vw,42px)] font-700 leading-[1.3] [unicode-bidi:plaintext]"
-      : "text-[clamp(88px,25vw,180px)] desktop:text-[clamp(72px,10vw,140px)] font-850");
+      : "text-[clamp(88px,25vw,180px)] desktop:text-[clamp(72px,10vw,140px)] font-mono font-850 [font-variant-numeric:tabular-nums]");
 
   if (content.state === "loading") {
     const spinner = document.createElement("span");
+    const pageNumber = document.createElement("span");
 
     spinner.className =
-      "block w-sm h-sm box-border animate-spin rounded-full border-4 border-solid border-[var(--color-border)] border-t-[var(--color-accent)]";
+      "absolute left-1/2 top-[min(calc(50%+0.7em),calc(100%-28px))] block w-md h-md -translate-x-1/2 -translate-y-1/2 box-border animate-spin rounded-full border-4px border-solid ehp-color-spinner";
     spinner.setAttribute("aria-hidden", "true");
+    pageNumber.textContent = text;
+    pageNumber.setAttribute("aria-hidden", "true");
     placeholder.setAttribute("role", "status");
-    placeholder.setAttribute("aria-label", texts.reader.loading);
-    placeholder.append(spinner);
+    placeholder.setAttribute("aria-label", `${texts.reader.loading} ${text}`);
+    placeholder.append(pageNumber, spinner);
     return placeholder;
   }
 
@@ -208,7 +211,7 @@ function errorPlaceholderDom(pageNum: number, text: string, onReloadPage: (pageN
   icon.setAttribute("aria-hidden", "true");
   icon.textContent = "↻";
   button.append(icon);
-  placeholder.className = "flex w-full h-full flex-col items-center justify-center gap-18px bg-[var(--color-surface)] p-xl text-[var(--color-danger)] text-center text-18px font-700 leading-1";
+  placeholder.className = "flex w-full h-full flex-col items-center justify-center gap-lg bg-[var(--color-surface)] p-xl text-[var(--color-danger)] text-center text-18px font-700 leading-1";
   message.className = "max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]";
   message.textContent = text;
   placeholder.append(message, button);
