@@ -253,8 +253,9 @@ function TouchGalleryTagGroup(props: { group: GalleryTagGroup }) {
             className="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg no-underline ehp-color-site-text textsize-lg transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"
             href={tag.href}
             style={tag.appearance}
+            aria-label={tag.label}
           >
-            {tag.label}
+            <DomNode node={tag.content} />
           </a>
         ))}
       </div>

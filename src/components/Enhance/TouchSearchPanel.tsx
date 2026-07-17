@@ -68,7 +68,7 @@ export function TouchSearchPanel(props: { source: TouchSearchPanelInfo }) {
               props.source.searchSubmit.click();
             }}
           >
-            {props.source.searchSubmit.value}
+            {props.source.searchLabel}
           </button>
           <span ref={originalSearchHostRef} className="contents [&>*:not([hidden])]:col-span-full" />
         </Fragment>,
@@ -83,7 +83,7 @@ export function TouchSearchPanel(props: { source: TouchSearchPanelInfo }) {
               props.source.clearButton.click();
             }}
           >
-            {props.source.clearButton.value}
+            {props.source.clearLabel}
           </button>
           <span ref={originalClearHostRef} className="contents [&>*:not([hidden])]:col-span-full" />
         </Fragment>,

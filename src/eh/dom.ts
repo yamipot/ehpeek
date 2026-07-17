@@ -41,6 +41,7 @@ export type GalleryTagGroup = {
 
 export type GalleryTag = {
   appearance: GalleryTagAppearance;
+  content: HTMLElement;
   href: string;
   label: string;
 };
@@ -99,12 +100,14 @@ export type TouchSearchPanelInfo = {
   categories: HTMLTableElement;
   categoryToggleMount: HTMLSpanElement;
   clearActionMount: HTMLSpanElement;
-  clearButton: HTMLInputElement;
+  clearButton: HTMLInputElement | HTMLButtonElement;
+  clearLabel: string;
   fileSearch: HTMLElement | null;
   optionLinks: HTMLElement;
   searchActionMount: HTMLSpanElement;
   searchBox: HTMLElement;
-  searchSubmit: HTMLInputElement;
+  searchLabel: string;
+  searchSubmit: HTMLInputElement | HTMLButtonElement;
 };
 
 type PageType =
@@ -178,7 +181,7 @@ export function collectGalleryPages(
 
 export function readShowingRange(root: ParentNode = document): { start: number; end: number; total: number } | null {
   const text = root.querySelector(".gpc")?.textContent ?? "";
-  const match = text.match(/([\d,]+)\s*-\s*([\d,]+)\s+of\s+([\d,]+)/i);
+  const match = text.match(/([\d,]+)\s*-\s*([\d,]+)\D+([\d,]+)/);
 
   if (!match) {
     return null;
@@ -215,13 +218,19 @@ export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSear
   const categories = searchBox?.querySelector<HTMLTableElement>("form > table");
   const advancedPanel = searchBox?.querySelector<HTMLElement>("#advdiv");
   const optionLinks = advancedPanel?.previousElementSibling;
-  const searchSubmit = searchBox?.querySelector<HTMLInputElement>("input[type='submit']");
-  const clearButton = searchBox?.querySelector<HTMLInputElement>("input[type='button']");
+  const searchInput = searchBox?.querySelector<HTMLInputElement>("#f_search");
+  const searchControls = searchInput?.parentElement;
+  const searchSubmit = searchControls?.querySelector<HTMLInputElement | HTMLButtonElement>(
+    "input[type='submit'], button[type='submit']",
+  );
+  const clearButton = searchControls?.querySelector<HTMLInputElement | HTMLButtonElement>(
+    "input[type='button'], button[type='button']",
+  );
 
   if (
     !searchBox ||
     !categories ||
-    !searchBox.querySelector("#f_search") ||
+    !searchInput ||
     !(optionLinks instanceof HTMLElement) ||
     !searchSubmit ||
     !clearButton
@@ -241,10 +250,12 @@ export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSear
     categoryToggleMount,
     clearActionMount,
     clearButton,
+    clearLabel: searchActionLabel(clearButton),
     fileSearch: root.querySelector<HTMLElement>("#fsdiv"),
     optionLinks,
     searchActionMount,
     searchBox,
+    searchLabel: searchActionLabel(searchSubmit),
     searchSubmit,
   };
 }
@@ -317,6 +328,10 @@ export function prepareTouchSearchPanel(info: TouchSearchPanelInfo, optionClassN
       "[&_form]:flex [&_form]:flex-col [&_form]:gap-sm [&_form>div]:!p-0 " +
       "[&_.searchadv>div]:!flex-wrap [&_.searchadv>div]:!justify-start [&_.searchadv>div]:!gap-sm [&_.searchadv>div>div]:!p-sm";
   }
+}
+
+function searchActionLabel(element: HTMLInputElement | HTMLButtonElement): string {
+  return element instanceof HTMLInputElement ? element.value : element.textContent?.trim() ?? "";
 }
 
 export function findSearchNavigationLink(target: EventTarget | null): HTMLAnchorElement | null {
@@ -634,7 +649,9 @@ export function insertTouchGalleryPanel(panel: HTMLElement): boolean {
   host.classList.add("ehpeek-touch-gallery-host");
 
   for (const child of Array.from(host.children)) {
-    (child as HTMLElement).hidden = true;
+    const element = child as HTMLElement;
+    element.hidden = true;
+    element.classList.add("!hidden");
   }
 
   host.prepend(panel);
@@ -868,7 +885,7 @@ function readGalleryTagGroups(): GalleryTagGroup[] {
 }
 
 function readGalleryTag(tag: HTMLAnchorElement): GalleryTag | null {
-  const label = tag.textContent?.trim() ?? "";
+  const label = tag.textContent?.trim() || tag.getAttribute("ehs-tag")?.trim() || tag.title.trim();
 
   if (!label || !tag.href) {
     return null;
@@ -877,6 +894,9 @@ function readGalleryTag(tag: HTMLAnchorElement): GalleryTag | null {
   const container = tag.closest<HTMLElement>("div.gt, div.gtl, div.gtw") ?? tag;
   const tagStyle = window.getComputedStyle(tag);
   const containerStyle = window.getComputedStyle(container);
+  const content = document.createElement("span");
+  content.className = "contents";
+  content.append(...Array.from(tag.childNodes, (node) => node.cloneNode(true)));
 
   return {
     appearance: {
@@ -884,6 +904,7 @@ function readGalleryTag(tag: HTMLAnchorElement): GalleryTag | null {
       borderColor: containerStyle.borderColor,
       color: tagStyle.color,
     },
+    content,
     href: tag.href,
     label,
   };

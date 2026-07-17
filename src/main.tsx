@@ -30,6 +30,7 @@ import texts from "./texts.json";
 import { state } from "./state";
 import { loadReaderHistory, ReaderHistorySession } from "./history";
 import { normalizeUrl } from "./utils";
+import * as EhSyringe from "./integrations/EhSyringe";
 import unoCss from "ehpeek:uno.css";
 import themeCss from "./theme.css";
 
@@ -249,7 +250,11 @@ if (!settingsState.touchUiEnabled) {
   }
 }
 
-if (settingsState.touchUiEnabled && !document.querySelector(".ehpeek-touch-top-bar")) {
+function installTouchTopBar(): void {
+  if (document.querySelector(".ehpeek-touch-top-bar")) {
+    return;
+  }
+
   const info = eh.readTouchTopBarInfo(TOUCH_TOP_BAR_MENU_ITEM_CLASS);
 
   if (info.available) {
@@ -270,52 +275,86 @@ if (settingsState.touchUiEnabled && !document.querySelector(".ehpeek-touch-top-b
   }
 }
 
+async function installTouchTopBarWhenReady(): Promise<void> {
+  await EhSyringe.waitForInitialUi();
+  installTouchTopBar();
+}
+
+if (settingsState.touchUiEnabled) {
+  void installTouchTopBarWhenReady();
+}
+
 if (settingsState.touchUiEnabled && pageType.type === "favorites") {
   eh.prepareTouchFavoritesPage();
 }
 
-if (settingsState.touchUiEnabled && pageType.type === "gallery") {
+function installTouchGalleryPanel(): void {
+  if (document.querySelector(".ehpeek-touch-gallery")) {
+    return;
+  }
+
   const touchGalleryInfo = eh.readGalleryInfo(TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS);
 
   if (touchGalleryInfo.available) {
     eh.applyTouchGalleryPanelPageStyle();
     eh.prepareTouchGalleryComments();
-    let mount: HTMLElement | null = null;
+    const mount = document.createElement("div");
 
-    if (!document.querySelector(".ehpeek-touch-gallery")) {
-      mount = document.createElement("div");
-
-      if (!eh.insertTouchGalleryPanel(mount)) {
-        document.body.prepend(mount);
-      }
+    if (!eh.insertTouchGalleryPanel(mount)) {
+      document.body.prepend(mount);
     }
 
-    if (mount) {
-      render(
-        <TouchGalleryPanel
-          source={touchGalleryInfo}
-          onPrimaryActionMount={(mount) => {
-            touchGalleryReadButtonMount = mount;
-            installContinueReadingButton();
-          }}
-        />,
-        mount,
-      );
-    }
+    render(
+      <TouchGalleryPanel
+        source={touchGalleryInfo}
+        onPrimaryActionMount={(mount) => {
+          touchGalleryReadButtonMount = mount;
+          installContinueReadingButton();
+        }}
+      />,
+      mount,
+    );
   }
 }
 
-if (settingsState.touchUiEnabled && pageType.type === "search" && !document.querySelector(".ehpeek-touch-search-panel")) {
+async function installTouchGalleryPanelWhenReady(): Promise<void> {
+  await EhSyringe.waitForInitialUi();
+  installTouchGalleryPanel();
+}
+
+if (settingsState.touchUiEnabled && pageType.type === "gallery") {
+  void installTouchGalleryPanelWhenReady();
+}
+
+function installTouchSearchPanel(): boolean {
+  if (document.querySelector(".ehpeek-touch-search-panel")) {
+    return true;
+  }
+
   const touchSearchInfo = eh.readTouchSearchPanelInfo();
 
-  if (touchSearchInfo) {
-    eh.prepareTouchSearchPanel(touchSearchInfo, TOUCH_SEARCH_OPTION_CLASS);
-    const mount = document.createElement("div");
-
-    if (eh.insertTouchSearchPanel(mount)) {
-      render(<TouchSearchPanel source={touchSearchInfo} />, mount);
-    }
+  if (!touchSearchInfo) {
+    return false;
   }
+
+  const mount = document.createElement("div");
+
+  if (!eh.insertTouchSearchPanel(mount)) {
+    return false;
+  }
+
+  eh.prepareTouchSearchPanel(touchSearchInfo, TOUCH_SEARCH_OPTION_CLASS);
+  render(<TouchSearchPanel source={touchSearchInfo} />, mount);
+  return true;
+}
+
+async function installTouchSearchPanelWhenReady(): Promise<void> {
+  await EhSyringe.waitForSearchUi();
+  installTouchSearchPanel();
+}
+
+if (settingsState.touchUiEnabled && pageType.type === "search") {
+  void installTouchSearchPanelWhenReady();
 }
 
 installContinueReadingButton();
@@ -375,7 +414,7 @@ async function openReader(startPageUrl: string, preferredPageNum?: number): Prom
     throw new Error(texts.errors.imageNotFound);
   }
 
-  const landingPage = landingPages.find((page) => page.pageNum === startPageNum || page.url === startUrl);
+  const landingPage = landingPages.find((page) => page.pageNum === startPageNum);
   const seedPage = landingPage ?? (await provider.loadDisplayPages([startPageNum]))[0];
 
   if (!seedPage || seedPage.pageNum !== startPageNum) {
