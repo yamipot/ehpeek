@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ehpeek: E-H/ExH viewer
 // @namespace    ehpeek
-// @version      260717.1659
+// @version      260717.1715
 // @description  A mobile-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -2017,7 +2017,7 @@
           ...this.toolbarState,
           fullscreenActive,
           fullscreenHint: !1
-        }, this.setToolbarComponentState(this.toolbarState), fullscreenExited && !keepReaderOpen && this.close();
+        }, this.setToolbarComponentState(this.toolbarState), fullscreenExited && this.finishFullscreenExit(keepReaderOpen);
       };
       this.onResize = () => {
         this.resizeFrame === null && (this.resizeFrame = window.requestAnimationFrame(() => {
@@ -2034,7 +2034,7 @@
         });
       }
       let startIndex = clamp(options.startIndex, 0, Math.max(0, options.pages.length - 1));
-      this.currentPageNum = pageNumForPage(options.pages[startIndex], startIndex), this.preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE, this.loadPages = options.loadPages, this.onExit = options.onExit, this.onActivePageChange = options.onActivePageChange, this.onOpenOriginalPage = options.onOpenOriginalPage, this.initialFullscreenHint = options.initialFullscreenHint ?? !1, this.ownsFullscreen = options.initialFullscreenOwned ?? !1, this.closeComponent = bindings.close, this.isDragging = bindings.isDragging, this.setRootComponentState = bindings.setRootState, this.setToolbarComponentState = bindings.setToolbarState, this.toolbarState = initialToolbarState(), this.rootState = {
+      this.currentPageNum = pageNumForPage(options.pages[startIndex], startIndex), this.preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE, this.loadPages = options.loadPages, this.onExit = options.onExit, this.onActivePageChange = options.onActivePageChange, this.onOpenOriginalPage = options.onOpenOriginalPage, this.onBeforeEnterFullscreen = options.onBeforeEnterFullscreen, this.restorePageViewport = options.restorePageViewport, this.initialFullscreenHint = options.initialFullscreenHint ?? !1, this.ownsFullscreen = options.initialFullscreenOwned ?? !1, this.closeComponent = bindings.close, this.isDragging = bindings.isDragging, this.setRootComponentState = bindings.setRootState, this.setToolbarComponentState = bindings.setToolbarState, this.toolbarState = initialToolbarState(), this.rootState = {
         readDirection: state.reader.readDirection.value,
         toolbarOpen: !1,
         viewMode: state.reader.viewMode.value
@@ -2118,7 +2118,7 @@
       this.cleanup() && this.closeComponent();
     }
     cleanup() {
-      return this.closed ? !1 : (this.closed = !0, this.cancelProgressNavigation(), this.cancelPendingTap(), this.imageQueue.dispose(), window.removeEventListener("resize", this.onResize), window.removeEventListener("popstate", this.onPopState), document.removeEventListener("fullscreenchange", this.onFullscreenChange), this.clearFullscreenHintTimer(), this.ownsFullscreen && document.fullscreenElement === this.fullscreenTarget && (this.ownsFullscreen = !1, document.exitFullscreen().catch((error) => {
+      return this.closed ? !1 : (this.closed = !0, this.cancelProgressNavigation(), this.cancelPendingTap(), this.imageQueue.dispose(), window.removeEventListener("resize", this.onResize), window.removeEventListener("popstate", this.onPopState), document.removeEventListener("fullscreenchange", this.onFullscreenChange), this.clearFullscreenHintTimer(), document.fullscreenElement === this.fullscreenTarget && (this.ownsFullscreen = !1, document.exitFullscreen().then(() => this.restorePageViewport?.()).catch((error) => {
         console.warn("[ehpeek] Failed to exit fullscreen", error);
       })), clearReaderFullscreenScale(this.fullscreenTarget), this.scrollFrame !== null && (window.cancelAnimationFrame(this.scrollFrame), this.scrollFrame = null), this.resizeFrame !== null && (window.cancelAnimationFrame(this.resizeFrame), this.resizeFrame = null), this.viewport.stopMotion(), !0);
     }
@@ -2413,10 +2413,18 @@
       }
       this.ownsFullscreen = !0;
       try {
-        await enterReaderFullscreen(this.fullscreenTarget);
+        this.onBeforeEnterFullscreen?.(), await enterReaderFullscreen(this.fullscreenTarget);
       } catch (error) {
-        this.ownsFullscreen = !1, console.warn("[ehpeek] Fullscreen request failed", error), this.showFullscreenHint();
+        this.ownsFullscreen = !1, await this.restorePageViewport?.(), console.warn("[ehpeek] Fullscreen request failed", error), this.showFullscreenHint();
       }
+    }
+    async finishFullscreenExit(keepReaderOpen) {
+      try {
+        await this.restorePageViewport?.();
+      } catch (error) {
+        console.warn("[ehpeek] Failed to restore page viewport", error);
+      }
+      keepReaderOpen || this.close();
     }
     syncFullscreenState() {
       this.toolbarState = {
@@ -2843,6 +2851,38 @@ body #gdt[class],
   }
   function searchTopNavigationBar(root = document) {
     return searchNavigationBars(root)[0] ?? null;
+  }
+  function preparePageViewportForFullscreen() {
+    let existing = document.querySelector('meta[name="viewport"]'), meta = existing ?? document.createElement("meta"), scale = Math.max(0.1, window.visualViewport?.scale ?? 1), snapshot = {
+      content: existing?.getAttribute("content") ?? null,
+      created: !existing,
+      meta,
+      scale,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY
+    };
+    return existing || (meta.name = "viewport", document.head.append(meta)), meta.content = lockedViewportContent(snapshot.content, scale), snapshot;
+  }
+  async function restorePageViewport(snapshot) {
+    await nextAnimationFrame(), snapshot.created ? snapshot.meta.remove() : snapshot.content === null ? snapshot.meta.removeAttribute("content") : snapshot.meta.setAttribute("content", snapshot.content), await nextAnimationFrame(), await nextAnimationFrame(), window.scrollTo(snapshot.scrollX, snapshot.scrollY);
+  }
+  function lockedViewportContent(content, scale) {
+    let preserved = (content ?? "").split(",").map((item) => item.trim()).filter(
+      (item) => item && !/^(?:initial-scale|minimum-scale|maximum-scale|user-scalable|viewport-fit)\s*=/i.test(item)
+    ), value = String(Math.round(scale * 1e3) / 1e3);
+    return [
+      ...preserved,
+      `initial-scale=${value}`,
+      `minimum-scale=${value}`,
+      `maximum-scale=${value}`,
+      "user-scalable=no",
+      "viewport-fit=cover"
+    ].join(", ");
+  }
+  function nextAnimationFrame() {
+    return new Promise((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
   }
   function readTouchSearchPanelInfo(root = document) {
     let searchBox = root.querySelector("#searchbox"), categories = searchBox?.querySelector("form > table"), optionLinks = searchBox?.querySelector("#advdiv")?.previousElementSibling, searchInput = searchBox?.querySelector("#f_search"), searchControls = searchInput?.parentElement, searchSubmit = searchControls?.querySelector(
@@ -5150,9 +5190,13 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
     }
     let automaticFullscreen = fullscreenLaunch ? await fullscreenLaunch.result : void 0;
     if (automaticFullscreen && document.fullscreenElement !== fullscreenLaunch?.host) {
-      historySession.dispose(), fullscreenLaunch?.host.remove();
+      historySession.dispose(), fullscreenLaunch?.viewport && await restorePageViewport(fullscreenLaunch.viewport), fullscreenLaunch?.host.remove();
       return;
     }
+    let fullscreenViewport = automaticFullscreen ? fullscreenLaunch?.viewport ?? null : null, restorePageViewport2 = async () => {
+      let snapshot = fullscreenViewport;
+      fullscreenViewport = null, snapshot && await restorePageViewport(snapshot);
+    };
     openFullscreenReader({
       galleryId: pageType2.galleryId,
       pages,
@@ -5164,6 +5208,10 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
       totalPages,
       initialFullscreenHint: automaticFullscreen === !1,
       initialFullscreenOwned: automaticFullscreen === !0,
+      onBeforeEnterFullscreen: () => {
+        fullscreenViewport = preparePageViewportForFullscreen();
+      },
+      restorePageViewport: restorePageViewport2,
       loadPage: loadEhImagePage,
       loadPages: (pageNums) => provider.loadDisplayPages(pageNums),
       onActivePageChange: (page) => {
@@ -5191,21 +5239,29 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
   }
   function openReaderFromUserAction(startPageUrl, preferredPageNum) {
     let fullscreenLaunch = requestConfiguredReaderFullscreen();
-    openReader(startPageUrl, preferredPageNum, fullscreenLaunch).catch((error) => {
-      fullscreenLaunch && (document.fullscreenElement === fullscreenLaunch.host && document.exitFullscreen().catch((fullscreenError) => {
-        console.warn("[ehpeek] Failed to exit fullscreen", fullscreenError);
-      }), fullscreenLaunch.host.remove()), reportOpenError(error);
+    openReader(startPageUrl, preferredPageNum, fullscreenLaunch).catch(async (error) => {
+      if (fullscreenLaunch) {
+        let fullscreenEntered = await fullscreenLaunch.result;
+        document.fullscreenElement === fullscreenLaunch.host && await document.exitFullscreen().catch((fullscreenError) => {
+          console.warn("[ehpeek] Failed to exit fullscreen", fullscreenError);
+        }), fullscreenEntered && fullscreenLaunch.viewport && await restorePageViewport(fullscreenLaunch.viewport), fullscreenLaunch.host.remove();
+      }
+      reportOpenError(error);
     });
   }
   function requestConfiguredReaderFullscreen() {
     if (!state.reader.enabled.value || !state.reader.fullscreen.value || document.fullscreenElement)
       return;
     let host = createReaderHost();
-    return document.body.append(host), !document.fullscreenEnabled || typeof host.requestFullscreen != "function" ? { host, result: Promise.resolve(!1) } : {
+    if (document.body.append(host), !document.fullscreenEnabled || typeof host.requestFullscreen != "function")
+      return { host, result: Promise.resolve(!1), viewport: null };
+    let viewport = preparePageViewportForFullscreen();
+    return {
       host,
+      viewport,
       result: enterReaderFullscreen(host).then(
         () => !0,
-        (error) => (console.warn("[ehpeek] Fullscreen request failed", error), !1)
+        async (error) => (await restorePageViewport(viewport), console.warn("[ehpeek] Fullscreen request failed", error), !1)
       )
     };
   }
