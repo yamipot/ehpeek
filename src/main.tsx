@@ -48,6 +48,7 @@ const UNO_STYLE_ID = "ehpeek-uno-style";
 type ReaderFullscreenLaunch = {
   host: HTMLDivElement;
   result: Promise<boolean>;
+  viewport: eh.PageViewportSnapshot | null;
 };
 
 if (unoCss && !document.getElementById(UNO_STYLE_ID)) {
@@ -477,9 +478,22 @@ async function openReader(
 
   if (automaticFullscreen && document.fullscreenElement !== fullscreenLaunch?.host) {
     historySession.dispose();
+    if (fullscreenLaunch?.viewport) {
+      await eh.restorePageViewport(fullscreenLaunch.viewport);
+    }
     fullscreenLaunch?.host.remove();
     return;
   }
+
+  let fullscreenViewport = automaticFullscreen ? fullscreenLaunch?.viewport ?? null : null;
+  const restorePageViewport = async () => {
+    const snapshot = fullscreenViewport;
+    fullscreenViewport = null;
+
+    if (snapshot) {
+      await eh.restorePageViewport(snapshot);
+    }
+  };
 
   openFullscreenReader({
     galleryId: pageType.galleryId,
@@ -492,6 +506,10 @@ async function openReader(
     totalPages,
     initialFullscreenHint: automaticFullscreen === false,
     initialFullscreenOwned: automaticFullscreen === true,
+    onBeforeEnterFullscreen: () => {
+      fullscreenViewport = eh.preparePageViewportForFullscreen();
+    },
+    restorePageViewport,
     loadPage: eh.loadEhImagePage,
     loadPages: (pageNums) => provider.loadDisplayPages(pageNums),
     onActivePageChange: (page) => {
@@ -542,12 +560,16 @@ function reportOpenError(error: unknown): void {
 
 function openReaderFromUserAction(startPageUrl: string, preferredPageNum?: number): void {
   const fullscreenLaunch = requestConfiguredReaderFullscreen();
-  void openReader(startPageUrl, preferredPageNum, fullscreenLaunch).catch((error: unknown) => {
+  void openReader(startPageUrl, preferredPageNum, fullscreenLaunch).catch(async (error: unknown) => {
     if (fullscreenLaunch) {
+      const fullscreenEntered = await fullscreenLaunch.result;
       if (document.fullscreenElement === fullscreenLaunch.host) {
-        void document.exitFullscreen().catch((fullscreenError: unknown) => {
+        await document.exitFullscreen().catch((fullscreenError: unknown) => {
           console.warn("[ehpeek] Failed to exit fullscreen", fullscreenError);
         });
+      }
+      if (fullscreenEntered && fullscreenLaunch.viewport) {
+        await eh.restorePageViewport(fullscreenLaunch.viewport);
       }
       fullscreenLaunch.host.remove();
     }
@@ -564,14 +586,18 @@ function requestConfiguredReaderFullscreen(): ReaderFullscreenLaunch | undefined
   document.body.append(host);
 
   if (!document.fullscreenEnabled || typeof host.requestFullscreen !== "function") {
-    return { host, result: Promise.resolve(false) };
+    return { host, result: Promise.resolve(false), viewport: null };
   }
+
+  const viewport = eh.preparePageViewportForFullscreen();
 
   return {
     host,
+    viewport,
     result: enterReaderFullscreen(host).then(
       () => true,
-      (error: unknown) => {
+      async (error: unknown) => {
+        await eh.restorePageViewport(viewport);
         console.warn("[ehpeek] Fullscreen request failed", error);
         return false;
       },

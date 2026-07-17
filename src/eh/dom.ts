@@ -35,6 +35,15 @@ export type GalleryPageBarMount = {
   top: boolean;
 };
 
+export type PageViewportSnapshot = {
+  content: string | null;
+  created: boolean;
+  meta: HTMLMetaElement;
+  scale: number;
+  scrollX: number;
+  scrollY: number;
+};
+
 export type GallerySummaryItem = {
   value: string;
 };
@@ -218,6 +227,70 @@ export function searchNavigationBars(root: ParentNode = document): HTMLElement[]
 
 export function searchTopNavigationBar(root: ParentNode = document): HTMLElement | null {
   return searchNavigationBars(root)[0] ?? null;
+}
+
+export function preparePageViewportForFullscreen(): PageViewportSnapshot {
+  const existing = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+  const meta = existing ?? document.createElement("meta");
+  const scale = Math.max(0.1, window.visualViewport?.scale ?? 1);
+  const snapshot: PageViewportSnapshot = {
+    content: existing?.getAttribute("content") ?? null,
+    created: !existing,
+    meta,
+    scale,
+    scrollX: window.scrollX,
+    scrollY: window.scrollY,
+  };
+
+  if (!existing) {
+    meta.name = "viewport";
+    document.head.append(meta);
+  }
+
+  meta.content = lockedViewportContent(snapshot.content, scale);
+  return snapshot;
+}
+
+export async function restorePageViewport(snapshot: PageViewportSnapshot): Promise<void> {
+  await nextAnimationFrame();
+
+  if (snapshot.created) {
+    snapshot.meta.remove();
+  } else if (snapshot.content === null) {
+    snapshot.meta.removeAttribute("content");
+  } else {
+    snapshot.meta.setAttribute("content", snapshot.content);
+  }
+
+  await nextAnimationFrame();
+  await nextAnimationFrame();
+  window.scrollTo(snapshot.scrollX, snapshot.scrollY);
+}
+
+function lockedViewportContent(content: string | null, scale: number): string {
+  const preserved = (content ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(
+      (item) =>
+        item &&
+        !/^(?:initial-scale|minimum-scale|maximum-scale|user-scalable|viewport-fit)\s*=/i.test(item),
+    );
+  const value = String(Math.round(scale * 1000) / 1000);
+  return [
+    ...preserved,
+    `initial-scale=${value}`,
+    `minimum-scale=${value}`,
+    `maximum-scale=${value}`,
+    "user-scalable=no",
+    "viewport-fit=cover",
+  ].join(", ");
+}
+
+function nextAnimationFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
 }
 
 export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSearchPanelInfo | null {

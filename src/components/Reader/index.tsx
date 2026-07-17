@@ -80,6 +80,8 @@ export type FullscreenReaderOptions = {
   farConcurrentLoads?: number;
   onActivePageChange?: (page: ReaderPage, index: number) => void;
   onOpenOriginalPage?: (page: ReaderPage) => void;
+  onBeforeEnterFullscreen?: () => void;
+  restorePageViewport?: () => Promise<void>;
   initialFullscreenHint?: boolean;
   initialFullscreenOwned?: boolean;
 };
@@ -543,6 +545,8 @@ class ReaderSession {
   private readonly onExit: FullscreenReaderOptions["onExit"];
   private readonly onActivePageChange: ((page: ReaderPage, index: number) => void) | undefined;
   private readonly onOpenOriginalPage: ((page: ReaderPage) => void) | undefined;
+  private readonly onBeforeEnterFullscreen: (() => void) | undefined;
+  private readonly restorePageViewport: (() => Promise<void>) | undefined;
   private readonly closeComponent: () => void;
   private readonly isDragging: () => boolean;
   private readonly setRootComponentState: (state: ReaderRootState) => void;
@@ -596,6 +600,8 @@ class ReaderSession {
     this.onExit = options.onExit;
     this.onActivePageChange = options.onActivePageChange;
     this.onOpenOriginalPage = options.onOpenOriginalPage;
+    this.onBeforeEnterFullscreen = options.onBeforeEnterFullscreen;
+    this.restorePageViewport = options.restorePageViewport;
     this.initialFullscreenHint = options.initialFullscreenHint ?? false;
     this.ownsFullscreen = options.initialFullscreenOwned ?? false;
     this.closeComponent = bindings.close;
@@ -747,11 +753,14 @@ class ReaderSession {
     document.removeEventListener("fullscreenchange", this.onFullscreenChange);
     this.clearFullscreenHintTimer();
 
-    if (this.ownsFullscreen && document.fullscreenElement === this.fullscreenTarget) {
+    if (document.fullscreenElement === this.fullscreenTarget) {
       this.ownsFullscreen = false;
-      void document.exitFullscreen().catch((error: unknown) => {
-        console.warn("[ehpeek] Failed to exit fullscreen", error);
-      });
+      void document
+        .exitFullscreen()
+        .then(() => this.restorePageViewport?.())
+        .catch((error: unknown) => {
+          console.warn("[ehpeek] Failed to exit fullscreen", error);
+        });
     }
     clearReaderFullscreenScale(this.fullscreenTarget);
 
@@ -1444,9 +1453,11 @@ class ReaderSession {
     this.ownsFullscreen = true;
 
     try {
+      this.onBeforeEnterFullscreen?.();
       await enterReaderFullscreen(this.fullscreenTarget);
     } catch (error) {
       this.ownsFullscreen = false;
+      await this.restorePageViewport?.();
       console.warn("[ehpeek] Fullscreen request failed", error);
       this.showFullscreenHint();
     }
@@ -1472,10 +1483,22 @@ class ReaderSession {
     };
     this.setToolbarComponentState(this.toolbarState);
 
-    if (fullscreenExited && !keepReaderOpen) {
-      this.close();
+    if (fullscreenExited) {
+      void this.finishFullscreenExit(keepReaderOpen);
     }
   };
+
+  private async finishFullscreenExit(keepReaderOpen: boolean): Promise<void> {
+    try {
+      await this.restorePageViewport?.();
+    } catch (error) {
+      console.warn("[ehpeek] Failed to restore page viewport", error);
+    }
+
+    if (!keepReaderOpen) {
+      this.close();
+    }
+  }
 
   private syncFullscreenState(): void {
     this.toolbarState = {

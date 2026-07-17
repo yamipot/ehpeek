@@ -16,6 +16,7 @@ export {
   prepareTouchFavoritesPage,
   prepareTouchSearchResultsPage,
   prepareThumbsGridSwipeTargets,
+  preparePageViewportForFullscreen,
   readGalleryInfo,
   readShowingRange,
   readTouchSearchPanelInfo,
@@ -23,6 +24,7 @@ export {
   prepareTouchSearchPanel,
   replaceGalleryPageBarMounts,
   restorePreview,
+  restorePageViewport,
   searchPageNavigation,
   searchResultList,
   searchTopNavigationBar,
@@ -32,6 +34,7 @@ export {
 } from "./dom";
 
 export type PreviewSnapshot = dom.PreviewSnapshot;
+export type PageViewportSnapshot = dom.PageViewportSnapshot;
 
 export type PageType =
   | {
