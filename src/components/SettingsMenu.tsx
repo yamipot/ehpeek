@@ -33,7 +33,7 @@ function SwitchButton(props: {
   return (
     <button
       type="button"
-      className="flex w-full min-h-lg touch:min-h-xl items-center justify-between gap-lg touch:gap-xl py-md px-md touch:py-lg rounded-xs border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text ehp-color-site-item-hover cursor-pointer font-inherit text-left textsize-lg"
+      className="flex w-full min-h-lg touch:min-h-xl items-center justify-between gap-lg touch:gap-xl py-md px-md touch:py-lg rounded-xs border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-transparent active:!bg-transparent ehp-color-site-text cursor-pointer font-inherit text-left textsize-lg [-webkit-tap-highlight-color:transparent]"
       onClick={(event: MouseEvent) => {
         event.stopPropagation();
         setValue(!checked);
