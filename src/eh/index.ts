@@ -14,6 +14,7 @@ export {
   maxPreviewPageIndex,
   prepareTouchGalleryComments,
   prepareTouchFavoritesPage,
+  prepareTouchSearchResultsPage,
   prepareThumbsGridSwipeTargets,
   readGalleryInfo,
   readShowingRange,

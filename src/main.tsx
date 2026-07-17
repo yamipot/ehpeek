@@ -312,6 +312,10 @@ if (settingsState.touchUiEnabled && pageType.type === "favorites") {
   eh.prepareTouchFavoritesPage();
 }
 
+if (settingsState.touchUiEnabled && pageType.type === "search") {
+  eh.prepareTouchSearchResultsPage();
+}
+
 function installTouchGalleryPanel(): void {
   if (document.querySelector(".ehpeek-touch-gallery")) {
     return;

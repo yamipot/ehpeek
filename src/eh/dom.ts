@@ -12,6 +12,11 @@ const TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
 const TOUCH_FAVORITES_CATEGORIES_CLASS_NAME = "box-border !grid !h-auto !w-full !max-w-full grid-cols-[repeat(5,minmax(0,1fr))] !p-0";
 const TOUCH_FAVORITES_CATEGORY_CLASS_NAME = "!static !float-none !w-full !m-0";
 const TOUCH_FAVORITES_ALL_CATEGORY_CLASS_NAME = "!col-span-full !w-[140px] justify-self-center";
+const TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden";
+const TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden";
+const TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME =
+  "ehpeek-touch-search-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto";
+const TOUCH_SEARCH_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
 
 export type PreviewSnapshot = {
   description: Node | null;
@@ -619,6 +624,31 @@ export function prepareTouchFavoritesPage(): void {
 
   const wrapper = document.createElement("div");
   wrapper.className = TOUCH_FAVORITES_RESULTS_CLASS_NAME;
+  resultList.replaceWith(wrapper);
+  wrapper.append(resultList);
+}
+
+export function prepareTouchSearchResultsPage(): void {
+  document.documentElement.classList.add(...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" "));
+  document.body.classList.add(...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" "));
+
+  const resultList = searchResultList();
+  resultList?.classList.add(...TOUCH_SEARCH_RESULT_LIST_CLASS_NAME.split(" "));
+  const existingWrapper = resultList?.parentElement?.classList.contains("ehpeek-touch-search-results")
+    ? resultList.parentElement
+    : null;
+  const content = existingWrapper?.parentElement ?? resultList?.parentElement;
+  const pageContent = resultList?.closest<HTMLElement>(".ido");
+
+  pageContent?.classList.add(...TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" "));
+  content?.classList.add(...TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" "));
+
+  if (!resultList || existingWrapper) {
+    return;
+  }
+
+  const wrapper = document.createElement("div");
+  wrapper.className = TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME;
   resultList.replaceWith(wrapper);
   wrapper.append(resultList);
 }
