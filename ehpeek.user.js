@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ehpeek: E-H/ExH viewer
 // @namespace    ehpeek
-// @version      260717.1529
+// @version      260717.1606
 // @description  A mobile-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -440,7 +440,9 @@
     },
     search: {
       showCategories: "Show Categories",
-      hideCategories: "Hide Categories"
+      hideCategories: "Hide Categories",
+      history: "Search History",
+      deleteHistory: "Delete search history item"
     },
     errors: {
       imageNotFound: "Image not found",
@@ -464,7 +466,8 @@
       enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", !0)
     },
     search: {
-      enhance: persisted("ehpeek:enhance-search:enabled", !0)
+      enhance: persisted("ehpeek:enhance-search:enabled", !0),
+      history: persisted("ehpeek:search:history", [])
     },
     touch: {
       enabled: persisted("ehpeek:touch-ui:enabled", !0)
@@ -1301,6 +1304,9 @@
         "M12 14.6v.7c0 .7-.6 1.2-1.3 1.2m1.3-1.2c0 .7.6 1.2 1.3 1.2",
         "M2 17h20"
       ]
+    },
+    search: {
+      paths: ["M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z", "m16.2 16.2 4.3 4.3"]
     },
     settings: {
       paths: [
@@ -2521,13 +2527,13 @@ body #gdt[class],
 
 /* Establish readable base typography for the original comments section. */
 #cdiv {
-  font-size: 20px !important;
+  font-size: 23px !important;
   line-height: 1.5 !important;
 }
 
 /* Enlarge comment bodies while allowing long content to wrap safely. */
 #cdiv .c6 {
-  font-size: 20px !important;
+  font-size: 23px !important;
   line-height: 1.5 !important;
   overflow-wrap: anywhere;
 }
@@ -2538,7 +2544,7 @@ body #gdt[class],
 #cdiv .c5,
 #cdiv .c7,
 #formdiv {
-  font-size: 16px !important;
+  font-size: 18px !important;
   line-height: 1.4 !important;
 }
 
@@ -2558,7 +2564,7 @@ body #gdt[class],
   border-radius: 6px;
   background: var(--color-site-elevated);
   color: var(--color-site-accent);
-  font-size: 18px;
+  font-size: 20px;
   text-decoration: none;
 }
 
@@ -2581,7 +2587,7 @@ body #gdt[class],
   padding: 16px !important;
   border-radius: 6px !important;
   font: inherit !important;
-  font-size: 20px !important;
+  font-size: 23px !important;
   line-height: 1.5 !important;
 }
 
@@ -2596,7 +2602,7 @@ body #gdt[class],
   padding: 12px 16px !important;
   border-radius: 6px !important;
   font: inherit !important;
-  font-size: 18px !important;
+  font-size: 20px !important;
 }
 
 /* Let comment form actions share the available row width evenly. */
@@ -2677,24 +2683,26 @@ body #gdt[class],
     );
     if (!searchBox || !categories || !searchInput || !(optionLinks instanceof HTMLElement) || !searchSubmit || !clearButton)
       return null;
-    let categoryToggleMount = document.createElement("span"), searchActionMount = document.createElement("span"), clearActionMount = document.createElement("span");
-    return categoryToggleMount.className = "contents", searchActionMount.className = "contents", clearActionMount.className = "contents", {
+    let categoryToggleMount = document.createElement("span"), searchActionMount = document.createElement("span"), clearActionMount = document.createElement("span"), historyMount = document.createElement("span");
+    return categoryToggleMount.className = "contents", searchActionMount.className = "contents", clearActionMount.className = "contents", historyMount.className = "contents", {
       categories,
       categoryToggleMount,
       clearActionMount,
       clearButton,
       clearLabel: searchActionLabel(clearButton),
       fileSearch: root.querySelector("#fsdiv"),
+      historyMount,
       optionLinks,
       searchActionMount,
       searchBox,
+      searchInput,
       searchLabel: searchActionLabel(searchSubmit),
       searchSubmit
     };
   }
   function prepareTouchSearchPanel(info, optionClassName) {
     let form = info.searchBox.querySelector("form"), searchInput = form?.querySelector("#f_search"), searchControls = searchInput?.parentElement, advancedPanel = form?.querySelector("#advdiv");
-    info.searchBox.className = "box-border !w-full !m-0 !p-0 !border-0 !text-left !text-16px [&_.searchadv]:box-border [&_.searchadv]:!w-full [&_.searchadv]:!pt-md [&_.searchadv]:!textsize-sm [&_.searchadv>div]:!flex-wrap [&_.searchadv>div]:!justify-start [&_.searchadv>div]:!gap-sm [&_.searchadv>div>div]:!p-sm", form && (form.removeAttribute("style"), form.className = "flex w-full flex-col gap-md m-0 p-0"), info.categories.className = "hidden !w-full !m-0 border-collapse", info.categories.hidden = !0, info.optionLinks.insertAdjacentElement("afterend", info.categories), info.categories.tBodies[0]?.classList.add("flex", "flex-wrap", "gap-xs");
+    info.searchBox.className = "box-border !w-full !m-0 !p-0 !border-0 !text-left !text-20px [&_.searchadv]:box-border [&_.searchadv]:!w-full [&_.searchadv]:!pt-md [&_.searchadv]:!textsize-md [&_.searchadv>div]:!flex-wrap [&_.searchadv>div]:!justify-start [&_.searchadv>div]:!gap-sm [&_.searchadv>div>div]:!p-sm", form && (form.removeAttribute("style"), form.className = "flex w-full flex-col gap-md m-0 p-0"), info.categories.className = "hidden !w-full !m-0 border-collapse", info.categories.hidden = !0, info.optionLinks.insertAdjacentElement("afterend", info.categories), info.categories.tBodies[0]?.classList.add("flex", "flex-wrap", "gap-xs");
     for (let row of Array.from(info.categories.rows)) {
       row.className = "contents";
       for (let cell of Array.from(row.cells))
@@ -2702,12 +2710,12 @@ body #gdt[class],
     }
     for (let category of Array.from(info.categories.querySelectorAll("[id^='cat_']"))) {
       let colorClass = Array.from(category.classList).find((className) => /^ct(?:[1-9a])$/.test(className));
-      category.className = `${colorClass ? `${colorClass} ` : ""}flex box-border w-auto min-w-104px !h-sm items-center justify-center px-md border rounded-sm text-white text-center textsize-sm font-700 leading-[1.15] whitespace-nowrap shadow-[0_2px_6px_var(--color-shadow-control)] cursor-pointer select-none transition-opacity [touch-action:manipulation] active:opacity-70 [&[data-disabled]]:opacity-40`;
+      category.className = `${colorClass ? `${colorClass} ` : ""}flex box-border w-auto min-w-104px !h-lg items-center justify-center px-md border rounded-md text-white text-center textsize-md font-700 leading-[1.15] whitespace-nowrap shadow-[0_2px_6px_var(--color-shadow-control)] cursor-pointer select-none transition-opacity [touch-action:manipulation] active:opacity-70 [&[data-disabled]]:opacity-40`;
     }
-    searchControls && (searchControls.className = "grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-start gap-sm !p-0 [&>*:nth-child(n+4)]:col-span-full"), searchInput && (searchInput.className = "appearance-none !box-border !w-full !h-md min-w-0 col-start-1 row-start-1 !m-0 !py-0 px-lg border ehp-color-site-border rounded-md bg-[var(--color-site-elevated)] ehp-color-site-text text-16px leading-[1.2] outline-none focus:border-[var(--color-site-accent)] focus:bg-[var(--color-site-elevated)] focus:shadow-[0_0_0_3px_var(--color-site-accent-hover)]"), info.searchSubmit.replaceWith(info.searchActionMount), info.clearButton.replaceWith(info.clearActionMount), info.optionLinks.prepend(info.categoryToggleMount), info.optionLinks.className = "flex w-full flex-wrap items-center justify-start gap-x-md gap-y-sm !p-0 !text-0";
+    searchControls && (searchControls.className = "grid w-full grid-cols-[minmax(0,1fr)_60px_60px] items-start gap-0 !p-0 [&>*:nth-child(n+4)]:col-span-full"), searchInput && (searchInput.className = "appearance-none !box-border !w-full !h-60px min-w-0 col-span-full row-start-1 !m-0 !py-0 !pl-lg !pr-[132px] border ehp-color-site-border rounded-md bg-[var(--color-site-elevated)] ehp-color-site-text text-22px leading-[1.2] outline-none focus:border-[var(--color-site-accent)] focus:bg-[var(--color-site-elevated)] focus:shadow-[0_0_0_3px_var(--color-site-accent-hover)]"), info.searchSubmit.replaceWith(info.searchActionMount), info.clearButton.replaceWith(info.clearActionMount), document.body.append(info.historyMount), info.optionLinks.prepend(info.categoryToggleMount), info.optionLinks.className = "flex w-full flex-wrap items-center justify-start gap-x-md gap-y-sm !p-0 !text-0";
     for (let link of Array.from(info.optionLinks.querySelectorAll("a")))
       link.className = optionClassName;
-    advancedPanel && (advancedPanel.className = "box-border w-full !p-0 ehp-color-site-text"), info.fileSearch && (info.fileSearch.style.removeProperty("margin-top"), info.fileSearch.className = "box-border !w-full !m-0 !mt-0 p-lg border ehp-color-site-border rounded-md bg-[var(--color-site-elevated)] ehp-color-site-text !textsize-sm text-left [&_form]:flex [&_form]:flex-col [&_form]:gap-sm [&_form>div]:!p-0 [&_.searchadv>div]:!flex-wrap [&_.searchadv>div]:!justify-start [&_.searchadv>div]:!gap-sm [&_.searchadv>div>div]:!p-sm");
+    advancedPanel && (advancedPanel.className = "box-border w-full !p-0 ehp-color-site-text"), info.fileSearch && (info.fileSearch.style.removeProperty("margin-top"), info.fileSearch.className = "box-border !w-full !m-0 !mt-0 p-lg border ehp-color-site-border rounded-md bg-[var(--color-site-elevated)] ehp-color-site-text !textsize-md text-left [&_form]:flex [&_form]:flex-col [&_form]:gap-sm [&_form>div]:!p-0 [&_.searchadv>div]:!flex-wrap [&_.searchadv>div]:!justify-start [&_.searchadv>div]:!gap-sm [&_.searchadv>div>div]:!p-sm");
   }
   function searchActionLabel(element) {
     return element instanceof HTMLInputElement ? element.value : element.textContent?.trim() ?? "";
@@ -3342,7 +3350,7 @@ body #gdt[class],
   }
 
   // src/components/Enhance/TouchSearchPanel.tsx
-  var TOUCH_SEARCH_OPTION_CLASS = "appearance-none inline-flex min-h-sm items-center px-sm border-0 rounded-sm bg-transparent ehp-color-site-accent text-left textsize-sm font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]", TOUCH_SEARCH_ACTION_CLASS = "appearance-none block box-border w-auto !h-md py-sm px-md rounded-md border cursor-pointer font-inherit text-center textsize-sm font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 [touch-action:manipulation] active:scale-98";
+  var TOUCH_SEARCH_OPTION_CLASS = "appearance-none inline-flex min-h-md items-center px-md border-0 rounded-md bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]", TOUCH_SEARCH_ACTION_CLASS = "appearance-none inline-flex box-border w-60px h-60px items-center justify-center p-0 rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-120 [touch-action:manipulation] active:scale-96 active:bg-[var(--color-site-item-hover)]";
   function TouchSearchPanel(props) {
     let searchBoxHostRef = A2(null), fileSearchHostRef = A2(null);
     return _2(() => {
@@ -3375,17 +3383,95 @@ body #gdt[class],
       "button",
       {
         type: search ? "submit" : "button",
-        className: search ? `${TOUCH_SEARCH_ACTION_CLASS} col-start-2 row-start-1 border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-background)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108` : `${TOUCH_SEARCH_ACTION_CLASS} col-start-3 row-start-1 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] ehp-color-site-text hover:bg-[var(--color-site-item-hover)]`,
+        className: search ? `${TOUCH_SEARCH_ACTION_CLASS} z-1 col-start-3 row-start-1 ehp-color-site-accent` : `${TOUCH_SEARCH_ACTION_CLASS} z-1 col-start-2 row-start-1 ehp-color-site-text`,
+        "aria-label": search ? props.source.searchLabel : props.source.clearLabel,
+        title: search ? props.source.searchLabel : props.source.clearLabel,
         onClick: (event) => {
-          search && event.preventDefault(), original.click();
+          if (search) {
+            event.preventDefault(), original.click();
+            return;
+          }
+          props.source.searchInput.value = "", props.source.searchInput.dispatchEvent(new Event("input", { bubbles: !0 })), props.source.searchInput.focus();
         }
       },
-      search ? props.source.searchLabel : props.source.clearLabel
+      /* @__PURE__ */ k(Icon, { name: search ? "search" : "close", size: 32 })
     ), /* @__PURE__ */ k("span", { ref: originalHostRef, className: "contents [&>*:not([hidden])]:col-span-full" }));
+  }
+  function TouchSearchHistory(props) {
+    let dropdownRef = A2(null), [searchValue, setSearchValue] = d2(props.source.searchInput.value), [history, setHistory] = d2(() => state.search.history.reload()), [open, setOpen] = d2(!1), [position, setPosition] = d2(null);
+    return _2(() => {
+      let input = props.source.searchInput, form = input.form, updatePosition = () => {
+        let rect = input.getBoundingClientRect();
+        setPosition({
+          left: rect.left + window.scrollX,
+          top: rect.bottom + window.scrollY,
+          width: rect.width
+        });
+      }, showHistory = () => {
+        updatePosition(), setOpen(!0);
+      }, updateSearchValue = () => {
+        setSearchValue(input.value), !input.value.trim() && document.activeElement === input && showHistory();
+      }, recordSearch = () => {
+        let value = input.value.trim();
+        if (!value)
+          return;
+        let next = [value, ...state.search.history.value.filter((item) => item !== value)];
+        state.search.history.set(next), setHistory(next);
+      }, closeOnOutsidePointer = (event) => {
+        let target = event.target;
+        target === input || target instanceof Node && dropdownRef.current?.contains(target) || setOpen(!1);
+      };
+      return input.addEventListener("input", updateSearchValue), input.addEventListener("focus", showHistory), input.addEventListener("pointerdown", showHistory), form?.addEventListener("submit", recordSearch), props.source.searchSubmit.addEventListener("click", recordSearch), document.addEventListener("pointerdown", closeOnOutsidePointer, !0), document.addEventListener("scroll", updatePosition, !0), window.addEventListener("resize", updatePosition), updateSearchValue(), () => {
+        input.removeEventListener("input", updateSearchValue), input.removeEventListener("focus", showHistory), input.removeEventListener("pointerdown", showHistory), form?.removeEventListener("submit", recordSearch), props.source.searchSubmit.removeEventListener("click", recordSearch), document.removeEventListener("pointerdown", closeOnOutsidePointer, !0), document.removeEventListener("scroll", updatePosition, !0), window.removeEventListener("resize", updatePosition);
+      };
+    }, [props.source]), !open || searchValue.trim() || history.length === 0 || !position ? null : /* @__PURE__ */ k(
+      "section",
+      {
+        ref: dropdownRef,
+        className: "absolute z-ui flex box-border max-h-[50vh] min-w-0 flex-col overflow-hidden overflow-y-auto overscroll-contain rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans",
+        style: { left: `${position.left}px`, top: `${position.top}px`, width: `${position.width}px` },
+        "aria-label": texts_default.search.history,
+        role: "list"
+      },
+      history.map((item) => /* @__PURE__ */ k(
+        "div",
+        {
+          key: item,
+          className: "flex min-w-0 flex-none items-stretch border-0 border-b ehp-color-site-border-subtle-b last:border-b-0",
+          role: "listitem"
+        },
+        /* @__PURE__ */ k(
+          "button",
+          {
+            type: "button",
+            className: "appearance-none block min-w-0 min-h-md flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-md border-0 bg-transparent ehp-color-site-text text-left textsize-md font-inherit cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]",
+            title: item,
+            onClick: () => {
+              props.source.searchInput.value = item, props.source.searchInput.dispatchEvent(new Event("input", { bubbles: !0 })), props.source.searchInput.focus(), props.source.searchInput.setSelectionRange(item.length, item.length), setOpen(!1);
+            }
+          },
+          item
+        ),
+        /* @__PURE__ */ k(
+          "button",
+          {
+            type: "button",
+            className: "appearance-none inline-flex w-40px min-h-md flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-24px font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]",
+            "aria-label": `${texts_default.search.deleteHistory}: ${item}`,
+            title: texts_default.search.deleteHistory,
+            onClick: () => {
+              let next = history.filter((candidate) => candidate !== item);
+              state.search.history.set(next), setHistory(next);
+            }
+          },
+          "×"
+        )
+      ))
+    );
   }
 
   // src/components/Enhance/TouchTopBar.tsx
-  var TOUCH_ICON_BUTTON_CLASS = "inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text no-underline", TOUCH_TOP_BAR_MENU_ITEM_CLASS = "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-xl py-lg px-xl touch:px-xl border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline text-28px touch:text-30px leading-[1.2]";
+  var TOUCH_TOP_BAR_ICON_SIZE = 34, TOUCH_ICON_BUTTON_CLASS = "inline-flex w-56px h-56px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]", TOUCH_TOP_BAR_MENU_ITEM_CLASS = "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-xl py-lg px-xl touch:px-xl border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline text-28px touch:text-30px leading-[1.2]";
   function TouchTopBarMenu(props) {
     let [open, setOpen] = d2(!1), rootRef = A2(null), navItemsRef = A2(null);
     return h2(() => {
@@ -3411,7 +3497,7 @@ body #gdt[class],
           event.stopPropagation(), setOpen(!open);
         }
       },
-      /* @__PURE__ */ k(Icon, { name: "menu" })
+      /* @__PURE__ */ k(Icon, { name: "menu", size: TOUCH_TOP_BAR_ICON_SIZE })
     ), open && /* @__PURE__ */ k(
       "div",
       {
@@ -3421,7 +3507,7 @@ body #gdt[class],
     ));
   }
   function TouchTopBar(props) {
-    return /* @__PURE__ */ k("nav", { className: "ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-56px items-center justify-between py-sm pl-[max(16px,env(safe-area-inset-left,0px))] pr-[max(16px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans" }, /* @__PURE__ */ k(
+    return /* @__PURE__ */ k("nav", { className: "ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-xl items-center justify-between py-lg pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans" }, /* @__PURE__ */ k(
       "a",
       {
         className: `ehpeek-touch-top-bar-project ${TOUCH_ICON_BUTTON_CLASS}`,
@@ -3431,7 +3517,7 @@ body #gdt[class],
         "aria-label": texts_default.navigation.github,
         title: texts_default.navigation.github
       },
-      /* @__PURE__ */ k(Icon, { name: "panda-peek", size: 36, strokeWidth: 1.8 })
+      /* @__PURE__ */ k(Icon, { name: "panda-peek", size: 48, strokeWidth: 1.8 })
     ), /* @__PURE__ */ k("div", { className: "flex items-center gap-xs" }, /* @__PURE__ */ k(
       "a",
       {
@@ -3440,7 +3526,7 @@ body #gdt[class],
         "aria-label": texts_default.navigation.home,
         title: texts_default.navigation.home
       },
-      /* @__PURE__ */ k(Icon, { name: "home" })
+      /* @__PURE__ */ k(Icon, { name: "home", size: TOUCH_TOP_BAR_ICON_SIZE })
     ), /* @__PURE__ */ k(
       "a",
       {
@@ -3449,7 +3535,7 @@ body #gdt[class],
         "aria-label": texts_default.navigation.favorites,
         title: texts_default.navigation.favorites
       },
-      /* @__PURE__ */ k(Icon, { name: "heart" })
+      /* @__PURE__ */ k(Icon, { name: "heart", size: TOUCH_TOP_BAR_ICON_SIZE })
     ), /* @__PURE__ */ k(
       "button",
       {
@@ -3461,7 +3547,7 @@ body #gdt[class],
           event.stopPropagation(), props.onSettingsMenuOpen();
         }
       },
-      /* @__PURE__ */ k(Icon, { name: "settings" })
+      /* @__PURE__ */ k(Icon, { name: "settings", size: TOUCH_TOP_BAR_ICON_SIZE })
     ), /* @__PURE__ */ k(TouchTopBarMenu, { navItems: props.info.navItems })));
   }
 
@@ -4009,14 +4095,15 @@ body #gdt[class],
 .mt-md{margin-top:12px;}
 .mt-xs{margin-top:4px;}
 .scrollbar-hidden::-webkit-scrollbar{display:none;}
+.\\!h-lg{height:52px !important;}
 .h-lg{height:52px;}
-.\\!h-md,
-html[data-ehpeek-touch-ui="true"] .touch\\:\\!h-md{height:40px !important;}
 .h-md{height:40px;}
+html[data-ehpeek-touch-ui="true"] .touch\\:\\!h-md{height:40px !important;}
 .\\!h-sm{height:32px !important;}
 .h-sm{height:32px;}
 .h-xs{height:24px;}
 .min-h-lg{min-height:52px;}
+.min-h-md{min-height:40px;}
 .min-h-sm{min-height:32px;}
 .min-h-xl,
 html[data-ehpeek-touch-ui="true"] .touch\\:min-h-xl{min-height:80px;}
@@ -4069,6 +4156,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:py-lg{padding-top:16px;padding-bottom
 .pb-lg{padding-bottom:16px;}
 .pb-sm{padding-bottom:8px;}
 .pb-xs{padding-bottom:4px;}
+.\\!pl-lg{padding-left:16px !important;}
 .pt-lg{padding-top:16px;}
 .\\[\\&_\\.searchadv\\]\\:\\!pt-md .searchadv{padding-top:12px !important;}
 .pt-md{padding-top:12px;}
@@ -4076,13 +4164,13 @@ html[data-ehpeek-touch-ui="true"] .touch\\:py-lg{padding-top:16px;padding-bottom
 .textsize-lg,
 html[data-ehpeek-touch-ui="true"] .textsize-md{font-size:20px;}
 html[data-ehpeek-touch-ui="true"] .textsize-lg{font-size:23px;}
+.\\!textsize-md,
+.\\[\\&_\\.searchadv\\]\\:\\!textsize-md .searchadv{font-size:14px !important;}
 .textsize-md,
 html[data-ehpeek-touch-ui="true"] .textsize-sm{font-size:14px;}
-.\\!textsize-sm,
-.\\[\\&_\\.searchadv\\]\\:\\!textsize-sm .searchadv{font-size:11px !important;}
+html[data-ehpeek-touch-ui="true"] .\\!textsize-md,
+html[data-ehpeek-touch-ui="true"] .\\[\\&_\\.searchadv\\]\\:\\!textsize-md .searchadv{font-size:20px !important;}
 .textsize-sm{font-size:11px;}
-html[data-ehpeek-touch-ui="true"] .\\!textsize-sm,
-html[data-ehpeek-touch-ui="true"] .\\[\\&_\\.searchadv\\]\\:\\!textsize-sm .searchadv{font-size:14px !important;}
 .textsize-xl{font-size:26px;}
 html[data-ehpeek-touch-ui="true"] .textsize-xl{font-size:30px;}
 .ehp-color-site-accent{color:var(--color-site-accent);}
@@ -4160,13 +4248,13 @@ html[data-ehpeek-touch-ui="true"] .textsize-xl{font-size:30px;}
 .grid{display:grid;}
 .\\!col-span-full{grid-column:1/-1 !important;}
 .\\[\\&\\>\\*\\:not\\(\\[hidden\\]\\)\\]\\:col-span-full>*:not([hidden]),
-.\\[\\&\\>\\*\\:nth-child\\(n\\+4\\)\\]\\:col-span-full>*:nth-child(n+4){grid-column:1/-1;}
-.col-start-1{grid-column-start:1;}
+.\\[\\&\\>\\*\\:nth-child\\(n\\+4\\)\\]\\:col-span-full>*:nth-child(n+4),
+.col-span-full{grid-column:1/-1;}
 .col-start-2{grid-column-start:2;}
 .col-start-3{grid-column-start:3;}
 .row-start-1{grid-row-start:1;}
 .grid-cols-\\[1fr_1fr\\]{grid-template-columns:1fr 1fr;}
-.grid-cols-\\[minmax\\(0\\,1fr\\)_auto_auto\\]{grid-template-columns:minmax(0,1fr) auto auto;}
+.grid-cols-\\[minmax\\(0\\,1fr\\)_60px_60px\\]{grid-template-columns:minmax(0,1fr) 60px 60px;}
 .grid-cols-\\[minmax\\(120px\\,38\\%\\)_minmax\\(0\\,1fr\\)\\]{grid-template-columns:minmax(120px,38%) minmax(0,1fr);}
 .grid-cols-\\[minmax\\(76px\\,20\\%\\)_minmax\\(0\\,1fr\\)\\]{grid-template-columns:minmax(76px,20%) minmax(0,1fr);}
 .grid-cols-\\[repeat\\(3\\,minmax\\(0\\,1fr\\)\\)\\]{grid-template-columns:repeat(3,minmax(0,1fr));}
@@ -4178,6 +4266,7 @@ html[data-ehpeek-touch-ui="true"] .textsize-xl{font-size:30px;}
 .m-0{margin:0;}
 .m12{margin:3rem;}
 .m15{margin:3.75rem;}
+.m16\\.2{margin:4.05rem;}
 .m17{margin:4.25rem;}
 .m20{margin:5rem;}
 .m3{margin:0.75rem;}
@@ -4206,6 +4295,7 @@ html[data-ehpeek-touch-ui="true"] .textsize-xl{font-size:30px;}
 .\\!hidden{display:none !important;}
 .hidden{display:none;}
 .aspect-\\[2\\/3\\]{aspect-ratio:2/3;}
+.\\!h-60px{height:60px !important;}
 .\\!h-auto{height:auto !important;}
 .\\!max-w-full{max-width:100% !important;}
 .\\!min-w-0{min-width:0 !important;}
@@ -4218,10 +4308,13 @@ html[data-ehpeek-touch-ui="true"] .textsize-xl{font-size:30px;}
 .h-108px{height:108px;}
 .h-10px{height:10px;}
 .h-48px{height:48px;}
+.h-56px{height:56px;}
+.h-60px{height:60px;}
 .h-64px{height:64px;}
 .h-full,
 #ehpeek-reader[data-view-mode=paged] .\\[\\#ehpeek-reader\\[data-view-mode\\=paged\\]_\\&\\]\\:h-full{height:100%;}
 .h1{height:0.25rem;}
+.max-h-\\[50vh\\]{max-height:50vh;}
 .max-h-full{max-height:100%;}
 .max-h-screen{max-height:100vh;}
 .max-w-\\[min\\(78vw\\,320px\\)\\]{max-width:min(78vw,320px);}
@@ -4232,7 +4325,6 @@ html[data-ehpeek-touch-ui="true"] .textsize-xl{font-size:30px;}
 .max-w-none{max-width:none;}
 .max-w-screen{max-width:100vw;}
 .min-h-\\[clamp\\(260px\\,42vh\\,340px\\)\\]{min-height:clamp(260px,42vh,340px);}
-.min-h-56px{min-height:56px;}
 .min-h-87px{min-height:87px;}
 .min-h-full{min-height:100%;}
 .min-w-0{min-width:0;}
@@ -4245,7 +4337,10 @@ html[data-ehpeek-touch-ui="true"] .textsize-xl{font-size:30px;}
 .w-\\[min\\(86vw\\,360px\\)\\]{width:min(86vw,360px);}
 .w-\\[var\\(--reader-frame-width\\)\\]{width:var(--reader-frame-width);}
 .w-10px{width:10px;}
+.w-40px{width:40px;}
 .w-42px{width:42px;}
+.w-56px{width:56px;}
+.w-60px{width:60px;}
 .w-64px{width:64px;}
 .w-auto,
 #ehpeek-reader[data-view-mode=paged] .\\[\\#ehpeek-reader\\[data-view-mode\\=paged\\]_\\&\\]\\:w-auto{width:auto;}
@@ -4259,6 +4354,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:w-18px{width:18px;}
 .flex{display:flex;}
 .inline-flex{display:inline-flex;}
 #ehpeek-reader[data-view-mode=paged] .\\[\\#ehpeek-reader\\[data-view-mode\\=paged\\]_\\&\\]\\:flex-\\[0_0_100\\%\\]{flex:0 0 100%;}
+.flex-1{flex:1 1 0%;}
 .flex-none{flex:none;}
 .flex-row,
 #ehpeek-reader[data-view-mode=paged] .\\[\\#ehpeek-reader\\[data-view-mode\\=paged\\]_\\&\\]\\:flex-row{flex-direction:row;}
@@ -4307,6 +4403,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
 .justify-between{justify-content:space-between;}
 .justify-self-center{justify-self:center;}
 .justify-self-stretch{justify-self:stretch;}
+.gap-0{gap:0;}
 .gap-18px{gap:18px;}
 .gap-1px{gap:1px;}
 .gap-4px{gap:4px;}
@@ -4320,6 +4417,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
 .overflow-visible{overflow:visible;}
 .\\!overflow-x-hidden{overflow-x:hidden !important;}
 .overflow-x-auto{overflow-x:auto;}
+.overflow-y-auto{overflow-y:auto;}
 .overscroll-contain{overscroll-behavior:contain;}
 .scroll-auto{scroll-behavior:auto;}
 .text-ellipsis{text-overflow:ellipsis;}
@@ -4337,6 +4435,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
 .border-b{border-bottom-width:1px;}
 .border-l{border-left-width:1px;}
 .border-t{border-top-width:1px;}
+.last\\:border-b-0:last-child{border-bottom-width:0px;}
 .\\!border-transparent{border-color:transparent !important;}
 .border-\\[rgba\\(255\\,255\\,255\\,0\\.2\\)\\]{--un-border-opacity:0.2;border-color:rgba(255, 255, 255, var(--un-border-opacity));}
 .border-\\[var\\(--color-accent\\)\\]{border-color:var(--color-accent);}
@@ -4372,6 +4471,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
 .hover\\:bg-\\[var\\(--color-site-item-hover\\)\\]:hover{background-color:var(--color-site-item-hover);}
 .focus\\:bg-\\[var\\(--color-site-elevated\\)\\]:focus{background-color:var(--color-site-elevated);}
 .active\\:bg-\\[var\\(--color-site-accent-hover\\)\\]:active{background-color:var(--color-site-accent-hover);}
+.active\\:bg-\\[var\\(--color-site-item-hover\\)\\]:active{background-color:var(--color-site-item-hover);}
 .object-contain{object-fit:contain;}
 .object-center{object-position:center;}
 .\\!p-0,
@@ -4386,10 +4486,13 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
 .py-0{padding-top:0;padding-bottom:0;}
 .py-56px{padding-top:56px;padding-bottom:56px;}
 .py-6px{padding-top:6px;padding-bottom:6px;}
+.\\!pr-\\[132px\\]{padding-right:132px !important;}
 .pb-48px{padding-bottom:48px;}
 .pb-72px{padding-bottom:72px;}
+.pl-\\[max\\(12px\\,env\\(safe-area-inset-left\\,0px\\)\\)\\]{padding-left:max(12px,env(safe-area-inset-left,0px));}
 .pl-\\[max\\(16px\\,env\\(safe-area-inset-left\\,0px\\)\\)\\]{padding-left:max(16px,env(safe-area-inset-left,0px));}
 .pl-6px{padding-left:6px;}
+.pr-\\[max\\(12px\\,env\\(safe-area-inset-right\\,0px\\)\\)\\]{padding-right:max(12px,env(safe-area-inset-right,0px));}
 .pr-\\[max\\(16px\\,env\\(safe-area-inset-right\\,0px\\)\\)\\]{padding-right:max(16px,env(safe-area-inset-right,0px));}
 .pt-2px{padding-top:2px;}
 .text-center{text-align:center;}
@@ -4397,13 +4500,14 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
 .text-left{text-align:left;}
 .align-middle{vertical-align:middle;}
 .\\!text-0{font-size:0 !important;}
-.\\!text-16px{font-size:16px !important;}
+.\\!text-20px{font-size:20px !important;}
 .text-12px{font-size:12px;}
 .text-13px{font-size:13px;}
 .text-15px{font-size:15px;}
-.text-16px{font-size:16px;}
 .text-18px{font-size:18px;}
 .text-21px{font-size:21px;}
+.text-22px{font-size:22px;}
+.text-24px{font-size:24px;}
 .text-27px{font-size:27px;}
 .text-28px{font-size:28px;}
 .text-34px{font-size:34px;}
@@ -4471,6 +4575,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
 .focus-visible\\:outline:focus-visible{outline-style:solid;}
 .outline-none{outline:2px solid transparent;outline-offset:2px;}
 .hover\\:brightness-108:hover{--un-brightness:brightness(1.08);filter:var(--un-blur) var(--un-brightness) var(--un-contrast) var(--un-drop-shadow) var(--un-grayscale) var(--un-hue-rotate) var(--un-invert) var(--un-saturate) var(--un-sepia);}
+.transition-\\[background-color\\,transform\\]{transition-property:background-color,transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
 .transition-\\[border-color\\,background-color\\,color\\]{transition-property:border-color,background-color,color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
 .transition-\\[filter\\,transform\\,box-shadow\\]{transition-property:filter,transform,box-shadow;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
 .transition-\\[opacity\\,transform\\]{transition-property:opacity,transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
@@ -4754,7 +4859,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
     if (!touchSearchInfo)
       return !1;
     let mount = document.createElement("div");
-    return insertTouchSearchPanel(mount) ? (prepareTouchSearchPanel(touchSearchInfo, TOUCH_SEARCH_OPTION_CLASS), R(/* @__PURE__ */ k(TouchSearchPanel, { source: touchSearchInfo }), mount), R(/* @__PURE__ */ k(TouchSearchCategoryToggle, { source: touchSearchInfo }), touchSearchInfo.categoryToggleMount), R(/* @__PURE__ */ k(TouchSearchAction, { action: "search", source: touchSearchInfo }), touchSearchInfo.searchActionMount), R(/* @__PURE__ */ k(TouchSearchAction, { action: "clear", source: touchSearchInfo }), touchSearchInfo.clearActionMount), !0) : !1;
+    return insertTouchSearchPanel(mount) ? (prepareTouchSearchPanel(touchSearchInfo, TOUCH_SEARCH_OPTION_CLASS), R(/* @__PURE__ */ k(TouchSearchPanel, { source: touchSearchInfo }), mount), R(/* @__PURE__ */ k(TouchSearchCategoryToggle, { source: touchSearchInfo }), touchSearchInfo.categoryToggleMount), R(/* @__PURE__ */ k(TouchSearchAction, { action: "search", source: touchSearchInfo }), touchSearchInfo.searchActionMount), R(/* @__PURE__ */ k(TouchSearchAction, { action: "clear", source: touchSearchInfo }), touchSearchInfo.clearActionMount), R(/* @__PURE__ */ k(TouchSearchHistory, { source: touchSearchInfo }), touchSearchInfo.historyMount), !0) : !1;
   }
   async function installTouchSearchPanelWhenReady() {
     await waitForSearchUi(), installTouchSearchPanel();
