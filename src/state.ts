@@ -13,6 +13,7 @@ type StateValue<T> = {
 export const state = {
   reader: {
     enabled: persisted("ehpeek:reader:enabled", true),
+    fullscreen: persisted("ehpeek:reader:fullscreen", false),
     viewMode: persisted<ViewMode>("ehpeek:reader:view-mode", "scroll"),
     readDirection: persisted<ReadDirection>("ehpeek:reader:read-direction", "rtl"),
     rightTapAction: persisted<RightTapAction>("ehpeek:reader:right-tap-action", "previous"),

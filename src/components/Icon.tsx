@@ -12,6 +12,8 @@ export type IconName =
   | "close"
   | "download"
   | "external-link"
+  | "fullscreen"
+  | "fullscreen-exit"
   | "heart"
   | "home"
   | "menu"
@@ -96,6 +98,12 @@ const ICON_DEFINITIONS: Record<IconName, IconDefinition> = {
   },
   "external-link": {
     paths: ["M14 4h6v6", "m20 4-9 9", "M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"],
+  },
+  fullscreen: {
+    paths: ["M8 3H3v5", "M16 3h5v5", "M3 16v5h5", "M21 16v5h-5"],
+  },
+  "fullscreen-exit": {
+    paths: ["M8 3v5H3", "M16 3v5h5", "M3 16h5v5", "M21 16h-5v5"],
   },
   heart: {
     fillable: true,

@@ -4,6 +4,7 @@ import texts from "../texts.json";
 
 export type SettingsMenuState = {
   readerEnabled: boolean;
+  readerFullscreenEnabled: boolean;
   enhanceThumbsGridsEnabled: boolean;
   enhanceSearchGridsEnabled: boolean;
   touchUiEnabled: boolean;
@@ -103,6 +104,16 @@ export function SettingsMenu(props: {
         checked={[draft.readerEnabled, texts.settings.readerOn, texts.settings.readerOff]}
         onChange={(value) => {
           draft.readerEnabled = value;
+        }}
+      />
+      <SwitchButton
+        checked={[
+          draft.readerFullscreenEnabled,
+          texts.settings.readerFullscreenOn,
+          texts.settings.readerFullscreenOff,
+        ]}
+        onChange={(value) => {
+          draft.readerFullscreenEnabled = value;
         }}
       />
       <SwitchButton

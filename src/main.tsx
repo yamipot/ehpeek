@@ -61,6 +61,7 @@ if (themeCss && !document.getElementById(THEME_STYLE_ID)) {
 function settingsMenuState() {
   return {
     readerEnabled: state.reader.enabled.value,
+    readerFullscreenEnabled: state.reader.fullscreen.value,
     enhanceThumbsGridsEnabled: enhanceThumbsGridsEnabled(),
     enhanceSearchGridsEnabled: state.search.enhance.value,
     touchUiEnabled: state.touch.enabled.value,
@@ -69,6 +70,7 @@ function settingsMenuState() {
 
 function applySettingsMenuState(next: ReturnType<typeof settingsMenuState>): void {
   state.reader.enabled.set(next.readerEnabled);
+  state.reader.fullscreen.set(next.readerFullscreenEnabled);
   state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled);
   state.search.enhance.set(next.enhanceSearchGridsEnabled);
   state.touch.enabled.set(next.touchUiEnabled);
@@ -97,7 +99,8 @@ function continueReadingState(): { info: ReadButtonInfo; onClick: () => void } |
         return;
       }
 
-      void openReader(page.url, pageNum).catch(reportOpenError);
+      const fullscreenRequest = requestConfiguredReaderFullscreen();
+      void openReader(page.url, pageNum, fullscreenRequest).catch(reportOpenError);
     },
   };
 }
@@ -392,7 +395,11 @@ if ((pageType.type === "search" || pageType.type === "favorites") && settingsSta
   }
 }
 
-async function openReader(startPageUrl: string, preferredPageNum?: number): Promise<void> {
+async function openReader(
+  startPageUrl: string,
+  preferredPageNum?: number,
+  fullscreenRequest?: Promise<boolean>,
+): Promise<void> {
   if (!state.reader.enabled.value) {
     return;
   }
@@ -447,6 +454,8 @@ async function openReader(startPageUrl: string, preferredPageNum?: number): Prom
     return;
   }
 
+  const automaticFullscreen = fullscreenRequest ? await fullscreenRequest : undefined;
+
   openFullscreenReader({
     galleryId: pageType.galleryId,
     pages,
@@ -456,6 +465,8 @@ async function openReader(startPageUrl: string, preferredPageNum?: number): Prom
     nearConcurrentLoads: 3,
     farConcurrentLoads: 6,
     totalPages,
+    initialFullscreenHint: automaticFullscreen === false,
+    initialFullscreenOwned: automaticFullscreen === true,
     loadPage: eh.loadEhImagePage,
     loadPages: (pageNums) => provider.loadDisplayPages(pageNums),
     onActivePageChange: (page) => {
@@ -504,6 +515,26 @@ function reportOpenError(error: unknown): void {
   window.alert(message);
 }
 
+function requestConfiguredReaderFullscreen(): Promise<boolean> | undefined {
+  if (!state.reader.enabled.value || !state.reader.fullscreen.value || document.fullscreenElement) {
+    return undefined;
+  }
+
+  const root = document.documentElement;
+
+  if (!document.fullscreenEnabled || typeof root.requestFullscreen !== "function") {
+    return Promise.resolve(false);
+  }
+
+  return root.requestFullscreen().then(
+    () => true,
+    (error: unknown) => {
+      console.warn("[ehpeek] Fullscreen request failed", error);
+      return false;
+    },
+  );
+}
+
 function onDocumentClick(event: MouseEvent): void {
   if (!state.reader.enabled.value) {
     return;
@@ -517,7 +548,8 @@ function onDocumentClick(event: MouseEvent): void {
 
   event.preventDefault();
   event.stopPropagation();
-  void openReader(link.href).catch(reportOpenError);
+  const fullscreenRequest = requestConfiguredReaderFullscreen();
+  void openReader(link.href, undefined, fullscreenRequest).catch(reportOpenError);
 }
 
 async function openReaderFromHash(): Promise<void> {

@@ -1,4 +1,5 @@
 import { Fragment, h } from "preact";
+import { useEffect, useState } from "preact/hooks";
 import type { ReadDirection, RightTapAction, ViewMode } from "../../state";
 import texts from "../../texts.json";
 import { stopEvent } from "../../utils";
@@ -23,6 +24,20 @@ const READER_BUTTON_CLASS = [
   "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:(opacity-40 cursor-default)",
 ].join(" ");
 const READER_ICON_SIZE = "1.4em";
+const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+type BatteryManagerLike = {
+  level: number;
+  addEventListener: (type: "levelchange", listener: EventListener) => void;
+  removeEventListener: (type: "levelchange", listener: EventListener) => void;
+};
+
+type NavigatorWithBattery = Navigator & {
+  getBattery?: () => Promise<BatteryManagerLike>;
+};
 
 const DOWNLOAD_OPTION_CLASS = [
   "flex w-full min-h-lg flex-col items-start justify-center gap-xs px-lg py-md rounded-md",
@@ -43,6 +58,7 @@ export type ToolbarCallbacks = {
   onDownloadCurrentClick: () => void;
   onDownloadDialogClose: () => void;
   onDownloadOriginalClick: () => void;
+  onFullscreenClick: () => void;
   onModeClick: () => void;
   onOpenOriginalPageClick: () => void;
   onOpenChange: (open: boolean) => void;
@@ -57,6 +73,8 @@ export type ToolbarState = {
   controls: ReaderControls;
   downloadAvailable: boolean;
   downloadDialog: ReaderDownloadDialog | null;
+  fullscreenActive: boolean;
+  fullscreenHint: boolean;
   open: boolean;
   progress: PageProgress;
 };
@@ -70,6 +88,8 @@ export function initialToolbarState(): ToolbarState {
     },
     downloadAvailable: false,
     downloadDialog: null,
+    fullscreenActive: false,
+    fullscreenHint: false,
     open: false,
     progress: {
       pageNum: 1,
@@ -86,6 +106,7 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
   const modeButton = modeButtonInfo(controls.mode);
   const readDirectionButton = readDirectionButtonInfo(controls.readDirection);
   const rightTapButton = rightTapButtonInfo(controls.rightTapAction);
+  const fullscreenStatus = useFullscreenStatus(props.state.fullscreenActive);
 
   return (
     <>
@@ -136,6 +157,14 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           >
             <Icon name="external-link" size={READER_ICON_SIZE} />
           </button>
+          <button
+            type="button"
+            className={READER_BUTTON_CLASS}
+            title={props.state.fullscreenActive ? texts.reader.exitFullscreen : texts.reader.enterFullscreen}
+            onClick={props.callbacks.onFullscreenClick}
+          >
+            <Icon name={props.state.fullscreenActive ? "fullscreen-exit" : "fullscreen"} size={READER_ICON_SIZE} />
+          </button>
           <button type="button" className={READER_BUTTON_CLASS} title={texts.reader.close} onClick={props.callbacks.onCloseClick}>
             <Icon name="close" size={READER_ICON_SIZE} />
           </button>
@@ -157,6 +186,27 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
       >
         {pageNumberText(progress.pageNum, progress.totalPages)}
       </div>
+      {props.state.fullscreenActive ? (
+        <div
+          className={
+            "fixed z-3 flex items-center gap-sm pointer-events-none " +
+            "top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] " +
+            "landscape:top-[calc(90px+env(safe-area-inset-top,0px))] landscape:(left-auto right-10px) " +
+            "coarse-landscape:top-[calc(106px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px " +
+            "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text " +
+            "font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap"
+          }
+          role="status"
+        >
+          <span>{fullscreenStatus.time}</span>
+          {fullscreenStatus.batteryPercent === null ? null : (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>{fullscreenStatus.batteryPercent}%</span>
+            </>
+          )}
+        </div>
+      ) : null}
       <div
         className={
           "fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out " +
@@ -182,6 +232,20 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           onCommit={props.callbacks.onProgressCommit}
         />
       </div>
+      {props.state.fullscreenHint ? (
+        <div
+          className={
+            "fixed z-3 left-1/2 -translate-x-1/2 w-[min(88vw,520px)] " +
+            "bottom-[calc(76px+env(safe-area-inset-bottom,0px))] coarse:bottom-[calc(96px+env(safe-area-inset-bottom,0px))] " +
+            "px-lg py-md rounded-md bg-[var(--color-badge)] ehp-color-text shadow-lg pointer-events-none " +
+            "font-sans textsize-md font-600 leading-[1.4] text-center"
+          }
+          role="status"
+          aria-live="polite"
+        >
+          {texts.reader.fullscreenHint}
+        </div>
+      ) : null}
       {downloadDialog ? (
         <div
           className="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 pointer-events-auto"
@@ -234,6 +298,77 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
       ) : null}
     </>
   );
+}
+
+function useFullscreenStatus(enabled: boolean): { time: string; batteryPercent: number | null } {
+  const [time, setTime] = useState(() => TIME_FORMATTER.format(new Date()));
+  const [batteryPercent, setBatteryPercent] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    const updateTime = () => setTime(TIME_FORMATTER.format(new Date()));
+    updateTime();
+    let interval: number | null = null;
+    const timeout = window.setTimeout(() => {
+      updateTime();
+      interval = window.setInterval(updateTime, 60_000);
+    }, 60_000 - (Date.now() % 60_000));
+    return () => {
+      window.clearTimeout(timeout);
+      if (interval !== null) {
+        window.clearInterval(interval);
+      }
+    };
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled) {
+      setBatteryPercent(null);
+      return;
+    }
+
+    const getBattery = (navigator as NavigatorWithBattery).getBattery;
+
+    if (!getBattery) {
+      setBatteryPercent(null);
+      return;
+    }
+
+    let battery: BatteryManagerLike | null = null;
+    let disposed = false;
+    const updateBattery = () => {
+      if (battery) {
+        setBatteryPercent(Math.round(Math.min(1, Math.max(0, battery.level)) * 100));
+      }
+    };
+
+    void getBattery.call(navigator).then(
+      (nextBattery) => {
+        if (disposed) {
+          return;
+        }
+
+        battery = nextBattery;
+        updateBattery();
+        battery.addEventListener("levelchange", updateBattery);
+      },
+      () => {
+        if (!disposed) {
+          setBatteryPercent(null);
+        }
+      },
+    );
+
+    return () => {
+      disposed = true;
+      battery?.removeEventListener("levelchange", updateBattery);
+    };
+  }, [enabled]);
+
+  return { time, batteryPercent };
 }
 
 function progressFillPercent(progress: PageProgress): number {

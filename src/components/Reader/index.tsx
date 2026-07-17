@@ -41,6 +41,7 @@ const DOUBLE_TAP_MS = 340;
 const DOUBLE_TAP_DISTANCE = 36;
 const TAP_CANCEL_DISTANCE = 8;
 const FALLBACK_ASPECT_RATIO = 1.42;
+const FULLSCREEN_HINT_MS = 5000;
 
 export type FullscreenReaderOptions = {
   galleryId: number;
@@ -56,6 +57,8 @@ export type FullscreenReaderOptions = {
   farConcurrentLoads?: number;
   onActivePageChange?: (page: ReaderPage, index: number) => void;
   onOpenOriginalPage?: (page: ReaderPage) => void;
+  initialFullscreenHint?: boolean;
+  initialFullscreenOwned?: boolean;
 };
 
 type ReaderRootState = {
@@ -524,6 +527,7 @@ class ReaderSession {
   private scrollFrame: number | null = null;
   private resizeFrame: number | null = null;
   private progressNavigationTimer: number | null = null;
+  private fullscreenHintTimer: number | null = null;
   private tapTimer: number | null = null;
   private pendingTap:
     | {
@@ -540,6 +544,8 @@ class ReaderSession {
   private historyEntry = false;
   private closing = false;
   private closed = false;
+  private ownsFullscreen: boolean;
+  private readonly initialFullscreenHint: boolean;
 
   constructor(options: FullscreenReaderOptions, bindings: ReaderSessionBindings) {
     this.galleryId = options.galleryId;
@@ -561,6 +567,8 @@ class ReaderSession {
     this.onExit = options.onExit;
     this.onActivePageChange = options.onActivePageChange;
     this.onOpenOriginalPage = options.onOpenOriginalPage;
+    this.initialFullscreenHint = options.initialFullscreenHint ?? false;
+    this.ownsFullscreen = options.initialFullscreenOwned ?? false;
     this.closeComponent = bindings.close;
     this.isDragging = bindings.isDragging;
     this.setRootComponentState = bindings.setRootState;
@@ -588,6 +596,9 @@ class ReaderSession {
       onDownloadCurrentClick: () => this.downloadDisplayedImage(),
       onDownloadDialogClose: () => this.closeDownloadDialog(),
       onDownloadOriginalClick: () => this.downloadOriginalImage(),
+      onFullscreenClick: () => {
+        void this.toggleFullscreen();
+      },
       onOpenOriginalPageClick: () => this.openOriginalPage(),
       onOpenChange: (open) => this.setRootState({ toolbarOpen: open }),
       onProgressPointerDown: this.onProgressPointerDown,
@@ -645,7 +656,11 @@ class ReaderSession {
     }
 
     window.addEventListener("resize", this.onResize);
+    document.addEventListener("fullscreenchange", this.onFullscreenChange);
     this.syncInitialUi();
+    if (this.initialFullscreenHint) {
+      this.showFullscreenHint();
+    }
     this.syncAfterPageChange({ scrollIntoView: true });
   }
 
@@ -668,6 +683,7 @@ class ReaderSession {
   }
 
   private syncInitialUi(): void {
+    this.syncFullscreenState();
     this.syncReaderControls();
     this.updatePageNumber();
   }
@@ -699,6 +715,15 @@ class ReaderSession {
     this.imageQueue.dispose();
     window.removeEventListener("resize", this.onResize);
     window.removeEventListener("popstate", this.onPopState);
+    document.removeEventListener("fullscreenchange", this.onFullscreenChange);
+    this.clearFullscreenHintTimer();
+
+    if (this.ownsFullscreen && document.fullscreenElement) {
+      this.ownsFullscreen = false;
+      void document.exitFullscreen().catch((error: unknown) => {
+        console.warn("[ehpeek] Failed to exit fullscreen", error);
+      });
+    }
 
     if (this.scrollFrame !== null) {
       window.cancelAnimationFrame(this.scrollFrame);
@@ -1144,6 +1169,12 @@ class ReaderSession {
       return;
     }
 
+    if (document.fullscreenElement) {
+      this.ownsFullscreen = false;
+      void document.exitFullscreen().catch(() => this.showFullscreenHint());
+      return;
+    }
+
     this.close();
   }
 
@@ -1355,6 +1386,77 @@ class ReaderSession {
     }
 
     this.onOpenOriginalPage(page);
+  }
+
+  private async toggleFullscreen(): Promise<void> {
+    if (document.fullscreenElement) {
+      this.ownsFullscreen = false;
+
+      try {
+        await document.exitFullscreen();
+      } catch (error) {
+        console.warn("[ehpeek] Failed to exit fullscreen", error);
+        this.showFullscreenHint();
+      }
+      return;
+    }
+
+    const root = document.documentElement;
+
+    if (!document.fullscreenEnabled || typeof root.requestFullscreen !== "function") {
+      this.showFullscreenHint();
+      return;
+    }
+
+    this.ownsFullscreen = true;
+
+    try {
+      await root.requestFullscreen();
+    } catch (error) {
+      this.ownsFullscreen = false;
+      console.warn("[ehpeek] Fullscreen request failed", error);
+      this.showFullscreenHint();
+    }
+  }
+
+  private readonly onFullscreenChange = (): void => {
+    if (!document.fullscreenElement) {
+      this.ownsFullscreen = false;
+    }
+
+    this.clearFullscreenHintTimer();
+    this.toolbarState = {
+      ...this.toolbarState,
+      fullscreenActive: Boolean(document.fullscreenElement),
+      fullscreenHint: false,
+    };
+    this.setToolbarComponentState(this.toolbarState);
+  };
+
+  private syncFullscreenState(): void {
+    this.toolbarState = {
+      ...this.toolbarState,
+      fullscreenActive: Boolean(document.fullscreenElement),
+    };
+    this.setToolbarComponentState(this.toolbarState);
+  }
+
+  private showFullscreenHint(): void {
+    this.clearFullscreenHintTimer();
+    this.toolbarState = { ...this.toolbarState, fullscreenHint: true };
+    this.setToolbarComponentState(this.toolbarState);
+    this.fullscreenHintTimer = window.setTimeout(() => {
+      this.fullscreenHintTimer = null;
+      this.toolbarState = { ...this.toolbarState, fullscreenHint: false };
+      this.setToolbarComponentState(this.toolbarState);
+    }, FULLSCREEN_HINT_MS);
+  }
+
+  private clearFullscreenHintTimer(): void {
+    if (this.fullscreenHintTimer !== null) {
+      window.clearTimeout(this.fullscreenHintTimer);
+      this.fullscreenHintTimer = null;
+    }
   }
 
   private readonly onResize = (): void => {
