@@ -177,17 +177,21 @@ function placeholderDom(content: SlotContent, text: string): HTMLElement {
       : "text-[clamp(88px,25vw,180px)] desktop:text-[clamp(72px,10vw,140px)] font-mono font-850 [font-variant-numeric:tabular-nums]");
 
   if (content.state === "loading") {
+    const loading = document.createElement("span");
     const spinner = document.createElement("span");
     const pageNumber = document.createElement("span");
 
+    loading.className = "flex w-full h-full flex-col items-center justify-center gap-xl overflow-hidden";
+    loading.setAttribute("aria-hidden", "true");
     spinner.className =
-      "absolute left-1/2 top-[min(calc(50%+0.7em),calc(100%-28px))] block w-md h-md -translate-x-1/2 -translate-y-1/2 box-border animate-spin rounded-full border-4px border-solid ehp-color-spinner";
-    spinner.setAttribute("aria-hidden", "true");
+      "block w-md h-md flex-none box-border animate-spin rounded-full border-4px border-solid ehp-color-spinner";
+    pageNumber.className =
+      "block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]";
     pageNumber.textContent = text;
-    pageNumber.setAttribute("aria-hidden", "true");
     placeholder.setAttribute("role", "status");
     placeholder.setAttribute("aria-label", `${texts.reader.loading} ${text}`);
-    placeholder.append(pageNumber, spinner);
+    loading.append(pageNumber, spinner);
+    placeholder.append(loading);
     return placeholder;
   }
 
