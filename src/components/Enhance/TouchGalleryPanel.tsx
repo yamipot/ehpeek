@@ -11,42 +11,123 @@ export function TouchGalleryPanel(props: {
   onPrimaryActionMount: (mount: HTMLElement | null) => void;
   source: GalleryInfo;
 }) {
-  const rootRef = useRef<HTMLElement>(null);
-  const categoryClassName =
-    "ehpeek-touch-gallery-category min-w-0 self-center overflow-hidden text-ellipsis whitespace-nowrap py-sm px-md text-17px font-700 leading-[1.1] uppercase " +
-    (props.source.categoryClassName || "ehp-color-site-page ehp-color-site-accent");
+  const rating = props.source.rating;
+  const hasCover = props.source.cover !== null;
+  const [ratingValue, setRatingValue] = useState(() => rating?.value ?? 0);
+  const [ratingPreview, setRatingPreview] = useState<number | null>(null);
+  const displayedRating = ratingPreview ?? ratingValue;
+  const selectedRating = ratingPreview ?? selectableRating(ratingValue);
+  const ratingLabel = ratingPreview ? `Rate as ${ratingPreview.toFixed(1)} stars` : rating?.label ?? "";
 
-  useEffect(() => {
-    if (rootRef.current) {
-      prepareRatingScale(rootRef.current);
+  const submitRating = (value: number) => {
+    if (!rating) {
+      return;
     }
-  }, []);
+
+    eh.setGalleryRating(value);
+    setRatingValue(value);
+    setRatingPreview(null);
+  };
+
+  const handleRatingKeyDown = (event: KeyboardEvent) => {
+    if (!rating) {
+      return;
+    }
+
+    const nextValue = ratingFromKeyboard(event.key, selectedRating);
+
+    if (nextValue !== null) {
+      event.preventDefault();
+      setRatingPreview(nextValue);
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      submitRating(selectedRating);
+    }
+  };
 
   return (
-    <section ref={rootRef} className="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans">
+    <section className="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans">
       <div className="ehpeek-touch-gallery-hero relative grid h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text">
-        <div className="ehpeek-touch-gallery-summary grid h-full min-h-0 grid-cols-[36%_minmax(0,1fr)] gap-lg items-start">
-          <div className="ehpeek-touch-gallery-cover flex self-center justify-self-center w-auto max-w-full h-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden">
-            <DomNode node={props.source.cover} />
-          </div>
-          <div className="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 min-h-0 flex-col items-start gap-md pt-2px">
-            <div className="ehpeek-touch-gallery-heading flex min-w-0 min-h-0 w-full flex-col gap-sm items-start overflow-hidden">
-              <div
-                className="ehpeek-touch-gallery-title-main line-clamp-4 overflow-hidden text-22px text-[clamp(22px,5.9vw,32px)] font-400 leading-[1.1] text-left break-anywhere"
-                title={props.source.titleMain}
-              >
+        <div
+          className={`ehpeek-touch-gallery-summary grid h-full min-h-0 gap-18px items-stretch ${hasCover ? "grid-cols-[minmax(120px,38%)_minmax(0,1fr)]" : "grid-cols-1"}`}
+        >
+          {hasCover && (
+            <div className="ehpeek-touch-gallery-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">
+              <DomNode node={props.source.cover} />
+            </div>
+          )}
+          <div className="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 min-h-0 flex-col items-start justify-between gap-8px pt-2px">
+            <div className="ehpeek-touch-gallery-heading flex min-w-0 min-h-0 w-full flex-col gap-4px items-start overflow-hidden">
+              <div className="ehpeek-touch-gallery-title-main line-clamp-4 overflow-hidden text-[clamp(23px,6.2vw,34px)] font-400 leading-[1.08] text-left break-anywhere">
                 {props.source.titleMain}
               </div>
-              <div
-                className="ehpeek-touch-gallery-title-sub line-clamp-3 overflow-hidden opacity-88 text-[clamp(17px,4.6vw,25px)] leading-[1.15] text-left break-anywhere"
-                title={props.source.titleSub}
-              >
+              <div className="ehpeek-touch-gallery-title-sub line-clamp-3 overflow-hidden opacity-82 text-[clamp(18px,4.8vw,26px)] leading-[1.12] text-left break-anywhere">
                 {props.source.titleSub}
               </div>
             </div>
-            <div className="ehpeek-touch-gallery-category-row flex w-full min-h-64px gap-xs items-center mt-auto">
-              <div className={categoryClassName}>{props.source.category}</div>
-              <DomNode node={props.source.rating} />
+            <div className="ehpeek-touch-gallery-category-row flex w-full flex-wrap items-center justify-start gap-x-20px gap-y-10px mt-20px">
+              <div
+                className="ehpeek-touch-gallery-category max-w-full flex-none overflow-hidden text-ellipsis whitespace-nowrap rounded-xs py-6px px-10px ehp-color-site-page ehp-color-site-accent text-15px font-700 leading-[1.1] uppercase"
+                style={props.source.categoryAppearance}
+              >
+                {props.source.category}
+              </div>
+              {rating && (
+                <div className="ehpeek-touch-gallery-rating flex w-auto min-w-0 flex-none flex-col items-start gap-4px">
+                  <div
+                    className="ehpeek-touch-gallery-rating-stars relative inline-block max-w-full overflow-hidden text-[rgba(255,255,255,0.25)] font-sans text-[clamp(18px,4.8vw,25px)] tracking-1px leading-[1] whitespace-nowrap cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
+                    role="slider"
+                    tabIndex={0}
+                    aria-label="Rate gallery"
+                    aria-valuemin={0.5}
+                    aria-valuemax={5}
+                    aria-valuenow={selectedRating}
+                    aria-valuetext={`${selectedRating.toFixed(1)} stars`}
+                    onPointerMove={(event: PointerEvent) => {
+                      setRatingPreview(ratingFromPointer(event.clientX, event.currentTarget as HTMLElement));
+                    }}
+                    onPointerLeave={() => {
+                      setRatingPreview(null);
+                    }}
+                    onClick={(event: MouseEvent) => {
+                      if (event.detail > 0) {
+                        submitRating(ratingFromPointer(event.clientX, event.currentTarget as HTMLElement));
+                      }
+                    }}
+                    onKeyDown={handleRatingKeyDown}
+                    onBlur={() => {
+                      setRatingPreview(null);
+                    }}
+                  >
+                    <span className="ehpeek-touch-gallery-rating-stars-empty" aria-hidden="true">
+                      ★★★★★
+                    </span>
+                    <span
+                      className="ehpeek-touch-gallery-rating-stars-fill absolute top-0 left-0 overflow-hidden ehp-color-site-accent whitespace-nowrap [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]"
+                      aria-hidden="true"
+                      style={{ width: `${(displayedRating / 5) * 100}%` }}
+                    >
+                      ★★★★★
+                    </span>
+                  </div>
+                  <div className="ehpeek-touch-gallery-rating-meta flex max-w-full items-center justify-start gap-6px text-[rgba(255,255,255,0.78)] text-12px leading-[1.15] whitespace-nowrap">
+                    <span
+                      className="ehpeek-touch-gallery-rating-label min-w-0 overflow-hidden text-ellipsis"
+                      aria-live="polite"
+                    >
+                      {ratingLabel}
+                    </span>
+                    {rating.count && (
+                      <span className="ehpeek-touch-gallery-rating-count flex-none pl-6px border-0 border-l border-[rgba(255,255,255,0.2)] text-[rgba(255,255,255,0.58)]">
+                        {rating.count}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -302,18 +383,32 @@ async function applyFavoriteOption(actionUrl: string, option: GalleryFavoriteOpt
   }
 }
 
-function prepareRatingScale(root: HTMLElement): void {
-  const wrapper = root.querySelector<HTMLElement>(".ehpeek-touch-gallery-rating");
-  const scaler = root.querySelector<HTMLElement>(".ehpeek-touch-gallery-rating-scale");
+function selectableRating(value: number): number {
+  return Math.min(5, Math.max(0.5, Math.round(value * 2) / 2));
+}
 
-  if (!wrapper || !scaler) {
-    return;
+function ratingFromPointer(clientX: number, element: HTMLElement): number {
+  const rect = element.getBoundingClientRect();
+  const progress = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+  return Math.max(0.5, Math.ceil(progress * 10) / 2);
+}
+
+function ratingFromKeyboard(key: string, value: number): number | null {
+  if (key === "ArrowRight" || key === "ArrowUp") {
+    return Math.min(5, value + 0.5);
   }
 
-  const wrapperWidth = wrapper.getBoundingClientRect().width;
-  const scalerRect = scaler.getBoundingClientRect();
-  const scale = scalerRect.width > 0 && wrapperWidth > 0 ? Math.min(2, Math.max(1, wrapperWidth / scalerRect.width)) : 1;
+  if (key === "ArrowLeft" || key === "ArrowDown") {
+    return Math.max(0.5, value - 0.5);
+  }
 
-  wrapper.style.setProperty("--rating-scale", String(scale));
-  wrapper.style.setProperty("--rating-height", `${Math.ceil(scalerRect.height * scale)}px`);
+  if (key === "Home") {
+    return 0.5;
+  }
+
+  if (key === "End") {
+    return 5;
+  }
+
+  return null;
 }

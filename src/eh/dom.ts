@@ -33,8 +33,18 @@ export type GalleryTag = {
 export type GalleryTagAppearance = {
   backgroundColor: string;
   borderColor: string;
-  borderStyle: string;
   color: string;
+};
+
+export type GalleryCategoryAppearance = {
+  backgroundColor: string;
+  color: string;
+};
+
+export type GalleryRatingInfo = {
+  count: string;
+  label: string;
+  value: number;
 };
 
 export type GalleryInfo = {
@@ -42,12 +52,12 @@ export type GalleryInfo = {
   titleMain: string;
   titleSub: string;
   category: string;
-  categoryClassName: string;
+  categoryAppearance: GalleryCategoryAppearance;
   cover: HTMLElement | null;
   favorite: GalleryFavoriteInfo;
   summary: GallerySummaryItem[];
   actions: HTMLElement[];
-  rating: HTMLElement | null;
+  rating: GalleryRatingInfo | null;
   tagGroups: GalleryTagGroup[];
 };
 
@@ -405,12 +415,12 @@ export function readGalleryInfo(actionMenuItemClassName: string): GalleryInfo {
     titleMain: textOf("#gn"),
     titleSub: textOf("#gj"),
     category: textOf("#gdc"),
-    categoryClassName: readGalleryCategoryClassName(),
+    categoryAppearance: readGalleryCategoryAppearance(),
     cover: coverUrl ? galleryCoverImageElement(coverUrl) : null,
     favorite: readGalleryFavoriteInfo(),
     summary,
     actions: readGalleryActionsDom(actionMenuItemClassName),
-    rating: readGalleryRatingDom(),
+    rating: readGalleryRatingInfo(),
     tagGroups: readGalleryTagGroups(),
   };
 }
@@ -485,43 +495,72 @@ function readGalleryMeta(): Map<string, string> {
   return new Map(entries);
 }
 
-function readGalleryCategoryClassName(): string {
+function readGalleryCategoryAppearance(): GalleryCategoryAppearance {
   const category = document.querySelector("#gdc");
   const categoryStyleElement = category?.querySelector("[class*='ct']") ?? category;
+  const style = categoryStyleElement ? window.getComputedStyle(categoryStyleElement) : null;
 
-  return Array.from(categoryStyleElement?.classList ?? [])
-    .filter((className) => /^ct\d+$/i.test(className))
-    .join(" ");
+  return {
+    backgroundColor: style?.backgroundColor ?? "",
+    color: style?.color ?? "",
+  };
 }
 
-function readGalleryRatingDom(): HTMLElement | null {
-  const element =
-    document.querySelector<HTMLElement>("#gdr") ??
-    document.querySelector<HTMLElement>("#rating") ??
-    document.querySelector<HTMLElement>("#rating_label")?.parentElement ??
-    null;
+function readGalleryRatingInfo(): GalleryRatingInfo | null {
+  const label = textOf("#rating_label");
+  const count = textOf("#rating_count");
+  const script = galleryRatingScript();
+  const value = scriptNumberValue(script, "display_rating");
 
-  if (!element) {
+  if (!label || value === null) {
     return null;
   }
 
-  const wrapper = document.createElement("div");
-  const scaler = document.createElement("div");
+  return { count, label, value };
+}
 
-  wrapper.className = "ehpeek-touch-gallery-rating";
-  scaler.className = "ehpeek-touch-gallery-rating-scale";
+function galleryRatingScript(): string {
+  return (
+    Array.from(document.scripts)
+      .map((item) => item.textContent ?? "")
+      .find((text) => text.includes("display_rating")) ?? ""
+  );
+}
 
-  scaler.append(element);
-  wrapper.append(scaler);
-  return wrapper;
+function scriptNumberValue(script: string, name: string): number | null {
+  const match = script.match(new RegExp(`\\b${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`));
+  const value = Number(match?.[1]);
+  return match && Number.isFinite(value) ? value : null;
+}
+
+export function setGalleryRating(value: number): void {
+  const rating = Math.round(value * 2);
+
+  if (rating < 1 || rating > 10) {
+    throw new RangeError("Gallery rating must be between 0.5 and 5 stars.");
+  }
+
+  const area = document.querySelectorAll<HTMLAreaElement>('map[name="rating"] area')[rating - 1];
+
+  if (!area) {
+    throw new Error("Gallery rating action is unavailable.");
+  }
+
+  area.click();
 }
 
 function readGalleryActionsDom(actionMenuItemClassName: string): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>("#gd5 a, #gd5 button, #gd5 input[type='button'], #gd5 input[type='submit']"))
     .map((item) => {
-      const clone = item.cloneNode(true) as HTMLElement;
+      const clone = item.cloneNode(false) as HTMLElement;
       clone.removeAttribute("id");
+      clone.removeAttribute("style");
       clone.className = actionMenuItemClassName;
+
+      if (!(clone instanceof HTMLInputElement)) {
+        clone.textContent = item.textContent?.trim() || item.getAttribute("title")?.trim() || item.getAttribute("aria-label")?.trim() || "";
+      }
+
       return clone;
     })
     .slice(0, 6);
@@ -576,7 +615,6 @@ function readGalleryTag(tag: HTMLAnchorElement): GalleryTag | null {
     appearance: {
       backgroundColor: containerStyle.backgroundColor,
       borderColor: containerStyle.borderColor,
-      borderStyle: containerStyle.borderStyle,
       color: tagStyle.color,
     },
     href: tag.href,
