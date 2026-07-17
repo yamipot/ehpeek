@@ -2,10 +2,13 @@ import { h } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as eh from "../../eh/dom";
 import type { GalleryFavoriteInfo, GalleryFavoriteOption, GalleryInfo, GalleryTagGroup } from "../../eh/dom";
+import texts from "../../texts.json";
 import { requestText } from "../../utils";
+import { Icon } from "../Icon";
 import { DomNode, DomNodes } from "./Misc";
 
 export const TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline text-21px leading-[1.2]";
+const RATING_STAR_INDEXES = [0, 1, 2, 3, 4];
 
 export function TouchGalleryPanel(props: {
   onPrimaryActionMount: (mount: HTMLElement | null) => void;
@@ -15,9 +18,23 @@ export function TouchGalleryPanel(props: {
   const hasCover = props.source.cover !== null;
   const [ratingValue, setRatingValue] = useState(() => rating?.value ?? 0);
   const [ratingPreview, setRatingPreview] = useState<number | null>(null);
+  const [backToTopVisible, setBackToTopVisible] = useState(false);
   const displayedRating = ratingPreview ?? ratingValue;
   const selectedRating = ratingPreview ?? selectableRating(ratingValue);
   const ratingLabel = ratingPreview ? `Rate as ${ratingPreview.toFixed(1)} stars` : rating?.label ?? "";
+
+  useEffect(() => {
+    const updateBackToTopVisibility = () => {
+      setBackToTopVisible(window.scrollY > Math.max(320, window.innerHeight * 0.5));
+    };
+
+    updateBackToTopVisibility();
+    window.addEventListener("scroll", updateBackToTopVisibility, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", updateBackToTopVisibility);
+    };
+  }, []);
 
   const submitRating = (value: number) => {
     if (!rating) {
@@ -78,7 +95,7 @@ export function TouchGalleryPanel(props: {
               {rating && (
                 <div className="ehpeek-touch-gallery-rating flex w-auto min-w-0 flex-none flex-col items-start gap-4px">
                   <div
-                    className="ehpeek-touch-gallery-rating-stars relative inline-block max-w-full overflow-hidden text-[rgba(255,255,255,0.25)] font-sans text-[clamp(18px,4.8vw,25px)] tracking-1px leading-[1] whitespace-nowrap cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
+                    className="ehpeek-touch-gallery-rating-stars relative inline-flex max-w-full overflow-hidden cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
                     role="slider"
                     tabIndex={0}
                     aria-label="Rate gallery"
@@ -102,15 +119,19 @@ export function TouchGalleryPanel(props: {
                       setRatingPreview(null);
                     }}
                   >
-                    <span className="ehpeek-touch-gallery-rating-stars-empty" aria-hidden="true">
-                      ★★★★★
+                    <span className="ehpeek-touch-gallery-rating-stars-empty flex gap-1px text-[rgba(255,255,255,0.25)]" aria-hidden="true">
+                      {RATING_STAR_INDEXES.map((index) => (
+                        <Icon key={index} name="star" />
+                      ))}
                     </span>
                     <span
-                      className="ehpeek-touch-gallery-rating-stars-fill absolute top-0 left-0 overflow-hidden ehp-color-site-accent whitespace-nowrap [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]"
+                      className="ehpeek-touch-gallery-rating-stars-fill absolute top-0 left-0 flex gap-1px overflow-hidden ehp-color-site-accent"
                       aria-hidden="true"
                       style={{ width: `${(displayedRating / 5) * 100}%` }}
                     >
-                      ★★★★★
+                      {RATING_STAR_INDEXES.map((index) => (
+                        <Icon key={index} name="star" filled />
+                      ))}
                     </span>
                   </div>
                   <div className="ehpeek-touch-gallery-rating-meta flex max-w-full items-center justify-start gap-6px text-[rgba(255,255,255,0.78)] text-12px leading-[1.15] whitespace-nowrap">
@@ -158,6 +179,19 @@ export function TouchGalleryPanel(props: {
           </div>
         )}
       </div>
+      {backToTopVisible && (
+        <button
+          type="button"
+          className="ehpeek-back-to-top fixed right-[max(16px,env(safe-area-inset-right,0px))] bottom-[max(16px,env(safe-area-inset-bottom,0px))] z-ui inline-flex w-lg h-lg items-center justify-center rounded-full border ehp-color-site-border bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:manipulation] active:scale-96"
+          aria-label={texts.reader.backToTop}
+          title={texts.reader.backToTop}
+          onClick={() => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        >
+          <Icon name="arrow-up" />
+        </button>
+      )}
     </section>
   );
 }
@@ -186,15 +220,17 @@ function TouchGalleryActionsMenu(props: { actions: HTMLElement[] }) {
     <div ref={rootRef} className="ehpeek-touch-gallery-actions-menu relative flex min-w-0 items-center justify-center">
       <button
         type="button"
-        className="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text text-28px leading-1"
+        className="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text"
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={texts.navigation.menu}
+        title={texts.navigation.menu}
         onClick={(event: MouseEvent) => {
           event.stopPropagation();
           setOpen(!open);
         }}
       >
-        ⋮
+        <Icon name="menu" />
       </button>
       {open && (
         <div className="ehpeek-touch-gallery-actions-menu-panel absolute top-48px right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">
@@ -287,10 +323,10 @@ function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
       >
         <span className="block leading-[1.15]">{favorite.label}</span>
         <span
-          className={`ehpeek-touch-gallery-favorite-icon block mt-2px textsize-lg font-600 opacity-78 normal-case leading-[1.15] ${favorited ? "ehp-color-site-accent" : "ehp-color-site-text"}`}
+          className={`ehpeek-touch-gallery-favorite-icon block mt-2px opacity-78 normal-case ${favorited ? "ehp-color-site-accent" : "ehp-color-site-text"}`}
           aria-hidden="true"
         >
-          {favorited ? "♥" : "♡"}
+          <Icon name="heart" filled={favorited} />
         </span>
       </button>
       {open && (
@@ -346,17 +382,17 @@ function TouchGalleryFavoriteOption(props: {
       }}
     >
       <span
-        className={`ehpeek-touch-gallery-favorite-option-icon flex-none text-24px leading-1 ${props.option.value === "favdel" ? "ehp-color-site-text" : "ehp-color-site-accent"}`}
+        className={`ehpeek-touch-gallery-favorite-option-icon flex-none ${props.option.value === "favdel" ? "ehp-color-site-text" : "ehp-color-site-accent"}`}
         aria-hidden="true"
       >
-        {props.option.value === "favdel" ? "♡" : "♥"}
+        <Icon name="heart" filled={props.option.value !== "favdel"} />
       </span>
       <span>{props.option.label}</span>
       <span
-        className={`ml-auto flex-none ehp-color-site-accent text-24px font-700 leading-1 ${props.option.selected ? "visible" : "invisible"}`}
+        className={`ml-auto flex-none ehp-color-site-accent ${props.option.selected ? "visible" : "invisible"}`}
         aria-hidden="true"
       >
-        ✓
+        <Icon name="check" />
       </span>
     </button>
   );

@@ -269,11 +269,16 @@ if (settingsState.touchUiEnabled && !document.querySelector(".ehpeek-touch-top-b
   }
 }
 
+if (settingsState.touchUiEnabled && pageType.type === "favorites") {
+  eh.prepareTouchFavoritesPage();
+}
+
 if (settingsState.touchUiEnabled && pageType.type === "gallery") {
   const touchGalleryInfo = eh.readGalleryInfo(TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS);
 
   if (touchGalleryInfo.available) {
     eh.applyTouchGalleryPanelPageStyle();
+    eh.prepareTouchGalleryComments();
     let mount: HTMLElement | null = null;
 
     if (!document.querySelector(".ehpeek-touch-gallery")) {
@@ -314,7 +319,7 @@ if (pageType.type === "gallery") {
   );
 }
 
-if (pageType.type === "search" && settingsState.enhanceSearchGridsEnabled) {
+if ((pageType.type === "search" || pageType.type === "favorites") && settingsState.enhanceSearchGridsEnabled) {
   const resultList = eh.searchResultList();
 
   if (resultList && eh.searchPageNavigation()) {

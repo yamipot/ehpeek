@@ -2,8 +2,9 @@ import { h } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as eh from "../../eh/dom";
 import texts from "../../texts.json";
+import { Icon } from "../Icon";
 
-const TOUCH_ICON_BUTTON_CLASS = "inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text text-28px leading-1 no-underline";
+const TOUCH_ICON_BUTTON_CLASS = "inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text no-underline";
 export const TOUCH_TOP_BAR_MENU_ITEM_CLASS =
   "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-xl py-lg px-xl touch:px-xl border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline text-28px touch:text-30px leading-[1.2]";
 
@@ -45,12 +46,14 @@ function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
         className={`ehpeek-touch-top-bar-menu-button ${TOUCH_ICON_BUTTON_CLASS}`}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={texts.navigation.menu}
+        title={texts.navigation.menu}
         onClick={(event: MouseEvent) => {
           event.stopPropagation();
           setOpen(!open);
         }}
       >
-        ⋮
+        <Icon name="menu" />
       </button>
       {open && (
         <div
@@ -65,11 +68,24 @@ function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
 
 export function TouchTopBar(props: { info: eh.TouchTopBarInfo; onSettingsMenuOpen: () => void }) {
   return (
-    <nav className="ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-56px items-center justify-between py-sm px-[max(16px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans">
-      <a className={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`} href={props.info.homeHref}>
-        ⌂
-      </a>
+    <nav className="ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-56px items-center justify-end py-sm px-[max(16px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans">
       <div className="flex items-center gap-xs">
+        <a
+          className={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`}
+          href={props.info.homeHref}
+          aria-label={texts.navigation.home}
+          title={texts.navigation.home}
+        >
+          <Icon name="home" />
+        </a>
+        <a
+          className={`ehpeek-touch-top-bar-favorites ${TOUCH_ICON_BUTTON_CLASS}`}
+          href={props.info.favoritesHref}
+          aria-label={texts.navigation.favorites}
+          title={texts.navigation.favorites}
+        >
+          <Icon name="heart" />
+        </a>
         <button
           type="button"
           className={`ehpeek-touch-top-bar-settings ${TOUCH_ICON_BUTTON_CLASS}`}
@@ -80,7 +96,7 @@ export function TouchTopBar(props: { info: eh.TouchTopBarInfo; onSettingsMenuOpe
             props.onSettingsMenuOpen();
           }}
         >
-          ⚙
+          <Icon name="settings" />
         </button>
         <TouchTopBarMenu navItems={props.info.navItems} />
       </div>

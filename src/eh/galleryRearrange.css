@@ -1,7 +1,9 @@
+/* Shared content gutter for the touch gallery page. */
 :root {
   --touch-gallery-gutter: clamp(16px, 2.5vw, 36px);
 }
 
+/* Remove the original desktop page's minimum width and horizontal page overflow. */
 html,
 body {
   min-width: 0 !important;
@@ -10,6 +12,7 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Reset the original page shell and apply the active E-H/ExH page palette. */
 body {
   box-sizing: border-box;
   padding-left: 0 !important;
@@ -19,6 +22,7 @@ body {
   line-height: 1.35 !important;
 }
 
+/* Align enhanced and original gallery sections to one responsive content column. */
 .ehpeek-touch-gallery-host,
 .gpc,
 body #gdt[class],
@@ -34,6 +38,7 @@ body #gdt[class],
   padding-right: 0 !important;
 }
 
+/* Keep wide thumbnail and pagination rows scrollable inside the viewport. */
 body #gdt[class],
 .ptt,
 .ptb,
@@ -42,6 +47,7 @@ body #gdt[class],
   -webkit-overflow-scrolling: touch;
 }
 
+/* Give original thumbnail cells a consistent mobile-friendly width. */
 #gdt .gdtm,
 #gdt .gdtl,
 #gdt > div {
@@ -52,9 +58,103 @@ body #gdt[class],
   vertical-align: top;
 }
 
+/* Center thumbnails inside their enlarged cells. */
 #gdt a {
   display: flex !important;
   min-height: 150px;
   align-items: center;
   justify-content: center;
+}
+
+/* Establish readable base typography for the original comments section. */
+#cdiv {
+  font-size: 20px !important;
+  line-height: 1.5 !important;
+}
+
+/* Enlarge comment bodies while allowing long content to wrap safely. */
+#cdiv .c6 {
+  font-size: 20px !important;
+  line-height: 1.5 !important;
+  overflow-wrap: anywhere;
+}
+
+/* Keep comment metadata and form hints visually secondary to comment bodies. */
+#cdiv .c3,
+#cdiv .c4,
+#cdiv .c5,
+#cdiv .c7,
+#formdiv {
+  font-size: 16px !important;
+  line-height: 1.4 !important;
+}
+
+/* Space the new-comment entry point and suppress the original bracket decoration. */
+#postnewcomment {
+  margin: 16px 0 !important;
+  font-size: 0 !important;
+}
+
+/* Present the new-comment entry point as a full touch target. */
+#postnewcomment a {
+  display: inline-flex !important;
+  min-height: 52px;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--color-site-border);
+  border-radius: 6px;
+  background: var(--color-site-elevated);
+  color: var(--color-site-accent);
+  font-size: 18px;
+  text-decoration: none;
+}
+
+/* Let comment form fields wrap into a vertical layout on narrow screens. */
+#cdiv form {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Make the comment editor full-width and comfortable for touch typing. */
+#cdiv textarea,
+#commenttext {
+  display: block !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-height: 160px !important;
+  flex: 1 0 100%;
+  padding: 16px !important;
+  border-radius: 6px !important;
+  font: inherit !important;
+  font-size: 20px !important;
+  line-height: 1.5 !important;
+}
+
+/* Normalize original form controls to the touch sizing scale. */
+#cdiv button,
+#cdiv input[type="button"],
+#cdiv input[type="submit"],
+#cdiv input[type="text"],
+#cdiv select {
+  box-sizing: border-box !important;
+  min-height: 52px !important;
+  padding: 12px 16px !important;
+  border-radius: 6px !important;
+  font: inherit !important;
+  font-size: 18px !important;
+}
+
+/* Let comment form actions share the available row width evenly. */
+#cdiv button,
+#cdiv input[type="button"],
+#cdiv input[type="submit"] {
+  flex: 1 1 180px;
+  cursor: pointer;
+}
+
+/* Keep short text fields useful without forcing them wider than the viewport. */
+#cdiv input[type="text"] {
+  min-width: min(100%, 240px);
 }

@@ -4,6 +4,16 @@ import { normalizeUrl } from "../utils";
 import galleryRearrange from "./galleryRearrange.css";
 
 const TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID = "ehpeek-touch-gallery-page-rearrange-style";
+const TOUCH_COMMENT_SCORE_CLASS_NAME = "!inline-flex min-h-lg items-center !px-md !border !border-[var(--color-site-border)] rounded-md !bg-[var(--color-site-elevated)] cursor-pointer [touch-action:manipulation] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-2px";
+const TOUCH_COMMENT_SCORE_DETAILS_CLASS_NAME = "!static box-border !w-full !mx-0 !mt-sm !mb-0 !p-md !border !border-[var(--color-site-border)] rounded-md !bg-[var(--color-site-elevated)]";
+const TOUCH_FAVORITES_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden";
+const TOUCH_FAVORITES_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden";
+const TOUCH_FAVORITES_NAV_CLASS_NAME = "box-border !max-w-full overflow-x-auto";
+const TOUCH_FAVORITES_RESULTS_CLASS_NAME = "ehpeek-touch-favorites-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto";
+const TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
+const TOUCH_FAVORITES_CATEGORIES_CLASS_NAME = "box-border !grid !h-auto !w-full !max-w-full grid-cols-[repeat(5,minmax(0,1fr))] !p-0";
+const TOUCH_FAVORITES_CATEGORY_CLASS_NAME = "!static !float-none !w-full !m-0";
+const TOUCH_FAVORITES_ALL_CATEGORY_CLASS_NAME = "!col-span-full !w-[140px] justify-self-center";
 
 export type PreviewSnapshot = {
   description: Node | null;
@@ -77,6 +87,7 @@ export type TouchTopBarInfo = {
   available: boolean;
   navItems: HTMLElement[];
   homeHref: string;
+  favoritesHref: string;
 };
 
 type PageType =
@@ -85,7 +96,7 @@ type PageType =
       pageNum: number;
     }
   | {
-      type: "gallery" | "search" | "other";
+      type: "favorites" | "gallery" | "search" | "other";
     };
 
 export function imageAspectRatio(image: HTMLImageElement | null): number {
@@ -346,6 +357,103 @@ export function applyTouchGalleryPanelPageStyle(): void {
   document.head.append(style);
 }
 
+export function prepareTouchGalleryComments(): void {
+  const items = Array.from(document.querySelectorAll<HTMLElement>("#cdiv .c5"))
+    .map((trigger) => ({
+      trigger,
+      details: trigger.closest(".c1")?.querySelector<HTMLElement>(".c7[id^='cvotes_']") ?? null,
+    }))
+    .filter((item): item is { trigger: HTMLElement; details: HTMLElement } => item.details !== null);
+
+  const setExpanded = (item: (typeof items)[number], expanded: boolean) => {
+    item.trigger.setAttribute("aria-expanded", String(expanded));
+    item.details.setAttribute("aria-hidden", String(!expanded));
+    item.details.classList.toggle("!block", expanded);
+    item.details.classList.toggle("!hidden", !expanded);
+  };
+
+  for (const item of items) {
+    if (item.trigger.dataset.ehpeekTouchCommentScore === "true") {
+      continue;
+    }
+
+    item.trigger.dataset.ehpeekTouchCommentScore = "true";
+    item.trigger.classList.add(...TOUCH_COMMENT_SCORE_CLASS_NAME.split(" "));
+    item.details.classList.add(...TOUCH_COMMENT_SCORE_DETAILS_CLASS_NAME.split(" "));
+    item.trigger.removeAttribute("onmouseover");
+    item.trigger.removeAttribute("onmouseout");
+    item.trigger.removeAttribute("onclick");
+    item.trigger.setAttribute("role", "button");
+    item.trigger.setAttribute("tabindex", "0");
+    item.trigger.setAttribute("aria-controls", item.details.id);
+    setExpanded(item, false);
+
+    const toggle = (event: Event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const shouldExpand = item.trigger.getAttribute("aria-expanded") !== "true";
+
+      for (const candidate of items) {
+        setExpanded(candidate, candidate === item && shouldExpand);
+      }
+    };
+
+    item.trigger.addEventListener("click", toggle);
+    item.trigger.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        toggle(event);
+      }
+    });
+  }
+}
+
+export function prepareTouchFavoritesPage(): void {
+  document.documentElement.classList.add(...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "));
+  document.body.classList.add(...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "));
+
+  const categories = document.querySelector<HTMLElement>(".ido > .nosel");
+
+  if (categories) {
+    categories.classList.add(...TOUCH_FAVORITES_CATEGORIES_CLASS_NAME.split(" "));
+
+    for (const child of Array.from(categories.children)) {
+      if (child.classList.contains("fp")) {
+        child.classList.add(...TOUCH_FAVORITES_CATEGORY_CLASS_NAME.split(" "));
+
+        if (child.classList.contains("fps")) {
+          child.classList.add(...TOUCH_FAVORITES_ALL_CATEGORY_CLASS_NAME.split(" "));
+        }
+      } else if (child.children.length === 0) {
+        child.classList.add("!hidden");
+      }
+    }
+  }
+
+  for (const navigation of searchNavigationBars()) {
+    navigation.classList.add(...TOUCH_FAVORITES_NAV_CLASS_NAME.split(" "));
+  }
+
+  const resultList = searchResultList();
+  resultList?.classList.add(...TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME.split(" "));
+  const existingWrapper = resultList?.parentElement?.classList.contains("ehpeek-touch-favorites-results")
+    ? resultList.parentElement
+    : null;
+  const content = existingWrapper?.parentElement ?? resultList?.parentElement;
+  const pageContent = resultList?.closest<HTMLElement>(".ido");
+
+  pageContent?.classList.add(...TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" "));
+  content?.classList.add(...TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" "));
+
+  if (!resultList || existingWrapper) {
+    return;
+  }
+
+  const wrapper = document.createElement("div");
+  wrapper.className = TOUCH_FAVORITES_RESULTS_CLASS_NAME;
+  resultList.replaceWith(wrapper);
+  wrapper.append(resultList);
+}
+
 export function insertTouchTopBar(topBar: HTMLElement): boolean {
   const original = document.querySelector("#nb");
 
@@ -387,6 +495,7 @@ export function readTouchTopBarInfo(menuItemClassName: string): TouchTopBarInfo 
     available: navItems.length > 0,
     navItems,
     homeHref: navItems.find((item): item is HTMLAnchorElement => item instanceof HTMLAnchorElement)?.href ?? "/",
+    favoritesHref: new URL("/favorites.php", window.location.href).href,
   };
 }
 

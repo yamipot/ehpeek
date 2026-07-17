@@ -161,6 +161,9 @@ async function navigateSearchPage(url: string): Promise<void> {
   try {
     const resultList = await eh.replaceSearchPageContentFromUrl(url);
     window.history.pushState(window.history.state, "", url);
+    if (document.documentElement.dataset.ehpeekTouchUi === "true" && eh.extractPageType(url).type === "favorites") {
+      eh.prepareTouchFavoritesPage();
+    }
     setResultListSwipeTarget(resultList);
     eh.searchTopNavigationBar()?.scrollIntoView({ block: "start", behavior: "auto" });
   } catch (error) {

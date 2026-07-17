@@ -11,6 +11,8 @@ export {
   insertTouchGalleryPanel,
   insertTouchTopBar,
   maxPreviewPageIndex,
+  prepareTouchGalleryComments,
+  prepareTouchFavoritesPage,
   prepareThumbsGridSwipeTargets,
   readGalleryInfo,
   readShowingRange,
@@ -44,6 +46,10 @@ export type PageType =
     }
   | {
       type: "search";
+      url: string;
+    }
+  | {
+      type: "favorites";
       url: string;
     }
   | {
@@ -85,6 +91,13 @@ export function extractPageType(url = window.location.href): PageType {
           pageNum,
         };
       }
+    }
+
+    if (parsed.pathname === "/favorites.php") {
+      return {
+        type: "favorites",
+        url: parsed.href,
+      };
     }
 
     if (parsed.pathname === "/" || parsed.pathname.startsWith("/tag/") || parsed.pathname === "/watched") {

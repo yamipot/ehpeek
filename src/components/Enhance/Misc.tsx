@@ -1,4 +1,5 @@
 import { h } from "preact";
+import { Icon, type IconName } from "../Icon";
 export { ExternalDomNode as DomNode, ExternalDomNodes as DomNodes } from "../ExternalDom";
 
 export type ReadButtonInfo = {
@@ -66,7 +67,7 @@ export function SwipeIndicator(props: { handleRef: (handle: SwipeIndicatorHandle
       ref={(element: HTMLDivElement | null) => {
         props.handleRef(element ? handleFor(element) : null);
       }}
-      className="ehpeek-swipe-indicator fixed top-1/2 z-overlay flex w-42px h-108px items-center justify-center border border-[var(--color-site-swipe-border)] rounded-full bg-[var(--color-site-swipe-background)] text-[var(--color-site-text)] text-52px shadow-[0_6px_20px_var(--color-shadow-floating)] font-sans font-300 leading-1 pointer-events-none select-none transition-opacity duration-120 ease-in-out"
+      className="ehpeek-swipe-indicator fixed top-1/2 z-overlay flex w-42px h-108px items-center justify-center border border-[var(--color-site-swipe-border)] rounded-full bg-[var(--color-site-swipe-background)] text-[var(--color-site-text)] shadow-[0_6px_20px_var(--color-shadow-floating)] pointer-events-none select-none transition-opacity duration-120 ease-in-out"
       aria-hidden="true"
       style={{
         backdropFilter: "blur(8px)",
@@ -74,7 +75,11 @@ export function SwipeIndicator(props: { handleRef: (handle: SwipeIndicatorHandle
         opacity: "0",
         transform: "translate(42px, -50%)",
       }}
-    />
+    >
+      <Icon name="close" size={36} />
+      <Icon name="chevron-left" size={36} />
+      <Icon name="chevron-right" size={36} />
+    </div>
   );
 }
 
@@ -84,9 +89,12 @@ function updateSwipeIndicatorElement(element: HTMLDivElement, state: SwipeIndica
   const hidden = clampedProgress <= SWIPE_INDICATOR_HIDE_PROGRESS;
   const offset = state.direction === "left" ? 42 - pull : pull - 42;
   const blocked = state.blocked === true;
+  const iconName: IconName = blocked ? "close" : state.direction === "left" ? "chevron-left" : "chevron-right";
 
   element.setAttribute("aria-hidden", hidden ? "true" : "false");
-  element.textContent = blocked ? "×" : state.direction === "left" ? "‹" : "›";
+  for (const icon of Array.from(element.querySelectorAll<SVGSVGElement>(".ehpeek-icon"))) {
+    icon.style.display = icon.dataset.iconName === iconName ? "block" : "none";
+  }
   element.style.display = hidden ? "none" : "flex";
   element.style.left = state.direction === "right" ? "6px" : "";
   element.style.opacity = String(0.35 + clampedProgress * 0.65);
