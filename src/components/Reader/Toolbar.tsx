@@ -19,7 +19,7 @@ export type PageProgress = {
 };
 
 const READER_BUTTON_CLASS = [
-  "inline-flex min-w-lg h-lg items-center justify-center px-md py-0 rounded-md coarse:(min-w-64px h-64px px-lg rounded-lg text-18px)",
+  "inline-flex min-w-48px h-48px items-center justify-center px-md py-0 rounded-md coarse:(min-w-64px h-64px px-lg rounded-lg text-18px)",
   "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:(opacity-40 cursor-default)",
 ].join(" ");
 const READER_ICON_SIZE = "1.4em";
@@ -99,11 +99,10 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div className="flex flex-row gap-md coarse:gap-lg pointer-events-auto">
+        <div className={`flex flex-row gap-md coarse:gap-lg pointer-events-auto${open ? "" : " !hidden"}`}>
           <button
             type="button"
             className={READER_BUTTON_CLASS}
-            hidden={!open}
             title={rightTapButton.title}
             onClick={props.callbacks.onRightTapClick}
           >
@@ -112,20 +111,18 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           <button
             type="button"
             className={READER_BUTTON_CLASS}
-            hidden={!open}
             title={readDirectionButton.title}
             onClick={props.callbacks.onReadDirectionClick}
           >
             <Icon name={readDirectionButton.icon} size={READER_ICON_SIZE} />
           </button>
-          <button type="button" className={READER_BUTTON_CLASS} hidden={!open} title={modeButton.title} onClick={props.callbacks.onModeClick}>
+          <button type="button" className={READER_BUTTON_CLASS} title={modeButton.title} onClick={props.callbacks.onModeClick}>
             <Icon name={modeButton.icon} size={READER_ICON_SIZE} />
           </button>
           <button
             type="button"
             className={READER_BUTTON_CLASS}
             disabled={!props.state.downloadAvailable}
-            hidden={!open}
             title={texts.reader.download}
             onClick={props.callbacks.onDownloadClick}
           >
@@ -134,7 +131,6 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           <button
             type="button"
             className={READER_BUTTON_CLASS}
-            hidden={!open}
             title={texts.reader.openOriginalPage}
             onClick={props.callbacks.onOpenOriginalPageClick}
           >
@@ -148,15 +144,16 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
       <div
         className={
           "fixed z-3 pointer-events-none " +
-          "top-[calc(62px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 " +
-          "coarse:top-[calc(60px+env(safe-area-inset-top,0px))] " +
-          "landscape:top-[calc(54px+env(safe-area-inset-top,0px))] landscape:(left-auto right-10px translate-x-0) " +
-          "coarse-landscape:top-[calc(54px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px " +
+          "top-[calc(70px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 " +
+          "coarse:top-[calc(80px+env(safe-area-inset-top,0px))] " +
+          "landscape:top-[calc(62px+env(safe-area-inset-top,0px))] landscape:(left-auto right-10px translate-x-0) " +
+          "coarse-landscape:top-[calc(74px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px " +
           "min-w-64px landscape:min-w-0 max-w-none landscape:max-w-[calc(100vw-20px)] coarse-landscape:max-w-[calc(100vw-16px)] " +
           "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text " +
           "font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap " +
           "text-center landscape:text-right"
         }
+        hidden={controls.mode === "scroll" && !open}
       >
         {pageNumberText(progress.pageNum, progress.totalPages)}
       </div>

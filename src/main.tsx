@@ -7,7 +7,12 @@ import {
 import { Fragment, h, render } from "preact";
 import { SettingsMenu } from "./components/SettingsMenu";
 import { TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS, TouchGalleryPanel } from "./components/Enhance/TouchGalleryPanel";
-import { TOUCH_SEARCH_OPTION_CLASS, TouchSearchPanel } from "./components/Enhance/TouchSearchPanel";
+import {
+  TOUCH_SEARCH_OPTION_CLASS,
+  TouchSearchAction,
+  TouchSearchCategoryToggle,
+  TouchSearchPanel,
+} from "./components/Enhance/TouchSearchPanel";
 import { TOUCH_TOP_BAR_MENU_ITEM_CLASS, TouchTopBar } from "./components/Enhance/TouchTopBar";
 import {
   EnhanceThumbsGrids,
@@ -345,6 +350,9 @@ function installTouchSearchPanel(): boolean {
 
   eh.prepareTouchSearchPanel(touchSearchInfo, TOUCH_SEARCH_OPTION_CLASS);
   render(<TouchSearchPanel source={touchSearchInfo} />, mount);
+  render(<TouchSearchCategoryToggle source={touchSearchInfo} />, touchSearchInfo.categoryToggleMount);
+  render(<TouchSearchAction action="search" source={touchSearchInfo} />, touchSearchInfo.searchActionMount);
+  render(<TouchSearchAction action="clear" source={touchSearchInfo} />, touchSearchInfo.clearActionMount);
   return true;
 }
 
