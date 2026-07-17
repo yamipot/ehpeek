@@ -1,4 +1,5 @@
 import {
+  enterReaderFullscreen,
   FullscreenReader,
   removePreviousReaderRoot,
   type FullscreenReaderHandle,
@@ -43,6 +44,11 @@ import themeCss from "./theme.css";
 const READER_WINDOW_SIZE = 10;
 const THEME_STYLE_ID = "ehpeek-theme-style";
 const UNO_STYLE_ID = "ehpeek-uno-style";
+
+type ReaderFullscreenLaunch = {
+  host: HTMLDivElement;
+  result: Promise<boolean>;
+};
 
 if (unoCss && !document.getElementById(UNO_STYLE_ID)) {
   const style = document.createElement("style");
@@ -99,8 +105,7 @@ function continueReadingState(): { info: ReadButtonInfo; onClick: () => void } |
         return;
       }
 
-      const fullscreenRequest = requestConfiguredReaderFullscreen();
-      void openReader(page.url, pageNum, fullscreenRequest).catch(reportOpenError);
+      openReaderFromUserAction(page.url, pageNum);
     },
   };
 }
@@ -139,11 +144,20 @@ function installSettingsMenu(): void {
   );
 }
 
-function openFullscreenReader(options: FullscreenReaderOptions): void {
+function createReaderHost(): HTMLDivElement {
+  const host = document.createElement("div");
+  host.dataset.ehpeekReaderContainer = "true";
+  return host;
+}
+
+function openFullscreenReader(
+  options: Omit<FullscreenReaderOptions, "fullscreenTarget">,
+  existingHost?: HTMLDivElement,
+): void {
   activeReader?.close();
   removePreviousReaderRoot();
 
-  const host = document.createElement("div");
+  const host = existingHost ?? createReaderHost();
   let handle: FullscreenReaderHandle | null = null;
   const close = () => {
     if (handle) {
@@ -162,12 +176,13 @@ function openFullscreenReader(options: FullscreenReaderOptions): void {
     }
   };
 
-  host.dataset.ehpeekReaderContainer = "true";
-  document.body.append(host);
+  if (!host.isConnected) {
+    document.body.append(host);
+  }
   activeReader = { close };
   render(
     <FullscreenReader
-      options={options}
+      options={{ ...options, fullscreenTarget: host }}
       handleRef={(nextHandle) => {
         handle = nextHandle;
       }}
@@ -398,7 +413,7 @@ if ((pageType.type === "search" || pageType.type === "favorites") && settingsSta
 async function openReader(
   startPageUrl: string,
   preferredPageNum?: number,
-  fullscreenRequest?: Promise<boolean>,
+  fullscreenLaunch?: ReaderFullscreenLaunch,
 ): Promise<void> {
   if (!state.reader.enabled.value) {
     return;
@@ -454,7 +469,13 @@ async function openReader(
     return;
   }
 
-  const automaticFullscreen = fullscreenRequest ? await fullscreenRequest : undefined;
+  const automaticFullscreen = fullscreenLaunch ? await fullscreenLaunch.result : undefined;
+
+  if (automaticFullscreen && document.fullscreenElement !== fullscreenLaunch?.host) {
+    historySession.dispose();
+    fullscreenLaunch?.host.remove();
+    return;
+  }
 
   openFullscreenReader({
     galleryId: pageType.galleryId,
@@ -506,7 +527,7 @@ async function openReader(
       historySession.dispose();
       window.location.assign(page.url);
     },
-  });
+  }, fullscreenLaunch?.host);
 }
 
 function reportOpenError(error: unknown): void {
@@ -515,24 +536,43 @@ function reportOpenError(error: unknown): void {
   window.alert(message);
 }
 
-function requestConfiguredReaderFullscreen(): Promise<boolean> | undefined {
+function openReaderFromUserAction(startPageUrl: string, preferredPageNum?: number): void {
+  const fullscreenLaunch = requestConfiguredReaderFullscreen();
+  void openReader(startPageUrl, preferredPageNum, fullscreenLaunch).catch((error: unknown) => {
+    if (fullscreenLaunch) {
+      if (document.fullscreenElement === fullscreenLaunch.host) {
+        void document.exitFullscreen().catch((fullscreenError: unknown) => {
+          console.warn("[ehpeek] Failed to exit fullscreen", fullscreenError);
+        });
+      }
+      fullscreenLaunch.host.remove();
+    }
+    reportOpenError(error);
+  });
+}
+
+function requestConfiguredReaderFullscreen(): ReaderFullscreenLaunch | undefined {
   if (!state.reader.enabled.value || !state.reader.fullscreen.value || document.fullscreenElement) {
     return undefined;
   }
 
-  const root = document.documentElement;
+  const host = createReaderHost();
+  document.body.append(host);
 
-  if (!document.fullscreenEnabled || typeof root.requestFullscreen !== "function") {
-    return Promise.resolve(false);
+  if (!document.fullscreenEnabled || typeof host.requestFullscreen !== "function") {
+    return { host, result: Promise.resolve(false) };
   }
 
-  return root.requestFullscreen().then(
-    () => true,
-    (error: unknown) => {
-      console.warn("[ehpeek] Fullscreen request failed", error);
-      return false;
-    },
-  );
+  return {
+    host,
+    result: enterReaderFullscreen(host).then(
+      () => true,
+      (error: unknown) => {
+        console.warn("[ehpeek] Fullscreen request failed", error);
+        return false;
+      },
+    ),
+  };
 }
 
 function onDocumentClick(event: MouseEvent): void {
@@ -548,8 +588,7 @@ function onDocumentClick(event: MouseEvent): void {
 
   event.preventDefault();
   event.stopPropagation();
-  const fullscreenRequest = requestConfiguredReaderFullscreen();
-  void openReader(link.href, undefined, fullscreenRequest).catch(reportOpenError);
+  openReaderFromUserAction(link.href);
 }
 
 async function openReaderFromHash(): Promise<void> {

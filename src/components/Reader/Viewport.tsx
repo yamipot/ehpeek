@@ -63,7 +63,7 @@ function pagesViewportDom(options: { onReloadPage: (pageNum: number) => void }) 
     "[#ehpeek-reader[data-view-mode=paged]_&]:(overflow-hidden touch-none select-none)";
   scroller.tabIndex = -1;
   strip.className =
-    "flex flex-col w-full min-h-full py-56px px-0 pb-72px " +
+    "ehpeek-reader-page-strip flex flex-col w-full min-h-full py-56px px-0 pb-72px " +
     "[#ehpeek-reader[data-view-mode=paged]_&]:(flex-row w-auto h-full min-h-0 p-0)";
   scroller.append(strip);
 
@@ -209,7 +209,7 @@ function errorPlaceholderDom(pageNum: number, text: string, onReloadPage: (pageN
     event.stopPropagation();
   };
 
-  button.className = "inline-flex w-64px h-64px items-center justify-center border border-[var(--color-danger-border)] rounded-full bg-[var(--color-danger-soft)] text-[var(--color-danger)] cursor-pointer font-sans text-34px font-700 leading-1 active:scale-96 [touch-action:manipulation]";
+  button.className = "ehpeek-reader-page-reload inline-flex w-64px h-64px items-center justify-center border border-[var(--color-danger-border)] rounded-full bg-[var(--color-danger-soft)] text-[var(--color-danger)] cursor-pointer font-sans text-34px font-700 leading-1 active:scale-96 [touch-action:manipulation]";
   button.type = "button";
   button.setAttribute("aria-label", texts.reader.reload);
   icon.setAttribute("aria-hidden", "true");

@@ -42,8 +42,31 @@ const DOUBLE_TAP_DISTANCE = 36;
 const TAP_CANCEL_DISTANCE = 8;
 const FALLBACK_ASPECT_RATIO = 1.42;
 const FULLSCREEN_HINT_MS = 5000;
+const FULLSCREEN_UI_SCALE_PROPERTY = "--ehpeek-reader-fullscreen-ui-scale";
+const FULLSCREEN_PROGRESS_SIZE_PROPERTY = "--ehpeek-reader-fullscreen-progress-size";
+
+export async function enterReaderFullscreen(target: HTMLElement): Promise<void> {
+  const scaleBefore = window.visualViewport?.scale ?? 1;
+  await target.requestFullscreen();
+  await new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+
+  const scaleAfter = window.visualViewport?.scale ?? 1;
+  const uiScale = clamp(scaleBefore / Math.max(scaleAfter, 0.01), 0.25, 1);
+  const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+  const progressSize = coarsePointer ? 30 : 20;
+  target.style.setProperty(FULLSCREEN_UI_SCALE_PROPERTY, String(uiScale));
+  target.style.setProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY, `${progressSize * uiScale}px`);
+}
+
+function clearReaderFullscreenScale(target: HTMLElement): void {
+  target.style.removeProperty(FULLSCREEN_UI_SCALE_PROPERTY);
+  target.style.removeProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY);
+}
 
 export type FullscreenReaderOptions = {
+  fullscreenTarget: HTMLElement;
   galleryId: number;
   pages: ReaderPage[];
   startIndex: number;
@@ -101,7 +124,7 @@ type GesturePinchMove = GesturePinchStart & {
 
 type PagesGestureCallbacks = {
   onTap: (info: GestureTap, event: PointerEvent | MouseEvent) => void;
-  onKeyboardClose: () => void;
+  onKeyboardClose: () => boolean;
   onKeyboardArrow: (direction: "left" | "right") => void;
   onWheel: (delta: number, event: WheelEvent) => void;
   shouldStartDrag: (event: PointerEvent) => boolean;
@@ -404,8 +427,9 @@ function handlePagesKeydown(event: KeyboardEvent, callbacks: PagesGestureCallbac
   }
 
   if (event.key === "Escape") {
-    event.preventDefault();
-    callbacks.onKeyboardClose();
+    if (callbacks.onKeyboardClose()) {
+      event.preventDefault();
+    }
     return;
   }
 
@@ -508,6 +532,7 @@ class ReaderSession {
   private readonly pages = new Map<number, ReaderPage>();
   private readonly loadedImages = new Map<number, LoadedReaderImage>();
   private readonly galleryId: number;
+  private readonly fullscreenTarget: HTMLElement;
   private currentPageNum: number;
   private direction: Direction = 1;
   private readonly totalPages: number | undefined;
@@ -545,9 +570,13 @@ class ReaderSession {
   private closing = false;
   private closed = false;
   private ownsFullscreen: boolean;
+  private fullscreenWasActive: boolean;
+  private keepReaderAfterFullscreenExit = false;
   private readonly initialFullscreenHint: boolean;
 
   constructor(options: FullscreenReaderOptions, bindings: ReaderSessionBindings) {
+    this.fullscreenTarget = options.fullscreenTarget;
+    this.fullscreenWasActive = document.fullscreenElement === this.fullscreenTarget;
     this.galleryId = options.galleryId;
     this.totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : undefined;
     this.renderWindowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE;
@@ -718,12 +747,13 @@ class ReaderSession {
     document.removeEventListener("fullscreenchange", this.onFullscreenChange);
     this.clearFullscreenHintTimer();
 
-    if (this.ownsFullscreen && document.fullscreenElement) {
+    if (this.ownsFullscreen && document.fullscreenElement === this.fullscreenTarget) {
       this.ownsFullscreen = false;
       void document.exitFullscreen().catch((error: unknown) => {
         console.warn("[ehpeek] Failed to exit fullscreen", error);
       });
     }
+    clearReaderFullscreenScale(this.fullscreenTarget);
 
     if (this.scrollFrame !== null) {
       window.cancelAnimationFrame(this.scrollFrame);
@@ -1158,24 +1188,23 @@ class ReaderSession {
     return false;
   }
 
-  private handleKeyboardClose(): void {
+  private handleKeyboardClose(): boolean {
     if (this.toolbarState.downloadDialog) {
       this.closeDownloadDialog();
-      return;
+      return true;
     }
 
     if (this.zoomOverlay.active()) {
       this.zoomOverlay.close();
-      return;
+      return true;
     }
 
-    if (document.fullscreenElement) {
-      this.ownsFullscreen = false;
-      void document.exitFullscreen().catch(() => this.showFullscreenHint());
-      return;
+    if (document.fullscreenElement === this.fullscreenTarget) {
+      return false;
     }
 
     this.close();
+    return true;
   }
 
   private handlePinchStart(info: { clientX: number; clientY: number }): boolean {
@@ -1389,21 +1418,25 @@ class ReaderSession {
   }
 
   private async toggleFullscreen(): Promise<void> {
-    if (document.fullscreenElement) {
+    if (document.fullscreenElement === this.fullscreenTarget) {
       this.ownsFullscreen = false;
+      this.keepReaderAfterFullscreenExit = true;
 
       try {
         await document.exitFullscreen();
       } catch (error) {
+        this.keepReaderAfterFullscreenExit = false;
         console.warn("[ehpeek] Failed to exit fullscreen", error);
         this.showFullscreenHint();
       }
       return;
     }
 
-    const root = document.documentElement;
-
-    if (!document.fullscreenEnabled || typeof root.requestFullscreen !== "function") {
+    if (
+      document.fullscreenElement ||
+      !document.fullscreenEnabled ||
+      typeof this.fullscreenTarget.requestFullscreen !== "function"
+    ) {
       this.showFullscreenHint();
       return;
     }
@@ -1411,7 +1444,7 @@ class ReaderSession {
     this.ownsFullscreen = true;
 
     try {
-      await root.requestFullscreen();
+      await enterReaderFullscreen(this.fullscreenTarget);
     } catch (error) {
       this.ownsFullscreen = false;
       console.warn("[ehpeek] Fullscreen request failed", error);
@@ -1420,23 +1453,34 @@ class ReaderSession {
   }
 
   private readonly onFullscreenChange = (): void => {
-    if (!document.fullscreenElement) {
+    const fullscreenActive = document.fullscreenElement === this.fullscreenTarget;
+    const fullscreenExited = this.fullscreenWasActive && !fullscreenActive;
+    const keepReaderOpen = this.keepReaderAfterFullscreenExit;
+    this.fullscreenWasActive = fullscreenActive;
+    this.keepReaderAfterFullscreenExit = false;
+
+    if (!fullscreenActive) {
       this.ownsFullscreen = false;
+      clearReaderFullscreenScale(this.fullscreenTarget);
     }
 
     this.clearFullscreenHintTimer();
     this.toolbarState = {
       ...this.toolbarState,
-      fullscreenActive: Boolean(document.fullscreenElement),
+      fullscreenActive,
       fullscreenHint: false,
     };
     this.setToolbarComponentState(this.toolbarState);
+
+    if (fullscreenExited && !keepReaderOpen) {
+      this.close();
+    }
   };
 
   private syncFullscreenState(): void {
     this.toolbarState = {
       ...this.toolbarState,
-      fullscreenActive: Boolean(document.fullscreenElement),
+      fullscreenActive: document.fullscreenElement === this.fullscreenTarget,
     };
     this.setToolbarComponentState(this.toolbarState);
   }

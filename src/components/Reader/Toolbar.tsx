@@ -29,16 +29,6 @@ const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
   minute: "2-digit",
 });
 
-type BatteryManagerLike = {
-  level: number;
-  addEventListener: (type: "levelchange", listener: EventListener) => void;
-  removeEventListener: (type: "levelchange", listener: EventListener) => void;
-};
-
-type NavigatorWithBattery = Navigator & {
-  getBattery?: () => Promise<BatteryManagerLike>;
-};
-
 const DOWNLOAD_OPTION_CLASS = [
   "flex w-full min-h-lg flex-col items-start justify-center gap-xs px-lg py-md rounded-md",
   "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer text-left",
@@ -106,13 +96,13 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
   const modeButton = modeButtonInfo(controls.mode);
   const readDirectionButton = readDirectionButtonInfo(controls.readDirection);
   const rightTapButton = rightTapButtonInfo(controls.rightTapAction);
-  const fullscreenStatus = useFullscreenStatus(props.state.fullscreenActive);
+  const fullscreenTime = useFullscreenTime(props.state.fullscreenActive);
 
   return (
     <>
       <div
         className={
-          "fixed z-3 flex justify-end pointer-events-none " +
+          "ehpeek-reader-toolbar fixed z-3 flex justify-end pointer-events-none " +
           "top-[calc(10px+env(safe-area-inset-top,0px))] right-10px " +
           "coarse:top-[calc(8px+env(safe-area-inset-top,0px))] coarse:right-8px"
         }
@@ -120,7 +110,7 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div className={`flex flex-row gap-md coarse:gap-lg pointer-events-auto${open ? "" : " !hidden"}`}>
+        <div className={`ehpeek-reader-toolbar-buttons flex flex-row gap-md coarse:gap-lg pointer-events-auto${open ? "" : " !hidden"}`}>
           <button
             type="button"
             className={READER_BUTTON_CLASS}
@@ -172,7 +162,7 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
       </div>
       <div
         className={
-          "fixed z-3 pointer-events-none " +
+          "ehpeek-reader-page-number fixed z-3 pointer-events-none " +
           "top-[calc(70px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 " +
           "coarse:top-[calc(80px+env(safe-area-inset-top,0px))] " +
           "landscape:top-[calc(62px+env(safe-area-inset-top,0px))] landscape:(left-auto right-10px translate-x-0) " +
@@ -182,29 +172,21 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           "font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap " +
           "text-center landscape:text-right"
         }
-        hidden={controls.mode === "scroll" && !open}
+        hidden={controls.mode === "scroll" && !open && !props.state.fullscreenActive}
       >
         {pageNumberText(progress.pageNum, progress.totalPages)}
       </div>
       {props.state.fullscreenActive ? (
         <div
           className={
-            "fixed z-3 flex items-center gap-sm pointer-events-none " +
+            "ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none " +
             "top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] " +
-            "landscape:top-[calc(90px+env(safe-area-inset-top,0px))] landscape:(left-auto right-10px) " +
-            "coarse-landscape:top-[calc(106px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px " +
             "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text " +
             "font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap"
           }
           role="status"
         >
-          <span>{fullscreenStatus.time}</span>
-          {fullscreenStatus.batteryPercent === null ? null : (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>{fullscreenStatus.batteryPercent}%</span>
-            </>
-          )}
+          <span>{fullscreenTime}</span>
         </div>
       ) : null}
       <div
@@ -219,7 +201,7 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
         onWheel={stopEvent}
       >
         <ProgressBar
-          className="text-xl coarse:text-3xl"
+          className="ehpeek-reader-progress text-xl coarse:text-3xl"
           direction={controls.readDirection === "rtl" ? "rtl" : "ltr"}
           fillPercent={progressFillPercent(progress)}
           keepInputValue={progress.keepInputValue}
@@ -261,7 +243,7 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           onPointerDown={stopEvent}
           onWheel={stopEvent}
         >
-          <div className="w-full max-w-420px p-lg rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] shadow-xl">
+          <div className="ehpeek-reader-download-dialog-panel w-full max-w-420px p-lg rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] shadow-xl">
             <div className="flex items-center justify-between gap-md mb-lg">
               <div className="font-sans textsize-lg font-700">{`${texts.reader.download} · ${downloadDialog.pageNum}`}</div>
               <button
@@ -300,9 +282,8 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
   );
 }
 
-function useFullscreenStatus(enabled: boolean): { time: string; batteryPercent: number | null } {
+function useFullscreenTime(enabled: boolean): string {
   const [time, setTime] = useState(() => TIME_FORMATTER.format(new Date()));
-  const [batteryPercent, setBatteryPercent] = useState<number | null>(null);
 
   useEffect(() => {
     if (!enabled) {
@@ -324,51 +305,7 @@ function useFullscreenStatus(enabled: boolean): { time: string; batteryPercent: 
     };
   }, [enabled]);
 
-  useEffect(() => {
-    if (!enabled) {
-      setBatteryPercent(null);
-      return;
-    }
-
-    const getBattery = (navigator as NavigatorWithBattery).getBattery;
-
-    if (!getBattery) {
-      setBatteryPercent(null);
-      return;
-    }
-
-    let battery: BatteryManagerLike | null = null;
-    let disposed = false;
-    const updateBattery = () => {
-      if (battery) {
-        setBatteryPercent(Math.round(Math.min(1, Math.max(0, battery.level)) * 100));
-      }
-    };
-
-    void getBattery.call(navigator).then(
-      (nextBattery) => {
-        if (disposed) {
-          return;
-        }
-
-        battery = nextBattery;
-        updateBattery();
-        battery.addEventListener("levelchange", updateBattery);
-      },
-      () => {
-        if (!disposed) {
-          setBatteryPercent(null);
-        }
-      },
-    );
-
-    return () => {
-      disposed = true;
-      battery?.removeEventListener("levelchange", updateBattery);
-    };
-  }, [enabled]);
-
-  return { time, batteryPercent };
+  return time;
 }
 
 function progressFillPercent(progress: PageProgress): number {
