@@ -15,6 +15,7 @@ export type IconName =
   | "heart"
   | "home"
   | "menu"
+  | "panda-peek"
   | "settings"
   | "star";
 
@@ -44,6 +45,9 @@ export function Icon(props: {
       aria-hidden="true"
       focusable="false"
     >
+      {definition.filledPaths?.map((path) => (
+        <path key={`filled-${path}`} d={path} fill="currentColor" stroke="none" />
+      ))}
       {definition.paths.map((path) => (
         <path key={path} d={path} />
       ))}
@@ -53,6 +57,7 @@ export function Icon(props: {
 
 type IconDefinition = {
   fillable?: boolean;
+  filledPaths?: readonly string[];
   paths: readonly string[];
   solid?: boolean;
 };
@@ -103,6 +108,22 @@ const ICON_DEFINITIONS: Record<IconName, IconDefinition> = {
       "M12 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z",
     ],
     solid: true,
+  },
+  "panda-peek": {
+    filledPaths: [
+      "M7.2 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8Z",
+      "M16.8 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8Z",
+      "M7.6 9.8c.5-1.2 1.6-1.8 2.6-1.3s1.3 1.8.8 3-1.6 1.8-2.6 1.3-1.3-1.8-.8-3Z",
+      "M13.8 8.5c1-.5 2.1.1 2.6 1.3s.2 2.5-.8 3-2.1-.1-2.6-1.3-.2-2.5.8-3Z",
+      "M10.9 13.6c0-.6.5-.9 1.1-.9s1.1.3 1.1.9-.5 1-1.1 1-1.1-.4-1.1-1Z",
+      "M5.2 13.7a2.8 1.9 0 1 0 0 3.8 2.8 1.9 0 0 0 0-3.8Z",
+      "M18.8 14.1a2.8 1.9 0 1 0 0 3.8 2.8 1.9 0 0 0 0-3.8Z",
+    ],
+    paths: [
+      "M5 17c-.8-6.4 2.1-10.8 7-10.8s7.8 4.4 7 10.8",
+      "M12 14.6v.7c0 .7-.6 1.2-1.3 1.2m1.3-1.2c0 .7.6 1.2 1.3 1.2",
+      "M2 17h20",
+    ],
   },
   settings: {
     paths: [

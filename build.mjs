@@ -14,6 +14,7 @@ const debugBuild = process.env.EHPEEK_DEBUG === "true";
 const installUrl = userscriptInstallUrl();
 const version = userscriptVersion();
 const unoCss = await generateUnoCss();
+const projectIconUrl = "https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg";
 
 const metadata = [
   "// ==UserScript==",
@@ -21,6 +22,8 @@ const metadata = [
   `// @namespace    ehpeek`,
   `// @version      ${version}`,
   `// @description  ${texts.description}`,
+  `// @icon         ${projectIconUrl}`,
+  `// @icon64       ${projectIconUrl}`,
   "// @match        *://e-hentai.org/*",
   "// @match        *://exhentai.org/*",
   "// @grant        GM_getValue",

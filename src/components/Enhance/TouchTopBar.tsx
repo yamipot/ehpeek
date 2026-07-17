@@ -68,7 +68,17 @@ function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
 
 export function TouchTopBar(props: { info: eh.TouchTopBarInfo; onSettingsMenuOpen: () => void }) {
   return (
-    <nav className="ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-56px items-center justify-end py-sm px-[max(16px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans">
+    <nav className="ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-56px items-center justify-between py-sm pl-[max(16px,env(safe-area-inset-left,0px))] pr-[max(16px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans">
+      <a
+        className={`ehpeek-touch-top-bar-project ${TOUCH_ICON_BUTTON_CLASS}`}
+        href="https://github.com/yamipot/ehpeek"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={texts.navigation.github}
+        title={texts.navigation.github}
+      >
+        <Icon name="panda-peek" size={36} strokeWidth={1.8} />
+      </a>
       <div className="flex items-center gap-xs">
         <a
           className={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`}

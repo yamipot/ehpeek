@@ -1,3 +1,5 @@
+<p align="center"><img src="./icon.svg" width="96" alt="ehpeek panda icon"></p>
+
 # ehpeek
 
 Another reader for E-H / ExH galleries. Optmized for touchscreen and mobile.
