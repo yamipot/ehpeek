@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ehpeek: E-H/ExH viewer
 // @namespace    ehpeek
-// @version      260717.1631
+// @version      260717.1659
 // @description  A mobile-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -899,7 +899,7 @@
   var FALLBACK_ASPECT_RATIO = 1.42;
   function pagesViewportDom(options) {
     let scroller = document.createElement("div"), strip = document.createElement("main");
-    scroller.className = "w-full h-full overflow-auto overscroll-contain scroll-auto touch-pan-y cursor-grab scrollbar-hidden [&[data-dragging=true]]:cursor-grabbing [&[data-dragging=true]]:select-none [#ehpeek-reader[data-view-mode=paged]_&]:overflow-hidden [#ehpeek-reader[data-view-mode=paged]_&]:touch-none [#ehpeek-reader[data-view-mode=paged]_&]:select-none", scroller.tabIndex = -1, strip.className = "flex flex-col w-full min-h-full py-56px px-0 pb-72px [#ehpeek-reader[data-view-mode=paged]_&]:flex-row [#ehpeek-reader[data-view-mode=paged]_&]:w-auto [#ehpeek-reader[data-view-mode=paged]_&]:h-full [#ehpeek-reader[data-view-mode=paged]_&]:min-h-0 [#ehpeek-reader[data-view-mode=paged]_&]:p-0", scroller.append(strip);
+    scroller.className = "w-full h-full overflow-auto overscroll-contain scroll-auto touch-pan-y cursor-grab scrollbar-hidden [&[data-dragging=true]]:cursor-grabbing [&[data-dragging=true]]:select-none [#ehpeek-reader[data-view-mode=paged]_&]:overflow-hidden [#ehpeek-reader[data-view-mode=paged]_&]:touch-none [#ehpeek-reader[data-view-mode=paged]_&]:select-none", scroller.tabIndex = -1, strip.className = "ehpeek-reader-page-strip flex flex-col w-full min-h-full py-56px px-0 pb-72px [#ehpeek-reader[data-view-mode=paged]_&]:flex-row [#ehpeek-reader[data-view-mode=paged]_&]:w-auto [#ehpeek-reader[data-view-mode=paged]_&]:h-full [#ehpeek-reader[data-view-mode=paged]_&]:min-h-0 [#ehpeek-reader[data-view-mode=paged]_&]:p-0", scroller.append(strip);
     let setOrder = (elements, visualIndex) => {
       elements.node.style.setProperty("order", String(visualIndex)), elements.node.dataset.ehpeekIndex = String(visualIndex);
     }, setPageNum = (elements, pageNum) => {
@@ -954,7 +954,7 @@
     let button = document.createElement("button"), icon = document.createElement("span"), placeholder = document.createElement("div"), message = document.createElement("div"), stop = (event) => {
       event.preventDefault(), event.stopPropagation();
     };
-    return button.className = "inline-flex w-64px h-64px items-center justify-center border border-[var(--color-danger-border)] rounded-full bg-[var(--color-danger-soft)] text-[var(--color-danger)] cursor-pointer font-sans text-34px font-700 leading-1 active:scale-96 [touch-action:manipulation]", button.type = "button", button.setAttribute("aria-label", texts_default.reader.reload), icon.setAttribute("aria-hidden", "true"), icon.textContent = "↻", button.append(icon), placeholder.className = "flex w-full h-full flex-col items-center justify-center gap-lg bg-[var(--color-surface)] p-xl text-[var(--color-danger)] text-center text-18px font-700 leading-1", message.className = "max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]", message.textContent = text, placeholder.append(message, button), button.addEventListener("pointerdown", stop), button.addEventListener("click", (event) => {
+    return button.className = "ehpeek-reader-page-reload inline-flex w-64px h-64px items-center justify-center border border-[var(--color-danger-border)] rounded-full bg-[var(--color-danger-soft)] text-[var(--color-danger)] cursor-pointer font-sans text-34px font-700 leading-1 active:scale-96 [touch-action:manipulation]", button.type = "button", button.setAttribute("aria-label", texts_default.reader.reload), icon.setAttribute("aria-hidden", "true"), icon.textContent = "↻", button.append(icon), placeholder.className = "flex w-full h-full flex-col items-center justify-center gap-lg bg-[var(--color-surface)] p-xl text-[var(--color-danger)] text-center text-18px font-700 leading-1", message.className = "max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]", message.textContent = text, placeholder.append(message, button), button.addEventListener("pointerdown", stop), button.addEventListener("click", (event) => {
       stop(event), onReloadPage(pageNum);
     }), placeholder;
   }
@@ -1461,16 +1461,16 @@
     };
   }
   function Toolbar(props) {
-    let controls = props.state.controls, progress = props.state.progress, downloadDialog = props.state.downloadDialog, open = props.state.open, modeButton = modeButtonInfo(controls.mode), readDirectionButton = readDirectionButtonInfo(controls.readDirection), rightTapButton = rightTapButtonInfo(controls.rightTapAction), fullscreenStatus = useFullscreenStatus(props.state.fullscreenActive);
+    let controls = props.state.controls, progress = props.state.progress, downloadDialog = props.state.downloadDialog, open = props.state.open, modeButton = modeButtonInfo(controls.mode), readDirectionButton = readDirectionButtonInfo(controls.readDirection), rightTapButton = rightTapButtonInfo(controls.rightTapAction), fullscreenTime = useFullscreenTime(props.state.fullscreenActive);
     return /* @__PURE__ */ k(S, null, /* @__PURE__ */ k(
       "div",
       {
-        className: "fixed z-3 flex justify-end pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] right-10px coarse:top-[calc(8px+env(safe-area-inset-top,0px))] coarse:right-8px",
+        className: "ehpeek-reader-toolbar fixed z-3 flex justify-end pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] right-10px coarse:top-[calc(8px+env(safe-area-inset-top,0px))] coarse:right-8px",
         onClick: stopEvent,
         onPointerDown: stopEvent,
         onWheel: stopEvent
       },
-      /* @__PURE__ */ k("div", { className: `flex flex-row gap-md coarse:gap-lg pointer-events-auto${open ? "" : " !hidden"}` }, /* @__PURE__ */ k(
+      /* @__PURE__ */ k("div", { className: `ehpeek-reader-toolbar-buttons flex flex-row gap-md coarse:gap-lg pointer-events-auto${open ? "" : " !hidden"}` }, /* @__PURE__ */ k(
         "button",
         {
           type: "button",
@@ -1520,18 +1520,17 @@
     ), /* @__PURE__ */ k(
       "div",
       {
-        className: "fixed z-3 pointer-events-none top-[calc(70px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 coarse:top-[calc(80px+env(safe-area-inset-top,0px))] landscape:top-[calc(62px+env(safe-area-inset-top,0px))] landscape:left-auto landscape:right-10px landscape:translate-x-0 coarse-landscape:top-[calc(74px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px min-w-64px landscape:min-w-0 max-w-none landscape:max-w-[calc(100vw-20px)] coarse-landscape:max-w-[calc(100vw-16px)] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap text-center landscape:text-right",
-        hidden: controls.mode === "scroll" && !open
+        className: "ehpeek-reader-page-number fixed z-3 pointer-events-none top-[calc(70px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 coarse:top-[calc(80px+env(safe-area-inset-top,0px))] landscape:top-[calc(62px+env(safe-area-inset-top,0px))] landscape:left-auto landscape:right-10px landscape:translate-x-0 coarse-landscape:top-[calc(74px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px min-w-64px landscape:min-w-0 max-w-none landscape:max-w-[calc(100vw-20px)] coarse-landscape:max-w-[calc(100vw-16px)] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap text-center landscape:text-right",
+        hidden: controls.mode === "scroll" && !open && !props.state.fullscreenActive
       },
       pageNumberText(progress.pageNum, progress.totalPages)
     ), props.state.fullscreenActive ? /* @__PURE__ */ k(
       "div",
       {
-        className: "fixed z-3 flex items-center gap-sm pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] landscape:top-[calc(90px+env(safe-area-inset-top,0px))] landscape:left-auto landscape:right-10px coarse-landscape:top-[calc(106px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap",
+        className: "ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap",
         role: "status"
       },
-      /* @__PURE__ */ k("span", null, fullscreenStatus.time),
-      fullscreenStatus.batteryPercent === null ? null : /* @__PURE__ */ k(S, null, /* @__PURE__ */ k("span", { "aria-hidden": "true" }, "·"), /* @__PURE__ */ k("span", null, fullscreenStatus.batteryPercent, "%"))
+      /* @__PURE__ */ k("span", null, fullscreenTime)
     ) : null, /* @__PURE__ */ k(
       "div",
       {
@@ -1544,7 +1543,7 @@
       /* @__PURE__ */ k(
         ProgressBar,
         {
-          className: "text-xl coarse:text-3xl",
+          className: "ehpeek-reader-progress text-xl coarse:text-3xl",
           direction: controls.readDirection === "rtl" ? "rtl" : "ltr",
           fillPercent: progressFillPercent(progress),
           keepInputValue: progress.keepInputValue,
@@ -1578,7 +1577,7 @@
         onPointerDown: stopEvent,
         onWheel: stopEvent
       },
-      /* @__PURE__ */ k("div", { className: "w-full max-w-420px p-lg rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] shadow-xl" }, /* @__PURE__ */ k("div", { className: "flex items-center justify-between gap-md mb-lg" }, /* @__PURE__ */ k("div", { className: "font-sans textsize-lg font-700" }, `${texts_default.reader.download} · ${downloadDialog.pageNum}`), /* @__PURE__ */ k(
+      /* @__PURE__ */ k("div", { className: "ehpeek-reader-download-dialog-panel w-full max-w-420px p-lg rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] shadow-xl" }, /* @__PURE__ */ k("div", { className: "flex items-center justify-between gap-md mb-lg" }, /* @__PURE__ */ k("div", { className: "font-sans textsize-lg font-700" }, `${texts_default.reader.download} · ${downloadDialog.pageNum}`), /* @__PURE__ */ k(
         "button",
         {
           type: "button",
@@ -1601,8 +1600,8 @@
       )))
     ) : null);
   }
-  function useFullscreenStatus(enabled) {
-    let [time, setTime] = d2(() => TIME_FORMATTER.format(/* @__PURE__ */ new Date())), [batteryPercent, setBatteryPercent] = d2(null);
+  function useFullscreenTime(enabled) {
+    let [time, setTime] = d2(() => TIME_FORMATTER.format(/* @__PURE__ */ new Date()));
     return h2(() => {
       if (!enabled)
         return;
@@ -1614,30 +1613,7 @@
       return () => {
         window.clearTimeout(timeout), interval !== null && window.clearInterval(interval);
       };
-    }, [enabled]), h2(() => {
-      if (!enabled) {
-        setBatteryPercent(null);
-        return;
-      }
-      let getBattery = navigator.getBattery;
-      if (!getBattery) {
-        setBatteryPercent(null);
-        return;
-      }
-      let battery = null, disposed = !1, updateBattery = () => {
-        battery && setBatteryPercent(Math.round(Math.min(1, Math.max(0, battery.level)) * 100));
-      };
-      return getBattery.call(navigator).then(
-        (nextBattery) => {
-          disposed || (battery = nextBattery, updateBattery(), battery.addEventListener("levelchange", updateBattery));
-        },
-        () => {
-          disposed || setBatteryPercent(null);
-        }
-      ), () => {
-        disposed = !0, battery?.removeEventListener("levelchange", updateBattery);
-      };
-    }, [enabled]), { time, batteryPercent };
+    }, [enabled]), time;
   }
   function progressFillPercent(progress) {
     let max = Math.max(1, progress.maxProgressPageNum), value = Math.min(max, Math.max(1, progress.pageNum));
@@ -1741,10 +1717,69 @@
 #ehpeek-reader * {
   box-sizing: border-box;
 }
+
+[data-ehpeek-reader-container="true"]:fullscreen {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-background);
+}
+
+[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-toolbar-buttons {
+  transform: scale(var(--ehpeek-reader-fullscreen-ui-scale, 1));
+  transform-origin: top right;
+}
+
+[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-download-dialog-panel,
+[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-page-reload {
+  transform: scale(var(--ehpeek-reader-fullscreen-ui-scale, 1));
+  transform-origin: center;
+}
+
+[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-progress {
+  font-size: var(--ehpeek-reader-fullscreen-progress-size, 20px);
+}
+
+[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-fullscreen-status {
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  right: max(10px, env(safe-area-inset-right, 0px));
+  left: auto;
+}
+
+[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-page-number {
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  right: auto;
+  left: max(10px, env(safe-area-inset-left, 0px));
+  min-width: 0;
+  transform: none;
+  text-align: left;
+}
+
+[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-toolbar {
+  top: calc(42px + env(safe-area-inset-top, 0px));
+}
+
+[data-ehpeek-reader-container="true"]:fullscreen
+  #ehpeek-reader[data-view-mode="scroll"]
+  .ehpeek-reader-page-strip {
+  padding-top: 0;
+}
 `;
 
   // src/components/Reader/index.tsx
-  var VIEWER_ID = "ehpeek-reader", STYLE_ID = "ehpeek-reader-style", DEFAULT_WINDOW_SIZE = 10, DEFAULT_NEAR_CONCURRENT_LOADS = 3, DEFAULT_FAR_CONCURRENT_LOADS = 6, NEAR_LOAD_AHEAD = 3, PAGED_SWIPE_THRESHOLD = 24, PAGED_WHEEL_THRESHOLD = 8, PROGRESS_IDLE_COMMIT_MS = 1e3, DOUBLE_TAP_MS = 340, DOUBLE_TAP_DISTANCE = 36, TAP_CANCEL_DISTANCE = 8, FALLBACK_ASPECT_RATIO2 = 1.42, FULLSCREEN_HINT_MS = 5e3, TwoTierImageQueue = class {
+  var VIEWER_ID = "ehpeek-reader", STYLE_ID = "ehpeek-reader-style", DEFAULT_WINDOW_SIZE = 10, DEFAULT_NEAR_CONCURRENT_LOADS = 3, DEFAULT_FAR_CONCURRENT_LOADS = 6, NEAR_LOAD_AHEAD = 3, PAGED_SWIPE_THRESHOLD = 24, PAGED_WHEEL_THRESHOLD = 8, PROGRESS_IDLE_COMMIT_MS = 1e3, DOUBLE_TAP_MS = 340, DOUBLE_TAP_DISTANCE = 36, TAP_CANCEL_DISTANCE = 8, FALLBACK_ASPECT_RATIO2 = 1.42, FULLSCREEN_HINT_MS = 5e3, FULLSCREEN_UI_SCALE_PROPERTY = "--ehpeek-reader-fullscreen-ui-scale", FULLSCREEN_PROGRESS_SIZE_PROPERTY = "--ehpeek-reader-fullscreen-progress-size";
+  async function enterReaderFullscreen(target) {
+    let scaleBefore = window.visualViewport?.scale ?? 1;
+    await target.requestFullscreen(), await new Promise((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+    let scaleAfter = window.visualViewport?.scale ?? 1, uiScale = clamp(scaleBefore / Math.max(scaleAfter, 0.01), 0.25, 1), progressSize = window.matchMedia("(pointer: coarse)").matches ? 30 : 20;
+    target.style.setProperty(FULLSCREEN_UI_SCALE_PROPERTY, String(uiScale)), target.style.setProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY, `${progressSize * uiScale}px`);
+  }
+  function clearReaderFullscreenScale(target) {
+    target.style.removeProperty(FULLSCREEN_UI_SCALE_PROPERTY), target.style.removeProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY);
+  }
+  var TwoTierImageQueue = class {
     constructor(loadTarget, markLoading, onLoaded, onError, nearConcurrentLoads, farConcurrentLoads) {
       this.loadTarget = loadTarget;
       this.markLoading = markLoading;
@@ -1877,7 +1912,7 @@
   function handlePagesKeydown(event, callbacks) {
     if (!shouldIgnoreKeyboardEvent(event)) {
       if (event.key === "Escape") {
-        event.preventDefault(), callbacks.onKeyboardClose();
+        callbacks.onKeyboardClose() && event.preventDefault();
         return;
       }
       if (event.key === "ArrowLeft") {
@@ -1946,6 +1981,7 @@
       this.historyEntry = !1;
       this.closing = !1;
       this.closed = !1;
+      this.keepReaderAfterFullscreenExit = !1;
       this.onPopState = () => {
         this.historyEntry && (this.historyEntry = !1, this.finishClose(), this.onExit?.());
       };
@@ -1976,18 +2012,19 @@
         this.progressNavigating = !1, this.pendingProgressNavigationPageNum = null, this.cancelProgressNavigation(), Number.isFinite(pageNum) && pageNum > 0 && this.setCurrentPageNumber(pageNum, !0);
       };
       this.onFullscreenChange = () => {
-        document.fullscreenElement || (this.ownsFullscreen = !1), this.clearFullscreenHintTimer(), this.toolbarState = {
+        let fullscreenActive = document.fullscreenElement === this.fullscreenTarget, fullscreenExited = this.fullscreenWasActive && !fullscreenActive, keepReaderOpen = this.keepReaderAfterFullscreenExit;
+        this.fullscreenWasActive = fullscreenActive, this.keepReaderAfterFullscreenExit = !1, fullscreenActive || (this.ownsFullscreen = !1, clearReaderFullscreenScale(this.fullscreenTarget)), this.clearFullscreenHintTimer(), this.toolbarState = {
           ...this.toolbarState,
-          fullscreenActive: !!document.fullscreenElement,
+          fullscreenActive,
           fullscreenHint: !1
-        }, this.setToolbarComponentState(this.toolbarState);
+        }, this.setToolbarComponentState(this.toolbarState), fullscreenExited && !keepReaderOpen && this.close();
       };
       this.onResize = () => {
         this.resizeFrame === null && (this.resizeFrame = window.requestAnimationFrame(() => {
           this.resizeFrame = null, this.viewport.resizePages();
         }));
       };
-      this.galleryId = options.galleryId, this.totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : void 0, this.renderWindowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE;
+      this.fullscreenTarget = options.fullscreenTarget, this.fullscreenWasActive = document.fullscreenElement === this.fullscreenTarget, this.galleryId = options.galleryId, this.totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : void 0, this.renderWindowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE;
       for (let [index, page] of options.pages.entries()) {
         let pageNum = pageNumForPage(page, index);
         this.pages.set(pageNum, {
@@ -2081,9 +2118,9 @@
       this.cleanup() && this.closeComponent();
     }
     cleanup() {
-      return this.closed ? !1 : (this.closed = !0, this.cancelProgressNavigation(), this.cancelPendingTap(), this.imageQueue.dispose(), window.removeEventListener("resize", this.onResize), window.removeEventListener("popstate", this.onPopState), document.removeEventListener("fullscreenchange", this.onFullscreenChange), this.clearFullscreenHintTimer(), this.ownsFullscreen && document.fullscreenElement && (this.ownsFullscreen = !1, document.exitFullscreen().catch((error) => {
+      return this.closed ? !1 : (this.closed = !0, this.cancelProgressNavigation(), this.cancelPendingTap(), this.imageQueue.dispose(), window.removeEventListener("resize", this.onResize), window.removeEventListener("popstate", this.onPopState), document.removeEventListener("fullscreenchange", this.onFullscreenChange), this.clearFullscreenHintTimer(), this.ownsFullscreen && document.fullscreenElement === this.fullscreenTarget && (this.ownsFullscreen = !1, document.exitFullscreen().catch((error) => {
         console.warn("[ehpeek] Failed to exit fullscreen", error);
-      })), this.scrollFrame !== null && (window.cancelAnimationFrame(this.scrollFrame), this.scrollFrame = null), this.resizeFrame !== null && (window.cancelAnimationFrame(this.resizeFrame), this.resizeFrame = null), this.viewport.stopMotion(), !0);
+      })), clearReaderFullscreenScale(this.fullscreenTarget), this.scrollFrame !== null && (window.cancelAnimationFrame(this.scrollFrame), this.scrollFrame = null), this.resizeFrame !== null && (window.cancelAnimationFrame(this.resizeFrame), this.resizeFrame = null), this.viewport.stopMotion(), !0);
     }
     setCurrentPageNumber(pageNumber, scrollIntoView, scrollMotion = "instant") {
       this.pagedTargetPageNumber = null;
@@ -2286,19 +2323,7 @@
       return this.viewport.isHitEndPage(point) ? (this.close(), !0) : !1;
     }
     handleKeyboardClose() {
-      if (this.toolbarState.downloadDialog) {
-        this.closeDownloadDialog();
-        return;
-      }
-      if (this.zoomOverlay.active()) {
-        this.zoomOverlay.close();
-        return;
-      }
-      if (document.fullscreenElement) {
-        this.ownsFullscreen = !1, document.exitFullscreen().catch(() => this.showFullscreenHint());
-        return;
-      }
-      this.close();
+      return this.toolbarState.downloadDialog ? (this.closeDownloadDialog(), !0) : this.zoomOverlay.active() ? (this.zoomOverlay.close(), !0) : document.fullscreenElement === this.fullscreenTarget ? !1 : (this.close(), !0);
     }
     handlePinchStart(info) {
       if (this.cancelPendingTap(), this.viewport.stopMotion(), this.viewportDrag = null, this.zoomOverlay.active())
@@ -2373,23 +2398,22 @@
       !page || !this.isRealPageNum(this.currentPageNum) || !this.onOpenOriginalPage || this.onOpenOriginalPage(page);
     }
     async toggleFullscreen() {
-      if (document.fullscreenElement) {
-        this.ownsFullscreen = !1;
+      if (document.fullscreenElement === this.fullscreenTarget) {
+        this.ownsFullscreen = !1, this.keepReaderAfterFullscreenExit = !0;
         try {
           await document.exitFullscreen();
         } catch (error) {
-          console.warn("[ehpeek] Failed to exit fullscreen", error), this.showFullscreenHint();
+          this.keepReaderAfterFullscreenExit = !1, console.warn("[ehpeek] Failed to exit fullscreen", error), this.showFullscreenHint();
         }
         return;
       }
-      let root = document.documentElement;
-      if (!document.fullscreenEnabled || typeof root.requestFullscreen != "function") {
+      if (document.fullscreenElement || !document.fullscreenEnabled || typeof this.fullscreenTarget.requestFullscreen != "function") {
         this.showFullscreenHint();
         return;
       }
       this.ownsFullscreen = !0;
       try {
-        await root.requestFullscreen();
+        await enterReaderFullscreen(this.fullscreenTarget);
       } catch (error) {
         this.ownsFullscreen = !1, console.warn("[ehpeek] Fullscreen request failed", error), this.showFullscreenHint();
       }
@@ -2397,7 +2421,7 @@
     syncFullscreenState() {
       this.toolbarState = {
         ...this.toolbarState,
-        fullscreenActive: !!document.fullscreenElement
+        fullscreenActive: document.fullscreenElement === this.fullscreenTarget
       }, this.setToolbarComponentState(this.toolbarState);
     }
     showFullscreenHint() {
@@ -2510,7 +2534,7 @@
       "button",
       {
         type: "button",
-        className: "flex w-full min-h-lg touch:min-h-xl items-center justify-between gap-lg touch:gap-xl py-md px-md touch:py-lg rounded-xs border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text ehp-color-site-item-hover cursor-pointer font-inherit text-left textsize-lg",
+        className: "flex w-full min-h-lg touch:min-h-xl items-center justify-between gap-lg touch:gap-xl py-md px-md touch:py-lg rounded-xs border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-transparent active:!bg-transparent ehp-color-site-text cursor-pointer font-inherit text-left textsize-lg [-webkit-tap-highlight-color:transparent]",
         onClick: (event) => {
           event.stopPropagation(), setValue(!checked);
         }
@@ -2765,7 +2789,7 @@ body #gdt[class],
 `;
 
   // src/eh/dom.ts
-  var TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID = "ehpeek-touch-gallery-page-rearrange-style", TOUCH_FAVORITES_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden", TOUCH_FAVORITES_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden", TOUCH_FAVORITES_NAV_CLASS_NAME = "box-border !max-w-full overflow-x-auto", TOUCH_FAVORITES_RESULTS_CLASS_NAME = "ehpeek-touch-favorites-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto", TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full", TOUCH_FAVORITES_CATEGORIES_CLASS_NAME = "box-border !grid !h-auto !w-full !max-w-full grid-cols-[repeat(5,minmax(0,1fr))] !p-0", TOUCH_FAVORITES_CATEGORY_CLASS_NAME = "!static !float-none !w-full !m-0", TOUCH_FAVORITES_ALL_CATEGORY_CLASS_NAME = "!col-span-full !w-[140px] justify-self-center";
+  var TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID = "ehpeek-touch-gallery-page-rearrange-style", TOUCH_FAVORITES_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden", TOUCH_FAVORITES_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden", TOUCH_FAVORITES_NAV_CLASS_NAME = "box-border !max-w-full overflow-x-auto", TOUCH_FAVORITES_RESULTS_CLASS_NAME = "ehpeek-touch-favorites-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto", TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full", TOUCH_FAVORITES_CATEGORIES_CLASS_NAME = "box-border !grid !h-auto !w-full !max-w-full grid-cols-[repeat(5,minmax(0,1fr))] !p-0", TOUCH_FAVORITES_CATEGORY_CLASS_NAME = "!static !float-none !w-full !m-0", TOUCH_FAVORITES_ALL_CATEGORY_CLASS_NAME = "!col-span-full !w-[140px] justify-self-center", TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden", TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden", TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME = "ehpeek-touch-search-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto", TOUCH_SEARCH_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
   function imageAspectRatio(image) {
     let width = image?.naturalWidth || image?.width || Number(image?.getAttribute("width") || ""), height = image?.naturalHeight || image?.height || Number(image?.getAttribute("height") || "");
     return width > 0 && height > 0 ? height / width : 1.42;
@@ -2986,6 +3010,16 @@ body #gdt[class],
       return;
     let wrapper = document.createElement("div");
     wrapper.className = TOUCH_FAVORITES_RESULTS_CLASS_NAME, resultList.replaceWith(wrapper), wrapper.append(resultList);
+  }
+  function prepareTouchSearchResultsPage() {
+    document.documentElement.classList.add(...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ")), document.body.classList.add(...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" "));
+    let resultList = searchResultList();
+    resultList?.classList.add(...TOUCH_SEARCH_RESULT_LIST_CLASS_NAME.split(" "));
+    let existingWrapper = resultList?.parentElement?.classList.contains("ehpeek-touch-search-results") ? resultList.parentElement : null, content = existingWrapper?.parentElement ?? resultList?.parentElement;
+    if (resultList?.closest(".ido")?.classList.add(...TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ")), content?.classList.add(...TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ")), !resultList || existingWrapper)
+      return;
+    let wrapper = document.createElement("div");
+    wrapper.className = TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME, resultList.replaceWith(wrapper), wrapper.append(resultList);
   }
   function insertTouchTopBar(topBar) {
     let original = document.querySelector("#nb");
@@ -4123,7 +4157,11 @@ body #gdt[class],
       searchNavigationLoading = !0, setSearchLoading?.(!0), swipeElement2?.setAttribute("aria-busy", "true");
       try {
         let resultList = await replaceSearchPageContentFromUrl(url);
-        window.history.pushState(window.history.state, "", url), document.documentElement.dataset.ehpeekTouchUi === "true" && extractPageType(url).type === "favorites" && prepareTouchFavoritesPage(), setResultListSwipeTarget(resultList), searchTopNavigationBar()?.scrollIntoView({ block: "start", behavior: "auto" });
+        if (window.history.pushState(window.history.state, "", url), document.documentElement.dataset.ehpeekTouchUi === "true") {
+          let pageType2 = extractPageType(url).type;
+          pageType2 === "favorites" ? prepareTouchFavoritesPage() : pageType2 === "search" && prepareTouchSearchResultsPage();
+        }
+        setResultListSwipeTarget(resultList), searchTopNavigationBar()?.scrollIntoView({ block: "start", behavior: "auto" });
       } catch (error) {
         console.error("[ehpeek]", error);
       } finally {
@@ -4650,10 +4688,12 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
 .bg-black\\/65{background-color:rgb(0 0 0 / 0.65);}
 .bg-transparent{background-color:transparent;}
 .hover\\:\\!bg-\\[var\\(--color-site-item-hover\\)\\]:hover{background-color:var(--color-site-item-hover) !important;}
+.hover\\:\\!bg-transparent:hover{background-color:transparent !important;}
 .hover\\:bg-\\[var\\(--color-badge\\)\\]:hover{background-color:var(--color-badge);}
 .hover\\:bg-\\[var\\(--color-site-accent-hover\\)\\]:hover{background-color:var(--color-site-accent-hover);}
 .hover\\:bg-\\[var\\(--color-site-item-hover\\)\\]:hover{background-color:var(--color-site-item-hover);}
 .focus\\:bg-\\[var\\(--color-site-elevated\\)\\]:focus{background-color:var(--color-site-elevated);}
+.active\\:\\!bg-transparent:active{background-color:transparent !important;}
 .active\\:bg-\\[var\\(--color-site-accent-hover\\)\\]:active{background-color:var(--color-site-accent-hover);}
 .active\\:bg-\\[var\\(--color-site-item-hover\\)\\]:active{background-color:var(--color-site-item-hover);}
 .object-contain{object-fit:contain;}
@@ -4776,7 +4816,6 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
 .landscape\\:left-auto{left:auto;}
 .landscape\\:right-10px{right:10px;}
 .landscape\\:top-\\[calc\\(62px\\+env\\(safe-area-inset-top\\,0px\\)\\)\\]{top:calc(62px + env(safe-area-inset-top,0px));}
-.landscape\\:top-\\[calc\\(90px\\+env\\(safe-area-inset-top\\,0px\\)\\)\\]{top:calc(90px + env(safe-area-inset-top,0px));}
 .landscape\\:max-w-\\[calc\\(100vw-20px\\)\\]{max-width:calc(100vw - 20px);}
 .landscape\\:min-w-0{min-width:0;}
 .landscape\\:translate-x-0{--un-translate-x:0;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
@@ -4784,7 +4823,6 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
 }
 @media (orientation: landscape) and (pointer: coarse){
 .coarse-landscape\\:right-8px{right:8px;}
-.coarse-landscape\\:top-\\[calc\\(106px\\+env\\(safe-area-inset-top\\,0px\\)\\)\\]{top:calc(106px + env(safe-area-inset-top,0px));}
 .coarse-landscape\\:top-\\[calc\\(74px\\+env\\(safe-area-inset-top\\,0px\\)\\)\\]{top:calc(74px + env(safe-area-inset-top,0px));}
 .coarse-landscape\\:max-w-\\[calc\\(100vw-16px\\)\\]{max-width:calc(100vw - 16px);}
 }
@@ -4882,10 +4920,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
       },
       onClick: () => {
         let page = collectGalleryPages2()[0];
-        if (!page)
-          return;
-        let fullscreenRequest = requestConfiguredReaderFullscreen();
-        openReader(page.url, pageNum, fullscreenRequest).catch(reportOpenError);
+        page && openReaderFromUserAction(page.url, pageNum);
       }
     };
   }
@@ -4914,9 +4949,13 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
       settingsMenuHost
     );
   }
-  function openFullscreenReader(options) {
+  function createReaderHost() {
+    let host = document.createElement("div");
+    return host.dataset.ehpeekReaderContainer = "true", host;
+  }
+  function openFullscreenReader(options, existingHost) {
     activeReader?.close(), removePreviousReaderRoot();
-    let host = document.createElement("div"), handle = null, close = () => {
+    let host = existingHost ?? createReaderHost(), handle = null, close = () => {
       if (handle) {
         handle.close();
         return;
@@ -4925,11 +4964,11 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
     }, onClosed = () => {
       R(/* @__PURE__ */ k(S, null), host), host.remove(), activeReader?.close === close && (activeReader = null);
     };
-    host.dataset.ehpeekReaderContainer = "true", document.body.append(host), activeReader = { close }, R(
+    host.isConnected || document.body.append(host), activeReader = { close }, R(
       /* @__PURE__ */ k(
         FullscreenReader,
         {
-          options,
+          options: { ...options, fullscreenTarget: host },
           handleRef: (nextHandle) => {
             handle = nextHandle;
           },
@@ -5019,6 +5058,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
   }
   settingsState.touchUiEnabled && installTouchTopBarWhenReady();
   settingsState.touchUiEnabled && pageType.type === "favorites" && prepareTouchFavoritesPage();
+  settingsState.touchUiEnabled && pageType.type === "search" && prepareTouchSearchResultsPage();
   function installTouchGalleryPanel() {
     if (document.querySelector(".ehpeek-touch-gallery"))
       return;
@@ -5079,7 +5119,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
       document.body.append(host), R(/* @__PURE__ */ k(EnhanceSearchGrids, { resultList }), host);
     }
   }
-  async function openReader(startPageUrl, preferredPageNum, fullscreenRequest) {
+  async function openReader(startPageUrl, preferredPageNum, fullscreenLaunch) {
     if (!state.reader.enabled.value)
       return;
     let pageType2 = extractPageType();
@@ -5108,7 +5148,11 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
       historySession.dispose();
       return;
     }
-    let automaticFullscreen = fullscreenRequest ? await fullscreenRequest : void 0;
+    let automaticFullscreen = fullscreenLaunch ? await fullscreenLaunch.result : void 0;
+    if (automaticFullscreen && document.fullscreenElement !== fullscreenLaunch?.host) {
+      historySession.dispose(), fullscreenLaunch?.host.remove();
+      return;
+    }
     openFullscreenReader({
       galleryId: pageType2.galleryId,
       pages,
@@ -5139,30 +5183,37 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
       onOpenOriginalPage: (page) => {
         historySession.dispose(), window.location.assign(page.url);
       }
-    });
+    }, fullscreenLaunch?.host);
   }
   function reportOpenError(error) {
     let message = error instanceof Error ? error.message : texts_default.errors.loadFailed;
     console.error("[ehpeek]", error), window.alert(message);
   }
+  function openReaderFromUserAction(startPageUrl, preferredPageNum) {
+    let fullscreenLaunch = requestConfiguredReaderFullscreen();
+    openReader(startPageUrl, preferredPageNum, fullscreenLaunch).catch((error) => {
+      fullscreenLaunch && (document.fullscreenElement === fullscreenLaunch.host && document.exitFullscreen().catch((fullscreenError) => {
+        console.warn("[ehpeek] Failed to exit fullscreen", fullscreenError);
+      }), fullscreenLaunch.host.remove()), reportOpenError(error);
+    });
+  }
   function requestConfiguredReaderFullscreen() {
     if (!state.reader.enabled.value || !state.reader.fullscreen.value || document.fullscreenElement)
       return;
-    let root = document.documentElement;
-    return !document.fullscreenEnabled || typeof root.requestFullscreen != "function" ? Promise.resolve(!1) : root.requestFullscreen().then(
-      () => !0,
-      (error) => (console.warn("[ehpeek] Fullscreen request failed", error), !1)
-    );
+    let host = createReaderHost();
+    return document.body.append(host), !document.fullscreenEnabled || typeof host.requestFullscreen != "function" ? { host, result: Promise.resolve(!1) } : {
+      host,
+      result: enterReaderFullscreen(host).then(
+        () => !0,
+        (error) => (console.warn("[ehpeek] Fullscreen request failed", error), !1)
+      )
+    };
   }
   function onDocumentClick(event) {
     if (!state.reader.enabled.value)
       return;
     let link = findClickedImageLink2(event.target);
-    if (!link)
-      return;
-    event.preventDefault(), event.stopPropagation();
-    let fullscreenRequest = requestConfiguredReaderFullscreen();
-    openReader(link.href, void 0, fullscreenRequest).catch(reportOpenError);
+    link && (event.preventDefault(), event.stopPropagation(), openReaderFromUserAction(link.href));
   }
   async function openReaderFromHash() {
     let peekPage = peekPageFromHash();
