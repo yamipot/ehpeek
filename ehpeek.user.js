@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ehpeek: E-H/ExH viewer
 // @namespace    ehpeek
-// @version      260717.1606
+// @version      260717.1631
 // @description  A mobile-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -403,6 +403,9 @@
       rightTapPrevious: "Right tap goes to previous page",
       rightTapNext: "Right tap goes to next page",
       openOriginalPage: "Open original image page",
+      enterFullscreen: "Enter fullscreen",
+      exitFullscreen: "Exit fullscreen",
+      fullscreenHint: "Fullscreen is unavailable. Hide the bottom toolbar from your browser menu.",
       download: "Download",
       downloadDisplayedImage: "Displayed image",
       downloadOriginalImage: "Original image",
@@ -429,6 +432,8 @@
       menuLabel: "Ehpeek",
       readerOn: "Reader: on",
       readerOff: "Reader: off",
+      readerFullscreenOn: "Reader fullscreen: on",
+      readerFullscreenOff: "Reader fullscreen: off",
       enhanceSearchOn: "Enhance Search Grids: on",
       enhanceSearchOff: "Enhance Search Grids: off",
       enhanceThumbsOn: "Enhance Thumbs Preview: on",
@@ -458,6 +463,7 @@
   var state = {
     reader: {
       enabled: persisted("ehpeek:reader:enabled", !0),
+      fullscreen: persisted("ehpeek:reader:fullscreen", !1),
       viewMode: persisted("ehpeek:reader:view-mode", "scroll"),
       readDirection: persisted("ehpeek:reader:read-direction", "rtl"),
       rightTapAction: persisted("ehpeek:reader:right-tap-action", "previous")
@@ -1276,6 +1282,12 @@
     "external-link": {
       paths: ["M14 4h6v6", "m20 4-9 9", "M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"]
     },
+    fullscreen: {
+      paths: ["M8 3H3v5", "M16 3h5v5", "M3 16v5h5", "M21 16v5h-5"]
+    },
+    "fullscreen-exit": {
+      paths: ["M8 3v5H3", "M16 3v5h5", "M3 16h5v5", "M21 16h-5v5"]
+    },
     heart: {
       fillable: !0,
       paths: ["M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"]
@@ -1422,7 +1434,10 @@
   var READER_BUTTON_CLASS = [
     "inline-flex min-w-48px h-48px items-center justify-center px-md py-0 rounded-md coarse:min-w-64px coarse:h-64px coarse:px-lg coarse:rounded-lg coarse:text-18px",
     "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:opacity-40 disabled:cursor-default"
-  ].join(" "), READER_ICON_SIZE = "1.4em", DOWNLOAD_OPTION_CLASS = [
+  ].join(" "), READER_ICON_SIZE = "1.4em", TIME_FORMATTER = new Intl.DateTimeFormat(void 0, {
+    hour: "2-digit",
+    minute: "2-digit"
+  }), DOWNLOAD_OPTION_CLASS = [
     "flex w-full min-h-lg flex-col items-start justify-center gap-xs px-lg py-md rounded-md",
     "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer text-left",
     "hover:bg-[var(--color-badge)] disabled:opacity-40 disabled:cursor-default"
@@ -1436,6 +1451,8 @@
       },
       downloadAvailable: !1,
       downloadDialog: null,
+      fullscreenActive: !1,
+      fullscreenHint: !1,
       open: !1,
       progress: {
         pageNum: 1,
@@ -1444,7 +1461,7 @@
     };
   }
   function Toolbar(props) {
-    let controls = props.state.controls, progress = props.state.progress, downloadDialog = props.state.downloadDialog, open = props.state.open, modeButton = modeButtonInfo(controls.mode), readDirectionButton = readDirectionButtonInfo(controls.readDirection), rightTapButton = rightTapButtonInfo(controls.rightTapAction);
+    let controls = props.state.controls, progress = props.state.progress, downloadDialog = props.state.downloadDialog, open = props.state.open, modeButton = modeButtonInfo(controls.mode), readDirectionButton = readDirectionButtonInfo(controls.readDirection), rightTapButton = rightTapButtonInfo(controls.rightTapAction), fullscreenStatus = useFullscreenStatus(props.state.fullscreenActive);
     return /* @__PURE__ */ k(S, null, /* @__PURE__ */ k(
       "div",
       {
@@ -1490,6 +1507,15 @@
           onClick: props.callbacks.onOpenOriginalPageClick
         },
         /* @__PURE__ */ k(Icon, { name: "external-link", size: READER_ICON_SIZE })
+      ), /* @__PURE__ */ k(
+        "button",
+        {
+          type: "button",
+          className: READER_BUTTON_CLASS,
+          title: props.state.fullscreenActive ? texts_default.reader.exitFullscreen : texts_default.reader.enterFullscreen,
+          onClick: props.callbacks.onFullscreenClick
+        },
+        /* @__PURE__ */ k(Icon, { name: props.state.fullscreenActive ? "fullscreen-exit" : "fullscreen", size: READER_ICON_SIZE })
       ), /* @__PURE__ */ k("button", { type: "button", className: READER_BUTTON_CLASS, title: texts_default.reader.close, onClick: props.callbacks.onCloseClick }, /* @__PURE__ */ k(Icon, { name: "close", size: READER_ICON_SIZE })))
     ), /* @__PURE__ */ k(
       "div",
@@ -1498,7 +1524,15 @@
         hidden: controls.mode === "scroll" && !open
       },
       pageNumberText(progress.pageNum, progress.totalPages)
-    ), /* @__PURE__ */ k(
+    ), props.state.fullscreenActive ? /* @__PURE__ */ k(
+      "div",
+      {
+        className: "fixed z-3 flex items-center gap-sm pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] landscape:top-[calc(90px+env(safe-area-inset-top,0px))] landscape:left-auto landscape:right-10px coarse-landscape:top-[calc(106px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap",
+        role: "status"
+      },
+      /* @__PURE__ */ k("span", null, fullscreenStatus.time),
+      fullscreenStatus.batteryPercent === null ? null : /* @__PURE__ */ k(S, null, /* @__PURE__ */ k("span", { "aria-hidden": "true" }, "·"), /* @__PURE__ */ k("span", null, fullscreenStatus.batteryPercent, "%"))
+    ) : null, /* @__PURE__ */ k(
       "div",
       {
         className: "fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] [&[data-open=false]]:opacity-0 [&[data-open=false]]:translate-y-[calc(100%+16px)] [&[data-open=false]]:pointer-events-none",
@@ -1523,7 +1557,15 @@
           onCommit: props.callbacks.onProgressCommit
         }
       )
-    ), downloadDialog ? /* @__PURE__ */ k(
+    ), props.state.fullscreenHint ? /* @__PURE__ */ k(
+      "div",
+      {
+        className: "fixed z-3 left-1/2 -translate-x-1/2 w-[min(88vw,520px)] bottom-[calc(76px+env(safe-area-inset-bottom,0px))] coarse:bottom-[calc(96px+env(safe-area-inset-bottom,0px))] px-lg py-md rounded-md bg-[var(--color-badge)] ehp-color-text shadow-lg pointer-events-none font-sans textsize-md font-600 leading-[1.4] text-center",
+        role: "status",
+        "aria-live": "polite"
+      },
+      texts_default.reader.fullscreenHint
+    ) : null, downloadDialog ? /* @__PURE__ */ k(
       "div",
       {
         className: "fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 pointer-events-auto",
@@ -1558,6 +1600,44 @@
         /* @__PURE__ */ k("span", { className: "textsize-sm opacity-75" }, downloadDialog.originalImageUrl ? texts_default.reader.originalImageSource : texts_default.reader.originalImageUnavailable)
       )))
     ) : null);
+  }
+  function useFullscreenStatus(enabled) {
+    let [time, setTime] = d2(() => TIME_FORMATTER.format(/* @__PURE__ */ new Date())), [batteryPercent, setBatteryPercent] = d2(null);
+    return h2(() => {
+      if (!enabled)
+        return;
+      let updateTime = () => setTime(TIME_FORMATTER.format(/* @__PURE__ */ new Date()));
+      updateTime();
+      let interval = null, timeout = window.setTimeout(() => {
+        updateTime(), interval = window.setInterval(updateTime, 6e4);
+      }, 6e4 - Date.now() % 6e4);
+      return () => {
+        window.clearTimeout(timeout), interval !== null && window.clearInterval(interval);
+      };
+    }, [enabled]), h2(() => {
+      if (!enabled) {
+        setBatteryPercent(null);
+        return;
+      }
+      let getBattery = navigator.getBattery;
+      if (!getBattery) {
+        setBatteryPercent(null);
+        return;
+      }
+      let battery = null, disposed = !1, updateBattery = () => {
+        battery && setBatteryPercent(Math.round(Math.min(1, Math.max(0, battery.level)) * 100));
+      };
+      return getBattery.call(navigator).then(
+        (nextBattery) => {
+          disposed || (battery = nextBattery, updateBattery(), battery.addEventListener("levelchange", updateBattery));
+        },
+        () => {
+          disposed || setBatteryPercent(null);
+        }
+      ), () => {
+        disposed = !0, battery?.removeEventListener("levelchange", updateBattery);
+      };
+    }, [enabled]), { time, batteryPercent };
   }
   function progressFillPercent(progress) {
     let max = Math.max(1, progress.maxProgressPageNum), value = Math.min(max, Math.max(1, progress.pageNum));
@@ -1664,7 +1744,7 @@
 `;
 
   // src/components/Reader/index.tsx
-  var VIEWER_ID = "ehpeek-reader", STYLE_ID = "ehpeek-reader-style", DEFAULT_WINDOW_SIZE = 10, DEFAULT_NEAR_CONCURRENT_LOADS = 3, DEFAULT_FAR_CONCURRENT_LOADS = 6, NEAR_LOAD_AHEAD = 3, PAGED_SWIPE_THRESHOLD = 24, PAGED_WHEEL_THRESHOLD = 8, PROGRESS_IDLE_COMMIT_MS = 1e3, DOUBLE_TAP_MS = 340, DOUBLE_TAP_DISTANCE = 36, TAP_CANCEL_DISTANCE = 8, FALLBACK_ASPECT_RATIO2 = 1.42, TwoTierImageQueue = class {
+  var VIEWER_ID = "ehpeek-reader", STYLE_ID = "ehpeek-reader-style", DEFAULT_WINDOW_SIZE = 10, DEFAULT_NEAR_CONCURRENT_LOADS = 3, DEFAULT_FAR_CONCURRENT_LOADS = 6, NEAR_LOAD_AHEAD = 3, PAGED_SWIPE_THRESHOLD = 24, PAGED_WHEEL_THRESHOLD = 8, PROGRESS_IDLE_COMMIT_MS = 1e3, DOUBLE_TAP_MS = 340, DOUBLE_TAP_DISTANCE = 36, TAP_CANCEL_DISTANCE = 8, FALLBACK_ASPECT_RATIO2 = 1.42, FULLSCREEN_HINT_MS = 5e3, TwoTierImageQueue = class {
     constructor(loadTarget, markLoading, onLoaded, onError, nearConcurrentLoads, farConcurrentLoads) {
       this.loadTarget = loadTarget;
       this.markLoading = markLoading;
@@ -1855,6 +1935,7 @@
       this.scrollFrame = null;
       this.resizeFrame = null;
       this.progressNavigationTimer = null;
+      this.fullscreenHintTimer = null;
       this.tapTimer = null;
       this.pendingTap = null;
       this.pendingProgressNavigationPageNum = null;
@@ -1894,6 +1975,13 @@
         let pageNum = this.pendingProgressNavigationPageNum ?? value;
         this.progressNavigating = !1, this.pendingProgressNavigationPageNum = null, this.cancelProgressNavigation(), Number.isFinite(pageNum) && pageNum > 0 && this.setCurrentPageNumber(pageNum, !0);
       };
+      this.onFullscreenChange = () => {
+        document.fullscreenElement || (this.ownsFullscreen = !1), this.clearFullscreenHintTimer(), this.toolbarState = {
+          ...this.toolbarState,
+          fullscreenActive: !!document.fullscreenElement,
+          fullscreenHint: !1
+        }, this.setToolbarComponentState(this.toolbarState);
+      };
       this.onResize = () => {
         this.resizeFrame === null && (this.resizeFrame = window.requestAnimationFrame(() => {
           this.resizeFrame = null, this.viewport.resizePages();
@@ -1909,7 +1997,7 @@
         });
       }
       let startIndex = clamp(options.startIndex, 0, Math.max(0, options.pages.length - 1));
-      this.currentPageNum = pageNumForPage(options.pages[startIndex], startIndex), this.preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE, this.loadPages = options.loadPages, this.onExit = options.onExit, this.onActivePageChange = options.onActivePageChange, this.onOpenOriginalPage = options.onOpenOriginalPage, this.closeComponent = bindings.close, this.isDragging = bindings.isDragging, this.setRootComponentState = bindings.setRootState, this.setToolbarComponentState = bindings.setToolbarState, this.toolbarState = initialToolbarState(), this.rootState = {
+      this.currentPageNum = pageNumForPage(options.pages[startIndex], startIndex), this.preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE, this.loadPages = options.loadPages, this.onExit = options.onExit, this.onActivePageChange = options.onActivePageChange, this.onOpenOriginalPage = options.onOpenOriginalPage, this.initialFullscreenHint = options.initialFullscreenHint ?? !1, this.ownsFullscreen = options.initialFullscreenOwned ?? !1, this.closeComponent = bindings.close, this.isDragging = bindings.isDragging, this.setRootComponentState = bindings.setRootState, this.setToolbarComponentState = bindings.setToolbarState, this.toolbarState = initialToolbarState(), this.rootState = {
         readDirection: state.reader.readDirection.value,
         toolbarOpen: !1,
         viewMode: state.reader.viewMode.value
@@ -1928,6 +2016,9 @@
         onDownloadCurrentClick: () => this.downloadDisplayedImage(),
         onDownloadDialogClose: () => this.closeDownloadDialog(),
         onDownloadOriginalClick: () => this.downloadOriginalImage(),
+        onFullscreenClick: () => {
+          this.toggleFullscreen();
+        },
         onOpenOriginalPageClick: () => this.openOriginalPage(),
         onOpenChange: (open) => this.setRootState({ toolbarOpen: open }),
         onProgressPointerDown: this.onProgressPointerDown,
@@ -1969,7 +2060,7 @@
         this.close();
         return;
       }
-      this.viewport.scrollerElement().focus({ preventScroll: !0 }), this.onExit && (window.history.pushState({ ehpeekReader: !0 }, "", window.location.href), this.historyEntry = !0, window.addEventListener("popstate", this.onPopState)), window.addEventListener("resize", this.onResize), this.syncInitialUi(), this.syncAfterPageChange({ scrollIntoView: !0 });
+      this.viewport.scrollerElement().focus({ preventScroll: !0 }), this.onExit && (window.history.pushState({ ehpeekReader: !0 }, "", window.location.href), this.historyEntry = !0, window.addEventListener("popstate", this.onPopState)), window.addEventListener("resize", this.onResize), document.addEventListener("fullscreenchange", this.onFullscreenChange), this.syncInitialUi(), this.initialFullscreenHint && this.showFullscreenHint(), this.syncAfterPageChange({ scrollIntoView: !0 });
     }
     dispose() {
       this.cleanup();
@@ -1984,13 +2075,15 @@
       }
     }
     syncInitialUi() {
-      this.syncReaderControls(), this.updatePageNumber();
+      this.syncFullscreenState(), this.syncReaderControls(), this.updatePageNumber();
     }
     finishClose() {
       this.cleanup() && this.closeComponent();
     }
     cleanup() {
-      return this.closed ? !1 : (this.closed = !0, this.cancelProgressNavigation(), this.cancelPendingTap(), this.imageQueue.dispose(), window.removeEventListener("resize", this.onResize), window.removeEventListener("popstate", this.onPopState), this.scrollFrame !== null && (window.cancelAnimationFrame(this.scrollFrame), this.scrollFrame = null), this.resizeFrame !== null && (window.cancelAnimationFrame(this.resizeFrame), this.resizeFrame = null), this.viewport.stopMotion(), !0);
+      return this.closed ? !1 : (this.closed = !0, this.cancelProgressNavigation(), this.cancelPendingTap(), this.imageQueue.dispose(), window.removeEventListener("resize", this.onResize), window.removeEventListener("popstate", this.onPopState), document.removeEventListener("fullscreenchange", this.onFullscreenChange), this.clearFullscreenHintTimer(), this.ownsFullscreen && document.fullscreenElement && (this.ownsFullscreen = !1, document.exitFullscreen().catch((error) => {
+        console.warn("[ehpeek] Failed to exit fullscreen", error);
+      })), this.scrollFrame !== null && (window.cancelAnimationFrame(this.scrollFrame), this.scrollFrame = null), this.resizeFrame !== null && (window.cancelAnimationFrame(this.resizeFrame), this.resizeFrame = null), this.viewport.stopMotion(), !0);
     }
     setCurrentPageNumber(pageNumber, scrollIntoView, scrollMotion = "instant") {
       this.pagedTargetPageNumber = null;
@@ -2201,6 +2294,10 @@
         this.zoomOverlay.close();
         return;
       }
+      if (document.fullscreenElement) {
+        this.ownsFullscreen = !1, document.exitFullscreen().catch(() => this.showFullscreenHint());
+        return;
+      }
       this.close();
     }
     handlePinchStart(info) {
@@ -2274,6 +2371,42 @@
     openOriginalPage() {
       let page = this.pages.get(this.currentPageNum);
       !page || !this.isRealPageNum(this.currentPageNum) || !this.onOpenOriginalPage || this.onOpenOriginalPage(page);
+    }
+    async toggleFullscreen() {
+      if (document.fullscreenElement) {
+        this.ownsFullscreen = !1;
+        try {
+          await document.exitFullscreen();
+        } catch (error) {
+          console.warn("[ehpeek] Failed to exit fullscreen", error), this.showFullscreenHint();
+        }
+        return;
+      }
+      let root = document.documentElement;
+      if (!document.fullscreenEnabled || typeof root.requestFullscreen != "function") {
+        this.showFullscreenHint();
+        return;
+      }
+      this.ownsFullscreen = !0;
+      try {
+        await root.requestFullscreen();
+      } catch (error) {
+        this.ownsFullscreen = !1, console.warn("[ehpeek] Fullscreen request failed", error), this.showFullscreenHint();
+      }
+    }
+    syncFullscreenState() {
+      this.toolbarState = {
+        ...this.toolbarState,
+        fullscreenActive: !!document.fullscreenElement
+      }, this.setToolbarComponentState(this.toolbarState);
+    }
+    showFullscreenHint() {
+      this.clearFullscreenHintTimer(), this.toolbarState = { ...this.toolbarState, fullscreenHint: !0 }, this.setToolbarComponentState(this.toolbarState), this.fullscreenHintTimer = window.setTimeout(() => {
+        this.fullscreenHintTimer = null, this.toolbarState = { ...this.toolbarState, fullscreenHint: !1 }, this.setToolbarComponentState(this.toolbarState);
+      }, FULLSCREEN_HINT_MS);
+    }
+    clearFullscreenHintTimer() {
+      this.fullscreenHintTimer !== null && (window.clearTimeout(this.fullscreenHintTimer), this.fullscreenHintTimer = null);
     }
     setMode(mode) {
       mode !== state.reader.viewMode.value && (state.reader.viewMode.set(mode), this.syncReaderControls(), this.rebuildForCurrentMode());
@@ -2407,6 +2540,18 @@
         checked: [draft.readerEnabled, texts_default.settings.readerOn, texts_default.settings.readerOff],
         onChange: (value) => {
           draft.readerEnabled = value;
+        }
+      }
+    ), /* @__PURE__ */ k(
+      SwitchButton,
+      {
+        checked: [
+          draft.readerFullscreenEnabled,
+          texts_default.settings.readerFullscreenOn,
+          texts_default.settings.readerFullscreenOff
+        ],
+        onChange: (value) => {
+          draft.readerFullscreenEnabled = value;
         }
       }
     ), /* @__PURE__ */ k(
@@ -4052,23 +4197,58 @@ body #gdt[class],
   }
 
   // src/integrations/EhSyringe.ts
-  var ROOT_CLASS = "ehs-injected", TRANSLATED_LANGUAGE = "zh-hans", INITIALIZED_SELECTOR = "#eh-syringe-popup-button", SEARCH_SUBMIT_SELECTOR = "#searchbox button[ehs-input][type='submit']", CLEAR_BUTTON_SELECTOR = "#searchbox button[ehs-input][type='button']", initialUiReady = null;
+  var ROOT_CLASS = "ehs-injected", TRANSLATED_LANGUAGE = "zh-hans", INITIALIZED_SELECTOR = "#eh-syringe-popup-button", SEARCH_SUBMIT_SELECTOR = "#searchbox button[ehs-input][type='submit']", CLEAR_BUTTON_SELECTOR = "#searchbox button[ehs-input][type='button']", DETECTED_KEY = "ehpeek:ehsyringe:detected";
+  var initialUiReady = null;
   function waitForInitialUi() {
-    return initialUiReady ?? (initialUiReady = waitFor(() => !isInjected() || !!document.querySelector(INITIALIZED_SELECTOR))), initialUiReady;
+    return initialUiReady ?? (initialUiReady = waitForExpectedInitialUi()), initialUiReady;
   }
-  function waitForSearchUi() {
-    return waitFor(() => !isTranslatingUi() || searchUiReady());
+  async function waitForSearchUi() {
+    await waitForInitialUi(), isTranslatingUi() && await waitFor(searchUiReady);
   }
-  function waitFor(ready) {
-    return ready() ? Promise.resolve() : new Promise((resolve) => {
-      let observer = new MutationObserver(() => {
-        ready() && (observer.disconnect(), resolve());
-      });
+  async function waitForExpectedInitialUi() {
+    if (initialUiLoaded()) {
+      setDetected(!0);
+      return;
+    }
+    if (!isInjected() && !wasDetected())
+      return;
+    let loaded = await waitFor(initialUiLoaded, 3e3);
+    setDetected(loaded);
+  }
+  function waitFor(ready, timeoutMs) {
+    return ready() ? Promise.resolve(!0) : new Promise((resolve) => {
+      let timer = null, observer = new MutationObserver(() => {
+        ready() && finish(!0);
+      }), finish = (value) => {
+        observer.disconnect(), timer !== null && window.clearTimeout(timer), resolve(value);
+      };
       observer.observe(document.documentElement, {
         childList: !0,
         subtree: !0
-      });
+      }), timeoutMs !== void 0 && (timer = window.setTimeout(() => finish(!1), timeoutMs));
     });
+  }
+  function watchForSuccessfulInjection() {
+    if (initialUiLoaded()) {
+      setDetected(!0);
+      return;
+    }
+    let observer = new MutationObserver(() => {
+      initialUiLoaded() && (observer.disconnect(), setDetected(!0));
+    });
+    observer.observe(document.documentElement, {
+      childList: !0,
+      subtree: !0
+    });
+  }
+  function initialUiLoaded() {
+    return isInjected() && !!document.querySelector(INITIALIZED_SELECTOR);
+  }
+  function wasDetected() {
+    return GM_getValue(DETECTED_KEY, 0) === 1;
+  }
+  function setDetected(detected) {
+    GM_setValue(DETECTED_KEY, detected ? 1 : 0);
   }
   function isInjected() {
     return document.documentElement.classList.contains(ROOT_CLASS);
@@ -4080,6 +4260,7 @@ body #gdt[class],
   function searchUiReady() {
     return !!(document.querySelector(SEARCH_SUBMIT_SELECTOR) && document.querySelector(CLEAR_BUTTON_SELECTOR));
   }
+  watchForSuccessfulInjection();
 
   // ehpeek-uno-css:ehpeek:uno.css
   var ehpeek_uno_default = `/* layer: preflights */
@@ -4220,7 +4401,9 @@ html[data-ehpeek-touch-ui="true"] .textsize-xl{font-size:30px;}
 .\\!static{position:static !important;}
 .inset-0{inset:0;}
 .bottom-\\[calc\\(12px\\+env\\(safe-area-inset-bottom\\,0px\\)\\)\\]{bottom:calc(12px + env(safe-area-inset-bottom,0px));}
+.bottom-\\[calc\\(76px\\+env\\(safe-area-inset-bottom\\,0px\\)\\)\\]{bottom:calc(76px + env(safe-area-inset-bottom,0px));}
 .bottom-\\[calc\\(max\\(16px\\,env\\(safe-area-inset-bottom\\,0px\\)\\)_\\+_52px\\)\\]{bottom:calc(max(16px,env(safe-area-inset-bottom,0px)) + 52px);}
+.left-\\[max\\(10px\\,env\\(safe-area-inset-left\\,0px\\)\\)\\]{left:max(10px,env(safe-area-inset-left,0px));}
 .left-\\[max\\(12px\\,env\\(safe-area-inset-left\\,0px\\)\\)\\]{left:max(12px,env(safe-area-inset-left,0px));}
 .left-0{left:0;}
 .left-1\\/2{left:50%;}
@@ -4335,6 +4518,7 @@ html[data-ehpeek-touch-ui="true"] .textsize-xl{font-size:30px;}
 .min-w-64px{min-width:64px;}
 .w-\\[calc\\(100\\%_-_32px\\)\\]{width:calc(100% - 32px);}
 .w-\\[min\\(86vw\\,360px\\)\\]{width:min(86vw,360px);}
+.w-\\[min\\(88vw\\,520px\\)\\]{width:min(88vw,520px);}
 .w-\\[var\\(--reader-frame-width\\)\\]{width:var(--reader-frame-width);}
 .w-10px{width:10px;}
 .w-40px{width:40px;}
@@ -4566,6 +4750,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
 .shadow-\\[0_4px_14px_var\\(--color-shadow-floating\\)\\]{--un-shadow:0 4px 14px var(--un-shadow-color, var(--color-shadow-floating));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
 .shadow-\\[0_6px_20px_var\\(--color-shadow-floating\\)\\]{--un-shadow:0 6px 20px var(--un-shadow-color, var(--color-shadow-floating));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
 .shadow-\\[0_8px_24px_var\\(--color-shadow-panel\\)\\]{--un-shadow:0 8px 24px var(--un-shadow-color, var(--color-shadow-panel));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
+.shadow-lg{--un-shadow:var(--un-shadow-inset) 0 10px 15px -3px var(--un-shadow-color, rgb(0 0 0 / 0.1)),var(--un-shadow-inset) 0 4px 6px -4px var(--un-shadow-color, rgb(0 0 0 / 0.1));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
 .shadow-none{--un-shadow:0 0 var(--un-shadow-color, rgb(0 0 0 / 0));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
 .shadow-xl{--un-shadow:var(--un-shadow-inset) 0 20px 25px -5px var(--un-shadow-color, rgb(0 0 0 / 0.1)),var(--un-shadow-inset) 0 8px 10px -6px var(--un-shadow-color, rgb(0 0 0 / 0.1));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
 .focus\\:shadow-\\[0_0_0_3px_var\\(--color-site-accent-hover\\)\\]:focus{--un-shadow:0 0 0 3px var(--un-shadow-color, var(--color-site-accent-hover));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
@@ -4591,6 +4776,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
 .landscape\\:left-auto{left:auto;}
 .landscape\\:right-10px{right:10px;}
 .landscape\\:top-\\[calc\\(62px\\+env\\(safe-area-inset-top\\,0px\\)\\)\\]{top:calc(62px + env(safe-area-inset-top,0px));}
+.landscape\\:top-\\[calc\\(90px\\+env\\(safe-area-inset-top\\,0px\\)\\)\\]{top:calc(90px + env(safe-area-inset-top,0px));}
 .landscape\\:max-w-\\[calc\\(100vw-20px\\)\\]{max-width:calc(100vw - 20px);}
 .landscape\\:min-w-0{min-width:0;}
 .landscape\\:translate-x-0{--un-translate-x:0;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
@@ -4598,10 +4784,12 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
 }
 @media (orientation: landscape) and (pointer: coarse){
 .coarse-landscape\\:right-8px{right:8px;}
+.coarse-landscape\\:top-\\[calc\\(106px\\+env\\(safe-area-inset-top\\,0px\\)\\)\\]{top:calc(106px + env(safe-area-inset-top,0px));}
 .coarse-landscape\\:top-\\[calc\\(74px\\+env\\(safe-area-inset-top\\,0px\\)\\)\\]{top:calc(74px + env(safe-area-inset-top,0px));}
 .coarse-landscape\\:max-w-\\[calc\\(100vw-16px\\)\\]{max-width:calc(100vw - 16px);}
 }
 @media (pointer: coarse){
+.coarse\\:bottom-\\[calc\\(96px\\+env\\(safe-area-inset-bottom\\,0px\\)\\)\\]{bottom:calc(96px + env(safe-area-inset-bottom,0px));}
 .coarse\\:right-8px{right:8px;}
 .coarse\\:top-\\[calc\\(80px\\+env\\(safe-area-inset-top\\,0px\\)\\)\\]{top:calc(80px + env(safe-area-inset-top,0px));}
 .coarse\\:top-\\[calc\\(8px\\+env\\(safe-area-inset-top\\,0px\\)\\)\\]{top:calc(8px + env(safe-area-inset-top,0px));}
@@ -4674,13 +4862,14 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
   function settingsMenuState() {
     return {
       readerEnabled: state.reader.enabled.value,
+      readerFullscreenEnabled: state.reader.fullscreen.value,
       enhanceThumbsGridsEnabled: enhanceThumbsGridsEnabled(),
       enhanceSearchGridsEnabled: state.search.enhance.value,
       touchUiEnabled: state.touch.enabled.value
     };
   }
   function applySettingsMenuState(next) {
-    state.reader.enabled.set(next.readerEnabled), state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled), state.search.enhance.set(next.enhanceSearchGridsEnabled), state.touch.enabled.set(next.touchUiEnabled), window.location.reload();
+    state.reader.enabled.set(next.readerEnabled), state.reader.fullscreen.set(next.readerFullscreenEnabled), state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled), state.search.enhance.set(next.enhanceSearchGridsEnabled), state.touch.enabled.set(next.touchUiEnabled), window.location.reload();
   }
   function continueReadingState() {
     if (pageType.type !== "gallery" || !state.reader.enabled.value)
@@ -4693,7 +4882,10 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
       },
       onClick: () => {
         let page = collectGalleryPages2()[0];
-        page && openReader(page.url, pageNum).catch(reportOpenError);
+        if (!page)
+          return;
+        let fullscreenRequest = requestConfiguredReaderFullscreen();
+        openReader(page.url, pageNum, fullscreenRequest).catch(reportOpenError);
       }
     };
   }
@@ -4887,7 +5079,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
       document.body.append(host), R(/* @__PURE__ */ k(EnhanceSearchGrids, { resultList }), host);
     }
   }
-  async function openReader(startPageUrl, preferredPageNum) {
+  async function openReader(startPageUrl, preferredPageNum, fullscreenRequest) {
     if (!state.reader.enabled.value)
       return;
     let pageType2 = extractPageType();
@@ -4916,6 +5108,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
       historySession.dispose();
       return;
     }
+    let automaticFullscreen = fullscreenRequest ? await fullscreenRequest : void 0;
     openFullscreenReader({
       galleryId: pageType2.galleryId,
       pages,
@@ -4925,6 +5118,8 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
       nearConcurrentLoads: 3,
       farConcurrentLoads: 6,
       totalPages,
+      initialFullscreenHint: automaticFullscreen === !1,
+      initialFullscreenOwned: automaticFullscreen === !0,
       loadPage: loadEhImagePage,
       loadPages: (pageNums) => provider.loadDisplayPages(pageNums),
       onActivePageChange: (page) => {
@@ -4950,11 +5145,24 @@ html[data-ehpeek-touch-ui="true"] .touch\\:text-30px{font-size:30px;}
     let message = error instanceof Error ? error.message : texts_default.errors.loadFailed;
     console.error("[ehpeek]", error), window.alert(message);
   }
+  function requestConfiguredReaderFullscreen() {
+    if (!state.reader.enabled.value || !state.reader.fullscreen.value || document.fullscreenElement)
+      return;
+    let root = document.documentElement;
+    return !document.fullscreenEnabled || typeof root.requestFullscreen != "function" ? Promise.resolve(!1) : root.requestFullscreen().then(
+      () => !0,
+      (error) => (console.warn("[ehpeek] Fullscreen request failed", error), !1)
+    );
+  }
   function onDocumentClick(event) {
     if (!state.reader.enabled.value)
       return;
     let link = findClickedImageLink2(event.target);
-    link && (event.preventDefault(), event.stopPropagation(), openReader(link.href).catch(reportOpenError));
+    if (!link)
+      return;
+    event.preventDefault(), event.stopPropagation();
+    let fullscreenRequest = requestConfiguredReaderFullscreen();
+    openReader(link.href, void 0, fullscreenRequest).catch(reportOpenError);
   }
   async function openReaderFromHash() {
     let peekPage = peekPageFromHash();
