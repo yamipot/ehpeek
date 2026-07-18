@@ -3,11 +3,14 @@ const TRANSLATED_LANGUAGE = "zh-hans";
 const INITIALIZED_SELECTOR = "#eh-syringe-popup-button";
 const SEARCH_SUBMIT_SELECTOR = "#searchbox button[ehs-input][type='submit']";
 const CLEAR_BUTTON_SELECTOR = "#searchbox button[ehs-input][type='button']";
+const TAG_TIP_INPUT_SELECTOR = "#f_search, #newtagfield, [name='f_search']";
+const TAG_TIP_LIST_SELECTOR = ".eh-syringe-lite-auto-complete-list";
 const DETECTED_KEY = "ehpeek:ehsyringe:detected";
 const INJECTION_TIMEOUT_MS = 3_000;
 const ROUTE_TRANSLATION_TIMEOUT_MS = 450;
 const ROUTE_TRANSLATION_QUIET_MS = 48;
 let initialUiReady: Promise<void> | null = null;
+let tagTipInput: HTMLInputElement | null = null;
 
 export function waitForInitialUi(): Promise<void> {
   initialUiReady ??= waitForExpectedInitialUi();
@@ -75,6 +78,19 @@ export function mirrorTranslatedContent(source: HTMLElement, target: HTMLElement
   });
 
   return () => observer.disconnect();
+}
+
+export function reuseTagTipInput(target: HTMLInputElement): HTMLInputElement {
+  captureTagTipInput();
+
+  if (!tagTipInput || tagTipInput === target || tagTipInput.isConnected) {
+    return target;
+  }
+
+  copyInputAttributes(target, tagTipInput);
+  tagTipInput.value = target.value;
+  target.replaceWith(tagTipInput);
+  return tagTipInput;
 }
 
 async function waitForExpectedInitialUi(): Promise<void> {
@@ -216,4 +232,55 @@ function searchUiReady(): boolean {
   return Boolean(document.querySelector(SEARCH_SUBMIT_SELECTOR) && document.querySelector(CLEAR_BUTTON_SELECTOR));
 }
 
+function captureTagTipInput(): boolean {
+  if (tagTipInput) {
+    return true;
+  }
+
+  if (!document.querySelector(TAG_TIP_LIST_SELECTOR)) {
+    return false;
+  }
+
+  tagTipInput = document.querySelector<HTMLInputElement>(TAG_TIP_INPUT_SELECTOR);
+  return tagTipInput !== null;
+}
+
+function copyInputAttributes(source: HTMLInputElement, target: HTMLInputElement): void {
+  const injectedAttributes = Array.from(target.attributes)
+    .filter((attribute) => attribute.name === "autocomplete" || attribute.name.startsWith("ehs-"))
+    .map((attribute) => [attribute.name, attribute.value] as const);
+
+  for (const attribute of Array.from(target.attributes)) {
+    target.removeAttribute(attribute.name);
+  }
+
+  for (const attribute of Array.from(source.attributes)) {
+    target.setAttribute(attribute.name, attribute.value);
+  }
+
+  for (const [name, value] of injectedAttributes) {
+    target.setAttribute(name, value);
+  }
+}
+
+function watchForTagTipInput(): void {
+  if (captureTagTipInput()) {
+    return;
+  }
+
+  const observer = new MutationObserver(() => {
+    if (!captureTagTipInput()) {
+      return;
+    }
+
+    observer.disconnect();
+  });
+
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+}
+
 watchForSuccessfulInjection();
+watchForTagTipInput();

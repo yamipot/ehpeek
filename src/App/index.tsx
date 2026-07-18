@@ -484,6 +484,15 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
   pageType = nextPage;
   const resultsPage = pageType.type === "search" || pageType.type === "favorites";
   const generation = ++pageGeneration;
+
+  if (resultsPage) {
+    const searchSource = eh.readSearchHistorySource();
+
+    if (searchSource) {
+      EhSyringe.reuseTagTipInput(searchSource.searchInput);
+    }
+  }
+
   trackOriginalReadHistory();
 
   if (resultsPage) {

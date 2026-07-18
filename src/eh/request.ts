@@ -13,6 +13,20 @@ export type PageResponse = {
   url: string;
 };
 
+export type GalleryTagApiInfo = {
+  apiKey: string;
+  apiUid: number;
+  apiUrl: string;
+  galleryId: number;
+  token: string;
+};
+
+export type GalleryRatingResult = {
+  average: number;
+  count: number;
+  value: number;
+};
+
 export async function requestPage(url: string, options: PageRequestOptions = {}): Promise<PageResponse> {
   const controller = new AbortController();
   const abort = () => controller.abort();
@@ -65,4 +79,87 @@ export async function updateGalleryFavorite(actionUrl: string, value: string): P
     },
     body,
   });
+}
+
+export async function updateGalleryRating(
+  info: GalleryTagApiInfo,
+  value: number,
+): Promise<GalleryRatingResult> {
+  const result = await requestGalleryApi(info, {
+    method: "rategallery",
+    rating: Math.round(value * 2),
+  });
+  const average = Number(result.rating_avg);
+  const count = Number(result.rating_cnt);
+  const rating = Number(result.rating_usr);
+
+  if (!Number.isFinite(average) || !Number.isFinite(count) || !Number.isFinite(rating)) {
+    throw new Error("Gallery rating response is invalid.");
+  }
+
+  return { average, count, value: rating };
+}
+
+export async function updateGalleryTagVote(
+  info: GalleryTagApiInfo,
+  tag: string,
+  vote: number,
+): Promise<string> {
+  const result = await requestGalleryApi(info, {
+    method: "taggallery",
+    tags: tag,
+    vote,
+  });
+
+  if (typeof result.tagpane !== "string") {
+    throw new Error("Gallery tag response is invalid.");
+  }
+
+  return result.tagpane;
+}
+
+async function requestGalleryApi(
+  info: GalleryTagApiInfo,
+  payload: Record<string, string | number>,
+): Promise<Record<string, unknown>> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(info.apiUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        apiuid: info.apiUid,
+        apikey: info.apiKey,
+        gid: info.galleryId,
+        token: info.token,
+      }),
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const result: unknown = await response.json();
+
+    if (!result || typeof result !== "object" || Array.isArray(result)) {
+      throw new Error("Gallery API response is invalid.");
+    }
+
+    const record = result as Record<string, unknown>;
+
+    if (typeof record.error === "string" && record.error) {
+      throw new Error(record.error);
+    }
+
+    return record;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }

@@ -36,6 +36,13 @@
     "all": "All",
     "categories": "Favorite category"
   },
+  "gallery": {
+    "voteUp": "Vote Up",
+    "voteDown": "Vote Down",
+    "showTaggedGalleries": "Show Tagged Galleries",
+    "showTagDefinition": "Show Tag Definition",
+    "addNewTag": "Add New Tag"
+  },
   "settings": {
     "openSettings": "Settings",
     "menuLabel": "Ehpeek",

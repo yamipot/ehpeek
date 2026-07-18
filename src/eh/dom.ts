@@ -1,6 +1,12 @@
 import type { ReaderPage } from "../readerTypes";
 import texts from "../texts.json";
 import { normalizeUrl } from "../utils";
+import {
+  updateGalleryRating,
+  updateGalleryTagVote,
+  type GalleryRatingResult,
+  type GalleryTagApiInfo,
+} from "./request";
 import galleryRearrange from "./galleryRearrange.css";
 
 const TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID = "ehpeek-touch-gallery-page-rearrange-style";
@@ -60,8 +66,19 @@ export type GalleryTagGroup = {
 export type GalleryTag = {
   appearance: GalleryTagAppearance;
   contentSource: HTMLElement;
+  definitionHref: string;
   href: string;
   label: string;
+  name: string;
+};
+
+export type GalleryTagAction = "voteDown" | "voteUp";
+
+export type GalleryNewTagInfo = {
+  button: HTMLInputElement | HTMLButtonElement;
+  container: HTMLElement;
+  field: HTMLInputElement;
+  form: HTMLFormElement;
 };
 
 export type GalleryTagAppearance = {
@@ -78,6 +95,7 @@ export type GalleryCategoryAppearance = {
 export type GalleryRatingInfo = {
   count: string;
   label: string;
+  rated: boolean;
   value: number;
 };
 
@@ -89,6 +107,8 @@ export type GalleryInfo = {
   categoryAppearance: GalleryCategoryAppearance;
   cover: HTMLElement | null;
   favorite: GalleryFavoriteInfo;
+  newTag: GalleryNewTagInfo | null;
+  tagApi: GalleryTagApiInfo | null;
   summary: GallerySummaryItem[];
   actions: HTMLElement[];
   rating: GalleryRatingInfo | null;
@@ -1337,6 +1357,8 @@ export function readGalleryInfo(actionMenuItemClassName: string): GalleryInfo {
     categoryAppearance: readGalleryCategoryAppearance(),
     cover: coverUrl ? galleryCoverImageElement(coverUrl) : null,
     favorite: readGalleryFavoriteInfo(),
+    newTag: readGalleryNewTagInfo(),
+    tagApi: readGalleryTagApiInfo(),
     summary,
     actions: readGalleryActionsDom(actionMenuItemClassName),
     rating: readGalleryRatingInfo(),
@@ -1467,6 +1489,7 @@ function readGalleryCategoryAppearance(): GalleryCategoryAppearance {
 function readGalleryRatingInfo(): GalleryRatingInfo | null {
   const label = textOf("#rating_label");
   const count = textOf("#rating_count");
+  const ratingImage = document.querySelector("#rating_image");
   const script = galleryRatingScript();
   const value = scriptNumberValue(script, "display_rating");
 
@@ -1474,7 +1497,12 @@ function readGalleryRatingInfo(): GalleryRatingInfo | null {
     return null;
   }
 
-  return { count, label, value };
+  return {
+    count,
+    label,
+    rated: ["irb", "irg", "irr"].some((className) => ratingImage?.classList.contains(className)),
+    value,
+  };
 }
 
 function galleryRatingScript(): string {
@@ -1491,20 +1519,17 @@ function scriptNumberValue(script: string, name: string): number | null {
   return match && Number.isFinite(value) ? value : null;
 }
 
-export function setGalleryRating(value: number): void {
+export async function setGalleryRating(
+  info: GalleryTagApiInfo,
+  value: number,
+): Promise<GalleryRatingResult> {
   const rating = Math.round(value * 2);
 
   if (rating < 1 || rating > 10) {
     throw new RangeError("Gallery rating must be between 0.5 and 5 stars.");
   }
 
-  const area = document.querySelectorAll<HTMLAreaElement>('map[name="rating"] area')[rating - 1];
-
-  if (!area) {
-    throw new Error("Gallery rating action is unavailable.");
-  }
-
-  area.click();
+  return updateGalleryRating(info, value);
 }
 
 function readGalleryActionsDom(actionMenuItemClassName: string): HTMLElement[] {
@@ -1524,7 +1549,7 @@ function readGalleryActionsDom(actionMenuItemClassName: string): HTMLElement[] {
     .slice(0, 6);
 }
 
-function readGalleryTagGroups(): GalleryTagGroup[] {
+export function readGalleryTagGroups(): GalleryTagGroup[] {
   const rows = Array.from(document.querySelectorAll<HTMLTableRowElement>("#taglist tr"));
 
   if (rows.length > 0) {
@@ -1560,8 +1585,9 @@ function readGalleryTagGroups(): GalleryTagGroup[] {
 
 function readGalleryTag(tag: HTMLAnchorElement): GalleryTag | null {
   const label = tag.textContent?.trim() || tag.getAttribute("ehs-tag")?.trim() || tag.title.trim();
+  const name = galleryTagName(tag);
 
-  if (!label || !tag.href) {
+  if (!label || !name || !tag.href) {
     return null;
   }
 
@@ -1575,9 +1601,141 @@ function readGalleryTag(tag: HTMLAnchorElement): GalleryTag | null {
       color: tagStyle.color,
     },
     contentSource: tag,
+    definitionHref: `https://ehwiki.org/wiki/${encodeURIComponent(name.replace(/^[a-z]+:\s*/i, ""))}`,
     href: tag.href,
     label,
+    name,
   };
+}
+
+export function observeGalleryTagChanges(onChange: () => void): () => void {
+  const tagList = document.querySelector<HTMLElement>("#taglist");
+
+  if (!tagList) {
+    return () => undefined;
+  }
+
+  const observer = new MutationObserver(onChange);
+  observer.observe(tagList, { childList: true, subtree: true });
+  return () => observer.disconnect();
+}
+
+export async function runGalleryTagAction(
+  info: GalleryTagApiInfo,
+  tag: GalleryTag,
+  action: GalleryTagAction,
+): Promise<void> {
+  const tagPane = await updateGalleryTagVote(info, tag.name, action === "voteUp" ? 1 : -1);
+  const tagList = document.querySelector<HTMLElement>("#taglist");
+
+  if (!tagList) {
+    throw new Error("Gallery tag list is unavailable.");
+  }
+
+  const template = document.createElement("template");
+  template.innerHTML = tagPane;
+  tagList.replaceChildren(...Array.from(template.content.childNodes));
+}
+
+export function prepareGalleryNewTag(info: GalleryNewTagInfo): void {
+  info.container.hidden = false;
+  info.container.style.removeProperty("display");
+  addClassNames(info.container, "ehpeek-touch-gallery-new-tag box-border w-full pt-md");
+  addClassNames(info.form, "flex w-full min-w-0 items-center gap-sm");
+  addClassNames(info.field, "box-border min-w-0 flex-1 h-md px-md rounded-xs border ehp-color-site-border bg-[var(--color-site-surface)] ehp-color-site-text font-inherit textsize-md outline-none focus:border-[var(--color-site-accent)]");
+  info.field.removeAttribute("size");
+  addClassNames(info.button, "box-border flex-none h-md px-lg rounded-xs border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit textsize-md font-700 cursor-pointer");
+
+  if (document.querySelector("[data-ehpeek-single-page-app='true']")) {
+    const action = new URL(window.location.href);
+    action.hash = "";
+    info.form.action = action.href;
+    info.button.removeAttribute("onclick");
+  }
+}
+
+export function focusGalleryNewTag(info: GalleryNewTagInfo): void {
+  info.container.scrollIntoView({ block: "nearest" });
+  info.field.focus();
+}
+
+function addClassNames(element: Element, classNames: string): void {
+  element.classList.add(...classNames.split(" "));
+}
+
+function galleryTagName(tag: HTMLAnchorElement): string | null {
+  try {
+    const path = new URL(tag.href).pathname;
+    const encodedName = path.match(/^\/tag\/(.+?)\/?$/i)?.[1];
+    return encodedName ? decodeURIComponent(encodedName.replace(/\+/g, " ")) : null;
+  } catch {
+    return null;
+  }
+}
+
+function readGalleryNewTagInfo(): GalleryNewTagInfo | null {
+  const container = document.querySelector<HTMLElement>("#tagmenu_new");
+  const form = container?.querySelector<HTMLFormElement>("form") ?? null;
+  const field = container?.querySelector<HTMLInputElement>("#newtagfield") ?? null;
+  const button = container?.querySelector<HTMLInputElement | HTMLButtonElement>("#newtagbutton") ?? null;
+
+  if (!container || !form || !field || !button) {
+    return null;
+  }
+
+  return {
+    button,
+    container,
+    field,
+    form,
+  };
+}
+
+function readGalleryTagApiInfo(): GalleryTagApiInfo | null {
+  const galleryMatch = window.location.pathname.match(/^\/g\/(\d+)\/([^/]+)/i);
+
+  if (!galleryMatch) {
+    return null;
+  }
+
+  const expectedGalleryId = Number(galleryMatch[1]);
+  const expectedToken = galleryMatch[2];
+  const script = Array.from(document.scripts)
+    .map((item) => item.textContent ?? "")
+    .find(
+      (text) =>
+        text.includes("var api_url") &&
+        text.includes("var apikey") &&
+        scriptNumberValue(text, "gid") === expectedGalleryId &&
+        scriptStringValue(text, "token") === expectedToken,
+    );
+
+  if (!script) {
+    return null;
+  }
+
+  const apiUrl = scriptStringValue(script, "api_url");
+  const apiKey = scriptStringValue(script, "apikey");
+  const token = scriptStringValue(script, "token");
+  const galleryId = scriptNumberValue(script, "gid");
+  const apiUid = scriptNumberValue(script, "apiuid");
+
+  if (!apiUrl || !apiKey || !token || galleryId === null || apiUid === null) {
+    return null;
+  }
+
+  return {
+    apiKey,
+    apiUid,
+    apiUrl,
+    galleryId,
+    token,
+  };
+}
+
+function scriptStringValue(script: string, name: string): string | null {
+  const match = script.match(new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`));
+  return match?.[2] ?? null;
 }
 
 function readGalleryFavoriteInfo(): GalleryFavoriteInfo {

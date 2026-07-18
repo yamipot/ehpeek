@@ -3,7 +3,14 @@ import texts from "../texts.json";
 import * as dom from "./dom";
 import { requestPage } from "./request";
 
-export { requestPage, updateGalleryFavorite, type PageRequestOptions, type PageResponse } from "./request";
+export {
+  requestPage,
+  updateGalleryFavorite,
+  type GalleryRatingResult,
+  type GalleryTagApiInfo,
+  type PageRequestOptions,
+  type PageResponse,
+} from "./request";
 
 export {
   applySiteTheme,
@@ -22,13 +29,18 @@ export {
   prepareThumbsGridSwipeTargets,
   preparePageViewportForFullscreen,
   parseGalleryFavoriteOptions,
+  prepareGalleryNewTag,
   readGalleryInfo,
+  readGalleryTagGroups,
   readShowingRange,
   readSearchHistorySource,
   readTouchSearchPanelInfo,
   readTouchTopBarInfo,
   prepareTouchSearchPanel,
   replaceGalleryPageBarMounts,
+  runGalleryTagAction,
+  observeGalleryTagChanges,
+  focusGalleryNewTag,
   restorePreview,
   restorePageViewport,
   searchPageNavigation,
@@ -50,7 +62,9 @@ export type {
   GalleryFavoriteInfo,
   GalleryFavoriteOption,
   GalleryInfo,
+  GalleryNewTagInfo,
   GalleryTag,
+  GalleryTagAction,
   GalleryTagGroup,
   SearchHistorySource,
   TouchSearchPanelInfo,
