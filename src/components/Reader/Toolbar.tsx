@@ -50,7 +50,6 @@ export type ToolbarCallbacks = {
   onFullscreenClick: () => void;
   onModeClick: () => void;
   onOpenOriginalPageClick: () => void;
-  onOpenChange: (open: boolean) => void;
   onProgressCommit: (value: number) => void;
   onProgressInput: (value: number) => void;
   onProgressPointerDown: (event: PointerEvent) => void;
