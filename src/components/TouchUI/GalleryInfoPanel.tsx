@@ -110,7 +110,7 @@ export function GalleryInfoPanel(props: {
             </div>
             <div class="ehpeek-touch-gallery-category-row grid grid-cols-[minmax(0,35fr)_minmax(0,65fr)] w-full flex-none items-center gap-lg mt-auto pt-md">
               <div
-                class="ehpeek-touch-gallery-category box-border w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xs py-6px px-10px ehp-color-site-page ehp-color-site-accent text-center textsize-md font-700 leading-[1.1] uppercase"
+                class="ehpeek-touch-gallery-category box-border w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xs border border-solid py-6px px-10px text-center textsize-md font-700 leading-[1.1] uppercase"
                 style={props.source.categoryAppearance}
               >
                 {props.source.category}
@@ -180,7 +180,7 @@ export function GalleryInfoPanel(props: {
       <div class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]">
         <TouchGalleryFavoriteButton source={props.source.favorite} />
         <div
-          class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-l-[var(--color-site-page)]"
+          class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]"
           ref={(node) => {
             props.onPrimaryActionMount(node);
           }}
@@ -483,7 +483,8 @@ function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
     <div ref={root} class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0">
       <button
         type="button"
-        class={`ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] textsize-md font-700 normal-case ${favorited() ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`}
+        class={`ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] textsize-md font-700 normal-case ${favorited() ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`}
+        style={{ color: favorite().color ?? undefined }}
         aria-haspopup="menu"
         aria-expanded={open()}
         onClick={(event: MouseEvent) => {
@@ -497,7 +498,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
       >
         <span class="block leading-[1.15]">{favorite().label}</span>
         <span
-          class={`ehpeek-touch-gallery-favorite-icon block mt-2px opacity-78 normal-case ${favorited() ? "ehp-color-site-accent" : "ehp-color-site-text"}`}
+          class="ehpeek-touch-gallery-favorite-icon block mt-2px opacity-78 normal-case"
           aria-hidden="true"
         >
           <Icon name="heart" filled={favorited()} />
@@ -519,6 +520,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
                 onApplied={() => {
                   setFavorite({
                     ...favorite(),
+                    color: option.color,
                     favorited: option.value !== "favdel",
                     label: option.value === "favdel" ? "Not Favorited" : option.label,
                   });
@@ -561,14 +563,16 @@ function TouchGalleryFavoriteOption(props: {
       }}
     >
       <span
-        class={`ehpeek-touch-gallery-favorite-option-icon flex-none ${props.option.value === "favdel" ? "ehp-color-site-text" : "ehp-color-site-accent"}`}
+        class="ehpeek-touch-gallery-favorite-option-icon flex-none ehp-color-site-text"
+        style={{ color: props.option.color ?? undefined }}
         aria-hidden="true"
       >
         <Icon name="heart" filled={props.option.value !== "favdel"} />
       </span>
       <span>{props.option.label}</span>
       <span
-        class={`ml-auto flex-none ehp-color-site-accent ${props.option.selected ? "visible" : "invisible"}`}
+        class={`ml-auto flex-none ehp-color-site-text ${props.option.selected ? "visible" : "invisible"}`}
+        style={{ color: props.option.color ?? undefined }}
         aria-hidden="true"
       >
         <Icon name="check" />

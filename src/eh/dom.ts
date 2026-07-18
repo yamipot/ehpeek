@@ -88,7 +88,9 @@ export type GalleryTagAppearance = {
 };
 
 export type GalleryCategoryAppearance = {
-  backgroundColor: string;
+  "background-color": string;
+  "background-image": string;
+  "border-color": string;
   color: string;
 };
 
@@ -117,11 +119,13 @@ export type GalleryInfo = {
 
 export type GalleryFavoriteInfo = {
   actionUrl: string;
+  color: string | null;
   favorited: boolean;
   label: string;
 };
 
 export type GalleryFavoriteOption = {
+  color: string | null;
   label: string;
   selected: boolean;
   value: string;
@@ -1481,7 +1485,9 @@ function readGalleryCategoryAppearance(): GalleryCategoryAppearance {
   const style = categoryStyleElement ? window.getComputedStyle(categoryStyleElement) : null;
 
   return {
-    backgroundColor: style?.backgroundColor ?? "",
+    "background-color": style?.backgroundColor ?? "",
+    "background-image": style?.backgroundImage ?? "",
+    "border-color": style?.borderColor ?? "",
     color: style?.color ?? "",
   };
 }
@@ -1746,6 +1752,7 @@ function readGalleryFavoriteInfo(): GalleryFavoriteInfo {
 
   return {
     actionUrl: galleryFavoriteActionUrl(),
+    color: galleryFavoriteColor(text),
     favorited,
     label: favorited ? text : "Not Favorited",
   };
@@ -1757,11 +1764,17 @@ export function parseGalleryFavoriteOptions(doc: Document, favorited: boolean): 
     const label = row?.textContent?.trim().replace(/\s+/g, " ") || input.value;
 
     return {
+      color: galleryFavoriteColor(input.value),
       label,
       selected: favorited && input.checked,
       value: input.value,
     };
   });
+}
+
+function galleryFavoriteColor(value: string): string | null {
+  const slot = value.match(/^(?:fav)?([0-9])$/i)?.[1] ?? value.match(/^favorites?\s+([0-9])$/i)?.[1];
+  return slot === undefined ? null : `var(--color-site-favorite-${slot})`;
 }
 
 function galleryFavoriteActionUrl(): string {

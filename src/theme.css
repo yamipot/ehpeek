@@ -15,6 +15,17 @@
   --color-state-off: #8c8f96;
   --color-shadow: #000000;
 
+  --color-site-favorite-0: #646464;
+  --color-site-favorite-1: #ff6868;
+  --color-site-favorite-2: #ffa561;
+  --color-site-favorite-3: #fff56b;
+  --color-site-favorite-4: #68ff8b;
+  --color-site-favorite-5: #cdff84;
+  --color-site-favorite-6: #8afeff;
+  --color-site-favorite-7: #7268ff;
+  --color-site-favorite-8: #ac57fe;
+  --color-site-favorite-9: #fe50c8;
+
   --color-muted: color-mix(in srgb, var(--color-text) 72%, transparent);
   --color-border: color-mix(in srgb, var(--color-text) 18%, transparent);
   --color-track: color-mix(in srgb, var(--color-text) 34%, var(--color-background));
