@@ -1,4 +1,4 @@
-import { onCleanup } from "solid-js";
+import { createMemo } from "solid-js";
 import { Icon, type IconName } from "../Icon";
 export { ExternalDomNode as DomNode, ExternalDomNodes as DomNodes } from "../ExternalDom";
 
@@ -45,69 +45,31 @@ export type SwipeIndicatorState = {
   progress: number;
 };
 
-export type SwipeIndicatorActions = {
-  hide: (direction: SwipeDirection) => void;
-  update: (state: SwipeIndicatorState) => void;
-};
-
 const SWIPE_INDICATOR_HIDE_PROGRESS = 0.001;
 
-export function SwipeIndicator(props: { actionsRef: (actions: SwipeIndicatorActions) => void }) {
-  let element: HTMLDivElement | null = null;
-  const actions: SwipeIndicatorActions = {
-    hide: (direction) => {
-      if (element) {
-        updateSwipeIndicatorElement(element, { direction, progress: 0 });
-      }
-    },
-    update: (state) => {
-      if (element) {
-        updateSwipeIndicatorElement(element, state);
-      }
-    },
-  };
-  props.actionsRef(actions);
-  onCleanup(() => {
-    element = null;
-  });
+export function SwipeIndicator(props: { state: SwipeIndicatorState }) {
+  const progress = createMemo(() => Math.min(1, Math.max(0, props.state.progress)));
+  const hidden = createMemo(() => progress() <= SWIPE_INDICATOR_HIDE_PROGRESS);
+  const pull = createMemo(() => Math.round(48 * progress()));
+  const offset = createMemo(() => props.state.direction === "left" ? 42 - pull() : pull() - 42);
+  const iconName = createMemo<IconName>(() =>
+    props.state.blocked ? "close" : props.state.direction === "left" ? "chevron-left" : "chevron-right"
+  );
 
   return (
     <div
-      ref={(node) => {
-        element = node;
-      }}
       class="ehpeek-swipe-indicator fixed top-1/2 z-overlay flex w-42px h-108px items-center justify-center border border-[var(--color-site-swipe-border)] rounded-full bg-[var(--color-site-swipe-background)] text-[var(--color-site-text)] shadow-[0_6px_20px_var(--color-shadow-floating)] pointer-events-none select-none transition-opacity duration-120 ease-in-out"
-      aria-hidden="true"
+      aria-hidden={hidden() ? "true" : "false"}
       style={{
         "backdrop-filter": "blur(8px)",
-        display: "none",
-        opacity: "0",
-        transform: "translate(42px, -50%)",
+        display: hidden() ? "none" : "flex",
+        left: props.state.direction === "right" ? "6px" : "",
+        opacity: hidden() ? "0" : String(0.35 + progress() * 0.65),
+        right: props.state.direction === "left" ? "6px" : "",
+        transform: `translate(${offset()}px, -50%)`,
       }}
     >
-      <Icon name="close" size={36} />
-      <Icon name="chevron-left" size={36} />
-      <Icon name="chevron-right" size={36} />
+      <Icon name={iconName()} size={36} />
     </div>
   );
-}
-
-function updateSwipeIndicatorElement(element: HTMLDivElement, state: SwipeIndicatorState): void {
-  const clampedProgress = Math.min(1, Math.max(0, state.progress));
-  const pull = Math.round(48 * clampedProgress);
-  const hidden = clampedProgress <= SWIPE_INDICATOR_HIDE_PROGRESS;
-  const offset = state.direction === "left" ? 42 - pull : pull - 42;
-  const blocked = state.blocked === true;
-  const iconName: IconName = blocked ? "close" : state.direction === "left" ? "chevron-left" : "chevron-right";
-
-  element.setAttribute("aria-hidden", hidden ? "true" : "false");
-  for (const icon of Array.from(element.querySelectorAll<SVGSVGElement>(".ehpeek-icon"))) {
-    icon.style.display = icon.dataset.iconName === iconName ? "block" : "none";
-  }
-  element.style.display = hidden ? "none" : "flex";
-  element.style.left = state.direction === "right" ? "6px" : "";
-  element.style.opacity = String(0.35 + clampedProgress * 0.65);
-  element.style.right = state.direction === "left" ? "6px" : "";
-  element.style.transform = `translate(${offset}px, -50%)`;
-  element.style.width = "";
 }

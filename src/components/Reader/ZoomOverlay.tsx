@@ -27,18 +27,19 @@ export type ZoomDragMove = {
 };
 
 export type ZoomOverlayActions = {
-  active: () => boolean;
-  close: () => void;
   endPinch: () => void;
   moveDrag: (move: ZoomDragMove) => void;
   movePinch: (pinch: ZoomPinchMove) => void;
-  start: (image: ZoomOverlayImage, pinch: ZoomPinchStart) => void;
+  reset: (pinch: ZoomPinchStart) => void;
   startDrag: () => void;
   startPinch: (pinch: ZoomPinchStart) => void;
 };
 
-export function ZoomOverlay(props: { actionsRef: (actions: ZoomOverlayActions) => void }) {
-  const [activeImage, setActiveImage] = createSignal<ZoomOverlayImage | null>(null);
+export function ZoomOverlay(props: {
+  actionsRef: (actions: ZoomOverlayActions) => void;
+  image: ZoomOverlayImage | null;
+  onClose: () => void;
+}) {
   const [transform, setTransform] = createSignal("translate3d(0px, 0px, 0) scale(1)");
   let element!: HTMLDivElement;
   let scale = 1;
@@ -53,12 +54,8 @@ export function ZoomOverlay(props: { actionsRef: (actions: ZoomOverlayActions) =
   let dragStartOffsetX = 0;
   let dragStartOffsetY = 0;
 
-  const active = () => activeImage() !== null;
   const renderTransform = () => {
     setTransform(`translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`);
-  };
-  const close = () => {
-    setActiveImage(null);
   };
   const startPinch = (pinch: ZoomPinchStart) => {
     pinchStartScale = scale;
@@ -68,20 +65,17 @@ export function ZoomOverlay(props: { actionsRef: (actions: ZoomOverlayActions) =
     pinchStartCenterY = pinch.centerY;
   };
   const actions: ZoomOverlayActions = {
-    active,
-    close,
-    start(image, pinch): void {
+    reset(pinch): void {
       scale = 1;
       requestedScale = 1;
       offsetX = 0;
       offsetY = 0;
-      setActiveImage(image);
       startPinch(pinch);
       renderTransform();
     },
     startPinch,
     movePinch(pinch): void {
-      if (!active()) {
+      if (!props.image) {
         return;
       }
 
@@ -98,7 +92,7 @@ export function ZoomOverlay(props: { actionsRef: (actions: ZoomOverlayActions) =
     },
     endPinch(): void {
       if (requestedScale <= CLOSE_SCALE) {
-        close();
+        props.onClose();
         return;
       }
 
@@ -109,7 +103,7 @@ export function ZoomOverlay(props: { actionsRef: (actions: ZoomOverlayActions) =
       dragStartOffsetY = offsetY;
     },
     moveDrag(move): void {
-      if (!active()) {
+      if (!props.image) {
         return;
       }
 
@@ -125,15 +119,15 @@ export function ZoomOverlay(props: { actionsRef: (actions: ZoomOverlayActions) =
     <div
       ref={element}
       class="fixed inset-0 z-4 flex items-center justify-center overflow-hidden ehp-color-reader pointer-events-none"
-      hidden={!active()}
-      style={{ display: active() ? "" : "none" }}
+      hidden={!props.image}
+      style={{ display: props.image ? "" : "none" }}
     >
       <img
         class="block max-w-screen max-h-screen object-contain origin-center select-none will-change-transform [-webkit-user-drag:none]"
-        src={activeImage()?.imageUrl}
-        alt={activeImage() ? `Page ${activeImage()!.pageNum}` : ""}
-        width={activeImage()?.width ?? undefined}
-        height={activeImage()?.height ?? undefined}
+        src={props.image?.imageUrl}
+        alt={props.image ? `Page ${props.image.pageNum}` : ""}
+        width={props.image?.width ?? undefined}
+        height={props.image?.height ?? undefined}
         style={{ transform: transform() }}
       />
     </div>

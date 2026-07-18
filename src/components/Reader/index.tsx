@@ -1,4 +1,4 @@
-import { onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount } from "solid-js";
 import { createStore } from "solid-js/store";
 import texts from "../../texts.json";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
@@ -15,8 +15,10 @@ import type { ScrollMotion } from "../animation";
 import type { PointerDragEnd, PointerGestureCallbacks } from "../pointerGesture";
 import {
   PagesViewport,
+  pageWindowNumbers,
   type PagesViewportActions,
   type PagesViewportCallbacks,
+  type PagesViewportWindowOptions,
 } from "./Viewport";
 import {
   initialToolbarState,
@@ -381,6 +383,24 @@ function handlePagesKeydown(event: KeyboardEvent, callbacks: PagesGestureCallbac
   }
 }
 
+function initialViewportWindow(options: FullscreenReaderOptions): PagesViewportWindowOptions {
+  const startIndex = clamp(options.startIndex, 0, Math.max(0, options.pages.length - 1));
+  const pages = new Map<number, { aspectRatio: number }>();
+
+  for (const [index, page] of options.pages.entries()) {
+    pages.set(pageNumForPage(page, index), {
+      aspectRatio: normalizedAspectRatio(page.aspectRatio, FALLBACK_ASPECT_RATIO),
+    });
+  }
+
+  return {
+    currentPageNum: pageNumForPage(options.pages[startIndex], startIndex),
+    windowSize: options.renderWindowSize ?? DEFAULT_WINDOW_SIZE,
+    totalPages: options.totalPages && options.totalPages > 0 ? options.totalPages : undefined,
+    pages,
+  };
+}
+
 export function FullscreenReader(props: {
   actionsRef: (actions: FullscreenReaderActions) => void;
   onActionsDispose: () => void;
@@ -388,6 +408,8 @@ export function FullscreenReader(props: {
   options: FullscreenReaderOptions;
 }) {
   const [toolbarState, setToolbarState] = createStore<ToolbarState>(initialToolbarState());
+  const [viewportWindow, setViewportWindow] = createSignal(initialViewportWindow(props.options));
+  const [zoomImage, setZoomImage] = createSignal<ZoomOverlayImage | null>(null);
   const [rootState, setRootState] = createStore<ReaderRootState>({
     readDirection: state.reader.readDirection.value,
     toolbarOpen: false,
@@ -396,15 +418,34 @@ export function FullscreenReader(props: {
   let viewportActions!: PagesViewportActions;
   let zoomOverlayActions!: ZoomOverlayActions;
   let readerSession!: ReaderSession;
+  const closeDownloadDialog = () => setToolbarState({ downloadDialog: null });
   const toolbarCallbacks: ToolbarCallbacks = {
     onReadDirectionClick: () => readerSession.toggleReadDirection(),
     onRightTapClick: () => readerSession.toggleRightTapAction(),
     onModeClick: () => readerSession.setMode(state.reader.viewMode.value === "paged" ? "scroll" : "paged"),
     onCloseClick: () => readerSession.close(),
-    onDownloadClick: () => readerSession.openDownloadDialog(),
-    onDownloadCurrentClick: () => readerSession.downloadDisplayedImage(),
-    onDownloadDialogClose: () => readerSession.closeDownloadDialog(),
-    onDownloadOriginalClick: () => readerSession.downloadOriginalImage(),
+    onDownloadClick: () => {
+      const downloadDialog = readerSession.downloadDialog();
+
+      if (downloadDialog) {
+        setToolbarState({ downloadDialog });
+      }
+    },
+    onDownloadCurrentClick: () => {
+      const downloadDialog = toolbarState.downloadDialog;
+
+      if (downloadDialog && readerSession.downloadDisplayedImage(downloadDialog)) {
+        closeDownloadDialog();
+      }
+    },
+    onDownloadDialogClose: closeDownloadDialog,
+    onDownloadOriginalClick: () => {
+      const downloadDialog = toolbarState.downloadDialog;
+
+      if (downloadDialog && readerSession.downloadOriginalImage(downloadDialog)) {
+        closeDownloadDialog();
+      }
+    },
     onFullscreenClick: () => {
       void readerSession.toggleFullscreen();
     },
@@ -415,7 +456,14 @@ export function FullscreenReader(props: {
   };
   const gestureCallbacks: PagesGestureCallbacks = {
     onTap: (info, event) => readerSession.handleTap(info, event),
-    onKeyboardClose: () => readerSession.handleKeyboardClose(),
+    onKeyboardClose: () => {
+      if (toolbarState.downloadDialog) {
+        closeDownloadDialog();
+        return true;
+      }
+
+      return readerSession.handleKeyboardClose();
+    },
     onKeyboardArrow: (direction) => readerSession.handleKeyboardArrow(direction),
     onWheel: (delta, event) => readerSession.handleWheel(delta, event),
     shouldStartDrag: (event) => readerSession.shouldStartDrag(event),
@@ -433,10 +481,33 @@ export function FullscreenReader(props: {
     onWheel: gestureCallbacks.onWheel,
     pointer: pagesPointerGestureCallbacks(gestureCallbacks),
   };
-  const uiActions: ReaderUiActions = {
-    toolbarState: () => toolbarState,
-    updateRootState: (nextState) => setRootState(nextState),
-    updateToolbarState: (nextState) => setToolbarState(nextState),
+  const sessionCallbacks: ReaderSessionCallbacks = {
+    isZoomActive: () => zoomImage() !== null,
+    onControlsChange: (controls) => {
+      setRootState({ readDirection: controls.readDirection, viewMode: controls.mode });
+      setToolbarState({ controls });
+    },
+    onFullscreenChange: (active) => setToolbarState({ fullscreenActive: active, fullscreenHint: false }),
+    onFullscreenHintChange: (visible) => setToolbarState({ fullscreenHint: visible }),
+    onPageChange: (progress, downloadAvailable) => {
+      setToolbarState({
+        downloadAvailable,
+        downloadDialog: toolbarState.downloadDialog?.pageNum === progress.pageNum ? toolbarState.downloadDialog : null,
+        progress,
+      });
+    },
+    onProgressChange: (progress) => setToolbarState({ progress }),
+    onToolbarToggle: () => {
+      const open = !toolbarState.open;
+      setToolbarState({ open });
+      setRootState({ toolbarOpen: open });
+    },
+    onViewportWindowChange: (window) => setViewportWindow(window),
+    onZoomClose: () => setZoomImage(null),
+    onZoomOpen: (image, pinch) => {
+      setZoomImage(image);
+      zoomOverlayActions.reset(pinch);
+    },
   };
 
   onMount(() => {
@@ -445,13 +516,11 @@ export function FullscreenReader(props: {
     readerSession = new ReaderSession(
       props.options,
       {
+        callbacks: sessionCallbacks,
         close: props.onClosed,
-        ui: uiActions,
       },
-      {
-        viewport: viewportActions,
-        zoomOverlay: zoomOverlayActions,
-      },
+      viewportActions,
+      zoomOverlayActions,
     );
 
     registerGlobalStyle(STYLE_ID, readerCss);
@@ -495,31 +564,35 @@ export function FullscreenReader(props: {
         callbacks={viewportCallbacks}
         mode={rootState.viewMode}
         readDirection={rootState.readDirection}
-        totalPages={props.options.totalPages}
+        window={viewportWindow()}
       />
       <ZoomOverlay
         actionsRef={(actions) => {
           zoomOverlayActions = actions;
         }}
+        image={zoomImage()}
+        onClose={() => setZoomImage(null)}
       />
     </div>
   );
 }
 
-type ReaderComponentActions = {
-  viewport: PagesViewportActions;
-  zoomOverlay: ZoomOverlayActions;
-};
-
-type ReaderUiActions = {
-  toolbarState: () => ToolbarState;
-  updateRootState: (state: Partial<ReaderRootState>) => void;
-  updateToolbarState: (state: Partial<ToolbarState>) => void;
+type ReaderSessionCallbacks = {
+  isZoomActive: () => boolean;
+  onControlsChange: (controls: ReaderControls) => void;
+  onFullscreenChange: (active: boolean) => void;
+  onFullscreenHintChange: (visible: boolean) => void;
+  onPageChange: (progress: PageProgress, downloadAvailable: boolean) => void;
+  onProgressChange: (progress: PageProgress) => void;
+  onToolbarToggle: () => void;
+  onViewportWindowChange: (window: PagesViewportWindowOptions) => void;
+  onZoomClose: () => void;
+  onZoomOpen: (image: ZoomOverlayImage, pinch: { centerX: number; centerY: number }) => void;
 };
 
 type ReaderSessionBindings = {
+  callbacks: ReaderSessionCallbacks;
   close: () => void;
-  ui: ReaderUiActions;
 };
 
 class ReaderSession {
@@ -539,8 +612,8 @@ class ReaderSession {
   private readonly onOpenOriginalPage: ((page: ReaderPage) => void) | undefined;
   private readonly onBeforeEnterFullscreen: (() => void) | undefined;
   private readonly restorePageViewport: (() => Promise<void>) | undefined;
+  private readonly callbacks: ReaderSessionCallbacks;
   private readonly closeComponent: () => void;
-  private readonly ui: ReaderUiActions;
   private readonly viewport: PagesViewportActions;
   private readonly zoomOverlay: ZoomOverlayActions;
   private scrollFrame: number | null = null;
@@ -566,7 +639,12 @@ class ReaderSession {
   private keepReaderAfterFullscreenExit = false;
   private readonly initialFullscreenHint: boolean;
 
-  constructor(options: FullscreenReaderOptions, bindings: ReaderSessionBindings, components: ReaderComponentActions) {
+  constructor(
+    options: FullscreenReaderOptions,
+    bindings: ReaderSessionBindings,
+    viewport: PagesViewportActions,
+    zoomOverlay: ZoomOverlayActions,
+  ) {
     this.fullscreenTarget = options.fullscreenTarget;
     this.fullscreenWasActive = document.fullscreenElement === this.fullscreenTarget;
     this.galleryId = options.galleryId;
@@ -592,10 +670,10 @@ class ReaderSession {
     this.restorePageViewport = options.restorePageViewport;
     this.initialFullscreenHint = options.initialFullscreenHint ?? false;
     this.ownsFullscreen = options.initialFullscreenOwned ?? false;
+    this.callbacks = bindings.callbacks;
     this.closeComponent = bindings.close;
-    this.ui = bindings.ui;
-    this.viewport = components.viewport;
-    this.zoomOverlay = components.zoomOverlay;
+    this.viewport = viewport;
+    this.zoomOverlay = zoomOverlay;
     this.imageQueue = new TwoTierImageQueue(
       (target) => options.loadPage(target.page, target.index),
       (pageNum) => this.viewport.markPageLoading(pageNum),
@@ -715,7 +793,7 @@ class ReaderSession {
 
   private syncAfterPageChange(options: { scrollIntoView: boolean; scrollMotion?: ScrollMotion }): void {
     const token = ++this.syncToken;
-    const numbers = this.viewport.windowPageNums(this.currentPageNum, this.renderWindowSize);
+    const numbers = pageWindowNumbers(this.currentPageNum, this.renderWindowSize);
     const missing = numbers.filter((number) => this.isRealPageNum(number) && !this.pages.has(number));
 
     this.syncViewportWindow();
@@ -773,7 +851,7 @@ class ReaderSession {
   }
 
   private syncViewportWindow(): void {
-    this.viewport.syncWindow({
+    this.callbacks.onViewportWindowChange({
       currentPageNum: this.currentPageNum,
       windowSize: this.renderWindowSize,
       totalPages: this.totalPages,
@@ -783,7 +861,7 @@ class ReaderSession {
   }
 
   private maintainLoadQueue(): void {
-    const targets = this.viewport.requiredImagePageNums()
+    const targets = pageWindowNumbers(this.currentPageNum, this.renderWindowSize)
       .map((pageNum) => this.loadTargetFor(pageNum))
       .filter((target): target is LoadTarget => Boolean(target));
     const windowSet = new Set(targets.map((target) => target.pageNum));
@@ -848,16 +926,8 @@ class ReaderSession {
     this.viewport.moveToPage(this.currentPageNum, motion);
   }
 
-  private setToolbarControls(controls: ReaderControls): void {
-    this.ui.updateToolbarState({ controls });
-  }
-
-  private setToolbarProgress(progress: PageProgress): void {
-    this.ui.updateToolbarState({ progress });
-  }
-
   private readonly onImageLoaded = (target: LoadTarget, loaded: LoadedReaderPage, token: number): void => {
-    if (!this.viewport.windowPageNums(this.currentPageNum, this.renderWindowSize).includes(target.pageNum)) {
+    if (!pageWindowNumbers(this.currentPageNum, this.renderWindowSize).includes(target.pageNum)) {
       return;
     }
 
@@ -912,18 +982,12 @@ class ReaderSession {
   }
 
   private updatePageNumber(): void {
-    const toolbarState = this.ui.toolbarState();
-    this.ui.updateToolbarState({
-      downloadAvailable: this.loadedImages.has(this.currentPageNum),
-      downloadDialog:
-        toolbarState.downloadDialog?.pageNum === this.currentPageNum ? toolbarState.downloadDialog : null,
-      progress: {
-        pageNum: this.currentPageNum,
-        totalPages: this.totalPages,
-        maxProgressPageNum: Math.max(1, this.maxProgressPageNum()),
-        keepInputValue: this.progressNavigating,
-      },
-    });
+    this.callbacks.onPageChange({
+      pageNum: this.currentPageNum,
+      totalPages: this.totalPages,
+      maxProgressPageNum: Math.max(1, this.maxProgressPageNum()),
+      keepInputValue: this.progressNavigating,
+    }, this.loadedImages.has(this.currentPageNum));
   }
 
   private notifyActivePageChange(): void {
@@ -935,7 +999,7 @@ class ReaderSession {
   }
 
   handleKeyboardArrow(direction: "left" | "right"): void {
-    if (this.zoomOverlay.active()) {
+    if (this.callbacks.isZoomActive()) {
       return;
     }
 
@@ -943,7 +1007,7 @@ class ReaderSession {
   }
 
   handleWheel(delta: number, event: WheelEvent): void {
-    if (this.zoomOverlay.active()) {
+    if (this.callbacks.isZoomActive()) {
       event.preventDefault();
       return;
     }
@@ -964,7 +1028,7 @@ class ReaderSession {
   }
 
   shouldStartDrag(event: PointerEvent): boolean {
-    if (this.zoomOverlay.active()) {
+    if (this.callbacks.isZoomActive()) {
       return true;
     }
 
@@ -972,7 +1036,7 @@ class ReaderSession {
   }
 
   handleDragStart(_info: GestureDragStart, _event: PointerEvent | MouseEvent): void {
-    if (this.zoomOverlay.active()) {
+    if (this.callbacks.isZoomActive()) {
       this.zoomOverlay.startDrag();
       return;
     }
@@ -981,7 +1045,7 @@ class ReaderSession {
   }
 
   handleDragMove(info: GestureDragMove, event: PointerEvent | MouseEvent): void {
-    if (this.zoomOverlay.active()) {
+    if (this.callbacks.isZoomActive()) {
       this.zoomOverlay.moveDrag(info);
       return;
     }
@@ -1003,7 +1067,7 @@ class ReaderSession {
   }
 
   handleDragEnd(info: GestureDragEnd, event: PointerEvent | MouseEvent): void {
-    if (this.zoomOverlay.active()) {
+    if (this.callbacks.isZoomActive()) {
       return;
     }
 
@@ -1032,7 +1096,7 @@ class ReaderSession {
   }
 
   handleNativeScroll(): void {
-    if (this.zoomOverlay.active()) {
+    if (this.callbacks.isZoomActive()) {
       return;
     }
 
@@ -1078,7 +1142,7 @@ class ReaderSession {
   }
 
   private runSingleTap(info: GestureTap, event: PointerEvent | MouseEvent): void {
-    if (this.zoomOverlay.active()) {
+    if (this.callbacks.isZoomActive()) {
       event.preventDefault();
       return;
     }
@@ -1112,13 +1176,8 @@ class ReaderSession {
   }
 
   handleKeyboardClose(): boolean {
-    if (this.ui.toolbarState().downloadDialog) {
-      this.closeDownloadDialog();
-      return true;
-    }
-
-    if (this.zoomOverlay.active()) {
-      this.zoomOverlay.close();
+    if (this.callbacks.isZoomActive()) {
+      this.callbacks.onZoomClose();
       return true;
     }
 
@@ -1135,7 +1194,7 @@ class ReaderSession {
     this.viewport.stopMotion();
     this.viewport.cancelDrag();
 
-    if (this.zoomOverlay.active()) {
+    if (this.callbacks.isZoomActive()) {
       this.zoomOverlay.startPinch({ centerX: info.clientX, centerY: info.clientY });
       return true;
     }
@@ -1146,13 +1205,13 @@ class ReaderSession {
       return false;
     }
 
-    this.zoomOverlay.start(image, { centerX: info.clientX, centerY: info.clientY });
+    this.callbacks.onZoomOpen(image, { centerX: info.clientX, centerY: info.clientY });
     return true;
   }
 
   private toggleZoomAtPoint(point: { clientX: number; clientY: number }): boolean {
-    if (this.zoomOverlay.active()) {
-      this.zoomOverlay.close();
+    if (this.callbacks.isZoomActive()) {
+      this.callbacks.onZoomClose();
       return true;
     }
 
@@ -1164,7 +1223,7 @@ class ReaderSession {
 
     this.viewport.stopMotion();
     this.viewport.cancelDrag();
-    this.zoomOverlay.start(image, { centerX: point.clientX, centerY: point.clientY });
+    this.callbacks.onZoomOpen(image, { centerX: point.clientX, centerY: point.clientY });
     this.zoomOverlay.movePinch({ centerX: point.clientX, centerY: point.clientY, scale: 2 });
     this.zoomOverlay.endPinch();
     return true;
@@ -1273,7 +1332,7 @@ class ReaderSession {
     ++this.syncToken;
     this.syncViewportWindow();
     this.scrollToCurrentPage();
-    this.setToolbarProgress({
+    this.callbacks.onProgressChange({
       pageNum: target,
       totalPages: this.totalPages,
       maxProgressPageNum: Math.max(1, this.maxProgressPageNum()),
@@ -1288,44 +1347,27 @@ class ReaderSession {
     }
   }
 
-  openDownloadDialog(): void {
+  downloadDialog(): ReaderDownloadDialog | null {
     const image = this.loadedImages.get(this.currentPageNum);
 
     if (!image || !this.isRealPageNum(this.currentPageNum)) {
-      return;
+      return null;
     }
 
-    const downloadDialog: ReaderDownloadDialog = {
+    return {
       currentFileName: displayedImageFileName(this.galleryId, this.currentPageNum, image.imageUrl),
       currentImageUrl: image.imageUrl,
       originalImageUrl: image.originalImageUrl,
       pageNum: this.currentPageNum,
     };
-    this.ui.updateToolbarState({ downloadDialog });
   }
 
-  closeDownloadDialog(): void {
-    if (!this.ui.toolbarState().downloadDialog) {
-      return;
-    }
-
-    this.ui.updateToolbarState({ downloadDialog: null });
+  downloadDisplayedImage(download: ReaderDownloadDialog): boolean {
+    return startImageDownload(download.currentImageUrl, download.currentFileName);
   }
 
-  downloadDisplayedImage(): void {
-    const download = this.ui.toolbarState().downloadDialog;
-
-    if (download && startImageDownload(download.currentImageUrl, download.currentFileName)) {
-      this.closeDownloadDialog();
-    }
-  }
-
-  downloadOriginalImage(): void {
-    const originalImageUrl = this.ui.toolbarState().downloadDialog?.originalImageUrl;
-
-    if (originalImageUrl && startImageDownload(originalImageUrl)) {
-      this.closeDownloadDialog();
-    }
+  downloadOriginalImage(download: ReaderDownloadDialog): boolean {
+    return Boolean(download.originalImageUrl && startImageDownload(download.originalImageUrl));
   }
 
   openOriginalPage(): void {
@@ -1388,10 +1430,7 @@ class ReaderSession {
     }
 
     this.clearFullscreenHintTimer();
-    this.ui.updateToolbarState({
-      fullscreenActive,
-      fullscreenHint: false,
-    });
+    this.callbacks.onFullscreenChange(fullscreenActive);
 
     if (fullscreenExited) {
       void this.finishFullscreenExit(keepReaderOpen);
@@ -1411,17 +1450,15 @@ class ReaderSession {
   }
 
   private syncFullscreenState(): void {
-    this.ui.updateToolbarState({
-      fullscreenActive: document.fullscreenElement === this.fullscreenTarget,
-    });
+    this.callbacks.onFullscreenChange(document.fullscreenElement === this.fullscreenTarget);
   }
 
   private showFullscreenHint(): void {
     this.clearFullscreenHintTimer();
-    this.ui.updateToolbarState({ fullscreenHint: true });
+    this.callbacks.onFullscreenHintChange(true);
     this.fullscreenHintTimer = window.setTimeout(() => {
       this.fullscreenHintTimer = null;
-      this.ui.updateToolbarState({ fullscreenHint: false });
+      this.callbacks.onFullscreenHintChange(false);
     }, FULLSCREEN_HINT_MS);
   }
 
@@ -1457,11 +1494,7 @@ class ReaderSession {
   }
 
   private syncReaderControls(): void {
-    this.ui.updateRootState({
-      readDirection: state.reader.readDirection.value,
-      viewMode: state.reader.viewMode.value,
-    });
-    this.setToolbarControls({
+    this.callbacks.onControlsChange({
       mode: state.reader.viewMode.value,
       readDirection: state.reader.readDirection.value,
       rightTapAction: state.reader.rightTapAction.value,
@@ -1469,9 +1502,7 @@ class ReaderSession {
   }
 
   private toggleToolbar(): void {
-    const open = !this.ui.toolbarState().open;
-    this.ui.updateToolbarState({ open });
-    this.ui.updateRootState({ toolbarOpen: open });
+    this.callbacks.onToolbarToggle();
   }
 
   private rightTapDelta(): number {

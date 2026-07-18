@@ -2,7 +2,7 @@ import type { ReaderPage } from "../../readerTypes";
 import type { PointerDragEnd } from "../pointerGesture";
 import { loadingSpinnerElement } from "../Loading";
 import { createPointerGestureElement } from "../PointerGestureSurface";
-import { SwipeIndicator, type SwipeDirection, type SwipeIndicatorActions } from "./Misc";
+import { SwipeIndicator, type SwipeIndicatorState } from "./Misc";
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import {
   SCROLL_PAGE_BAR_BOTTOM_CLASS,
@@ -25,9 +25,6 @@ let galleryThumbEnhancementOnError: ((error: unknown) => void) | null = null;
 let galleryThumbEnhancementClickInstalled = false;
 let swipeElement: HTMLElement | null = null;
 let setSwipeGestureTarget: ((target: HTMLElement | null) => void) | null = null;
-let swipeIndicatorActions!: SwipeIndicatorActions;
-let swipeIndicatorDirection: SwipeDirection = "left";
-let swipeState: SwipeState | null = null;
 let galleryNavigationLoading = false;
 let replaceGalleryPageBar: ((currentIndex: number, maxIndex: number | null) => void) | null = null;
 
@@ -115,7 +112,50 @@ export function EnhanceThumbsGrids(props: {
   replaceGalleryPageBar: (currentIndex: number, maxIndex: number | null) => void;
 }) {
   const [gestureTarget, setGestureTarget] = createSignal<HTMLElement | null>(null);
+  const [swipeIndicatorState, setSwipeIndicatorState] = createSignal<SwipeIndicatorState>({
+    blocked: false,
+    direction: "left",
+    progress: 0,
+  });
+  let swipeState: SwipeState | null = null;
   const updateGestureTarget = (target: HTMLElement | null) => setGestureTarget(target);
+  const hideSwipeIndicator = () => {
+    setSwipeIndicatorState((current) => ({ ...current, blocked: false, progress: 0 }));
+  };
+  const updateSwipeIndicator = (info: PointerDragEnd) => {
+    if (!swipeState?.horizontal || swipeState.cancelled) {
+      return;
+    }
+
+    const direction = info.dx < 0 ? "left" : "right";
+    setSwipeIndicatorState({
+      blocked: !swipeUrlForDelta(info.dx),
+      direction,
+      progress: swipeProgressForDelta(info.dx),
+    });
+  };
+  const navigateBySwipe = (info: PointerDragEnd, event: Event) => {
+    if (!swipeState?.horizontal || swipeState.cancelled) {
+      return;
+    }
+
+    const dx = info.dx;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(info.dy);
+
+    if (absX < SWIPE_MIN_DISTANCE || absY > absX * SWIPE_MAX_VERTICAL_RATIO) {
+      return;
+    }
+
+    const url = swipeUrlForDelta(dx);
+
+    if (url) {
+      event.preventDefault();
+      void navigateGalleryPreview(url, { scrollToPageBar: dx < 0 ? "top" : "bottom" }).catch((error) =>
+        galleryThumbEnhancementOnError?.(error),
+      );
+    }
+  };
 
   onMount(() => {
     setSwipeGestureTarget = updateGestureTarget;
@@ -165,11 +205,7 @@ export function EnhanceThumbsGrids(props: {
 
   return (
     <Show when={props.enabled}>
-      <SwipeIndicator
-        actionsRef={(actions) => {
-          swipeIndicatorActions = actions;
-        }}
-      />
+      <SwipeIndicator state={swipeIndicatorState()} />
     </Show>
   );
 }
@@ -239,57 +275,6 @@ function setThumbsGridSwipeTarget(): void {
   swipeElement = thumbs;
   eh.prepareThumbsGridSwipeTargets(thumbs);
   setSwipeGestureTarget?.(thumbs);
-}
-
-function updateSwipeIndicator(info: PointerDragEnd): void {
-  if (!swipeState?.horizontal || swipeState.cancelled) {
-    return;
-  }
-
-  const direction = info.dx < 0 ? "left" : "right";
-  const availableUrl = swipeUrlForDelta(info.dx);
-  const progress = swipeProgressForDelta(info.dx);
-
-  if (!availableUrl) {
-    swipeIndicatorDirection = direction;
-    swipeIndicatorActions.update({
-      blocked: true,
-      direction,
-      progress,
-    });
-    return;
-  }
-
-  swipeIndicatorDirection = direction;
-  swipeIndicatorActions.update({ direction, progress });
-}
-
-function hideSwipeIndicator(): void {
-  swipeIndicatorActions.hide(swipeIndicatorDirection);
-}
-
-function navigateBySwipe(info: PointerDragEnd, event: Event): void {
-  if (!swipeState?.horizontal || swipeState.cancelled) {
-    return;
-  }
-
-  const dx = info.dx;
-  const dy = info.dy;
-  const absX = Math.abs(dx);
-  const absY = Math.abs(dy);
-
-  if (absX < SWIPE_MIN_DISTANCE || absY > absX * SWIPE_MAX_VERTICAL_RATIO) {
-    return;
-  }
-
-  const url = swipeUrlForDelta(dx);
-
-  if (url) {
-    event.preventDefault();
-    void navigateGalleryPreview(url, { scrollToPageBar: dx < 0 ? "top" : "bottom" }).catch((error) =>
-      galleryThumbEnhancementOnError?.(error),
-    );
-  }
 }
 
 function swipeUrlForDelta(dx: number): string | null {
