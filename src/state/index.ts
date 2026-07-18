@@ -27,6 +27,7 @@ export const state = {
   },
   search: {
     enhance: persisted("ehpeek:enhance-search:enabled", true),
+    grid: localSelection("ehpeek:search-grid", "ehpeek"),
     history: persisted("ehpeek:search-history:enabled", true),
   },
   touch: {
@@ -49,6 +50,29 @@ function persisted<T>(key: string, defaultValue: T): StateValue<T> {
     },
     reload() {
       item.value = GM_getValue(key, defaultValue);
+      return item.value;
+    },
+  };
+
+  return item;
+}
+
+function localSelection(key: string, selectedValue: string): StateValue<boolean> {
+  const read = () => window.localStorage.getItem(key) === selectedValue;
+  const item: StateValue<boolean> = {
+    key,
+    defaultValue: false,
+    value: read(),
+    set(value) {
+      item.value = value;
+      if (value) {
+        window.localStorage.setItem(key, selectedValue);
+      } else {
+        window.localStorage.removeItem(key);
+      }
+    },
+    reload() {
+      item.value = read();
       return item.value;
     },
   };

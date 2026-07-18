@@ -14,6 +14,8 @@ export {
   insertTouchSearchPanel,
   insertTouchTopBar,
   maxPreviewPageIndex,
+  prepareSearchGridModeSelect,
+  prepareEhPeekSearchGrid,
   prepareTouchGalleryComments,
   prepareTouchFavoritesPage,
   prepareTouchSearchResultsPage,

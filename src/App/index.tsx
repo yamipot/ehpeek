@@ -155,6 +155,27 @@ let pageGeneration = 0;
 let pageRoots = new Set<HTMLElement>();
 let pageOwnedHosts = new Set<HTMLElement>();
 
+function installEhPeekSearchGrid(): void {
+  if (!state.search.grid.value) {
+    return;
+  }
+
+  eh.prepareEhPeekSearchGrid();
+}
+
+function installSearchGridModeSelect(): void {
+  eh.prepareSearchGridModeSelect(
+    state.search.grid.value,
+    () => {
+      state.search.grid.set(true);
+      window.location.assign(new URL("/?inline_set=dm_e", window.location.href).href);
+    },
+    () => {
+      state.search.grid.set(false);
+    },
+  );
+}
+
 function renderPageInto(host: HTMLElement, view: () => JSX.Element, owned = false): void {
   pageRoots.add(host);
 
@@ -465,6 +486,10 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
   const generation = ++pageGeneration;
   trackOriginalReadHistory();
 
+  if (resultsPage) {
+    installSearchGridModeSelect();
+  }
+
   if (!settingsState.touchUiEnabled) {
     installDesktopSettingsLink();
   } else {
@@ -504,6 +529,7 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
               if (settingsState.touchUiEnabled) {
                 prepareTouchResultsPage(eh.extractPageType());
               }
+              installEhPeekSearchGrid();
             }}
           />
         ),
@@ -520,6 +546,10 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
       document.body.append(host);
       renderPageInto(host, () => <SearchHistory source={source} />, true);
     }
+  }
+
+  if (resultsPage && !settingsState.touchUiEnabled) {
+    installEhPeekSearchGrid();
   }
 
   if (pageType.type === "gallery" && state.reader.enabled.value && pageType.peekPage !== null) {
@@ -554,6 +584,8 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
       return;
     }
 
+    installSearchGridModeSelect();
+    installEhPeekSearchGrid();
     installTouchSearchPanel();
   }
 }

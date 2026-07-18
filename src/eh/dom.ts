@@ -10,8 +10,6 @@ const TOUCH_FAVORITES_NAV_CLASS_NAME = "box-border !max-w-full overflow-x-auto";
 const TOUCH_FAVORITES_RESULTS_CLASS_NAME = "ehpeek-touch-favorites-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto";
 const TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
 const TOUCH_FAVORITES_ALL_RESULTS_CLASS_NAME = "!overflow-x-hidden";
-const TOUCH_FAVORITES_ALL_RESULT_LIST_CLASS_NAME =
-  "!table-auto [&>tbody>tr>.gl2e]:!w-auto [&>tbody>tr>.gl2e]:[overflow-wrap:anywhere] [&_.glink]:whitespace-normal [&_.glink]:break-words [&>tbody>tr>.glfe]:!w-[1%] [&>tbody>tr>.glfe]:whitespace-nowrap";
 const TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden";
 const TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden";
 const TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME =
@@ -141,9 +139,9 @@ export type TouchSearchPanelInfo = {
 export type TouchFavoritesCategory = {
   appearance: TouchFavoritesCategoryAppearance | null;
   count: number;
+  href: string;
   label: string;
   selected: boolean;
-  select: () => void;
 };
 
 export type TouchFavoritesCategoryAppearance = {
@@ -272,6 +270,246 @@ export function searchResultList(root: ParentNode = document): HTMLElement | nul
   return root.querySelector<HTMLElement>(".itg");
 }
 
+export function prepareEhPeekSearchGrid(): void {
+  const resultList = searchResultList();
+
+  if (!resultList) {
+    return;
+  }
+
+  document.querySelector<HTMLElement>(".ehpeek-search-grid-host")?.remove();
+  resultList.hidden = false;
+  resultList.style.setProperty("display", "block", "important");
+  resultList.style.setProperty("width", "100%", "important");
+  resultList.style.setProperty("table-layout", "auto", "important");
+  const body = resultList.querySelector<HTMLElement>("tbody");
+  body?.style.setProperty("display", "block", "important");
+
+  for (const row of Array.from(resultList.querySelectorAll<HTMLTableRowElement>("tbody > tr"))) {
+    const thumbnailCell = row.querySelector<HTMLElement>(":scope > .gl1e");
+    const contentCell = row.querySelector<HTMLElement>(":scope > .gl2e");
+
+    if (!thumbnailCell || !contentCell) {
+      continue;
+    }
+
+    const selectionCell = row.querySelector<HTMLElement>(":scope > .glfe");
+    row.style.setProperty("display", "grid", "important");
+    row.style.setProperty(
+      "grid-template-columns",
+      selectionCell ? "clamp(112px, 34%, 250px) minmax(0, 1fr) auto" : "clamp(112px, 34%, 250px) minmax(0, 1fr)",
+      "important",
+    );
+    row.style.setProperty("align-items", "start", "important");
+    row.style.setProperty("column-gap", "6px", "important");
+    row.style.setProperty("width", "100%", "important");
+
+    thumbnailCell.style.setProperty("width", "auto", "important");
+    contentCell.style.setProperty("width", "auto", "important");
+    contentCell.style.setProperty("min-width", "0", "important");
+    contentCell.style.setProperty("align-self", "stretch", "important");
+    contentCell.style.setProperty("height", "100%", "important");
+    selectionCell?.style.setProperty("width", "auto", "important");
+
+    mergeEhPeekSearchContent(contentCell);
+
+    const thumbnail = thumbnailCell.querySelector<HTMLElement>(":scope > div");
+    thumbnail?.style.setProperty("width", "100%", "important");
+    thumbnail?.style.setProperty("height", "auto", "important");
+    const image = thumbnail?.querySelector<HTMLImageElement>("img");
+    image?.style.setProperty("width", "100%", "important");
+    image?.style.setProperty("height", "auto", "important");
+
+    const title = contentCell.querySelector<HTMLElement>(".glink");
+    title?.style.setProperty("height", "auto", "important");
+    title?.style.setProperty("min-height", "0", "important");
+    title?.style.setProperty("overflow", "visible", "important");
+    title?.style.setProperty("overflow-wrap", "anywhere", "important");
+    title?.style.setProperty("white-space", "normal", "important");
+    title?.style.setProperty("word-break", "normal", "important");
+    title?.style.setProperty("text-align", "left", "important");
+    title?.style.setProperty("font-size", "var(--font-size-md)", "important");
+    title?.style.setProperty("font-weight", "700", "important");
+    title?.style.setProperty("line-height", "1.35", "important");
+  }
+}
+
+function mergeEhPeekSearchContent(contentCell: HTMLElement): void {
+  const detail = contentCell.querySelector<HTMLElement>(".gl4e");
+  const metadata = contentCell.querySelector<HTMLElement>(".gl3e");
+
+  if (!detail || !metadata || detail.dataset.ehpeekMerged === "true") {
+    return;
+  }
+
+  const galleryLink = detail.parentElement instanceof HTMLAnchorElement ? detail.parentElement : null;
+  const title = detail.querySelector<HTMLElement>(":scope > .glink");
+  const tags = Array.from(detail.children).filter((element) => element !== title);
+
+  if (galleryLink && title) {
+    const titleLink = document.createElement("a");
+    titleLink.href = galleryLink.href;
+    titleLink.className = "block min-w-0 ehp-color-site-text no-underline";
+    titleLink.append(title);
+    galleryLink.before(detail);
+    galleryLink.remove();
+    detail.replaceChildren(titleLink, metadata, ...tags);
+    makeEhPeekSearchContentClickable(contentCell, titleLink);
+  } else {
+    title?.after(metadata);
+  }
+
+  detail.dataset.ehpeekMerged = "true";
+  detail.style.setProperty("display", "flex", "important");
+  detail.style.setProperty("flex-direction", "column", "important");
+  detail.style.setProperty("justify-content", "flex-start", "important");
+  detail.style.setProperty("align-items", "stretch", "important");
+  detail.style.setProperty("gap", "var(--space-md, 12px)", "important");
+  detail.style.setProperty("min-height", "0", "important");
+  detail.style.setProperty("width", "100%", "important");
+  detail.style.setProperty("box-sizing", "border-box", "important");
+
+  metadata.style.setProperty("display", "flex", "important");
+  metadata.style.setProperty("flex-direction", "row", "important");
+  metadata.style.setProperty("flex-wrap", "wrap", "important");
+  metadata.style.setProperty("align-items", "center", "important");
+  metadata.style.setProperty("align-content", "flex-start", "important");
+  metadata.style.setProperty("justify-content", "flex-start", "important");
+  metadata.style.setProperty("gap", "8px 12px", "important");
+  metadata.style.setProperty("float", "none", "important");
+  metadata.style.setProperty("position", "static", "important");
+  metadata.style.setProperty("width", "100%", "important");
+  metadata.style.setProperty("height", "auto", "important");
+  metadata.style.setProperty("min-height", "0", "important");
+  metadata.style.setProperty("margin", "0", "important");
+  metadata.style.setProperty("padding", "0", "important");
+  metadata.style.setProperty("font-weight", "600", "important");
+
+  for (const tagsContainer of tags) {
+    if (!(tagsContainer instanceof HTMLElement)) {
+      continue;
+    }
+
+    tagsContainer.style.setProperty("position", "static", "important");
+    tagsContainer.style.setProperty("width", "100%", "important");
+    tagsContainer.style.setProperty("height", "auto", "important");
+    tagsContainer.style.setProperty("min-height", "0", "important");
+    tagsContainer.style.setProperty("flex", "0 0 auto", "important");
+    tagsContainer.style.setProperty("margin", "0", "important");
+    tagsContainer.style.setProperty("padding", "0", "important");
+
+    for (const table of Array.from(tagsContainer.querySelectorAll<HTMLElement>("table, tbody, tr"))) {
+      table.style.setProperty("height", "auto", "important");
+      table.style.setProperty("min-height", "0", "important");
+      table.style.setProperty("margin", "0", "important");
+    }
+
+    for (const cell of Array.from(tagsContainer.querySelectorAll<HTMLElement>("td"))) {
+      cell.style.setProperty("height", "auto", "important");
+      cell.style.setProperty("min-height", "0", "important");
+      cell.style.setProperty("vertical-align", "top", "important");
+    }
+  }
+
+  for (const tag of Array.from(detail.querySelectorAll<HTMLElement>(".gt, .gtl, .gtw, td.tc"))) {
+    tag.style.setProperty("font-size", "var(--font-size-sm)", "important");
+    tag.style.setProperty("line-height", "1.2", "important");
+  }
+
+  for (const item of Array.from(metadata.children)) {
+    if (!(item instanceof HTMLElement)) {
+      continue;
+    }
+
+    item.style.setProperty("float", "none", "important");
+    item.style.setProperty("position", "static", "important");
+    item.style.setProperty("flex", "0 0 auto", "important");
+    item.style.setProperty("min-width", "0", "important");
+    item.style.setProperty("margin", "0", "important");
+    item.style.setProperty("font-weight", "600", "important");
+
+    if (item.matches(".ir, .gldown")) {
+      item.style.removeProperty("width");
+      item.style.removeProperty("height");
+      continue;
+    }
+
+    item.style.setProperty("width", "auto", "important");
+    item.style.setProperty("height", "auto", "important");
+    item.style.setProperty("padding", "0", "important");
+    item.style.setProperty("line-height", "1.3", "important");
+
+    if (item.matches(".cn, .cs, [class*='ct']")) {
+      item.style.setProperty("display", "inline-flex", "important");
+      item.style.setProperty("align-items", "center", "important");
+      item.style.setProperty("justify-content", "center", "important");
+      item.style.setProperty("box-sizing", "border-box", "important");
+      item.style.setProperty("width", "72px", "important");
+      item.style.setProperty("height", "32px", "important");
+      item.style.setProperty("padding", "0 8px", "important");
+    }
+  }
+}
+
+function makeEhPeekSearchContentClickable(contentCell: HTMLElement, galleryLink: HTMLAnchorElement): void {
+  if (contentCell.dataset.ehpeekClickable === "true") {
+    return;
+  }
+
+  contentCell.dataset.ehpeekClickable = "true";
+  contentCell.style.setProperty("position", "relative", "important");
+  contentCell.style.setProperty("cursor", "pointer", "important");
+  const coarseOverlay = document.createElement("a");
+  coarseOverlay.href = galleryLink.href;
+  coarseOverlay.className = "hidden coarse:block absolute inset-0 z-1";
+  coarseOverlay.setAttribute("aria-label", galleryLink.textContent?.trim() || "Open gallery");
+  contentCell.append(coarseOverlay);
+  contentCell.addEventListener("click", (event) => {
+    const interactive = event.target instanceof Element
+      ? event.target.closest("a[href], button, input, select, textarea, label, [onclick]")
+      : null;
+
+    if (!interactive) {
+      galleryLink.click();
+    }
+  });
+}
+
+export function prepareSearchGridModeSelect(
+  selected: boolean,
+  onEhPeekSelect: () => void,
+  onOriginalSelect: () => void,
+): void {
+  const selects = Array.from(document.querySelectorAll<HTMLSelectElement>("select[onchange*='inline_set=dm_']"));
+
+  for (const select of selects) {
+    let option = Array.from(select.options).find((item) => item.value === "ehpeek");
+
+    if (!option) {
+      option = new Option("EhPeek", "ehpeek");
+      select.add(option);
+    }
+
+    option.selected = selected;
+
+    if (select.dataset.ehpeekGridMode === "true") {
+      continue;
+    }
+
+    select.dataset.ehpeekGridMode = "true";
+    select.addEventListener("change", (event) => {
+      if (select.value !== "ehpeek") {
+        onOriginalSelect();
+        return;
+      }
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      onEhPeekSelect();
+    }, true);
+  }
+}
+
 export function searchNavigationBars(root: ParentNode = document): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(".searchnav"));
 }
@@ -304,7 +542,7 @@ export function singlePageNavigationLink(target: EventTarget | null): HTMLAnchor
 export function singlePageSearchForm(target: EventTarget | null): HTMLFormElement | null {
   const form = target instanceof HTMLFormElement ? target : null;
 
-  if (!form || !form.matches("#searchbox form, #fsdiv form")) {
+  if (!form || (!form.matches("#searchbox form, #fsdiv form") && !form.querySelector("[name='f_search']"))) {
     return null;
   }
 
@@ -895,11 +1133,47 @@ export function prepareTouchFavoritesPage(): TouchFavoritesCategorySelectInfo | 
   wrapper.className = TOUCH_FAVORITES_RESULTS_CLASS_NAME;
   if (allSelected || window.innerWidth < 850) {
     wrapper.classList.add(...TOUCH_FAVORITES_ALL_RESULTS_CLASS_NAME.split(" "));
-    resultList.classList.add(...TOUCH_FAVORITES_ALL_RESULT_LIST_CLASS_NAME.split(" "));
+    compactTouchFavoritesResultList(resultList);
   }
   resultList.replaceWith(wrapper);
   wrapper.append(resultList);
   return categorySelect;
+}
+
+function compactTouchFavoritesResultList(resultList: HTMLElement): void {
+  resultList.style.setProperty("table-layout", "auto", "important");
+  resultList.style.setProperty("width", "100%", "important");
+
+  for (const content of Array.from(resultList.querySelectorAll<HTMLElement>("tbody > tr > .gl2e"))) {
+    content.style.setProperty("width", "auto", "important");
+    content.style.overflowWrap = "anywhere";
+  }
+
+  for (const title of Array.from(resultList.querySelectorAll<HTMLElement>(".glink"))) {
+    title.style.whiteSpace = "normal";
+    title.style.overflowWrap = "anywhere";
+  }
+
+  for (const tags of Array.from(resultList.querySelectorAll<HTMLElement>(".gl4e table"))) {
+    tags.style.setProperty("table-layout", "fixed", "important");
+    tags.style.setProperty("width", "100%", "important");
+    tags.style.setProperty("max-width", "100%", "important");
+  }
+
+  for (const cell of Array.from(resultList.querySelectorAll<HTMLElement>(".gl4e td"))) {
+    cell.style.setProperty("min-width", "0", "important");
+    cell.style.overflowWrap = "anywhere";
+  }
+
+  for (const namespace of Array.from(resultList.querySelectorAll<HTMLElement>(".gl4e td.tc"))) {
+    namespace.style.setProperty("width", "4em", "important");
+    namespace.style.whiteSpace = "nowrap";
+  }
+
+  for (const selection of Array.from(resultList.querySelectorAll<HTMLElement>("tbody > tr > .glfe"))) {
+    selection.style.setProperty("width", "1%", "important");
+    selection.style.whiteSpace = "nowrap";
+  }
 }
 
 function prepareTouchFavoritesCategorySelect(container: HTMLElement): TouchFavoritesCategorySelectInfo | null {
@@ -916,6 +1190,7 @@ function prepareTouchFavoritesCategorySelect(container: HTMLElement): TouchFavor
     const count = Number(countText.replace(/,/g, ""));
     const indicator = node.querySelector<HTMLElement>(".i");
     const indicatorStyle = indicator ? window.getComputedStyle(indicator) : null;
+    const href = node.getAttribute("onclick")?.match(/document\.location\s*=\s*['\"]([^'\"]+)['\"]/)?.[1] ?? "";
 
     return {
       appearance: indicatorStyle ? {
@@ -924,6 +1199,7 @@ function prepareTouchFavoritesCategorySelect(container: HTMLElement): TouchFavor
         backgroundSize: indicatorStyle.backgroundSize,
       } : null,
       count: Number.isFinite(count) ? count : 0,
+      href: normalizeUrl(href, window.location.href),
       label,
       node,
       selected: node.classList.contains("fps"),
@@ -938,12 +1214,12 @@ function prepareTouchFavoritesCategorySelect(container: HTMLElement): TouchFavor
     categories: [
       ...(all ? [{ ...all, count: total, label: texts.favorites.all }] : []),
       ...favorites,
-    ].map(({ appearance, count, label, node, selected }) => ({
+    ].map(({ appearance, count, href, label, selected }) => ({
       appearance,
       count,
+      href,
       label,
       selected,
-      select: () => node.click(),
     })),
   };
 }

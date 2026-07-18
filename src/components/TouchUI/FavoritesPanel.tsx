@@ -40,10 +40,9 @@ export function FavoritesCategorySelect(props: { info: TouchFavoritesCategorySel
       <Show when={open()}>
         <div class="border-0 border-t border-t-[var(--color-site-border-subtle)]">
           <For each={props.info.categories}>{(category) => (
-            <button
-              type="button"
-              class={`flex box-border w-full min-h-md items-center px-md py-sm border-0 border-b ehp-color-site-border-subtle-b last:border-b-0 text-left textsize-md font-inherit cursor-pointer ${category.selected ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent font-700" : "!bg-transparent ehp-color-site-text hover:!bg-[var(--color-site-item-hover)]"}`}
-              onClick={category.select}
+            <a
+              href={category.href}
+              class={`flex box-border w-full min-h-md items-center px-md py-sm border-0 border-b ehp-color-site-border-subtle-b last:border-b-0 text-left textsize-md font-inherit no-underline cursor-pointer ${category.selected ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent font-700" : "!bg-transparent ehp-color-site-text hover:!bg-[var(--color-site-item-hover)]"}`}
             >
               <span class="flex min-w-0 items-center gap-sm">
                 {categoryIndicator(category.appearance)}
@@ -51,7 +50,7 @@ export function FavoritesCategorySelect(props: { info: TouchFavoritesCategorySel
                   {category.label} [{category.count}]
                 </span>
               </span>
-            </button>
+            </a>
           )}</For>
         </div>
       </Show>

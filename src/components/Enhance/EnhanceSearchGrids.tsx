@@ -93,6 +93,7 @@ export function EnhanceSearchGrids(props: { onPageChange?: () => void; resultLis
       if (onSearchPageChange === handlePageChange) {
         onSearchPageChange = null;
       }
+
     });
   });
 
