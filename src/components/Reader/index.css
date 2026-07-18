@@ -22,7 +22,7 @@
 }
 
 [data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-progress {
-  font-size: var(--ehpeek-reader-fullscreen-progress-size, 20px);
+  font-size: var(--ehpeek-reader-fullscreen-progress-size, var(--font-size-lg));
 }
 
 [data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-fullscreen-status {

@@ -18,7 +18,7 @@ body {
   padding-left: 0 !important;
   padding-right: 0 !important;
   background: var(--color-site-page) !important;
-  font-size: 14px !important;
+  font-size: var(--font-size-sm) !important;
   line-height: 1.35 !important;
 }
 
@@ -68,13 +68,13 @@ body #gdt[class],
 
 /* Establish readable base typography for the original comments section. */
 #cdiv {
-  font-size: 23px !important;
+  font-size: var(--font-size-md) !important;
   line-height: 1.5 !important;
 }
 
 /* Enlarge comment bodies while allowing long content to wrap safely. */
 #cdiv .c6 {
-  font-size: 23px !important;
+  font-size: var(--font-size-md) !important;
   line-height: 1.5 !important;
   overflow-wrap: anywhere;
 }
@@ -85,7 +85,7 @@ body #gdt[class],
 #cdiv .c5,
 #cdiv .c7,
 #formdiv {
-  font-size: 18px !important;
+  font-size: var(--font-size-sm) !important;
   line-height: 1.4 !important;
 }
 
@@ -105,7 +105,7 @@ body #gdt[class],
   border-radius: 6px;
   background: var(--color-site-elevated);
   color: var(--color-site-accent);
-  font-size: 20px;
+  font-size: var(--font-size-md);
   text-decoration: none;
 }
 
@@ -128,7 +128,7 @@ body #gdt[class],
   padding: 16px !important;
   border-radius: 6px !important;
   font: inherit !important;
-  font-size: 23px !important;
+  font-size: var(--font-size-md) !important;
   line-height: 1.5 !important;
 }
 
@@ -143,7 +143,7 @@ body #gdt[class],
   padding: 12px 16px !important;
   border-radius: 6px !important;
   font: inherit !important;
-  font-size: 20px !important;
+  font-size: var(--font-size-md) !important;
 }
 
 /* Let comment form actions share the available row width evenly. */

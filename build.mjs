@@ -25,8 +25,17 @@ const metadata = [
   `// @description  ${texts.description}`,
   `// @icon         ${projectIconUrl}`,
   `// @icon64       ${projectIconUrl}`,
-  "// @match        *://e-hentai.org/*",
+  `// @license      MIT`,
+  `// @namespace    https://github.com/yamipot/ehpeek`,
+  `// @homepage     https://github.com/yamipot/ehpeek`,
   "// @match        *://exhentai.org/*",
+  "// @match        *://exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion/*",
+  "// @match        *://e-hentai.org/*",
+  "// @match        *://*.exhentai.org/*",
+  "// @match        *://*.exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion/*",
+  "// @match        *://*.e-hentai.org/*",
+  "// @match        *://*.hath.network/*",
+  "// @exclude      *://forums.e-hentai.org/*",
   "// @grant        GM_getValue",
   "// @grant        GM_setValue",
   "// @grant        GM_deleteValue",
@@ -66,6 +75,7 @@ await build({
   },
   define: {
     __EHPEEK_DEBUG__: JSON.stringify(debugBuild),
+    __EHPEEK_VERSION__: JSON.stringify(version),
   },
   outfile,
 });
@@ -109,12 +119,11 @@ function devTimeStamp() {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
     hour12: false,
   });
   const parts = Object.fromEntries(formatter.formatToParts(new Date()).map((part) => [part.type, part.value]));
 
-  return `${parts.year}${parts.month}${parts.day}.${parts.hour}${parts.minute}${parts.second}`;
+  return `${parts.year}${parts.month}${parts.day}.${parts.hour}${parts.minute}`;
 }
 
 async function generateUnoCss() {

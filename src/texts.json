@@ -32,6 +32,10 @@
     "home": "Home",
     "menu": "Menu"
   },
+  "favorites": {
+    "all": "All",
+    "categories": "Favorite category"
+  },
   "settings": {
     "openSettings": "Settings",
     "menuLabel": "Ehpeek",
@@ -65,8 +69,9 @@
     "close": "Close"
   },
   "search": {
-    "showCategories": "Show Categories",
-    "hideCategories": "Hide Categories",
+    "advancedOptions": "Advanced Options",
+    "categories": "Categories",
+    "fileSearch": "File Search",
     "history": "Search History",
     "deleteHistory": "Delete search history item"
   },

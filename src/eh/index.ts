@@ -52,6 +52,7 @@ export type {
   GalleryTagGroup,
   SearchHistorySource,
   TouchSearchPanelInfo,
+  TouchFavoritesCategorySelectInfo,
   TouchTopBarInfo,
 } from "./dom";
 
@@ -129,7 +130,11 @@ export function extractPageType(url = window.location.href): PageType {
       };
     }
 
-    if (parsed.pathname === "/" || parsed.pathname.startsWith("/tag/") || parsed.pathname === "/watched") {
+    if (
+      parsed.pathname === "/" ||
+      parsed.pathname.startsWith("/tag/") ||
+      /^\/(?:popular|watched)\/?$/.test(parsed.pathname)
+    ) {
       return {
         type: "search",
         url: parsed.href,

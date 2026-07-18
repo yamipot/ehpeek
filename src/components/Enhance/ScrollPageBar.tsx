@@ -35,6 +35,10 @@ export type ScrollPageBarOptions = {
   urlForIndex: (index: number) => string;
 };
 
+export function GalleryPageDescription(props: { text: string }) {
+  return <div class="w-full mb-xs text-center textsize-sm">{props.text}</div>;
+}
+
 export function ScrollPageBar(options: ScrollPageBarOptions & { element: HTMLDivElement }) {
   const maxIndex = Math.max(0, options.maxIndex ?? options.currentIndex);
   const currentIndex = clamp(options.currentIndex, 0, maxIndex);

@@ -108,7 +108,7 @@ export function SearchHistory(props: { source: SearchHistorySource }) {
               </button>
               <button
                 type="button"
-                class="appearance-none inline-flex w-40px min-h-md flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-24px font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"
+                class="appearance-none inline-flex w-40px min-h-md flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text textsize-lg font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"
                 aria-label={`${texts.search.deleteHistory}: ${item}`}
                 title={texts.search.deleteHistory}
                 onClick={() => {

@@ -19,7 +19,7 @@ export type PageProgress = {
 };
 
 const READER_BUTTON_CLASS = [
-  "inline-flex min-w-48px h-48px items-center justify-center px-md py-0 rounded-md coarse:(min-w-64px h-64px px-lg rounded-lg text-18px)",
+  "inline-flex min-w-48px h-48px items-center justify-center px-md py-0 rounded-md coarse:(min-w-64px h-64px px-lg rounded-lg)",
   "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:(opacity-40 cursor-default)",
 ].join(" ");
 const READER_ICON_SIZE = "1.4em";
@@ -196,7 +196,7 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
         onWheel={stopEvent}
       >
         <ProgressBar
-          className="ehpeek-reader-progress text-xl coarse:text-3xl"
+          className="ehpeek-reader-progress textsize-lg"
           direction={controls().readDirection === "rtl" ? "rtl" : "ltr"}
           fillPercent={progressFillPercent(progress())}
           keepInputValue={progress().keepInputValue}

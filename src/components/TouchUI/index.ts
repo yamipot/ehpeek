@@ -6,11 +6,14 @@ import { prepareResultsPanel } from "./ResultsPanel";
 export { prepareCommentsPanel } from "./CommentsPanel";
 export { GalleryInfoPanel, prepareGalleryInfoPanel, TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS } from "./GalleryInfoPanel";
 export { prepareResultsPanel, resetTouchUiPage } from "./ResultsPanel";
+export { FavoritesCategorySelect } from "./FavoritesPanel";
 export {
   prepareSearchPanel,
   TOUCH_SEARCH_OPTION_CLASS,
   TouchSearchAction,
+  TouchSearchAdvancedToggle,
   TouchSearchCategoryToggle,
+  TouchSearchFileToggle,
   TouchSearchPanel,
 } from "./SearchPanel";
 export { TOUCH_TOP_BAR_MENU_ITEM_CLASS, TouchTopBar } from "./TopBar";
@@ -20,6 +23,6 @@ export function prepareTouchGalleryPage(): void {
   prepareCommentsPanel();
 }
 
-export function prepareTouchResultsPage(page: PageType): void {
-  prepareResultsPanel(page);
+export function prepareTouchResultsPage(page: PageType) {
+  return prepareResultsPanel(page);
 }

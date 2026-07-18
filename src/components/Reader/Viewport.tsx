@@ -520,10 +520,10 @@ function PageSlotPlaceholder(props: {
     <div
       class={
         props.content.state === "error"
-          ? "flex w-full h-full flex-col items-center justify-center gap-lg bg-[var(--color-surface)] p-xl text-[var(--color-danger)] text-center text-18px font-700 leading-1"
+          ? "flex w-full h-full flex-col items-center justify-center gap-lg bg-[var(--color-surface)] p-xl text-[var(--color-danger)] text-center textsize-md font-700 leading-1"
           : "relative flex w-full h-full items-center justify-center bg-[var(--color-surface)] text-[var(--color-muted)] leading-1 text-center " +
             (props.content.kind === "end"
-              ? "p-xl [direction:ltr] text-[clamp(24px,6vw,42px)] font-700 leading-[1.3] [unicode-bidi:plaintext]"
+              ? "p-xl [direction:ltr] textsize-xl font-700 leading-[1.3] [unicode-bidi:plaintext]"
               : "text-[clamp(88px,25vw,180px)] desktop:text-[clamp(72px,10vw,140px)] font-mono font-850 [font-variant-numeric:tabular-nums]")
       }
       role={props.content.state === "loading" ? "status" : undefined}
@@ -544,7 +544,7 @@ function PageSlotPlaceholder(props: {
         </div>
         <button
           type="button"
-          class="ehpeek-reader-page-reload inline-flex w-64px h-64px items-center justify-center border border-[var(--color-danger-border)] rounded-full bg-[var(--color-danger-soft)] text-[var(--color-danger)] cursor-pointer font-sans text-34px font-700 leading-1 active:scale-96 [touch-action:manipulation]"
+          class="ehpeek-reader-page-reload inline-flex w-64px h-64px items-center justify-center border border-[var(--color-danger-border)] rounded-full bg-[var(--color-danger-soft)] text-[var(--color-danger)] cursor-pointer font-sans textsize-lg font-700 leading-1 active:scale-96 [touch-action:manipulation]"
           aria-label={texts.reader.reload}
           onPointerDown={stop}
           onClick={(event: MouseEvent) => {

@@ -4,6 +4,7 @@ import { EnhanceThumbsGrids } from "../components/Enhance/EnhanceThumbsGrids";
 import { loadReadHistory, ReadButton, type ReadButtonInfo, ReadHistorySession } from "../components/Enhance/ReadHistory";
 import { SearchHistory } from "../components/Enhance/SearchHistory";
 import {
+  GalleryPageDescription,
   SCROLL_PAGE_BAR_BOTTOM_CLASS,
   SCROLL_PAGE_BAR_TOP_CLASS,
   ScrollPageBar,
@@ -17,8 +18,11 @@ import {
   TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS,
   TOUCH_TOP_BAR_MENU_ITEM_CLASS,
   GalleryInfoPanel,
+  FavoritesCategorySelect,
   TouchSearchAction,
+  TouchSearchAdvancedToggle,
   TouchSearchCategoryToggle,
+  TouchSearchFileToggle,
   TouchSearchPanel,
   TouchTopBar,
 } from "../components/TouchUI";
@@ -204,6 +208,14 @@ function replaceGalleryPageBar(currentIndex: number, maxIndex: number | null): v
   const mounts = eh.replaceGalleryPageBarMounts(SCROLL_PAGE_BAR_TOP_CLASS, SCROLL_PAGE_BAR_BOTTOM_CLASS);
 
   for (const mount of mounts) {
+    if (mount.descriptionElement && mount.descriptionText) {
+      renderPageInto(
+        mount.descriptionElement,
+        () => <GalleryPageDescription text={mount.descriptionText!} />,
+        true,
+      );
+    }
+
     renderPageInto(
       mount.element,
       () => (
@@ -270,15 +282,11 @@ function installDesktopSettingsLink(): void {
   const target = eh.settingsMenuMountTarget();
 
   if (target) {
-    const mount = document.createElement("span");
-    target.append(mount);
-
     renderPageInto(
-      mount,
+      target,
       () => (
         <a
           href="#"
-          class="textsize-md font-inherit"
           onClick={(event: MouseEvent) => {
             event.preventDefault();
             event.stopPropagation();
@@ -380,21 +388,72 @@ function installTouchSearchPanel(): void {
 
   prepareSearchPanel(touchSearchInfo);
   renderPageInto(mount, () => <TouchSearchPanel source={touchSearchInfo} />, true);
-  renderPageInto(touchSearchInfo.categoryToggleMount, () => <TouchSearchCategoryToggle source={touchSearchInfo} />, true);
-  renderPageInto(touchSearchInfo.searchActionMount, () => <TouchSearchAction action="search" source={touchSearchInfo} />, true);
-  renderPageInto(touchSearchInfo.clearActionMount, () => <TouchSearchAction action="clear" source={touchSearchInfo} />, true);
+  if (touchSearchInfo.categories && touchSearchInfo.categoryToggleMount) {
+    const categories = touchSearchInfo.categories;
+    renderPageInto(
+      touchSearchInfo.categoryToggleMount,
+      () => <TouchSearchCategoryToggle categories={categories} />,
+      true,
+    );
+  }
+  if (touchSearchInfo.advancedToggle && touchSearchInfo.advancedToggleMount) {
+    const advancedToggle = touchSearchInfo.advancedToggle;
+    renderPageInto(
+      touchSearchInfo.advancedToggleMount,
+      () => <TouchSearchAdvancedToggle toggle={advancedToggle} />,
+      true,
+    );
+  }
+  if (touchSearchInfo.fileSearchToggle && touchSearchInfo.fileSearchToggleMount) {
+    const fileSearchToggle = touchSearchInfo.fileSearchToggle;
+    renderPageInto(
+      touchSearchInfo.fileSearchToggleMount,
+      () => <TouchSearchFileToggle toggle={fileSearchToggle} />,
+      true,
+    );
+  }
+  renderPageInto(
+    touchSearchInfo.searchActionMount,
+    () => (
+      <TouchSearchAction
+        action="search"
+        label={touchSearchInfo.searchLabel}
+        original={touchSearchInfo.searchSubmit}
+        source={touchSearchInfo}
+      />
+    ),
+    true,
+  );
+  if (touchSearchInfo.clearActionMount && touchSearchInfo.clearButton && touchSearchInfo.clearLabel) {
+    const clearButton = touchSearchInfo.clearButton;
+    const clearLabel = touchSearchInfo.clearLabel;
+    renderPageInto(
+      touchSearchInfo.clearActionMount,
+      () => <TouchSearchAction action="clear" label={clearLabel} original={clearButton} source={touchSearchInfo} />,
+      true,
+    );
+  }
 }
 
 
 async function activatePage(nextPage: eh.PageType): Promise<void> {
   pageType = nextPage;
+  const resultsPage = pageType.type === "search" || pageType.type === "favorites";
   const generation = ++pageGeneration;
   trackOriginalReadHistory();
 
   if (!settingsState.touchUiEnabled) {
     installDesktopSettingsLink();
   } else {
-    prepareTouchResultsPage(pageType);
+    const favoritesCategorySelect = prepareTouchResultsPage(pageType);
+
+    if (favoritesCategorySelect) {
+      renderPageInto(
+        favoritesCategorySelect.mount,
+        () => <FavoritesCategorySelect info={favoritesCategorySelect} />,
+        true,
+      );
+    }
   }
 
   installReadButton();
@@ -415,7 +474,7 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
     );
   }
 
-  if ((pageType.type === "search" || pageType.type === "favorites") && settingsState.enhanceSearchGridsEnabled) {
+  if (resultsPage && settingsState.enhanceSearchGridsEnabled) {
     const resultList = eh.searchResultList();
 
     if (resultList && eh.searchPageNavigation()) {
@@ -438,7 +497,7 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
     }
   }
 
-  if (pageType.type === "search" && settingsState.searchHistoryEnabled) {
+  if (resultsPage && settingsState.searchHistoryEnabled) {
     const source = eh.readSearchHistorySource();
 
     if (source) {
@@ -468,7 +527,7 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
 
   if (pageType.type === "gallery") {
     installGalleryInfoPanel();
-  } else if (pageType.type === "search") {
+  } else if (resultsPage) {
     if (!settingsState.singlePageAppEnabled) {
       await EhSyringe.waitForSearchUi();
     }

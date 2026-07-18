@@ -9,15 +9,13 @@ const TOUCH_FAVORITES_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-f
 const TOUCH_FAVORITES_NAV_CLASS_NAME = "box-border !max-w-full overflow-x-auto";
 const TOUCH_FAVORITES_RESULTS_CLASS_NAME = "ehpeek-touch-favorites-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto";
 const TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
-const TOUCH_FAVORITES_CATEGORIES_CLASS_NAME = "box-border !grid !h-auto !w-full !max-w-full grid-cols-[repeat(5,minmax(0,1fr))] !p-0";
-const TOUCH_FAVORITES_CATEGORY_CLASS_NAME = "!static !float-none !w-full !m-0";
-const TOUCH_FAVORITES_ALL_CATEGORY_CLASS_NAME = "!col-span-full !w-[140px] justify-self-center";
 const TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden";
 const TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden";
 const TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME =
   "ehpeek-touch-search-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto";
 const TOUCH_SEARCH_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
 const GALLERY_PAGE_DESCRIPTION_SELECTOR = ".gpc:not(.eh-syringe-ignore)";
+const EXHENTAI_ONION_HOST = "exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion";
 const SINGLE_PAGE_PERSISTENT_SELECTOR =
   "[data-ehpeek-persistent], #eh-syringe-popup-button, #eh-syringe-popup-back, .eh-syringe-lite-auto-complete-list";
 
@@ -34,6 +32,8 @@ export type ImagePageInfo = {
 };
 
 export type GalleryPageBarMount = {
+  descriptionElement: HTMLDivElement | null;
+  descriptionText: string | null;
   element: HTMLDivElement;
   top: boolean;
 };
@@ -114,18 +114,37 @@ export type TouchTopBarInfo = {
 };
 
 export type TouchSearchPanelInfo = {
-  categories: HTMLTableElement;
-  categoryToggleMount: HTMLSpanElement;
-  clearActionMount: HTMLSpanElement;
-  clearButton: HTMLInputElement | HTMLButtonElement;
-  clearLabel: string;
+  advancedPanel: HTMLElement | null;
+  advancedToggle: HTMLAnchorElement | null;
+  advancedToggleMount: HTMLSpanElement | null;
+  categories: HTMLTableElement | null;
+  categoryToggleMount: HTMLSpanElement | null;
+  clearActionMount: HTMLSpanElement | null;
+  clearButton: HTMLInputElement | HTMLButtonElement | null;
+  clearLabel: string | null;
   fileSearch: HTMLElement | null;
-  optionLinks: HTMLElement;
+  fileSearchToggle: HTMLAnchorElement | null;
+  fileSearchToggleMount: HTMLSpanElement | null;
+  form: HTMLFormElement;
+  optionLinks: HTMLElement | null;
   searchActionMount: HTMLSpanElement;
   searchBox: HTMLElement;
+  searchControls: HTMLDivElement;
   searchInput: HTMLInputElement;
   searchLabel: string;
   searchSubmit: HTMLInputElement | HTMLButtonElement;
+};
+
+export type TouchFavoritesCategory = {
+  count: number;
+  label: string;
+  selected: boolean;
+  select: () => void;
+};
+
+export type TouchFavoritesCategorySelectInfo = {
+  categories: TouchFavoritesCategory[];
+  mount: HTMLDivElement;
 };
 
 export type SearchHistorySource = {
@@ -383,47 +402,73 @@ function absolutizeDocumentUrls(doc: Document, baseUrl: string): void {
 }
 
 export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSearchPanelInfo | null {
-  const searchBox = root.querySelector<HTMLElement>("#searchbox");
-  const categories = searchBox?.querySelector<HTMLTableElement>("form > table");
-  const advancedPanel = searchBox?.querySelector<HTMLElement>("#advdiv");
-  const optionLinks = advancedPanel?.previousElementSibling;
-  const searchInput = searchBox?.querySelector<HTMLInputElement>("#f_search");
-  const searchControls = searchInput?.parentElement;
-  const searchSubmit = searchControls?.querySelector<HTMLInputElement | HTMLButtonElement>(
-    "input[type='submit'], button[type='submit']",
-  );
-  const clearButton = searchControls?.querySelector<HTMLInputElement | HTMLButtonElement>(
-    "input[type='button'], button[type='button']",
-  );
+  const searchInput = root.querySelector<HTMLInputElement>("#f_search, input[name='f_search']");
+  const form = searchInput?.form ?? null;
+  const standardSearchBox = searchInput?.closest<HTMLElement>("#searchbox") ?? null;
+  const searchControls = document.createElement("div");
+  const searchBox = standardSearchBox ?? searchControls;
+  const categories = searchBox?.querySelector<HTMLTableElement>("form > table") ?? null;
+  const advancedPanel = searchBox?.querySelector<HTMLElement>("#advdiv") ?? null;
+  const optionLinksCandidate = advancedPanel?.previousElementSibling;
+  const optionLinks = optionLinksCandidate instanceof HTMLElement ? optionLinksCandidate : null;
+  const advancedToggle = optionLinks?.querySelector<HTMLAnchorElement>("a[onclick*='toggle_advsearch']") ?? null;
+  const fileSearchToggle = optionLinks?.querySelector<HTMLAnchorElement>("a[onclick*='toggle_filesearch']") ?? null;
+  const searchSubmit =
+    form?.querySelector<HTMLInputElement | HTMLButtonElement>("input[name='f_apply'], button[name='f_apply']") ??
+    searchInput?.parentElement?.querySelector<HTMLInputElement | HTMLButtonElement>(
+      "input[type='submit'], button[type='submit']",
+    );
+  const clearButton =
+    form?.querySelector<HTMLInputElement | HTMLButtonElement>("input[name='f_clear'], button[name='f_clear']") ??
+    searchInput?.parentElement?.querySelector<HTMLInputElement | HTMLButtonElement>(
+      "input[type='button'], button[type='button']",
+    ) ?? null;
 
   if (
     !searchBox ||
-    !categories ||
+    !form ||
     !searchInput ||
-    !(optionLinks instanceof HTMLElement) ||
-    !searchSubmit ||
-    !clearButton
+    !searchSubmit
   ) {
     return null;
   }
 
-  const categoryToggleMount = document.createElement("span");
+  const categoryToggleMount = categories && optionLinks ? document.createElement("span") : null;
+  const advancedToggleMount = advancedToggle ? document.createElement("span") : null;
+  const fileSearchToggleMount = fileSearchToggle ? document.createElement("span") : null;
   const searchActionMount = document.createElement("span");
-  const clearActionMount = document.createElement("span");
-  categoryToggleMount.className = "contents";
+  const clearActionMount = clearButton ? document.createElement("span") : null;
+  if (categoryToggleMount) {
+    categoryToggleMount.className = "contents";
+  }
+  if (advancedToggleMount) {
+    advancedToggleMount.className = "contents";
+  }
+  if (fileSearchToggleMount) {
+    fileSearchToggleMount.className = "contents";
+  }
   searchActionMount.className = "contents";
-  clearActionMount.className = "contents";
+  if (clearActionMount) {
+    clearActionMount.className = "contents";
+  }
 
   return {
+    advancedPanel,
+    advancedToggle,
+    advancedToggleMount,
     categories,
     categoryToggleMount,
     clearActionMount,
     clearButton,
-    clearLabel: searchActionLabel(clearButton),
+    clearLabel: clearButton ? searchActionLabel(clearButton) : null,
     fileSearch: root.querySelector<HTMLElement>("#fsdiv"),
+    fileSearchToggle,
+    fileSearchToggleMount,
+    form,
     optionLinks,
     searchActionMount,
     searchBox,
+    searchControls,
     searchInput,
     searchLabel: searchActionLabel(searchSubmit),
     searchSubmit,
@@ -431,68 +476,100 @@ export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSear
 }
 
 export function readSearchHistorySource(root: ParentNode = document): SearchHistorySource | null {
-  const searchInput = root.querySelector<HTMLInputElement>("#searchbox #f_search");
-  const searchSubmit = searchInput?.parentElement?.querySelector<HTMLInputElement | HTMLButtonElement>(
-    "input[type='submit'], button[type='submit']",
-  );
+  const searchInput = root.querySelector<HTMLInputElement>("#f_search, input[name='f_search']");
+  const searchSubmit =
+    searchInput?.form?.querySelector<HTMLInputElement | HTMLButtonElement>("input[name='f_apply'], button[name='f_apply']") ??
+    searchInput?.parentElement?.querySelector<HTMLInputElement | HTMLButtonElement>(
+      "input[type='submit'], button[type='submit']",
+    );
 
   return searchInput && searchSubmit ? { searchInput, searchSubmit } : null;
 }
 
 export function prepareTouchSearchPanel(info: TouchSearchPanelInfo, optionClassName: string): void {
-  const form = info.searchBox.querySelector<HTMLFormElement>("form");
-  const searchInput = form?.querySelector<HTMLInputElement>("#f_search");
-  const searchControls = searchInput?.parentElement;
+  const form = info.form;
+  const searchInput = info.searchInput;
   const advancedPanel = form?.querySelector<HTMLElement>("#advdiv");
 
+  if (!info.searchBox.contains(form)) {
+    form.id ||= "ehpeek-search-form";
+    searchInput.setAttribute("form", form.id);
+    info.searchSubmit.setAttribute("form", form.id);
+    info.clearButton?.setAttribute("form", form.id);
+  }
+
   info.searchBox.className =
-    "box-border !w-full !m-0 !p-0 !border-0 !text-left !text-20px " +
+    "box-border !w-full !m-0 !p-0 !border-0 !text-left !textsize-md " +
     "[&_.searchadv]:box-border [&_.searchadv]:!w-full [&_.searchadv]:!pt-md [&_.searchadv]:!textsize-md " +
     "[&_.searchadv>div]:!flex-wrap [&_.searchadv>div]:!justify-start [&_.searchadv>div]:!gap-sm " +
     "[&_.searchadv>div>div]:!p-sm";
 
-  if (form) {
+  if (info.searchBox.contains(form)) {
     form.removeAttribute("style");
     form.className = "flex w-full flex-col gap-md m-0 p-0";
   }
 
-  info.categories.className = "hidden !w-full !m-0 border-collapse";
-  info.categories.hidden = true;
-  info.optionLinks.insertAdjacentElement("afterend", info.categories);
-  info.categories.tBodies[0]?.classList.add("flex", "flex-wrap", "gap-xs");
+  if (info.categories && info.optionLinks) {
+    info.categories.className = "hidden !w-full !m-0 border-collapse";
+    info.categories.hidden = true;
+    info.optionLinks.insertAdjacentElement("afterend", info.categories);
+    info.categories.tBodies[0]?.classList.add(
+      "grid",
+      "grid-cols-[repeat(auto-fit,minmax(140px,1fr))]",
+      "gap-xs",
+    );
 
-  for (const row of Array.from(info.categories.rows)) {
-    row.className = "contents";
+    for (const row of Array.from(info.categories.rows)) {
+      row.className = "contents";
 
-    for (const cell of Array.from(row.cells)) {
-      cell.className = "!p-0";
+      for (const cell of Array.from(row.cells)) {
+        cell.className = "!p-0";
+      }
+    }
+
+    for (const category of Array.from(info.categories.querySelectorAll<HTMLElement>("[id^='cat_']"))) {
+      const colorClass = Array.from(category.classList).find((className) => /^ct(?:[1-9a])$/.test(className));
+      category.className =
+        `${colorClass ? `${colorClass} ` : ""}` +
+        "flex box-border w-full min-w-0 !h-lg items-center justify-center px-md border rounded-md text-white text-center textsize-md font-700 leading-[1.15] whitespace-nowrap shadow-[0_2px_6px_var(--color-shadow-control)] cursor-pointer select-none transition-opacity [touch-action:manipulation] active:opacity-70 [&[data-disabled]]:opacity-40";
     }
   }
 
-  for (const category of Array.from(info.categories.querySelectorAll<HTMLElement>("[id^='cat_']"))) {
-    const colorClass = Array.from(category.classList).find((className) => /^ct(?:[1-9a])$/.test(className));
-    category.className =
-      `${colorClass ? `${colorClass} ` : ""}` +
-      "flex box-border w-auto min-w-104px !h-lg items-center justify-center px-md border rounded-md text-white text-center textsize-md font-700 leading-[1.15] whitespace-nowrap shadow-[0_2px_6px_var(--color-shadow-control)] cursor-pointer select-none transition-opacity [touch-action:manipulation] active:opacity-70 [&[data-disabled]]:opacity-40";
-  }
-
-  if (searchControls) {
-    searchControls.className =
-      "grid w-full grid-cols-[minmax(0,1fr)_60px_60px] items-start gap-0 !p-0 [&>*:nth-child(n+4)]:col-span-full";
-  }
+  info.searchControls.className =
+    `${info.clearButton ? "grid-cols-[minmax(0,1fr)_60px_60px]" : "grid-cols-[minmax(0,1fr)_60px]"} ` +
+    "grid w-full items-start gap-0 !p-0";
 
   if (searchInput) {
     searchInput.className =
-      "appearance-none !box-border !w-full !h-60px min-w-0 col-span-full row-start-1 !m-0 !py-0 !pl-lg !pr-[132px] border ehp-color-site-border rounded-md bg-[var(--color-site-elevated)] ehp-color-site-text text-22px leading-[1.2] outline-none focus:(border-[var(--color-site-accent)] bg-[var(--color-site-elevated)] shadow-[0_0_0_3px_var(--color-site-accent-hover)])";
+      `appearance-none !box-border !w-full !h-60px min-w-0 col-span-full row-start-1 !m-0 !py-0 !pl-lg ${info.clearButton ? "!pr-[132px]" : "!pr-[72px]"} ` +
+      "!border !border-[var(--color-site-border)] rounded-md !bg-[var(--color-site-elevated)] !text-[var(--color-site-text)] !text-[length:var(--font-size-md)] leading-[1.2] outline-none focus:(!border-[var(--color-site-accent)] !bg-[var(--color-site-elevated)] shadow-[0_0_0_3px_var(--color-site-accent-hover)])";
   }
 
+  searchInput.before(info.searchControls);
   info.searchSubmit.replaceWith(info.searchActionMount);
-  info.clearButton.replaceWith(info.clearActionMount);
-  info.optionLinks.prepend(info.categoryToggleMount);
-  info.optionLinks.className = "flex w-full flex-wrap items-center justify-start gap-x-md gap-y-sm !p-0 !text-0";
+  if (info.clearButton && info.clearActionMount) {
+    info.clearButton.replaceWith(info.clearActionMount);
+  }
+  info.searchControls.append(searchInput);
+  if (info.clearActionMount) {
+    info.searchControls.append(info.clearActionMount);
+  }
+  info.searchControls.append(info.searchActionMount);
+  if (info.optionLinks && info.categoryToggleMount) {
+    info.optionLinks.prepend(info.categoryToggleMount);
+  }
+  if (info.advancedToggle && info.advancedToggleMount) {
+    info.advancedToggle.replaceWith(info.advancedToggleMount);
+  }
+  if (info.fileSearchToggle && info.fileSearchToggleMount) {
+    info.fileSearchToggle.replaceWith(info.fileSearchToggleMount);
+  }
+  if (info.optionLinks) {
+    info.optionLinks.className = "flex w-full flex-wrap items-center justify-start gap-x-md gap-y-sm !p-0 !text-0";
 
-  for (const link of Array.from(info.optionLinks.querySelectorAll<HTMLAnchorElement>("a"))) {
-    link.className = optionClassName;
+    for (const link of Array.from(info.optionLinks.querySelectorAll<HTMLAnchorElement>("a"))) {
+      link.className = optionClassName;
+    }
   }
 
   if (advancedPanel) {
@@ -580,18 +657,27 @@ export function findClickedImageLink(target: EventTarget | null, extractPageType
   return null;
 }
 
-export function replaceGalleryPageBarMounts(topClassName: string, bottomClassName: string): GalleryPageBarMount[] {
+export function replaceGalleryPageBarMounts(
+  topClassName: string,
+  bottomClassName: string,
+): GalleryPageBarMount[] {
   const originals = Array.from(document.querySelectorAll<HTMLElement>(".ptt, .ptb"));
   const topSource = originals.find((item) => item.classList.contains("ptt")) ?? originals[0];
   const bottomSource = originals.find((item) => item.classList.contains("ptb")) ?? originals[1] ?? originals[0];
   const mounts: GalleryPageBarMount[] = [];
+  const description = galleryPageDescription();
+  const descriptionText = description?.textContent?.trim() || null;
+
+  if (description) {
+    description.hidden = true;
+  }
 
   if (topSource) {
-    mounts.push(replaceGalleryPageBarAt(topSource, true, topClassName));
+    mounts.push(replaceGalleryPageBarAt(topSource, true, topClassName, descriptionText));
   }
 
   if (bottomSource) {
-    mounts.push(replaceGalleryPageBarAt(bottomSource, false, bottomClassName));
+    mounts.push(replaceGalleryPageBarAt(bottomSource, false, bottomClassName, descriptionText));
   }
 
   for (const original of originals) {
@@ -666,14 +752,16 @@ export function restorePreview(snapshot: PreviewSnapshot): void {
   }
 }
 
-export function settingsMenuMountTarget(): Element | null {
+export function settingsMenuMountTarget(): HTMLElement | null {
   const thumbnailContainer = document.querySelector("#gdt");
   const titleContainer = document.querySelector("#gd2, h1");
-  const topNav = document.querySelector("#nb");
+  const topNav = document.querySelector<HTMLElement>("#nb");
   const anchor = thumbnailContainer ?? titleContainer;
 
   if (topNav) {
-    return topNav;
+    const item = document.createElement("div");
+    topNav.append(item);
+    return item;
   }
 
   if (!anchor?.parentElement) {
@@ -693,7 +781,11 @@ export function settingsMenuMountTarget(): Element | null {
 }
 
 export function applySiteTheme(): void {
-  document.documentElement.dataset.ehpeekSite = window.location.hostname.endsWith("exhentai.org") ? "exhentai" : "e-hentai";
+  const hostname = window.location.hostname;
+  document.documentElement.dataset.ehpeekSite =
+    hostname.endsWith("exhentai.org") || hostname === EXHENTAI_ONION_HOST || hostname.endsWith(`.${EXHENTAI_ONION_HOST}`)
+      ? "exhentai"
+      : "e-hentai";
 }
 
 export function applyTouchGalleryPanelPageStyle(): void {
@@ -755,27 +847,12 @@ export function prepareTouchGalleryComments(): void {
   }
 }
 
-export function prepareTouchFavoritesPage(): void {
+export function prepareTouchFavoritesPage(): TouchFavoritesCategorySelectInfo | null {
   document.documentElement.classList.add(...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "));
   document.body.classList.add(...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "));
 
   const categories = document.querySelector<HTMLElement>(".ido > .nosel");
-
-  if (categories) {
-    categories.classList.add(...TOUCH_FAVORITES_CATEGORIES_CLASS_NAME.split(" "));
-
-    for (const child of Array.from(categories.children)) {
-      if (child.classList.contains("fp")) {
-        child.classList.add(...TOUCH_FAVORITES_CATEGORY_CLASS_NAME.split(" "));
-
-        if (child.children.length === 0) {
-          child.classList.add(...TOUCH_FAVORITES_ALL_CATEGORY_CLASS_NAME.split(" "));
-        }
-      } else if (child.children.length === 0) {
-        child.classList.add("!hidden");
-      }
-    }
-  }
+  const categorySelect = categories ? prepareTouchFavoritesCategorySelect(categories) : null;
 
   for (const navigation of searchNavigationBars()) {
     navigation.classList.add(...TOUCH_FAVORITES_NAV_CLASS_NAME.split(" "));
@@ -793,13 +870,56 @@ export function prepareTouchFavoritesPage(): void {
   content?.classList.add(...TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" "));
 
   if (!resultList || existingWrapper) {
-    return;
+    return categorySelect;
   }
 
   const wrapper = document.createElement("div");
   wrapper.className = TOUCH_FAVORITES_RESULTS_CLASS_NAME;
   resultList.replaceWith(wrapper);
   wrapper.append(resultList);
+  return categorySelect;
+}
+
+function prepareTouchFavoritesCategorySelect(container: HTMLElement): TouchFavoritesCategorySelectInfo | null {
+  const nodes = Array.from(container.querySelectorAll<HTMLElement>(":scope > .fp, :scope > .fps"));
+
+  if (nodes.length === 0) {
+    return null;
+  }
+
+  const parsed = nodes.map((node) => {
+    const text = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+    const countMatch = text.match(/([\d,]+)\s*$/);
+    const count = Number((countMatch?.[1] ?? "0").replace(/,/g, ""));
+    const label = countMatch ? text.slice(0, countMatch.index).trim() : text;
+
+    return {
+      count: Number.isFinite(count) ? count : 0,
+      label,
+      node,
+      selected: node.classList.contains("fps"),
+    };
+  });
+  const all = parsed.find((category) => category.node.children.length === 0);
+  const favorites = parsed.filter((category) => category !== all);
+  const total = favorites.reduce((sum, category) => sum + category.count, 0);
+  const mount = document.createElement("div");
+  mount.className = "box-border w-[calc(100%_-_32px)] max-w-960px mx-auto py-sm";
+  container.before(mount);
+  container.hidden = true;
+
+  return {
+    mount,
+    categories: [
+      ...(all ? [{ ...all, count: total, label: texts.favorites.all }] : []),
+      ...favorites,
+    ].map(({ count, label, node, selected }) => ({
+      count,
+      label,
+      selected,
+      select: () => node.click(),
+    })),
+  };
 }
 
 export function prepareTouchSearchResultsPage(): void {
@@ -920,16 +1040,34 @@ export function readGalleryInfo(actionMenuItemClassName: string): GalleryInfo {
   };
 }
 
-function replaceGalleryPageBarAt(source: HTMLElement, top: boolean, className: string): GalleryPageBarMount {
+function replaceGalleryPageBarAt(
+  source: HTMLElement,
+  top: boolean,
+  className: string,
+  descriptionText: string | null,
+): GalleryPageBarMount {
   const existing = document.querySelector<HTMLDivElement>(`.${className}`);
+  const descriptionElement = top
+    ? document.querySelector<HTMLDivElement>("[data-ehpeek-gallery-page-description-mount]") ?? document.createElement("div")
+    : null;
+
+  if (descriptionElement) {
+    descriptionElement.dataset.ehpeekGalleryPageDescriptionMount = "true";
+  }
 
   if (existing) {
-    return { element: existing, top };
+    if (descriptionElement) {
+      existing.insertAdjacentElement("beforebegin", descriptionElement);
+    }
+    return { descriptionElement, descriptionText, element: existing, top };
   }
 
   const pageBar = document.createElement("div");
   source.insertAdjacentElement("afterend", pageBar);
-  return { element: pageBar, top };
+  if (descriptionElement) {
+    pageBar.insertAdjacentElement("beforebegin", descriptionElement);
+  }
+  return { descriptionElement, descriptionText, element: pageBar, top };
 }
 
 function replaceFirstElement(selector: string, doc: Document): void {

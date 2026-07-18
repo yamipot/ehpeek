@@ -3,11 +3,11 @@ import * as eh from "../../eh";
 import texts from "../../texts.json";
 import { Icon } from "../Widgets/Icon";
 
-const TOUCH_TOP_BAR_ICON_SIZE = 34;
+const TOUCH_TOP_BAR_ICON_SIZE = 41;
 const TOUCH_ICON_BUTTON_CLASS =
-  "inline-flex w-56px h-56px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]";
+  "inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]";
 export const TOUCH_TOP_BAR_MENU_ITEM_CLASS =
-  "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-lg coarse:min-h-88px py-md coarse:py-xl px-lg coarse:px-xl border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline text-20px coarse:text-32px leading-[1.2]";
+  "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-lg coarse:min-h-88px py-md coarse:py-xl px-lg coarse:px-xl border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]";
 
 function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
   const [open, setOpen] = createSignal(false);
@@ -70,15 +70,13 @@ export function TouchTopBar(props: { info: eh.TouchTopBarInfo; onSettingsMenuOpe
     <nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-xl items-center justify-between py-lg pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans">
       <a
         class={`ehpeek-touch-top-bar-project ${TOUCH_ICON_BUTTON_CLASS}`}
-        href="https://github.com/yamipot/ehpeek"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={texts.navigation.github}
-        title={texts.navigation.github}
+        href={props.info.homeHref}
+        aria-label={texts.navigation.home}
+        title={texts.navigation.home}
       >
-        <Icon name="panda-peek" size={48} strokeWidth={1.8} />
+        <Icon name="panda-peek" size={58} strokeWidth={1.8} />
       </a>
-      <div class="flex items-center gap-xs">
+      <div class="flex items-center gap-sm">
         <a
           class={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`}
           href={props.info.homeHref}

@@ -14,7 +14,7 @@ export type SettingsMenuState = {
 };
 
 const SETTINGS_ACTION_BUTTON_CLASS =
-  "block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center text-14px coarse:text-21px font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98";
+  "block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98";
 const SETTINGS_APPLY_BUTTON_COLOR =
   "border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108";
 const SETTINGS_CLOSE_BUTTON_COLOR =
@@ -36,7 +36,7 @@ function SwitchButton(props: {
       <div class="flex items-stretch">
         <button
           type="button"
-          class="flex min-w-0 flex-1 min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg pl-md pr-sm rounded-xs border-0 !bg-transparent hover:!bg-transparent active:!bg-transparent ehp-color-site-text cursor-pointer font-inherit text-left text-16px coarse:text-24px [-webkit-tap-highlight-color:transparent]"
+          class="flex min-w-0 flex-1 min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg pl-md pr-sm rounded-xs border-0 !bg-transparent hover:!bg-transparent active:!bg-transparent ehp-color-site-text cursor-pointer font-inherit text-left textsize-md [-webkit-tap-highlight-color:transparent]"
           aria-describedby={helpOpen() ? helpId : undefined}
           onClick={(event: MouseEvent) => {
             event.stopPropagation();
@@ -45,13 +45,13 @@ function SwitchButton(props: {
         >
           <span>{props.label}</span>
           <span class="flex flex-none items-center gap-sm">
-            <span class="text-12px coarse:text-18px opacity-70">{props.checked ? texts.settings.on : texts.settings.off}</span>
+            <span class="textsize-sm opacity-70">{props.checked ? texts.settings.on : texts.settings.off}</span>
             <span class={`${SETTINGS_DOT_CLASS} ${props.checked ? "bg-[var(--color-state-on)]" : "bg-[var(--color-state-off)]"}`} />
           </span>
         </button>
         <button
           type="button"
-          class="flex flex-none w-32px coarse:w-48px min-h-md coarse:min-h-88px items-center justify-center p-0 rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-14px coarse:text-21px font-700 [-webkit-tap-highlight-color:transparent]"
+          class="flex flex-none w-32px coarse:w-48px min-h-md coarse:min-h-88px items-center justify-center p-0 rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit textsize-md font-700 [-webkit-tap-highlight-color:transparent]"
           aria-label={texts.settings.showHelp}
           aria-controls={helpId}
           aria-expanded={helpOpen()}
@@ -67,7 +67,7 @@ function SwitchButton(props: {
       <Show when={helpOpen()}>
         <p
           id={helpId}
-          class="box-border w-full m-0 px-md pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] text-14px coarse:text-20px leading-[1.35] opacity-75"
+          class="box-border w-full m-0 px-md pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] textsize-sm leading-[1.35] opacity-75"
         >
           {props.description}
         </p>
@@ -132,7 +132,7 @@ export function SettingsMenu(props: {
 
   return (
     <Show when={props.open}>
-      <div ref={menu} class="ehpeek-settings-menu pointer-events-auto fixed top-24px right-24px coarse:top-8px coarse:right-8px z-overlay box-border w-320px coarse:w-[calc(100vw-16px)] max-w-[calc(100vw-48px)] coarse:max-w-480px max-h-[calc(100vh-48px)] coarse:max-h-[calc(100dvh-16px)] overflow-y-auto p-sm coarse:p-md border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text text-16px coarse:text-24px leading-[1.2]">
+      <div ref={menu} class="ehpeek-settings-menu pointer-events-auto fixed top-24px right-24px coarse:top-8px coarse:right-8px z-overlay box-border w-320px coarse:w-[calc(100vw-16px)] max-w-[calc(100vw-48px)] coarse:max-w-480px max-h-[calc(100vh-48px)] coarse:max-h-[calc(100dvh-16px)] overflow-x-hidden overflow-y-auto p-sm coarse:p-md border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text textsize-md leading-[1.2]">
         <SwitchButton
           checked={draft.readerEnabled}
           description={texts.settings.readerHelp}
@@ -154,7 +154,7 @@ export function SettingsMenu(props: {
         <div class="border-0 border-b ehp-color-site-border-subtle-b">
           <button
             type="button"
-            class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left text-16px coarse:text-24px font-700 [-webkit-tap-highlight-color:transparent]"
+            class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"
             aria-expanded={readerOptionsOpen()}
             aria-label={readerOptionsOpen() ? texts.settings.hideReaderOptions : texts.settings.showReaderOptions}
             onClick={(event: MouseEvent) => {
@@ -181,7 +181,7 @@ export function SettingsMenu(props: {
         <div class="border-0 border-b ehp-color-site-border-subtle-b">
           <button
             type="button"
-            class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left text-16px coarse:text-24px font-700 [-webkit-tap-highlight-color:transparent]"
+            class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"
             aria-expanded={enhanceOpen()}
             aria-label={enhanceOpen() ? texts.settings.hideEnhance : texts.settings.showEnhance}
             onClick={(event: MouseEvent) => {
@@ -223,6 +223,16 @@ export function SettingsMenu(props: {
             </div>
           </Show>
         </div>
+        <a
+          class="flex w-full min-h-md coarse:min-h-88px items-center overflow-hidden text-ellipsis whitespace-nowrap px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline textsize-md font-700 hover:bg-[var(--color-site-item-hover)]"
+          href="https://github.com/yamipot/ehpeek"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={texts.navigation.github}
+          title={`${texts.navigation.github}: ${__EHPEEK_VERSION__}`}
+        >
+          v{__EHPEEK_VERSION__}
+        </a>
         <div class="ehpeek-settings-actions grid grid-cols-3 gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
           <button
             type="button"

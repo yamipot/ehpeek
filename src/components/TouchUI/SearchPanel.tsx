@@ -34,14 +34,14 @@ export function TouchSearchPanel(props: { source: TouchSearchPanelInfo }) {
   );
 }
 
-export function TouchSearchCategoryToggle(props: { source: TouchSearchPanelInfo }) {
+export function TouchSearchCategoryToggle(props: { categories: HTMLTableElement }) {
   const [categoriesOpen, setCategoriesOpen] = createSignal(false);
 
   createEffect(() => {
     const open = categoriesOpen();
-    props.source.categories.classList.toggle("hidden", !open);
-    props.source.categories.hidden = !open;
-    props.source.categories.setAttribute("aria-hidden", String(!open));
+    props.categories.classList.toggle("hidden", !open);
+    props.categories.hidden = !open;
+    props.categories.setAttribute("aria-hidden", String(!open));
   });
 
   return (
@@ -49,20 +49,60 @@ export function TouchSearchCategoryToggle(props: { source: TouchSearchPanelInfo 
       type="button"
       class={TOUCH_SEARCH_OPTION_CLASS}
       aria-expanded={categoriesOpen()}
-      aria-label={categoriesOpen() ? texts.search.hideCategories : texts.search.showCategories}
       onClick={() => {
         setCategoriesOpen((open) => !open);
       }}
     >
-      {categoriesOpen() ? texts.search.hideCategories : texts.search.showCategories}
+      {texts.search.categories}
     </button>
   );
 }
 
-export function TouchSearchAction(props: { action: "search" | "clear"; source: TouchSearchPanelInfo }) {
+export function TouchSearchFileToggle(props: { toggle: HTMLAnchorElement }) {
+  const [fileSearchOpen, setFileSearchOpen] = createSignal(false);
+
+  return (
+    <button
+      type="button"
+      class={TOUCH_SEARCH_OPTION_CLASS}
+      aria-expanded={fileSearchOpen()}
+      onClick={() => {
+        props.toggle.click();
+        setFileSearchOpen((open) => !open);
+      }}
+    >
+      {texts.search.fileSearch}
+    </button>
+  );
+}
+
+export function TouchSearchAdvancedToggle(props: { toggle: HTMLAnchorElement }) {
+  const [advancedOpen, setAdvancedOpen] = createSignal(false);
+
+  return (
+    <button
+      type="button"
+      class={TOUCH_SEARCH_OPTION_CLASS}
+      aria-expanded={advancedOpen()}
+      onClick={() => {
+        props.toggle.click();
+        setAdvancedOpen((open) => !open);
+      }}
+    >
+      {texts.search.advancedOptions}
+    </button>
+  );
+}
+
+export function TouchSearchAction(props: {
+  action: "search" | "clear";
+  label: string;
+  original: HTMLInputElement | HTMLButtonElement;
+  source: TouchSearchPanelInfo;
+}) {
   let originalHost!: HTMLSpanElement;
   const search = props.action === "search";
-  const original = search ? props.source.searchSubmit : props.source.clearButton;
+  const original = props.original;
 
   onMount(() => {
     original.hidden = true;
@@ -75,11 +115,11 @@ export function TouchSearchAction(props: { action: "search" | "clear"; source: T
         type={search ? "submit" : "button"}
         class={
           search
-            ? `${TOUCH_SEARCH_ACTION_CLASS} z-1 col-start-3 row-start-1 ehp-color-site-accent`
+            ? `${TOUCH_SEARCH_ACTION_CLASS} z-1 ${props.source.clearButton ? "col-start-3" : "col-start-2"} row-start-1 ehp-color-site-accent`
             : `${TOUCH_SEARCH_ACTION_CLASS} z-1 col-start-2 row-start-1 ehp-color-site-text`
         }
-        aria-label={search ? props.source.searchLabel : props.source.clearLabel}
-        title={search ? props.source.searchLabel : props.source.clearLabel}
+        aria-label={props.label}
+        title={props.label}
         onClick={(event: MouseEvent) => {
           if (search) {
             event.preventDefault();

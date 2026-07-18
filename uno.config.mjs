@@ -31,11 +31,11 @@ export default defineConfig({
     ),
     ...pixelShortcuts(["rounded"], { xs: 3, sm: 4, md: 6, lg: 8, xl: 10 }),
     "scrollbar-hidden": "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
-    "textsize-xl": "text-26px touch:text-30px",
-    "textsize-lg": "text-20px touch:text-23px",
-    "textsize-md": "text-14px touch:text-20px",
-    "textsize-sm": "text-11px touch:text-14px",
-    "textsize-xs": "text-9px touch:text-11px",
+    "textsize-xl": "text-[length:var(--font-size-xl)]",
+    "textsize-lg": "text-[length:var(--font-size-lg)]",
+    "textsize-md": "text-[length:var(--font-size-md)]",
+    "textsize-sm": "text-[length:var(--font-size-sm)]",
+    "textsize-xs": "text-[length:var(--font-size-xs)]",
   },
 });
 

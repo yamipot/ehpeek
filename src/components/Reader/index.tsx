@@ -57,8 +57,7 @@ export async function enterReaderFullscreen(target: HTMLElement): Promise<void> 
 
   const scaleAfter = window.visualViewport?.scale ?? 1;
   const uiScale = clamp(scaleBefore / Math.max(scaleAfter, 0.01), 0.25, 1);
-  const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-  const progressSize = coarsePointer ? 30 : 20;
+  const progressSize = Number.parseFloat(getComputedStyle(target).getPropertyValue("--font-size-lg")) || 24;
   target.style.setProperty(FULLSCREEN_UI_SCALE_PROPERTY, String(uiScale));
   target.style.setProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY, `${progressSize * uiScale}px`);
 }
@@ -543,7 +542,7 @@ export function FullscreenReader(props: {
   return (
     <div
       id={VIEWER_ID}
-      class="fixed inset-0 z-reader ehp-color-reader font-sans text-13px leading-[1.4]"
+      class="fixed inset-0 z-reader ehp-color-reader font-sans textsize-sm leading-[1.4]"
       data-read-direction={rootState.readDirection}
       data-toolbar-open={String(rootState.toolbarOpen)}
       data-view-mode={rootState.viewMode}
