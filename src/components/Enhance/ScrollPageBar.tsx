@@ -65,7 +65,12 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: HTMLDiv
 
     return (
       <td class={PAGE_BAR_CELL_CLASS}>
-        <a class={`${PAGE_BAR_LINK_CLASS} ${PAGE_BAR_LINK_COLOR_CLASS}`} href={options.urlForIndex(pageIndex)} data-page-index={String(pageIndex)}>
+        <a
+          class={`${PAGE_BAR_LINK_CLASS} ${PAGE_BAR_LINK_COLOR_CLASS}`}
+          href={options.urlForIndex(pageIndex)}
+          data-page-index={String(pageIndex)}
+          draggable={false}
+        >
           {text}
         </a>
       </td>

@@ -1,10 +1,45 @@
+export type ReadButtonInfo = {
+  label: string;
+  detail: string;
+};
+
+export function ReadButton(props: {
+  info: ReadButtonInfo;
+  onClick: () => void;
+  variant: "gallery" | "touchGallery";
+}) {
+  const buttonClassName =
+    props.variant === "touchGallery"
+      ? "ehpeek-continue-reading ehpeek-touch-gallery-primary-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] textsize-xl font-700"
+      : "ehpeek-continue-reading block box-border w-full max-w-full mt-xs min-h-sm py-xs px-sm rounded-sm border ehp-color-site-border bg-transparent ehp-color-site-accent hover:bg-[var(--color-site-accent-hover)] shadow-none cursor-pointer text-center font-sans textsize-md font-700 leading-[1.15]";
+  const detailClassName =
+    props.variant === "touchGallery"
+      ? "ehpeek-continue-reading-page block mt-2px ehp-color-site-accent textsize-md font-600 opacity-78 normal-case"
+      : "ehpeek-continue-reading-page block mt-1px opacity-72 textsize-sm font-600";
+
+  return (
+    <button
+      type="button"
+      class={buttonClassName}
+      onClick={(event: MouseEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        props.onClick();
+      }}
+    >
+      {props.info.label}
+      <span class={detailClassName}>{props.info.detail}</span>
+    </button>
+  );
+}
+
 const HISTORY_KEY_PREFIX = "ehpeek:history:";
 const HISTORY_COUNT_KEY = "ehpeek:history-count";
 const HISTORY_LIMIT = 2_000;
 const HISTORY_PRUNE_COUNT = 1_000;
 const SAVE_DELAY_MS = 10_000;
 
-export type ReaderHistoryRecord = {
+export type ReadHistoryRecord = {
   galleryId: number;
   token: string;
   galleryUrl: string;
@@ -13,12 +48,12 @@ export type ReaderHistoryRecord = {
   updatedAt: number;
 };
 
-export class ReaderHistorySession {
-  private pending: ReaderHistoryRecord | null = null;
-  private lastSaved: ReaderHistoryRecord | null = null;
+export class ReadHistorySession {
+  private pending: ReadHistoryRecord | null = null;
+  private lastSaved: ReadHistoryRecord | null = null;
   private timer: number | null = null;
 
-  constructor(private readonly baseRecord: Omit<ReaderHistoryRecord, "pageNum" | "updatedAt">) {
+  constructor(private readonly baseRecord: Omit<ReadHistoryRecord, "pageNum" | "updatedAt">) {
     window.addEventListener("pagehide", this.flush);
     document.addEventListener("visibilitychange", this.onVisibilityChange);
   }
@@ -54,7 +89,7 @@ export class ReaderHistorySession {
     }
 
     if (!this.sameProgress(this.pending, this.lastSaved)) {
-      saveReaderHistory(this.pending);
+      saveReadHistory(this.pending);
       this.lastSaved = this.pending;
     }
 
@@ -81,7 +116,7 @@ export class ReaderHistorySession {
     }
   };
 
-  private sameProgress(left: ReaderHistoryRecord | null, right: ReaderHistoryRecord | null): boolean {
+  private sameProgress(left: ReadHistoryRecord | null, right: ReadHistoryRecord | null): boolean {
     return Boolean(
       left &&
         right &&
@@ -93,13 +128,13 @@ export class ReaderHistorySession {
   }
 }
 
-export function loadReaderHistory(galleryId: number, token: string): ReaderHistoryRecord | null {
-  return GM_getValue<ReaderHistoryRecord | null>(historyKey(galleryId, token), null);
+export function loadReadHistory(galleryId: number, token: string): ReadHistoryRecord | null {
+  return GM_getValue<ReadHistoryRecord | null>(historyKey(galleryId, token), null);
 }
 
-function saveReaderHistory(record: ReaderHistoryRecord): void {
+function saveReadHistory(record: ReadHistoryRecord): void {
   const key = historyKey(record.galleryId, record.token);
-  const exists = GM_getValue<ReaderHistoryRecord | null>(key, null) !== null;
+  const exists = GM_getValue<ReadHistoryRecord | null>(key, null) !== null;
 
   GM_setValue(key, record);
 
@@ -108,7 +143,7 @@ function saveReaderHistory(record: ReaderHistoryRecord): void {
     GM_setValue(HISTORY_COUNT_KEY, count);
 
     if (count > HISTORY_LIMIT) {
-      pruneReaderHistory();
+      pruneReadHistory();
     }
   }
 }
@@ -117,11 +152,11 @@ function historyKey(galleryId: number, token: string): string {
   return `${HISTORY_KEY_PREFIX}${galleryId}:${token}`;
 }
 
-function pruneReaderHistory(): void {
+function pruneReadHistory(): void {
   const records = GM_listValues()
     .filter((key) => key.startsWith(HISTORY_KEY_PREFIX))
-    .map((key) => ({ key, record: GM_getValue<ReaderHistoryRecord | null>(key, null) }))
-    .filter((entry): entry is { key: string; record: ReaderHistoryRecord } => entry.record !== null)
+    .map((key) => ({ key, record: GM_getValue<ReadHistoryRecord | null>(key, null) }))
+    .filter((entry): entry is { key: string; record: ReadHistoryRecord } => entry.record !== null)
     .sort((left, right) => left.record.updatedAt - right.record.updatedAt);
 
   for (const entry of records.slice(0, HISTORY_PRUNE_COUNT)) {

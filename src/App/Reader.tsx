@@ -3,16 +3,16 @@ import {
   FullscreenReader,
   removePreviousReaderRoot,
   type FullscreenReaderOptions,
+  type ReaderPageProvider,
 } from "../components/Reader";
 import { navigateGalleryPreview } from "../components/Enhance/EnhanceThumbsGrids";
+import { ReadHistorySession } from "../components/Enhance/ReadHistory";
 import * as eh from "../eh";
-import type { ReaderPage } from "../readerTypes";
-import { ReaderHistorySession, state } from "../state";
+import type { LoadedReaderPage, ReaderPage } from "../readerTypes";
+import { state } from "../state";
 import texts from "../texts.json";
-import { normalizeUrl } from "../utils";
 import { renderInto, unmountFrom } from "./render";
 
-const READER_WINDOW_SIZE = 10;
 const PREVIEW_CACHE_LIMIT = 10;
 
 type ReaderFullscreenLaunch = {
@@ -21,341 +21,347 @@ type ReaderFullscreenLaunch = {
   viewport: eh.PageViewportSnapshot | null;
 };
 
-export class ReaderApp {
-  private activeReaderClose: (() => void) | undefined;
+export type ReaderCallbacks = {
+  enhanceThumbsGridsEnabled: () => boolean;
+  readHistoryEnabled: () => boolean;
+  onPageBarChange: (currentIndex: number, maxIndex: number | null) => void;
+  onReaderClosed: () => void;
+};
 
-  constructor(private readonly callbacks: {
-    enhanceThumbsGridsEnabled: () => boolean;
-    onPageBarChange: (currentIndex: number, maxIndex: number | null) => void;
-    onReaderClosed: () => void;
-  }) {}
+let activeReaderClose: (() => void) | undefined;
 
-  onDocumentClick = (event: MouseEvent): void => {
-    if (!state.reader.enabled.value) {
-      return;
-    }
+export function onReaderDocumentClick(event: MouseEvent, callbacks: ReaderCallbacks): void {
+  if (!state.reader.enabled.value) {
+    return;
+  }
 
-    const link = eh.findClickedImageLink(event.target);
+  const link = eh.findClickedImageLink(event.target);
 
-    if (!link) {
-      return;
-    }
+  if (!link) {
+    return;
+  }
 
-    event.preventDefault();
-    event.stopPropagation();
-    this.openFromUserAction(link.href);
-  };
+  event.preventDefault();
+  event.stopPropagation();
+  openReaderFromUserAction(link.href, callbacks);
+}
 
-  openFromUserAction(startPageUrl: string, preferredPageNum?: number): void {
-    const fullscreenLaunch = this.requestConfiguredFullscreen();
-    void this.open(startPageUrl, preferredPageNum, fullscreenLaunch).catch(async (error: unknown) => {
-      if (fullscreenLaunch) {
-        const fullscreenEntered = await fullscreenLaunch.result;
-        if (document.fullscreenElement === fullscreenLaunch.host) {
-          await document.exitFullscreen().catch((fullscreenError: unknown) => {
-            console.warn("[ehpeek] Failed to exit fullscreen", fullscreenError);
-          });
-        }
-        if (fullscreenEntered && fullscreenLaunch.viewport) {
-          await eh.restorePageViewport(fullscreenLaunch.viewport);
-        }
-        fullscreenLaunch.host.remove();
+export function openReaderFromUserAction(
+  startPageUrl: string,
+  callbacks: ReaderCallbacks,
+  preferredPageNum?: number,
+): void {
+  const fullscreenLaunch = requestConfiguredFullscreen();
+  void openReader(startPageUrl, callbacks, preferredPageNum, fullscreenLaunch).catch(async (error: unknown) => {
+    if (fullscreenLaunch) {
+      const fullscreenEntered = await fullscreenLaunch.result;
+      if (document.fullscreenElement === fullscreenLaunch.host) {
+        await document.exitFullscreen().catch((fullscreenError: unknown) => {
+          console.warn("[ehpeek] Failed to exit fullscreen", fullscreenError);
+        });
       }
-      this.reportOpenError(error);
-    });
-  }
-
-  async openFromHash(): Promise<void> {
-    const peekPage = eh.peekPageFromHash();
-
-    if (peekPage === null) {
-      return;
-    }
-
-    const pages = eh.collectGalleryPages();
-    const page = pages.find((item) => item.pageNum === peekPage) ?? pages[0];
-
-    if (page) {
-      await this.open(page.url).catch((error) => this.reportOpenError(error));
-    }
-  }
-
-  private async open(
-    startPageUrl: string,
-    preferredPageNum?: number,
-    fullscreenLaunch?: ReaderFullscreenLaunch,
-  ): Promise<void> {
-    if (!state.reader.enabled.value) {
-      return;
-    }
-
-    const pageType = eh.extractPageType();
-
-    if (pageType.type !== "gallery") {
-      return;
-    }
-
-    const landingIndex = eh.previewPageIndex();
-    const landingPages = eh.collectGalleryPages();
-    const pageSize = eh.computePreviewPageSize();
-    const maxPreviewIndex = eh.maxPreviewPageIndex();
-    const totalPages = eh.readShowingRange()?.total;
-    const provider = new GalleryPageProvider(
-      landingIndex,
-      landingPages,
-      pageSize,
-      maxPreviewIndex,
-      eh.pullPreviewPage,
-    );
-    const startUrl = normalizeUrl(startPageUrl);
-    const startPageNum = preferredPageNum ?? eh.peekPageFromHash() ?? eh.galleryPageNumber(startUrl);
-
-    if (!startPageNum) {
-      throw new Error(texts.errors.imageNotFound);
-    }
-
-    const landingPage = landingPages.find((page) => page.pageNum === startPageNum);
-    const seedPage = landingPage ?? (await provider.loadDisplayPages([startPageNum]))[0];
-
-    if (!seedPage || seedPage.pageNum !== startPageNum) {
-      throw new Error(texts.errors.imageNotFound);
-    }
-
-    const historySession = new ReaderHistorySession({
-      galleryId: pageType.galleryId,
-      token: pageType.token,
-      galleryUrl: eh.previewUrlForIndex(landingIndex),
-      totalPages,
-    });
-
-    if (!state.reader.enabled.value) {
-      historySession.dispose();
-      return;
-    }
-
-    const automaticFullscreen = fullscreenLaunch ? await fullscreenLaunch.result : undefined;
-
-    if (automaticFullscreen && document.fullscreenElement !== fullscreenLaunch?.host) {
-      historySession.dispose();
-      if (fullscreenLaunch?.viewport) {
+      if (fullscreenEntered && fullscreenLaunch.viewport) {
         await eh.restorePageViewport(fullscreenLaunch.viewport);
       }
-      fullscreenLaunch?.host.remove();
-      return;
+      fullscreenLaunch.host.remove();
     }
+    reportReaderOpenError(error);
+  });
+}
 
-    let lastPageNum = startPageNum;
-    let fullscreenViewport = automaticFullscreen ? fullscreenLaunch?.viewport ?? null : null;
-    const restorePageViewport = async () => {
-      const snapshot = fullscreenViewport;
-      fullscreenViewport = null;
+export async function openReaderFromHash(callbacks: ReaderCallbacks): Promise<void> {
+  const peekPage = eh.peekPageFromHash();
 
-      if (snapshot) {
-        await eh.restorePageViewport(snapshot);
-      }
-    };
-
-    this.openFullscreen({
-      galleryId: pageType.galleryId,
-      pages: [seedPage],
-      startIndex: 0,
-      renderWindowSize: READER_WINDOW_SIZE,
-      preloadWindowSize: READER_WINDOW_SIZE,
-      nearConcurrentLoads: 3,
-      farConcurrentLoads: 6,
-      totalPages,
-      initialFullscreenOwned: automaticFullscreen === true,
-      onBeforeEnterFullscreen: () => {
-        fullscreenViewport = eh.preparePageViewportForFullscreen();
-      },
-      restorePageViewport,
-      loadPage: eh.loadEhImagePage,
-      loadPages: (pageNums) => provider.loadDisplayPages(pageNums),
-      onActivePageChange: (page) => {
-        if (page.pageNum) {
-          lastPageNum = page.pageNum;
-          if (this.callbacks.enhanceThumbsGridsEnabled()) {
-            this.callbacks.onPageBarChange(provider.previewIndexForPage(page.pageNum), maxPreviewIndex);
-          }
-        }
-
-        historySession.update(page.pageNum, totalPages);
-        eh.updatePeekLocation(page.pageNum, pageSize, maxPreviewIndex);
-      },
-      onExit: () => {
-        historySession.dispose();
-        this.callbacks.onReaderClosed();
-        const exitIndex = provider.previewIndexForPage(lastPageNum);
-        const galleryUrl = eh.previewUrlForIndex(exitIndex);
-
-        if (this.callbacks.enhanceThumbsGridsEnabled()) {
-          this.callbacks.onPageBarChange(exitIndex, maxPreviewIndex);
-          void navigateGalleryPreview(galleryUrl).catch(() => {
-            window.location.replace(galleryUrl);
-          });
-          return;
-        }
-
-        if (exitIndex === landingIndex) {
-          window.history.replaceState(window.history.state, "", galleryUrl);
-        } else {
-          window.location.replace(galleryUrl);
-        }
-      },
-      onOpenOriginalPage: (page) => {
-        historySession.dispose();
-        window.location.assign(page.url);
-      },
-    }, fullscreenLaunch?.host);
+  if (peekPage === null) {
+    return;
   }
 
-  private openFullscreen(
-    options: Omit<FullscreenReaderOptions, "fullscreenTarget">,
-    existingHost?: HTMLDivElement,
-  ): void {
-    this.activeReaderClose?.();
-    removePreviousReaderRoot();
+  const pages = eh.collectGalleryPages();
+  const page = pages.find((item) => item.pageNum === peekPage) ?? pages[0];
 
-    const host = existingHost ?? this.createHost();
-    let closeReader = onClosed;
-    const close = () => closeReader();
-    const owner = this;
-
-    function onClosed(): void {
-      unmountFrom(host);
-      host.remove();
-
-      if (owner.activeReaderClose === close) {
-        owner.activeReaderClose = undefined;
-      }
-    }
-
-    if (!host.isConnected) {
-      document.body.append(host);
-    }
-    this.activeReaderClose = close;
-    renderInto(
-      host,
-      () => (
-        <FullscreenReader
-          options={{ ...options, fullscreenTarget: host }}
-          actionsRef={(actions) => {
-            closeReader = actions.close;
-          }}
-          onActionsDispose={() => {
-            closeReader = onClosed;
-          }}
-          onClosed={onClosed}
-        />
-      ),
-    );
-  }
-
-  private requestConfiguredFullscreen(): ReaderFullscreenLaunch | undefined {
-    if (!state.reader.enabled.value || !state.reader.fullscreen.value || document.fullscreenElement) {
-      return undefined;
-    }
-
-    const host = this.createHost();
-    document.body.append(host);
-
-    if (!document.fullscreenEnabled || typeof host.requestFullscreen !== "function") {
-      return { host, result: Promise.resolve(false), viewport: null };
-    }
-
-    const viewport = eh.preparePageViewportForFullscreen();
-
-    return {
-      host,
-      viewport,
-      result: enterReaderFullscreen(host).then(
-        () => true,
-        async (error: unknown) => {
-          await eh.restorePageViewport(viewport);
-          console.warn("[ehpeek] Fullscreen request failed", error);
-          return false;
-        },
-      ),
-    };
-  }
-
-  private createHost(): HTMLDivElement {
-    const host = document.createElement("div");
-    host.dataset.ehpeekReaderContainer = "true";
-    return host;
-  }
-
-  reportOpenError(error: unknown): void {
-    const message = error instanceof Error ? error.message : texts.errors.loadFailed;
-    console.error("[ehpeek]", error);
-    window.alert(message);
+  if (page) {
+    await openReader(page.url, callbacks).catch(reportReaderOpenError);
   }
 }
 
-class GalleryPageProvider {
-  private readonly previewCache = new Map<number, ReaderPage[]>();
+export async function openOriginalReader(pageNum: number): Promise<void> {
+  const provider = new GalleryPageProvider(eh.computePreviewPageSize(), eh.maxPreviewPageIndex());
+  provider.cachePages(eh.collectGalleryPages());
+  const page = (await provider.getPages([pageNum]))[0];
+
+  if (!page || page.pageNum !== pageNum) {
+    throw new Error(texts.errors.imageNotFound);
+  }
+
+  window.location.assign(page.url);
+}
+
+async function openReader(
+  startPageUrl: string,
+  callbacks: ReaderCallbacks,
+  preferredPageNum?: number,
+  fullscreenLaunch?: ReaderFullscreenLaunch,
+): Promise<void> {
+  if (!state.reader.enabled.value) {
+    return;
+  }
+
+  const pageType = eh.extractPageType();
+
+  if (pageType.type !== "gallery") {
+    return;
+  }
+
+  const currentPreviewIndex = eh.previewPageIndex();
+  const currentPages = eh.collectGalleryPages();
+  const pageSize = eh.computePreviewPageSize();
+  const maxPreviewIndex = eh.maxPreviewPageIndex();
+  const totalPages = eh.readShowingRange()?.total;
+  const provider = new GalleryPageProvider(pageSize, maxPreviewIndex);
+  provider.cachePages(currentPages);
+  const startPageNum = preferredPageNum ?? eh.peekPageFromHash() ?? eh.galleryPageNumber(startPageUrl);
+
+  if (!startPageNum) {
+    throw new Error(texts.errors.imageNotFound);
+  }
+
+  const historySession = callbacks.readHistoryEnabled()
+    ? new ReadHistorySession({
+      galleryId: pageType.galleryId,
+      token: pageType.token,
+      galleryUrl: eh.previewUrlForIndex(currentPreviewIndex),
+      totalPages,
+    })
+    : null;
+
+  if (!state.reader.enabled.value) {
+    historySession?.dispose();
+    return;
+  }
+
+  const automaticFullscreen = fullscreenLaunch ? await fullscreenLaunch.result : undefined;
+
+  if (automaticFullscreen && document.fullscreenElement !== fullscreenLaunch?.host) {
+    historySession?.dispose();
+    if (fullscreenLaunch?.viewport) {
+      await eh.restorePageViewport(fullscreenLaunch.viewport);
+    }
+    fullscreenLaunch?.host.remove();
+    return;
+  }
+
+  let lastPageNum = startPageNum;
+  let fullscreenViewport = automaticFullscreen ? fullscreenLaunch?.viewport ?? null : null;
+  const restorePageViewport = async () => {
+    const snapshot = fullscreenViewport;
+    fullscreenViewport = null;
+
+    if (snapshot) {
+      await eh.restorePageViewport(snapshot);
+    }
+  };
+
+  openFullscreenReader({
+    galleryId: pageType.galleryId,
+    initialPageNum: startPageNum,
+    provider,
+    totalPages,
+    onBeforeEnterFullscreen: () => {
+      fullscreenViewport = eh.preparePageViewportForFullscreen();
+    },
+    restorePageViewport,
+    onActivePageChange: (page) => {
+      if (page.pageNum) {
+        lastPageNum = page.pageNum;
+        if (callbacks.enhanceThumbsGridsEnabled()) {
+          callbacks.onPageBarChange(provider.previewIndexForPage(page.pageNum), maxPreviewIndex);
+        }
+      }
+
+      historySession?.update(page.pageNum, totalPages);
+      eh.updatePeekLocation(page.pageNum, pageSize, maxPreviewIndex);
+    },
+    onExit: () => {
+      historySession?.dispose();
+      callbacks.onReaderClosed();
+      const exitIndex = provider.previewIndexForPage(lastPageNum);
+      const galleryUrl = eh.previewUrlForIndex(exitIndex);
+
+      if (callbacks.enhanceThumbsGridsEnabled()) {
+        callbacks.onPageBarChange(exitIndex, maxPreviewIndex);
+        void navigateGalleryPreview(galleryUrl).catch(() => {
+          window.location.replace(galleryUrl);
+        });
+        return;
+      }
+
+      if (exitIndex === currentPreviewIndex) {
+        window.history.replaceState(window.history.state, "", galleryUrl);
+      } else {
+        window.location.replace(galleryUrl);
+      }
+    },
+    onOpenOriginalPage: (page) => {
+      historySession?.dispose();
+      window.location.assign(page.url);
+    },
+  }, fullscreenLaunch?.host);
+}
+
+function openFullscreenReader(
+  options: Omit<FullscreenReaderOptions, "fullscreenTarget">,
+  existingHost?: HTMLDivElement,
+): void {
+  activeReaderClose?.();
+  removePreviousReaderRoot();
+
+  const host = existingHost ?? createReaderHost();
+  let closeReader = onClosed;
+  const close = () => closeReader();
+
+  function onClosed(): void {
+    unmountFrom(host);
+    host.remove();
+
+    if (activeReaderClose === close) {
+      activeReaderClose = undefined;
+    }
+  }
+
+  if (!host.isConnected) {
+    document.body.append(host);
+  }
+  activeReaderClose = close;
+  renderInto(
+    host,
+    () => (
+      <FullscreenReader
+        options={{ ...options, fullscreenTarget: host }}
+        actionsRef={(actions) => {
+          closeReader = actions.close;
+        }}
+        onActionsDispose={() => {
+          closeReader = onClosed;
+        }}
+        onClosed={onClosed}
+      />
+    ),
+  );
+}
+
+function requestConfiguredFullscreen(): ReaderFullscreenLaunch | undefined {
+  if (!state.reader.enabled.value || !state.reader.fullscreen.value || document.fullscreenElement) {
+    return undefined;
+  }
+
+  const host = createReaderHost();
+  document.body.append(host);
+
+  if (!document.fullscreenEnabled || typeof host.requestFullscreen !== "function") {
+    return { host, result: Promise.resolve(false), viewport: null };
+  }
+
+  const viewport = eh.preparePageViewportForFullscreen();
+
+  return {
+    host,
+    viewport,
+    result: enterReaderFullscreen(host).then(
+      () => true,
+      async (error: unknown) => {
+        await eh.restorePageViewport(viewport);
+        console.warn("[ehpeek] Fullscreen request failed", error);
+        return false;
+      },
+    ),
+  };
+}
+
+function createReaderHost(): HTMLDivElement {
+  const host = document.createElement("div");
+  host.dataset.ehpeekReaderContainer = "true";
+  return host;
+}
+
+export function reportReaderOpenError(error: unknown): void {
+  const message = error instanceof Error ? error.message : texts.errors.loadFailed;
+  console.error("[ehpeek]", error);
+  window.alert(message);
+}
+
+class GalleryPageProvider implements ReaderPageProvider {
+  private readonly pages = new Map<number, ReaderPage>();
+  private readonly previewLoads = new Map<number, Promise<ReaderPage[]>>();
 
   constructor(
-    private readonly landingIndex: number,
-    private readonly landingPages: ReaderPage[],
     private readonly pageSize: number,
     private readonly maxPreviewIndex: number | null,
-    private readonly loadPreviewPage: (index: number, landingIndex: number, landingPages: ReaderPage[]) => Promise<ReaderPage[]>,
-  ) {
-    this.previewCache.set(landingIndex, landingPages);
+  ) {}
+
+  cachePages(pages: ReaderPage[]): void {
+    for (const page of pages) {
+      if (page.pageNum && page.pageNum > 0) {
+        this.pages.set(page.pageNum, page);
+      }
+    }
   }
 
   previewIndexForPage(pageNum: number): number {
     return eh.previewPageIndexForGalleryPage(pageNum, this.pageSize, this.maxPreviewIndex);
   }
 
-  async loadDisplayPages(pageNums: number[]): Promise<ReaderPage[]> {
-    const previewIndexes = Array.from(new Set(pageNums.map((pageNum) => this.previewIndexForPage(pageNum)))).filter(
+  async getPages(pageNums: number[]): Promise<ReaderPage[]> {
+    const requested = Array.from(new Set(pageNums.filter((pageNum) => pageNum > 0)));
+    const previewIndexes = Array.from(new Set(requested
+      .filter((pageNum) => !this.pages.has(pageNum))
+      .map((pageNum) => this.previewIndexForPage(pageNum)))).filter(
       (value) => value >= 0 && (this.maxPreviewIndex === null || value <= this.maxPreviewIndex),
     );
-    const requested = new Set(pageNums);
-    const chunks = await Promise.all(previewIndexes.map((index) => this.cachedPreviewPage(index)));
-    const byUrl = new Map<string, ReaderPage>();
-
-    for (const page of chunks.flat()) {
-      if (page.pageNum && requested.has(page.pageNum)) {
-        byUrl.set(page.url, page);
-      }
-    }
-
-    return Array.from(byUrl.values()).sort(
-      (left, right) => (left.pageNum ?? Number.MAX_SAFE_INTEGER) - (right.pageNum ?? Number.MAX_SAFE_INTEGER),
-    );
+    await Promise.all(previewIndexes.map((index) => this.loadPreviewPage(index)));
+    return requested.flatMap((pageNum) => this.pages.get(pageNum) ?? []);
   }
 
-  private async cachedPreviewPage(index: number): Promise<ReaderPage[]> {
+  loadPage(page: ReaderPage): Promise<LoadedReaderPage> {
+    return eh.loadEhImagePage(page);
+  }
+
+  private loadPreviewPage(index: number): Promise<ReaderPage[]> {
     const boundedIndex = this.maxPreviewIndex === null ? index : Math.min(index, this.maxPreviewIndex);
 
     if (boundedIndex < 0) {
-      return [];
+      return Promise.resolve([]);
     }
 
-    const cached = this.previewCache.get(boundedIndex);
+    const cached = this.previewLoads.get(boundedIndex);
 
     if (cached) {
-      this.previewCache.delete(boundedIndex);
-      this.previewCache.set(boundedIndex, cached);
+      this.previewLoads.delete(boundedIndex);
+      this.previewLoads.set(boundedIndex, cached);
       return cached;
     }
 
-    const pages = await this.loadPreviewPage(boundedIndex, this.landingIndex, this.landingPages);
-    this.previewCache.set(boundedIndex, pages);
+    const load = eh.pullPreviewPage(boundedIndex).then(
+      (pages) => {
+        this.cachePages(pages);
+        return pages;
+      },
+      (error: unknown) => {
+        this.previewLoads.delete(boundedIndex);
+        throw error;
+      },
+    );
+    this.previewLoads.set(boundedIndex, load);
 
-    while (this.previewCache.size > PREVIEW_CACHE_LIMIT) {
-      const oldest = this.previewCache.keys().next().value;
+    while (this.previewLoads.size > PREVIEW_CACHE_LIMIT) {
+      const oldest = this.previewLoads.keys().next().value;
 
       if (oldest === undefined) {
         break;
       }
 
-      this.previewCache.delete(oldest);
+      this.previewLoads.delete(oldest);
     }
 
-    return pages;
+    return load;
   }
 }

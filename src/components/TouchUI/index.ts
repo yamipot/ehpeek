@@ -11,7 +11,6 @@ export {
   TOUCH_SEARCH_OPTION_CLASS,
   TouchSearchAction,
   TouchSearchCategoryToggle,
-  TouchSearchHistory,
   TouchSearchPanel,
 } from "./SearchPanel";
 export { TOUCH_TOP_BAR_MENU_ITEM_CLASS, TouchTopBar } from "./TopBar";

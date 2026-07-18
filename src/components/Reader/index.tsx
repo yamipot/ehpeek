@@ -32,8 +32,6 @@ import {
 import { ZoomOverlay, type ZoomOverlayActions, type ZoomOverlayImage } from "./ZoomOverlay";
 import readerCss from "./index.css";
 
-export { ReadButton, type ReadButtonInfo } from "./ReadButton";
-
 const VIEWER_ID = "ehpeek-reader";
 const STYLE_ID = "ehpeek-reader-style";
 const DEFAULT_WINDOW_SIZE = 10;
@@ -73,21 +71,23 @@ function clearReaderFullscreenScale(target: HTMLElement): void {
 export type FullscreenReaderOptions = {
   fullscreenTarget: HTMLElement;
   galleryId: number;
-  pages: ReaderPage[];
-  startIndex: number;
-  loadPage: (page: ReaderPage, index: number) => Promise<LoadedReaderPage>;
-  loadPages?: (pageNums: number[]) => Promise<ReaderPage[]>;
+  initialPageNum: number;
+  provider: ReaderPageProvider;
   totalPages?: number;
   onExit?: () => void;
   renderWindowSize?: number;
   preloadWindowSize?: number;
   nearConcurrentLoads?: number;
   farConcurrentLoads?: number;
-  onActivePageChange?: (page: ReaderPage, index: number) => void;
+  onActivePageChange?: (page: ReaderPage) => void;
   onOpenOriginalPage?: (page: ReaderPage) => void;
   onBeforeEnterFullscreen?: () => void;
   restorePageViewport?: () => Promise<void>;
-  initialFullscreenOwned?: boolean;
+};
+
+export type ReaderPageProvider = {
+  getPages: (pageNums: number[]) => Promise<ReaderPage[]>;
+  loadPage: (page: ReaderPage) => Promise<LoadedReaderPage>;
 };
 
 type ReaderRootState = {
@@ -147,7 +147,6 @@ type Direction = -1 | 1;
 type LoadTarget = {
   pageNum: number;
   page: ReaderPage;
-  index: number;
 };
 
 type LoadedReaderImage = ZoomOverlayImage & {
@@ -384,21 +383,17 @@ function handlePagesKeydown(event: KeyboardEvent, callbacks: PagesGestureCallbac
 }
 
 function initialViewportWindow(options: FullscreenReaderOptions): PagesViewportWindowOptions {
-  const startIndex = clamp(options.startIndex, 0, Math.max(0, options.pages.length - 1));
-  const pages = new Map<number, { aspectRatio: number }>();
-
-  for (const [index, page] of options.pages.entries()) {
-    pages.set(pageNumForPage(page, index), {
-      aspectRatio: normalizedAspectRatio(page.aspectRatio, FALLBACK_ASPECT_RATIO),
-    });
-  }
-
   return {
-    currentPageNum: pageNumForPage(options.pages[startIndex], startIndex),
+    currentPageNum: initialPageNumber(options),
     windowSize: options.renderWindowSize ?? DEFAULT_WINDOW_SIZE,
     totalPages: options.totalPages && options.totalPages > 0 ? options.totalPages : undefined,
-    pages,
+    pages: new Map(),
   };
+}
+
+function initialPageNumber(options: FullscreenReaderOptions): number {
+  const totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : Number.MAX_SAFE_INTEGER;
+  return clamp(Math.round(options.initialPageNum), 1, totalPages);
 }
 
 export function FullscreenReader(props: {
@@ -604,9 +599,9 @@ class ReaderSession {
   private readonly renderWindowSize: number;
   private readonly preloadWindowSize: number;
   private readonly imageQueue: TwoTierImageQueue<LoadTarget, LoadedReaderPage>;
-  private readonly loadPages: FullscreenReaderOptions["loadPages"];
+  private readonly provider: ReaderPageProvider;
   private readonly onExit: FullscreenReaderOptions["onExit"];
-  private readonly onActivePageChange: ((page: ReaderPage, index: number) => void) | undefined;
+  private readonly onActivePageChange: ((page: ReaderPage) => void) | undefined;
   private readonly onOpenOriginalPage: ((page: ReaderPage) => void) | undefined;
   private readonly onBeforeEnterFullscreen: (() => void) | undefined;
   private readonly restorePageViewport: (() => Promise<void>) | undefined;
@@ -631,7 +626,6 @@ class ReaderSession {
   private historyEntry = false;
   private closing = false;
   private closed = false;
-  private ownsFullscreen: boolean;
   private fullscreenWasActive: boolean;
   private keepReaderAfterFullscreenExit = false;
 
@@ -646,31 +640,20 @@ class ReaderSession {
     this.galleryId = options.galleryId;
     this.totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : undefined;
     this.renderWindowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE;
-    for (const [index, page] of options.pages.entries()) {
-      const pageNum = pageNumForPage(page, index);
-      this.pages.set(pageNum, {
-        ...page,
-        aspectRatio: normalizedAspectRatio(page.aspectRatio, FALLBACK_ASPECT_RATIO),
-        pageNum,
-      });
-    }
-
-    const startIndex = clamp(options.startIndex, 0, Math.max(0, options.pages.length - 1));
-    this.currentPageNum = pageNumForPage(options.pages[startIndex], startIndex);
+    this.currentPageNum = initialPageNumber(options);
     this.preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE;
-    this.loadPages = options.loadPages;
+    this.provider = options.provider;
     this.onExit = options.onExit;
     this.onActivePageChange = options.onActivePageChange;
     this.onOpenOriginalPage = options.onOpenOriginalPage;
     this.onBeforeEnterFullscreen = options.onBeforeEnterFullscreen;
     this.restorePageViewport = options.restorePageViewport;
-    this.ownsFullscreen = options.initialFullscreenOwned ?? false;
     this.callbacks = bindings.callbacks;
     this.closeComponent = bindings.close;
     this.viewport = viewport;
     this.zoomOverlay = zoomOverlay;
     this.imageQueue = new TwoTierImageQueue(
-      (target) => options.loadPage(target.page, target.index),
+      (target) => this.provider.loadPage(target.page),
       (pageNum) => this.viewport.markPageLoading(pageNum),
       this.onImageLoaded,
       this.onImageError,
@@ -680,11 +663,6 @@ class ReaderSession {
   }
 
   open(): void {
-    if (this.pages.size === 0) {
-      this.close();
-      return;
-    }
-
     this.viewport.focus();
 
     if (this.onExit) {
@@ -750,7 +728,6 @@ class ReaderSession {
     window.removeEventListener("popstate", this.onPopState);
     document.removeEventListener("fullscreenchange", this.onFullscreenChange);
     if (document.fullscreenElement === this.fullscreenTarget) {
-      this.ownsFullscreen = false;
       void document
         .exitFullscreen()
         .then(() => this.restorePageViewport?.())
@@ -807,10 +784,10 @@ class ReaderSession {
   }
 
   private async loadMissingPages(pageNums: number[], token: number): Promise<void> {
-    let incoming: ReaderPage[] | undefined;
+    let incoming: ReaderPage[];
 
     try {
-      incoming = await this.loadPages?.(pageNums);
+      incoming = await this.provider.getPages(pageNums);
     } catch (error) {
       console.error("[ehpeek]", error);
       return;
@@ -820,7 +797,7 @@ class ReaderSession {
       return;
     }
 
-    this.addPages(incoming ?? []);
+    this.addPages(incoming);
     this.syncViewportWindow();
     this.maintainLoadQueue();
     this.notifyActivePageChange();
@@ -865,7 +842,7 @@ class ReaderSession {
   private loadTargetFor(pageNum: number): LoadTarget | null {
     const page = this.pages.get(pageNum);
 
-    return page ? { pageNum, page, index: pageNum - 1 } : null;
+    return page ? { pageNum, page } : null;
   }
 
   private maxProgressPageNum(): number {
@@ -984,7 +961,7 @@ class ReaderSession {
     const page = this.pages.get(this.currentPageNum);
 
     if (page) {
-      this.onActivePageChange?.(page, this.currentPageNum - 1);
+      this.onActivePageChange?.(page);
     }
   }
 
@@ -1372,7 +1349,6 @@ class ReaderSession {
 
   async toggleFullscreen(): Promise<void> {
     if (document.fullscreenElement === this.fullscreenTarget) {
-      this.ownsFullscreen = false;
       this.keepReaderAfterFullscreenExit = true;
 
       try {
@@ -1392,13 +1368,10 @@ class ReaderSession {
       return;
     }
 
-    this.ownsFullscreen = true;
-
     try {
       this.onBeforeEnterFullscreen?.();
       await enterReaderFullscreen(this.fullscreenTarget);
     } catch (error) {
-      this.ownsFullscreen = false;
       await this.restorePageViewport?.();
       console.warn("[ehpeek] Fullscreen request failed", error);
     }
@@ -1412,7 +1385,6 @@ class ReaderSession {
     this.keepReaderAfterFullscreenExit = false;
 
     if (!fullscreenActive) {
-      this.ownsFullscreen = false;
       clearReaderFullscreenScale(this.fullscreenTarget);
     }
 

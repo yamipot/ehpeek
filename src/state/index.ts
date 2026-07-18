@@ -2,9 +2,6 @@ export type ViewMode = "scroll" | "paged";
 export type ReadDirection = "ltr" | "rtl";
 export type RightTapAction = "previous" | "next";
 
-export { loadReaderHistory, ReaderHistorySession, type ReaderHistoryRecord } from "./readerHistory";
-export { addSearchHistory, loadSearchHistory, removeSearchHistory } from "./searchHistory";
-
 type StateValue<T> = {
   key: string;
   defaultValue: T;
@@ -15,25 +12,31 @@ type StateValue<T> = {
 
 export const state = {
   app: {
-    singlePage: persisted("ehpeek:single-page-app:enabled", false),
+    singlePage: persisted("ehpeek:single-page-app:enabled", true),
   },
   reader: {
     enabled: persisted("ehpeek:reader:enabled", true),
-    fullscreen: persisted("ehpeek:reader:fullscreen", false),
+    fullscreen: persisted("ehpeek:reader:fullscreen", prefersTouchFullscreen()),
     viewMode: persisted<ViewMode>("ehpeek:reader:view-mode", "scroll"),
     readDirection: persisted<ReadDirection>("ehpeek:reader:read-direction", "rtl"),
     rightTapAction: persisted<RightTapAction>("ehpeek:reader:right-tap-action", "previous"),
   },
   gallery: {
     enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", true),
+    readHistory: persisted("ehpeek:read-history:enabled", true),
   },
   search: {
     enhance: persisted("ehpeek:enhance-search:enabled", true),
+    history: persisted("ehpeek:search-history:enabled", true),
   },
   touch: {
     enabled: persisted("ehpeek:touch-ui:enabled", true),
   },
 } as const;
+
+function prefersTouchFullscreen(): boolean {
+  return window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+}
 
 function persisted<T>(key: string, defaultValue: T): StateValue<T> {
   const item: StateValue<T> = {

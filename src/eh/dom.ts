@@ -120,12 +120,16 @@ export type TouchSearchPanelInfo = {
   clearButton: HTMLInputElement | HTMLButtonElement;
   clearLabel: string;
   fileSearch: HTMLElement | null;
-  historyMount: HTMLSpanElement;
   optionLinks: HTMLElement;
   searchActionMount: HTMLSpanElement;
   searchBox: HTMLElement;
   searchInput: HTMLInputElement;
   searchLabel: string;
+  searchSubmit: HTMLInputElement | HTMLButtonElement;
+};
+
+export type SearchHistorySource = {
+  searchInput: HTMLInputElement;
   searchSubmit: HTMLInputElement | HTMLButtonElement;
 };
 
@@ -158,6 +162,22 @@ export function readImagePageInfo(root: ParentNode, baseUrl: string): ImagePageI
     width: numericAttribute(image, "width"),
     height: numericAttribute(image, "height"),
   };
+}
+
+export function imageGalleryUrl(root: ParentNode = document, baseUrl = window.location.href): string | null {
+  for (const link of Array.from(root.querySelectorAll<HTMLAnchorElement>("a[href]"))) {
+    const url = normalizeUrl(link.getAttribute("href") || "", baseUrl);
+
+    try {
+      if (/^\/g\/\d+\/[^/]+\/?$/i.test(new URL(url).pathname)) {
+        return url;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 function imageUrlPath(url: string): string {
@@ -390,11 +410,9 @@ export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSear
   const categoryToggleMount = document.createElement("span");
   const searchActionMount = document.createElement("span");
   const clearActionMount = document.createElement("span");
-  const historyMount = document.createElement("span");
   categoryToggleMount.className = "contents";
   searchActionMount.className = "contents";
   clearActionMount.className = "contents";
-  historyMount.className = "contents";
 
   return {
     categories,
@@ -403,7 +421,6 @@ export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSear
     clearButton,
     clearLabel: searchActionLabel(clearButton),
     fileSearch: root.querySelector<HTMLElement>("#fsdiv"),
-    historyMount,
     optionLinks,
     searchActionMount,
     searchBox,
@@ -411,6 +428,15 @@ export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSear
     searchLabel: searchActionLabel(searchSubmit),
     searchSubmit,
   };
+}
+
+export function readSearchHistorySource(root: ParentNode = document): SearchHistorySource | null {
+  const searchInput = root.querySelector<HTMLInputElement>("#searchbox #f_search");
+  const searchSubmit = searchInput?.parentElement?.querySelector<HTMLInputElement | HTMLButtonElement>(
+    "input[type='submit'], button[type='submit']",
+  );
+
+  return searchInput && searchSubmit ? { searchInput, searchSubmit } : null;
 }
 
 export function prepareTouchSearchPanel(info: TouchSearchPanelInfo, optionClassName: string): void {
@@ -462,8 +488,6 @@ export function prepareTouchSearchPanel(info: TouchSearchPanelInfo, optionClassN
 
   info.searchSubmit.replaceWith(info.searchActionMount);
   info.clearButton.replaceWith(info.clearActionMount);
-  document.body.append(info.historyMount);
-
   info.optionLinks.prepend(info.categoryToggleMount);
   info.optionLinks.className = "flex w-full flex-wrap items-center justify-start gap-x-md gap-y-sm !p-0 !text-0";
 

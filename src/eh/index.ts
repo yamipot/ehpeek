@@ -1,6 +1,5 @@
 import type { LoadedReaderPage, ReaderPage } from "../readerTypes";
 import texts from "../texts.json";
-import { normalizeUrl } from "../utils";
 import * as dom from "./dom";
 import { requestPage } from "./request";
 
@@ -23,6 +22,7 @@ export {
   parseGalleryFavoriteOptions,
   readGalleryInfo,
   readShowingRange,
+  readSearchHistorySource,
   readTouchSearchPanelInfo,
   readTouchTopBarInfo,
   prepareTouchSearchPanel,
@@ -50,6 +50,7 @@ export type {
   GalleryInfo,
   GalleryTag,
   GalleryTagGroup,
+  SearchHistorySource,
   TouchSearchPanelInfo,
   TouchTopBarInfo,
 } from "./dom";
@@ -180,6 +181,17 @@ export function galleryPageNumber(url: string): number | undefined {
   return page.type === "image" ? page.pageNum : undefined;
 }
 
+export function imageGalleryPage(root: ParentNode = document): Extract<PageType, { type: "gallery" }> | null {
+  const url = dom.imageGalleryUrl(root);
+
+  if (!url) {
+    return null;
+  }
+
+  const page = extractPageType(url);
+  return page.type === "gallery" ? page : null;
+}
+
 export function previewPageIndexFromUrl(url: string, pageUrl = window.location.href): number | null {
   try {
     const parsed = new URL(url, pageUrl);
@@ -307,11 +319,7 @@ export function computePreviewPageSize(root: ParentNode = document): number {
   return fullPageCount;
 }
 
-export async function pullPreviewPage(index: number, landingIndex: number, landingPages: ReaderPage[]): Promise<ReaderPage[]> {
-  if (index === landingIndex) {
-    return landingPages;
-  }
-
+export async function pullPreviewPage(index: number): Promise<ReaderPage[]> {
   const previewUrl = previewUrlForIndex(index);
   const response = await requestPage(previewUrl);
   return collectGalleryPages(response.document, previewUrl);

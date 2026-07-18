@@ -1,12 +1,13 @@
 import { createSignal, type JSX } from "solid-js";
 import { EnhanceSearchGrids } from "../components/Enhance/EnhanceSearchGrids";
-import { EnhanceThumbsGrids, navigateGalleryPreview } from "../components/Enhance/EnhanceThumbsGrids";
+import { EnhanceThumbsGrids } from "../components/Enhance/EnhanceThumbsGrids";
+import { loadReadHistory, ReadButton, type ReadButtonInfo, ReadHistorySession } from "../components/Enhance/ReadHistory";
+import { SearchHistory } from "../components/Enhance/SearchHistory";
 import {
   SCROLL_PAGE_BAR_BOTTOM_CLASS,
   SCROLL_PAGE_BAR_TOP_CLASS,
   ScrollPageBar,
 } from "../components/Enhance/ScrollPageBar";
-import { ReadButton, type ReadButtonInfo } from "../components/Reader";
 import { SettingsMenu } from "../components/SettingsMenu";
 import {
   prepareTouchGalleryPage,
@@ -18,17 +19,23 @@ import {
   GalleryInfoPanel,
   TouchSearchAction,
   TouchSearchCategoryToggle,
-  TouchSearchHistory,
   TouchSearchPanel,
   TouchTopBar,
 } from "../components/TouchUI";
 import * as eh from "../eh";
 import * as EhSyringe from "../integrations/EhSyringe";
-import { loadReaderHistory, state } from "../state";
+import { state } from "../state";
 import texts from "../texts.json";
 import unoCss from "ehpeek:uno.css";
 import themeCss from "../theme.css";
-import { ReaderApp } from "./Reader";
+import {
+  onReaderDocumentClick,
+  openReaderFromHash,
+  openReaderFromUserAction,
+  openOriginalReader,
+  reportReaderOpenError,
+  type ReaderCallbacks,
+} from "./Reader";
 import { renderInto, unmountFrom } from "./render";
 import { SinglePage } from "./SinglePage";
 
@@ -56,7 +63,22 @@ function settingsMenuState() {
     readerFullscreenEnabled: state.reader.fullscreen.value,
     enhanceThumbsGridsEnabled: state.gallery.enhanceThumbs.value,
     enhanceSearchGridsEnabled: state.search.enhance.value,
+    readHistoryEnabled: state.gallery.readHistory.value,
+    searchHistoryEnabled: state.search.history.value,
     touchUiEnabled: state.touch.enabled.value,
+  };
+}
+
+function defaultSettingsMenuState(): ReturnType<typeof settingsMenuState> {
+  return {
+    singlePageAppEnabled: state.app.singlePage.defaultValue,
+    readerEnabled: state.reader.enabled.defaultValue,
+    readerFullscreenEnabled: state.reader.fullscreen.defaultValue,
+    enhanceThumbsGridsEnabled: state.gallery.enhanceThumbs.defaultValue,
+    enhanceSearchGridsEnabled: state.search.enhance.defaultValue,
+    readHistoryEnabled: state.gallery.readHistory.defaultValue,
+    searchHistoryEnabled: state.search.history.defaultValue,
+    touchUiEnabled: state.touch.enabled.defaultValue,
   };
 }
 
@@ -66,16 +88,18 @@ function applySettingsMenuState(next: ReturnType<typeof settingsMenuState>): voi
   state.reader.fullscreen.set(next.readerFullscreenEnabled);
   state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled);
   state.search.enhance.set(next.enhanceSearchGridsEnabled);
+  state.gallery.readHistory.set(next.readHistoryEnabled);
+  state.search.history.set(next.searchHistoryEnabled);
   state.touch.enabled.set(next.touchUiEnabled);
   window.location.reload();
 }
 
-function continueReadingState(): { info: ReadButtonInfo; onClick: () => void } | null {
-  if (pageType.type !== "gallery" || !state.reader.enabled.value) {
+function readButtonState(): { info: ReadButtonInfo; onClick: () => void } | null {
+  if (!settingsState.readHistoryEnabled || pageType.type !== "gallery") {
     return null;
   }
 
-  const record = loadReaderHistory(pageType.galleryId, pageType.token);
+  const record = loadReadHistory(pageType.galleryId, pageType.token);
   const pageNum = record?.pageNum && record.pageNum > 0 ? record.pageNum : 1;
   const totalPages = record?.totalPages ?? eh.readShowingRange()?.total;
   const detail = record && totalPages ? `${pageNum}/${totalPages}` : totalPages ? `${totalPages} ${texts.reader.pages}` : String(pageNum);
@@ -92,30 +116,35 @@ function continueReadingState(): { info: ReadButtonInfo; onClick: () => void } |
         return;
       }
 
-      readerApp.openFromUserAction(page.url, pageNum);
+      if (state.reader.enabled.value) {
+        openReaderFromUserAction(page.url, readerCallbacks, pageNum);
+      } else {
+        void openOriginalReader(pageNum).catch(reportReaderOpenError);
+      }
     },
   };
 }
 
 let pageType = eh.extractPageType();
-const initialSettingsState = settingsMenuState();
+let settingsState = settingsMenuState();
 eh.applySiteTheme();
-if (initialSettingsState.touchUiEnabled) {
+if (settingsState.touchUiEnabled) {
   document.documentElement.dataset.ehpeekTouchUi = "true";
 }
 const [settingsMenuOpen, setSettingsMenuOpenSignal] = createSignal(false);
-let settingsState = initialSettingsState;
-const readerApp = new ReaderApp({
+const readerCallbacks: ReaderCallbacks = {
   enhanceThumbsGridsEnabled: () => settingsState.enhanceThumbsGridsEnabled,
+  readHistoryEnabled: () => settingsState.readHistoryEnabled,
   onPageBarChange: replaceGalleryPageBar,
-  onReaderClosed: installContinueReadingButton,
-});
+  onReaderClosed: installReadButton,
+};
 const settingsMenuHost = document.createElement("div");
 settingsMenuHost.className = "fixed inset-0 z-[1150] pointer-events-none";
 settingsMenuHost.dataset.ehpeekPersistent = "true";
 document.body.append(settingsMenuHost);
 let galleryReadButtonMount: HTMLElement | null | undefined;
 let touchGalleryReadButtonMount: HTMLElement | undefined;
+let originalReadHistorySession: ReadHistorySession | undefined;
 let pageGeneration = 0;
 let pageRoots = new Set<HTMLElement>();
 let pageOwnedHosts = new Set<HTMLElement>();
@@ -132,6 +161,8 @@ function renderPageInto(host: HTMLElement, view: () => JSX.Element, owned = fals
 
 function deactivatePage(): void {
   pageGeneration += 1;
+  originalReadHistorySession?.dispose();
+  originalReadHistorySession = undefined;
 
   if (settingsState.touchUiEnabled) {
     resetTouchUiPage();
@@ -151,22 +182,19 @@ function deactivatePage(): void {
   touchGalleryReadButtonMount = undefined;
 }
 
-function setSettingsMenuOpen(open: boolean): void {
-  setSettingsMenuOpenSignal(open);
-}
-
 function installSettingsMenu(): void {
   renderInto(
     settingsMenuHost,
     () => (
       <SettingsMenu
         open={settingsMenuOpen()}
+        defaultState={defaultSettingsMenuState()}
         initState={settingsState}
         onApply={(next) => {
           settingsState = next;
           applySettingsMenuState(next);
         }}
-        onOpenChange={setSettingsMenuOpen}
+        onOpenChange={setSettingsMenuOpenSignal}
       />
     ),
   );
@@ -192,16 +220,16 @@ function replaceGalleryPageBar(currentIndex: number, maxIndex: number | null): v
   }
 }
 
-function installContinueReadingButton(): void {
-  const continueReading = continueReadingState();
+function installReadButton(): void {
+  const readButton = readButtonState();
 
   if (settingsState.touchUiEnabled && pageType.type === "gallery") {
     if (touchGalleryReadButtonMount) {
       renderPageInto(
         touchGalleryReadButtonMount,
         () => (
-          continueReading ? (
-            <ReadButton info={continueReading.info} onClick={continueReading.onClick} variant="touchGallery" />
+          readButton ? (
+            <ReadButton info={readButton.info} onClick={readButton.onClick} variant="touchGallery" />
           ) : (
             <></>
           )
@@ -220,8 +248,8 @@ function installContinueReadingButton(): void {
     renderPageInto(
       galleryReadButtonMount,
       () => (
-        continueReading ? (
-          <ReadButton info={continueReading.info} onClick={continueReading.onClick} variant="gallery" />
+        readButton ? (
+          <ReadButton info={readButton.info} onClick={readButton.onClick} variant="gallery" />
         ) : (
           <></>
         )
@@ -232,7 +260,7 @@ function installContinueReadingButton(): void {
 
 if (typeof GM_registerMenuCommand === "function") {
   GM_registerMenuCommand(texts.settings.openSettings, () => {
-    setSettingsMenuOpen(true);
+    setSettingsMenuOpenSignal(true);
   });
 }
 
@@ -254,7 +282,7 @@ function installDesktopSettingsLink(): void {
           onClick={(event: MouseEvent) => {
             event.preventDefault();
             event.stopPropagation();
-            setSettingsMenuOpen(true);
+            setSettingsMenuOpenSignal(true);
           }}
         >
           {texts.settings.menuLabel}
@@ -284,7 +312,7 @@ function installTouchTopBar(): void {
         <TouchTopBar
           info={info}
           onSettingsMenuOpen={() => {
-            setSettingsMenuOpen(true);
+            setSettingsMenuOpenSignal(true);
           }}
         />
       ),
@@ -318,7 +346,7 @@ function installGalleryInfoPanel(): void {
               unmountFrom(touchGalleryReadButtonMount);
             }
             touchGalleryReadButtonMount = mount;
-            installContinueReadingButton();
+            installReadButton();
           }}
           onPrimaryActionUnmount={() => {
             if (touchGalleryReadButtonMount) {
@@ -333,21 +361,21 @@ function installGalleryInfoPanel(): void {
   }
 }
 
-function installTouchSearchPanel(): boolean {
+function installTouchSearchPanel(): void {
   if (document.querySelector(".ehpeek-touch-search-panel")) {
-    return true;
+    return;
   }
 
   const touchSearchInfo = eh.readTouchSearchPanelInfo();
 
   if (!touchSearchInfo) {
-    return false;
+    return;
   }
 
   const mount = document.createElement("div");
 
   if (!eh.insertTouchSearchPanel(mount)) {
-    return false;
+    return;
   }
 
   prepareSearchPanel(touchSearchInfo);
@@ -355,14 +383,13 @@ function installTouchSearchPanel(): boolean {
   renderPageInto(touchSearchInfo.categoryToggleMount, () => <TouchSearchCategoryToggle source={touchSearchInfo} />, true);
   renderPageInto(touchSearchInfo.searchActionMount, () => <TouchSearchAction action="search" source={touchSearchInfo} />, true);
   renderPageInto(touchSearchInfo.clearActionMount, () => <TouchSearchAction action="clear" source={touchSearchInfo} />, true);
-  renderPageInto(touchSearchInfo.historyMount, () => <TouchSearchHistory source={touchSearchInfo} />, true);
-  return true;
 }
 
 
 async function activatePage(nextPage: eh.PageType): Promise<void> {
   pageType = nextPage;
   const generation = ++pageGeneration;
+  trackOriginalReadHistory();
 
   if (!settingsState.touchUiEnabled) {
     installDesktopSettingsLink();
@@ -370,7 +397,7 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
     prepareTouchResultsPage(pageType);
   }
 
-  installContinueReadingButton();
+  installReadButton();
 
   if (pageType.type === "gallery") {
     const host = document.createElement("div");
@@ -380,7 +407,7 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
       () => (
         <EnhanceThumbsGrids
           enabled={settingsState.enhanceThumbsGridsEnabled}
-          onError={(error) => readerApp.reportOpenError(error)}
+          onError={reportReaderOpenError}
           replaceGalleryPageBar={replaceGalleryPageBar}
         />
       ),
@@ -411,8 +438,18 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
     }
   }
 
+  if (pageType.type === "search" && settingsState.searchHistoryEnabled) {
+    const source = eh.readSearchHistorySource();
+
+    if (source) {
+      const host = document.createElement("div");
+      document.body.append(host);
+      renderPageInto(host, () => <SearchHistory source={source} />, true);
+    }
+  }
+
   if (pageType.type === "gallery" && state.reader.enabled.value && pageType.peekPage !== null) {
-    void readerApp.openFromHash();
+    void openReaderFromHash(readerCallbacks);
   }
 
   if (!settingsState.touchUiEnabled) {
@@ -444,7 +481,31 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
   }
 }
 
-document.addEventListener("click", readerApp.onDocumentClick, true);
+function trackOriginalReadHistory(): void {
+  originalReadHistorySession?.dispose();
+  originalReadHistorySession = undefined;
+
+  if (!settingsState.readHistoryEnabled || pageType.type !== "image") {
+    return;
+  }
+
+  const gallery = eh.imageGalleryPage();
+
+  if (!gallery || gallery.galleryId !== pageType.galleryId) {
+    return;
+  }
+
+  const previous = loadReadHistory(gallery.galleryId, gallery.token);
+  originalReadHistorySession = new ReadHistorySession({
+    galleryId: gallery.galleryId,
+    token: gallery.token,
+    galleryUrl: gallery.url,
+    totalPages: previous?.totalPages,
+  });
+  originalReadHistorySession.update(pageType.pageNum, previous?.totalPages);
+}
+
+document.addEventListener("click", (event) => onReaderDocumentClick(event, readerCallbacks), true);
 
 const singlePageInitialRoute = settingsState.singlePageAppEnabled ? eh.singlePageRoute(window.location.href) : null;
 

@@ -7,7 +7,7 @@ const TOUCH_TOP_BAR_ICON_SIZE = 34;
 const TOUCH_ICON_BUTTON_CLASS =
   "inline-flex w-56px h-56px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]";
 export const TOUCH_TOP_BAR_MENU_ITEM_CLASS =
-  "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-xl py-lg px-xl touch:px-xl border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline text-28px touch:text-30px leading-[1.2]";
+  "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-lg coarse:min-h-88px py-md coarse:py-xl px-lg coarse:px-xl border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline text-20px coarse:text-32px leading-[1.2]";
 
 function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
   const [open, setOpen] = createSignal(false);
@@ -56,7 +56,7 @@ function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
       </button>
       <Show when={open()}>
         <div
-          class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+8px)] right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"
+          class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+8px)] right-0 z-overlay flex w-240px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-24px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"
         >
           <div ref={navItemsHost} class="contents" />
         </div>
