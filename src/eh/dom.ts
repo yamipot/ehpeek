@@ -17,6 +17,7 @@ const TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !ma
 const TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME =
   "ehpeek-touch-search-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto";
 const TOUCH_SEARCH_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
+const GALLERY_PAGE_DESCRIPTION_SELECTOR = ".gpc:not(.eh-syringe-ignore)";
 
 export type PreviewSnapshot = {
   description: Node | null;
@@ -196,7 +197,7 @@ export function collectGalleryPages(
 }
 
 export function readShowingRange(root: ParentNode = document): { start: number; end: number; total: number } | null {
-  const text = root.querySelector(".gpc")?.textContent ?? "";
+  const text = galleryPageDescription(root)?.textContent ?? "";
   const match = text.match(/([\d,]+)\s*-\s*([\d,]+)\D+([\d,]+)/);
 
   if (!match) {
@@ -510,7 +511,7 @@ export function replaceGalleryPageBarMounts(topClassName: string, bottomClassNam
 
 export function snapshotPreview(): PreviewSnapshot {
   return {
-    description: document.querySelector(".gpc")?.cloneNode(true) ?? null,
+    description: galleryPageDescription()?.cloneNode(true) ?? null,
     thumbs: document.querySelector("#gdt")?.cloneNode(true) ?? null,
   };
 }
@@ -533,7 +534,12 @@ export function showPreviewPlaceholder(content: Node | string): void {
 }
 
 export function replacePreviewContent(doc: Document): void {
-  replaceFirstElement(".gpc", doc);
+  const description = galleryPageDescription(doc);
+
+  if (description) {
+    replaceGalleryPageDescription(description);
+  }
+
   replaceFirstElement("#gdt", doc);
 }
 
@@ -553,11 +559,10 @@ export function prepareThumbsGridSwipeTargets(thumbs: HTMLElement): void {
 }
 
 export function restorePreview(snapshot: PreviewSnapshot): void {
-  const currentDescription = document.querySelector(".gpc");
   const currentThumbs = document.querySelector("#gdt");
 
-  if (snapshot.description && currentDescription) {
-    currentDescription.replaceWith(snapshot.description);
+  if (snapshot.description) {
+    replaceGalleryPageDescription(snapshot.description);
   }
 
   if (snapshot.thumbs && currentThumbs) {
@@ -840,6 +845,27 @@ function replaceFirstElement(selector: string, doc: Document): void {
   }
 
   current.replaceWith(document.importNode(incoming, true));
+}
+
+function galleryPageDescription(root: ParentNode = document): HTMLElement | null {
+  return root.querySelector<HTMLElement>(GALLERY_PAGE_DESCRIPTION_SELECTOR);
+}
+
+function replaceGalleryPageDescription(incoming: Node): void {
+  const current = galleryPageDescription();
+
+  if (!current) {
+    return;
+  }
+
+  const staleDescriptions = Array.from(document.querySelectorAll(".gpc"));
+  current.replaceWith(document.importNode(incoming, true));
+
+  for (const description of staleDescriptions) {
+    if (description !== current) {
+      description.remove();
+    }
+  }
 }
 
 function replaceSearchNavigationBars(doc: Document): void {
