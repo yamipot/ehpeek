@@ -2,7 +2,6 @@ import {
   enterReaderFullscreen,
   FullscreenReader,
   removePreviousReaderRoot,
-  type FullscreenReaderHandle,
   type FullscreenReaderOptions,
 } from "./components/Reader";
 import { createSignal, type JSX } from "solid-js";
@@ -136,8 +135,8 @@ let settingsState = initialSettingsState;
 const settingsMenuHost = document.createElement("div");
 document.body.append(settingsMenuHost);
 let galleryReadButtonMount: HTMLElement | null | undefined;
-let touchGalleryReadButtonMount: HTMLElement | null = null;
-let activeReader: FullscreenReaderHandle | null = null;
+let touchGalleryReadButtonMount: HTMLElement | undefined;
+let activeReaderClose: (() => void) | undefined;
 
 function setSettingsMenuOpen(open: boolean): void {
   setSettingsMenuOpenSignal(open);
@@ -170,39 +169,38 @@ function openFullscreenReader(
   options: Omit<FullscreenReaderOptions, "fullscreenTarget">,
   existingHost?: HTMLDivElement,
 ): void {
-  activeReader?.close();
+  activeReaderClose?.();
   removePreviousReaderRoot();
 
   const host = existingHost ?? createReaderHost();
-  let handle: FullscreenReaderHandle | null = null;
+  let closeReader = onClosed;
   const close = () => {
-    if (handle) {
-      handle.close();
-      return;
-    }
-
-    onClosed();
+    closeReader();
   };
-  const onClosed = () => {
+
+  function onClosed(): void {
     unmountFrom(host);
     host.remove();
 
-    if (activeReader?.close === close) {
-      activeReader = null;
+    if (activeReaderClose === close) {
+      activeReaderClose = undefined;
     }
-  };
+  }
 
   if (!host.isConnected) {
     document.body.append(host);
   }
-  activeReader = { close };
+  activeReaderClose = close;
   renderInto(
     host,
     () => (
       <FullscreenReader
         options={{ ...options, fullscreenTarget: host }}
-        handleRef={(nextHandle) => {
-          handle = nextHandle;
+        actionsRef={(actions) => {
+          closeReader = actions.close;
+        }}
+        onActionsDispose={() => {
+          closeReader = onClosed;
         }}
         onClosed={onClosed}
       />
@@ -371,6 +369,12 @@ function installTouchGalleryPanel(): void {
             }
             touchGalleryReadButtonMount = mount;
             installContinueReadingButton();
+          }}
+          onPrimaryActionUnmount={() => {
+            if (touchGalleryReadButtonMount) {
+              unmountFrom(touchGalleryReadButtonMount);
+              touchGalleryReadButtonMount = undefined;
+            }
           }}
         />
       ),

@@ -2,7 +2,7 @@ import type { ReaderPage } from "../../readerTypes";
 import type { PointerDragEnd } from "../pointerGesture";
 import { loadingSpinnerElement } from "../Loading";
 import { createPointerGestureElement } from "../PointerGestureSurface";
-import { SwipeIndicator, type SwipeDirection, type SwipeIndicatorHandle } from "./Misc";
+import { SwipeIndicator, type SwipeDirection, type SwipeIndicatorActions } from "./Misc";
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import {
   SCROLL_PAGE_BAR_BOTTOM_CLASS,
@@ -25,7 +25,7 @@ let galleryThumbEnhancementOnError: ((error: unknown) => void) | null = null;
 let galleryThumbEnhancementClickInstalled = false;
 let swipeElement: HTMLElement | null = null;
 let setSwipeGestureTarget: ((target: HTMLElement | null) => void) | null = null;
-let swipeIndicator: SwipeIndicatorHandle | null = null;
+let swipeIndicatorActions!: SwipeIndicatorActions;
 let swipeIndicatorDirection: SwipeDirection = "left";
 let swipeState: SwipeState | null = null;
 let galleryNavigationLoading = false;
@@ -166,8 +166,8 @@ export function EnhanceThumbsGrids(props: {
   return (
     <Show when={props.enabled}>
       <SwipeIndicator
-        handleRef={(handle) => {
-          swipeIndicator = handle;
+        actionsRef={(actions) => {
+          swipeIndicatorActions = actions;
         }}
       />
     </Show>
@@ -252,7 +252,7 @@ function updateSwipeIndicator(info: PointerDragEnd): void {
 
   if (!availableUrl) {
     swipeIndicatorDirection = direction;
-    swipeIndicator?.update({
+    swipeIndicatorActions.update({
       blocked: true,
       direction,
       progress,
@@ -261,11 +261,11 @@ function updateSwipeIndicator(info: PointerDragEnd): void {
   }
 
   swipeIndicatorDirection = direction;
-  swipeIndicator?.update({ direction, progress });
+  swipeIndicatorActions.update({ direction, progress });
 }
 
 function hideSwipeIndicator(): void {
-  swipeIndicator?.hide(swipeIndicatorDirection);
+  swipeIndicatorActions.hide(swipeIndicatorDirection);
 }
 
 function navigateBySwipe(info: PointerDragEnd, event: Event): void {

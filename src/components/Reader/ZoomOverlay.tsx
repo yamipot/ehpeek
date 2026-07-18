@@ -1,4 +1,4 @@
-import { createSignal, onCleanup } from "solid-js";
+import { createSignal } from "solid-js";
 import { clamp } from "../../utils";
 
 const MIN_SCALE = 1;
@@ -37,7 +37,7 @@ export type ZoomOverlayActions = {
   startPinch: (pinch: ZoomPinchStart) => void;
 };
 
-export function ZoomOverlay(props: { actionsRef: (actions: ZoomOverlayActions | null) => void }) {
+export function ZoomOverlay(props: { actionsRef: (actions: ZoomOverlayActions) => void }) {
   const [activeImage, setActiveImage] = createSignal<ZoomOverlayImage | null>(null);
   const [transform, setTransform] = createSignal("translate3d(0px, 0px, 0) scale(1)");
   let element!: HTMLDivElement;
@@ -120,7 +120,6 @@ export function ZoomOverlay(props: { actionsRef: (actions: ZoomOverlayActions | 
   };
 
   props.actionsRef(actions);
-  onCleanup(() => props.actionsRef(null));
 
   return (
     <div

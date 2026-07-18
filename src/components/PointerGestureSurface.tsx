@@ -1,36 +1,36 @@
 import { createEffect, onCleanup, type Accessor } from "solid-js";
 import { PointerGesture, type PointerGestureCallbacks } from "./pointerGesture";
 
-export type PointerGestureSurfaceHandle = {
-  gesture: () => PointerGesture | null;
+export type PointerGestureSurfaceActions = {
+  isDragging: () => boolean;
 };
 
 export function createPointerGestureElement<E extends HTMLElement>(
   target: Accessor<E | null>,
   callbacks: Accessor<PointerGestureCallbacks>,
-  handleRef?: (handle: PointerGestureSurfaceHandle | null) => void,
+  actionsRef?: (actions: PointerGestureSurfaceActions) => void,
 ): void {
   let gesture: PointerGesture | null = null;
+  const actions: PointerGestureSurfaceActions = {
+    isDragging: () => gesture?.isDragging() ?? false,
+  };
+  actionsRef?.(actions);
 
   createEffect(() => {
     const element = target();
 
     if (!element) {
-      handleRef?.(null);
       return;
     }
 
     gesture = new PointerGesture(element, pointerGestureCallbackProxy(callbacks));
-    handleRef?.({
-      gesture: () => gesture,
-    });
 
     onCleanup(() => {
-      handleRef?.(null);
       gesture?.dispose();
       gesture = null;
     });
   });
+
 }
 
 function pointerGestureCallbackProxy(callbacks: Accessor<PointerGestureCallbacks>): PointerGestureCallbacks {

@@ -299,7 +299,7 @@ class TwoTierImageQueue<Target extends { pageNum: number }, Loaded> {
   }
 }
 
-export type FullscreenReaderHandle = {
+export type FullscreenReaderActions = {
   close: () => void;
 };
 
@@ -389,7 +389,8 @@ const EMPTY_VIEWPORT_CALLBACKS: PagesViewportCallbacks = {
 };
 
 export function FullscreenReader(props: {
-  handleRef: (handle: FullscreenReaderHandle | null) => void;
+  actionsRef: (actions: FullscreenReaderActions) => void;
+  onActionsDispose: () => void;
   onClosed: () => void;
   options: FullscreenReaderOptions;
 }) {
@@ -401,8 +402,8 @@ export function FullscreenReader(props: {
   });
   const [session, setSession] = createSignal<ReaderSession | null>(null);
   const [viewportCallbacks, setViewportCallbacks] = createSignal<PagesViewportCallbacks>(EMPTY_VIEWPORT_CALLBACKS);
-  let viewportActions: PagesViewportActions | null = null;
-  let zoomOverlayActions: ZoomOverlayActions | null = null;
+  let viewportActions!: PagesViewportActions;
+  let zoomOverlayActions!: ZoomOverlayActions;
 
   onMount(() => {
     const previousDocumentOverflow = document.documentElement.style.overflow;
@@ -415,8 +416,8 @@ export function FullscreenReader(props: {
         setToolbarState: (nextState) => setToolbarState(nextState),
       },
       {
-        viewport: viewportActions!,
-        zoomOverlay: zoomOverlayActions!,
+        viewport: viewportActions,
+        zoomOverlay: zoomOverlayActions,
       },
     );
 
@@ -425,7 +426,7 @@ export function FullscreenReader(props: {
     document.body.style.overflow = "hidden";
     setViewportCallbacks(() => nextSession.viewportCallbacks);
     setSession(nextSession);
-    props.handleRef({
+    props.actionsRef({
       close: () => nextSession.close(),
     });
 
@@ -437,7 +438,7 @@ export function FullscreenReader(props: {
     nextSession.open();
 
     onCleanup(() => {
-      props.handleRef(null);
+      props.onActionsDispose();
       nextSession.dispose();
       document.removeEventListener("keydown", onKeydown, true);
       document.documentElement.style.overflow = previousDocumentOverflow;

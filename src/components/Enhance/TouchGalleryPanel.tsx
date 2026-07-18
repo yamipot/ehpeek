@@ -10,7 +10,8 @@ export const TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-action
 const RATING_STAR_INDEXES = [0, 1, 2, 3, 4];
 
 export function TouchGalleryPanel(props: {
-  onPrimaryActionMount: (mount: HTMLElement | null) => void;
+  onPrimaryActionMount: (mount: HTMLElement) => void;
+  onPrimaryActionUnmount: () => void;
   source: GalleryInfo;
 }) {
   const rating = props.source.rating;
@@ -34,7 +35,7 @@ export function TouchGalleryPanel(props: {
       window.removeEventListener("scroll", updateBackToTopVisibility);
     });
   });
-  onCleanup(() => props.onPrimaryActionMount(null));
+  onCleanup(() => props.onPrimaryActionUnmount());
 
   const submitRating = (value: number) => {
     if (!rating) {

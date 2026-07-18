@@ -1,7 +1,7 @@
 import type { PointerDragEnd } from "../pointerGesture";
 import { LoadingOverlay } from "../Loading";
 import { createPointerGestureElement } from "../PointerGestureSurface";
-import { SwipeIndicator, type SwipeDirection, type SwipeIndicatorHandle } from "./Misc";
+import { SwipeIndicator, type SwipeDirection, type SwipeIndicatorActions } from "./Misc";
 import { createSignal, onCleanup, onMount } from "solid-js";
 import * as eh from "../../eh";
 import texts from "../../texts.json";
@@ -15,7 +15,7 @@ let installed = false;
 let swipeElement: HTMLElement | null = null;
 let setSearchLoading: ((loading: boolean) => void) | null = null;
 let setSwipeGestureTarget: ((target: HTMLElement | null) => void) | null = null;
-let swipeIndicator: SwipeIndicatorHandle | null = null;
+let swipeIndicatorActions!: SwipeIndicatorActions;
 let swipeIndicatorDirection: SwipeDirection = "left";
 let swipeState: SwipeState | null = null;
 let searchNavigationLoading = false;
@@ -76,8 +76,8 @@ export function EnhanceSearchGrids(props: { resultList: HTMLElement }) {
   return (
     <>
       <SwipeIndicator
-        handleRef={(handle) => {
-          swipeIndicator = handle;
+        actionsRef={(actions) => {
+          swipeIndicatorActions = actions;
         }}
       />
       <LoadingOverlay label={texts.reader.loading} visible={loading()} />
@@ -115,7 +115,7 @@ function updateSwipeIndicator(info: PointerDragEnd): void {
 
   if (!availableUrl) {
     swipeIndicatorDirection = direction;
-    swipeIndicator?.update({
+    swipeIndicatorActions.update({
       blocked: true,
       direction,
       progress,
@@ -124,11 +124,11 @@ function updateSwipeIndicator(info: PointerDragEnd): void {
   }
 
   swipeIndicatorDirection = direction;
-  swipeIndicator?.update({ direction, progress });
+  swipeIndicatorActions.update({ direction, progress });
 }
 
 function hideSwipeIndicator(): void {
-  swipeIndicator?.hide(swipeIndicatorDirection);
+  swipeIndicatorActions.hide(swipeIndicatorDirection);
 }
 
 function navigateBySwipe(info: PointerDragEnd, event: Event): void {

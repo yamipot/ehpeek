@@ -4,7 +4,7 @@ import texts from "../../texts.json";
 import { clamp, normalizedAspectRatio } from "../../utils";
 import { ScrollAnimator, ScrollFlingAnimator, type ScrollMotion } from "../animation";
 import type { PointerGestureCallbacks } from "../pointerGesture";
-import { createPointerGestureElement, type PointerGestureSurfaceHandle } from "../PointerGestureSurface";
+import { createPointerGestureElement, type PointerGestureSurfaceActions } from "../PointerGestureSurface";
 
 const FALLBACK_ASPECT_RATIO = 1.42;
 
@@ -93,7 +93,7 @@ export type PagesViewportActions = {
 };
 
 export function PagesViewport(props: {
-  actionsRef: (actions: PagesViewportActions | null) => void;
+  actionsRef: (actions: PagesViewportActions) => void;
   callbacks: PagesViewportCallbacks;
   mode: ViewMode;
   readDirection: ReadDirection;
@@ -106,9 +106,10 @@ export function PagesViewport(props: {
   let pageSlots: PageSlot[] = [];
   let scroller!: HTMLDivElement;
   let scrollerApi!: ReturnType<typeof createPagesScroller>;
-  let gestureHandle: PointerGestureSurfaceHandle | null = null;
+  let gestureActions!: PointerGestureSurfaceActions;
   let dragStartPosition: number | null = null;
   let resizeFrame: number | null = null;
+  let moveRequestToken = 0;
   let disposed = false;
 
   const refresh = () => setRevision((value) => value + 1);
@@ -199,9 +200,38 @@ export function PagesViewport(props: {
     return Number.isFinite(pageNum) ? pageNum : null;
   };
   const stopMotion = () => {
+    moveRequestToken += 1;
     dragStartPosition = null;
     flingAnimator.cancel();
     horizontalAnimator.cancel();
+  };
+  const performPageMove = (pageNum: number, motion: ScrollMotion, onComplete?: () => void): boolean => {
+    const delta = pageOffset(pageNum);
+
+    if (delta === null) {
+      return false;
+    }
+
+    if (props.mode === "paged") {
+      horizontalAnimator.scrollTo(scroller, scrollerApi.scrollLeft() + delta, motion, onComplete);
+    } else {
+      moveToTop(scrollTop() + delta);
+      onComplete?.();
+    }
+    return true;
+  };
+  const moveToPage = (pageNum: number, motion: ScrollMotion = "instant", onComplete?: () => void): void => {
+    const requestToken = ++moveRequestToken;
+
+    if (performPageMove(pageNum, motion, onComplete)) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      if (!disposed && requestToken === moveRequestToken) {
+        performPageMove(pageNum, motion, onComplete);
+      }
+    });
   };
   const resizePages = () => {
     for (const slot of pageSlots) {
@@ -211,7 +241,7 @@ export function PagesViewport(props: {
   };
   const actions: PagesViewportActions = {
     focus: () => scroller.focus({ preventScroll: true }),
-    isDragging: () => gestureHandle?.gesture()?.isDragging() ?? false,
+    isDragging: () => gestureActions.isDragging(),
     beginDrag(): void {
       stopMotion();
       dragStartPosition = props.mode === "paged" ? scrollerApi.scrollLeft() : scrollTop();
@@ -327,20 +357,7 @@ export function PagesViewport(props: {
       refreshSlot(slot);
       return true;
     },
-    moveToPage(pageNum, motion = "instant", onComplete): void {
-      const delta = pageOffset(pageNum);
-
-      if (delta === null) {
-        return;
-      }
-
-      if (props.mode === "paged") {
-        horizontalAnimator.scrollTo(scroller, scrollerApi.scrollLeft() + delta, motion, onComplete);
-      } else {
-        moveToTop(scrollTop() + delta);
-        onComplete?.();
-      }
-    },
+    moveToPage,
     moveToTop,
     scrollTop,
     viewportWidth,
@@ -373,8 +390,8 @@ export function PagesViewport(props: {
   createPointerGestureElement(
     () => scroller ?? null,
     () => props.callbacks.pointer,
-    (handle) => {
-      gestureHandle = handle;
+    (nextActions) => {
+      gestureActions = nextActions;
     },
   );
   props.actionsRef(actions);
@@ -400,7 +417,6 @@ export function PagesViewport(props: {
       window.cancelAnimationFrame(resizeFrame);
       resizeFrame = null;
     }
-    props.actionsRef(null);
   });
 
   return (

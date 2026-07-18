@@ -45,28 +45,36 @@ export type SwipeIndicatorState = {
   progress: number;
 };
 
-export type SwipeIndicatorHandle = {
+export type SwipeIndicatorActions = {
   hide: (direction: SwipeDirection) => void;
   update: (state: SwipeIndicatorState) => void;
 };
 
 const SWIPE_INDICATOR_HIDE_PROGRESS = 0.001;
 
-export function SwipeIndicator(props: { handleRef: (handle: SwipeIndicatorHandle | null) => void }) {
-  const handleFor = (element: HTMLDivElement): SwipeIndicatorHandle => ({
+export function SwipeIndicator(props: { actionsRef: (actions: SwipeIndicatorActions) => void }) {
+  let element: HTMLDivElement | null = null;
+  const actions: SwipeIndicatorActions = {
     hide: (direction) => {
-      updateSwipeIndicatorElement(element, { direction, progress: 0 });
+      if (element) {
+        updateSwipeIndicatorElement(element, { direction, progress: 0 });
+      }
     },
     update: (state) => {
-      updateSwipeIndicatorElement(element, state);
+      if (element) {
+        updateSwipeIndicatorElement(element, state);
+      }
     },
+  };
+  props.actionsRef(actions);
+  onCleanup(() => {
+    element = null;
   });
-  onCleanup(() => props.handleRef(null));
 
   return (
     <div
-      ref={(element) => {
-        props.handleRef(handleFor(element));
+      ref={(node) => {
+        element = node;
       }}
       class="ehpeek-swipe-indicator fixed top-1/2 z-overlay flex w-42px h-108px items-center justify-center border border-[var(--color-site-swipe-border)] rounded-full bg-[var(--color-site-swipe-background)] text-[var(--color-site-text)] shadow-[0_6px_20px_var(--color-shadow-floating)] pointer-events-none select-none transition-opacity duration-120 ease-in-out"
       aria-hidden="true"
