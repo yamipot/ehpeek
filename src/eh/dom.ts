@@ -604,6 +604,7 @@ export function singlePageContentNodes(root: HTMLElement = document.body): Node[
 export function prepareSinglePageContent(root: ParentNode, baseUrl: string): void {
   captureGalleryApiSession(root, baseUrl);
   preserveSinglePageGalleryData(root, baseUrl);
+  preserveSinglePageGalleryUtilityLinks(root, baseUrl);
 
   for (const form of Array.from(root.querySelectorAll<HTMLFormElement>("form"))) {
     const action = form.getAttribute("action") ?? "";
@@ -624,7 +625,24 @@ export function prepareSinglePageContent(root: ParentNode, baseUrl: string): voi
   }
 }
 
+function preserveSinglePageGalleryUtilityLinks(root: ParentNode, baseUrl: string): void {
+  for (const link of Array.from(root.querySelectorAll<HTMLAnchorElement>("#gd5 a[onclick]"))) {
+    const handler = link.getAttribute("onclick") ?? "";
+    const popupUrl = handler.match(/\bpopUp\(['\"]([^'\"]+)['\"]/)?.[1];
+
+    if (!popupUrl) {
+      continue;
+    }
+
+    link.href = new URL(popupUrl, baseUrl).href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.dataset.ehpeekGalleryUtility = "true";
+  }
+}
+
 function preserveSinglePageGalleryData(root: ParentNode, baseUrl: string): void {
+  // Preserve the values needed for direct API calls instead of retaining and executing the original page scripts.
   const scripts = Array.from(root.querySelectorAll<HTMLScriptElement>("script"), (item) => item.textContent ?? "");
   const ratingScript = scripts.find((text) => text.includes("display_rating"));
   const rating = ratingScript ? scriptNumberValue(ratingScript, "display_rating") : null;
@@ -1508,9 +1526,10 @@ export function readGalleryInfo(actionMenuItemClassName: string): GalleryInfo {
     newTag: readGalleryNewTagInfo(),
     tagApi: readGalleryTagApiInfo(),
     summary,
-    actions: document.querySelector("[data-ehpeek-single-page-app='true']")
-      ? []
-      : readGalleryActionsDom(actionMenuItemClassName),
+    actions: readGalleryActionsDom(
+      actionMenuItemClassName,
+      Boolean(document.querySelector("[data-ehpeek-single-page-app='true']")),
+    ),
     rating: readGalleryRatingInfo(),
     tagGroups: readGalleryTagGroups(),
   };
@@ -1663,8 +1682,9 @@ export async function setGalleryRating(
   return updateGalleryRating(info, value);
 }
 
-function readGalleryActionsDom(actionMenuItemClassName: string): HTMLElement[] {
+function readGalleryActionsDom(actionMenuItemClassName: string, singlePage: boolean): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>("#gd5 a, #gd5 button, #gd5 input[type='button'], #gd5 input[type='submit']"))
+    .filter((item) => !singlePage || (item instanceof HTMLAnchorElement && isSinglePageGalleryUtilityLink(item)))
     .map((item) => {
       const clone = item.cloneNode(false) as HTMLElement;
       clone.removeAttribute("id");
@@ -1678,6 +1698,15 @@ function readGalleryActionsDom(actionMenuItemClassName: string): HTMLElement[] {
       return clone;
     })
     .slice(0, 6);
+}
+
+function isSinglePageGalleryUtilityLink(link: HTMLAnchorElement): boolean {
+  try {
+    const path = new URL(link.href).pathname;
+    return link.dataset.ehpeekGalleryUtility === "true" || /^\/mpv\/\d+\/[^/]+\/?$/.test(path);
+  } catch {
+    return false;
+  }
 }
 
 export function readGalleryTagGroups(): GalleryTagGroup[] {

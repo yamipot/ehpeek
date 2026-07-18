@@ -5,6 +5,7 @@ const SEARCH_SUBMIT_SELECTOR = "#searchbox button[ehs-input][type='submit']";
 const CLEAR_BUTTON_SELECTOR = "#searchbox button[ehs-input][type='button']";
 const TAG_TIP_INPUT_SELECTOR = "#f_search, #newtagfield, [name='f_search']";
 const TAG_TIP_LIST_SELECTOR = ".eh-syringe-lite-auto-complete-list";
+const TAG_TIP_LIST_CLASS_NAME = "!max-h-[60dvh] !py-sm [&_.auto-complete-item]:box-border [&_.auto-complete-item]:min-h-lg [&_.auto-complete-item]:!py-sm [&_.auto-complete-item]:!px-lg [&_.auto-complete-item]:!text-[length:var(--font-size-lg)] [&_.auto-complete-item]:!leading-[1.25] [&_.auto-complete-text]:!text-inherit [&_.auto-complete-text]:!leading-inherit";
 const DETECTED_KEY = "ehpeek:ehsyringe:detected";
 const INJECTION_TIMEOUT_MS = 3_000;
 const ROUTE_TRANSLATION_TIMEOUT_MS = 450;
@@ -237,9 +238,12 @@ function captureTagTipInput(): boolean {
     return true;
   }
 
-  if (!document.querySelector(TAG_TIP_LIST_SELECTOR)) {
+  const list = document.querySelector<HTMLElement>(TAG_TIP_LIST_SELECTOR);
+  if (!list) {
     return false;
   }
+
+  list.classList.add(...TAG_TIP_LIST_CLASS_NAME.split(" "));
 
   tagTipInput = document.querySelector<HTMLInputElement>(TAG_TIP_INPUT_SELECTOR);
   return tagTipInput !== null;

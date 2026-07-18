@@ -189,7 +189,6 @@ export function SinglePage(props: {
       }
 
       event.preventDefault();
-      event.stopImmediatePropagation();
       void navigate(request, "push");
     };
 
