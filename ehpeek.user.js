@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ehpeek: E-H/ExH viewer
 // @namespace    ehpeek
-// @version      260718.1540
+// @version      260718.1634
 // @description  A mobile-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -1258,7 +1258,7 @@
       on: "On",
       off: "Off",
       singlePageApp: "Single Page App",
-      singlePageAppHelp: "Loads pages without a full page refresh",
+      singlePageAppHelp: "Loads pages without a full page refresh; requires Touch UI",
       readerLabel: "Reader",
       readerHelp: "Opens gallery images in Ehpeek's reader",
       readerFullscreenLabel: "Open in Fullscreen",
@@ -1587,7 +1587,7 @@ body #gdt[class],
 `;
 
   // src/eh/dom.ts
-  var TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID = "ehpeek-touch-gallery-page-rearrange-style", TOUCH_FAVORITES_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden", TOUCH_FAVORITES_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden", TOUCH_FAVORITES_NAV_CLASS_NAME = "box-border !max-w-full overflow-x-auto", TOUCH_FAVORITES_RESULTS_CLASS_NAME = "ehpeek-touch-favorites-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto", TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full", TOUCH_FAVORITES_ALL_RESULTS_CLASS_NAME = "!overflow-x-hidden", TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden", TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden", TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME = "ehpeek-touch-search-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto", TOUCH_SEARCH_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full", GALLERY_PAGE_DESCRIPTION_SELECTOR = ".gpc:not(.eh-syringe-ignore)", EXHENTAI_ONION_HOST = "exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion", SINGLE_PAGE_PERSISTENT_SELECTOR = "[data-ehpeek-persistent], #eh-syringe-popup-button, #eh-syringe-popup-back, .eh-syringe-lite-auto-complete-list";
+  var TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID = "ehpeek-touch-gallery-page-rearrange-style", TOUCH_FAVORITES_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden", TOUCH_FAVORITES_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden", TOUCH_FAVORITES_NAV_CLASS_NAME = "box-border !max-w-full overflow-x-auto", TOUCH_FAVORITES_RESULTS_CLASS_NAME = "ehpeek-touch-favorites-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto", TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full", TOUCH_FAVORITES_ALL_RESULTS_CLASS_NAME = "!overflow-x-hidden", TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden", TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden", TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME = "ehpeek-touch-search-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto", TOUCH_SEARCH_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full", GALLERY_PAGE_DESCRIPTION_SELECTOR = ".gpc:not(.eh-syringe-ignore)", EXHENTAI_ONION_HOST = "exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion", SINGLE_PAGE_PERSISTENT_SELECTOR = "[data-ehpeek-persistent], #eh-syringe-popup-button, #eh-syringe-popup-back, .eh-syringe-lite-auto-complete-list", galleryApiSession = null;
   function imageAspectRatio(image) {
     let width = image?.naturalWidth || image?.width || Number(image?.getAttribute("width") || ""), height = image?.naturalHeight || image?.height || Number(image?.getAttribute("height") || "");
     return width > 0 && height > 0 ? height / width : 1.42;
@@ -1662,7 +1662,7 @@ body #gdt[class],
         "grid-template-columns",
         selectionCell ? "clamp(112px, 34%, 250px) minmax(0, 1fr) auto" : "clamp(112px, 34%, 250px) minmax(0, 1fr)",
         "important"
-      ), row.style.setProperty("align-items", "start", "important"), row.style.setProperty("column-gap", "6px", "important"), row.style.setProperty("width", "100%", "important"), thumbnailCell.style.setProperty("width", "auto", "important"), contentCell.style.setProperty("width", "auto", "important"), contentCell.style.setProperty("min-width", "0", "important"), contentCell.style.setProperty("align-self", "stretch", "important"), contentCell.style.setProperty("height", "100%", "important"), selectionCell?.style.setProperty("width", "auto", "important"), mergeEhPeekSearchContent(contentCell);
+      ), row.style.setProperty("align-items", "start", "important"), row.style.setProperty("column-gap", "0", "important"), row.style.setProperty("width", "100%", "important"), thumbnailCell.style.setProperty("width", "auto", "important"), contentCell.style.setProperty("width", "auto", "important"), contentCell.style.setProperty("min-width", "0", "important"), contentCell.style.setProperty("align-self", "stretch", "important"), contentCell.style.setProperty("height", "100%", "important"), contentCell.style.setProperty("box-sizing", "border-box", "important"), contentCell.style.setProperty("padding-left", "0", "important"), selectionCell?.style.setProperty("width", "auto", "important"), selectionCell?.style.setProperty("margin-left", "6px", "important"), mergeEhPeekSearchContent(contentCell);
       let thumbnail = thumbnailCell.querySelector(":scope > div");
       thumbnail?.style.setProperty("width", "100%", "important"), thumbnail?.style.setProperty("height", "auto", "important");
       let image = thumbnail?.querySelector("img");
@@ -1681,7 +1681,7 @@ body #gdt[class],
       titleLink.href = galleryLink.href, titleLink.className = "block min-w-0 ehp-color-site-text no-underline", titleLink.append(title), galleryLink.before(detail), galleryLink.remove(), detail.replaceChildren(titleLink, metadata, ...tags), makeEhPeekSearchContentClickable(contentCell, titleLink);
     } else
       title?.after(metadata);
-    detail.dataset.ehpeekMerged = "true", detail.style.setProperty("display", "flex", "important"), detail.style.setProperty("flex-direction", "column", "important"), detail.style.setProperty("justify-content", "flex-start", "important"), detail.style.setProperty("align-items", "stretch", "important"), detail.style.setProperty("gap", "var(--space-md, 12px)", "important"), detail.style.setProperty("min-height", "0", "important"), detail.style.setProperty("width", "100%", "important"), detail.style.setProperty("box-sizing", "border-box", "important"), metadata.style.setProperty("display", "flex", "important"), metadata.style.setProperty("flex-direction", "row", "important"), metadata.style.setProperty("flex-wrap", "wrap", "important"), metadata.style.setProperty("align-items", "center", "important"), metadata.style.setProperty("align-content", "flex-start", "important"), metadata.style.setProperty("justify-content", "flex-start", "important"), metadata.style.setProperty("gap", "8px 12px", "important"), metadata.style.setProperty("float", "none", "important"), metadata.style.setProperty("position", "static", "important"), metadata.style.setProperty("width", "100%", "important"), metadata.style.setProperty("height", "auto", "important"), metadata.style.setProperty("min-height", "0", "important"), metadata.style.setProperty("margin", "0", "important"), metadata.style.setProperty("padding", "0", "important"), metadata.style.setProperty("font-weight", "600", "important");
+    detail.dataset.ehpeekMerged = "true", detail.style.setProperty("display", "flex", "important"), detail.style.setProperty("flex-direction", "column", "important"), detail.style.setProperty("justify-content", "flex-start", "important"), detail.style.setProperty("align-items", "stretch", "important"), detail.style.setProperty("gap", "var(--space-md, 12px)", "important"), detail.style.setProperty("min-height", "0", "important"), detail.style.setProperty("width", "100%", "important"), detail.style.setProperty("box-sizing", "border-box", "important"), detail.style.setProperty("padding-left", "6px", "important"), metadata.style.setProperty("display", "flex", "important"), metadata.style.setProperty("flex-direction", "row", "important"), metadata.style.setProperty("flex-wrap", "wrap", "important"), metadata.style.setProperty("align-items", "center", "important"), metadata.style.setProperty("align-content", "flex-start", "important"), metadata.style.setProperty("justify-content", "flex-start", "important"), metadata.style.setProperty("gap", "8px 12px", "important"), metadata.style.setProperty("float", "none", "important"), metadata.style.setProperty("position", "static", "important"), metadata.style.setProperty("width", "100%", "important"), metadata.style.setProperty("height", "auto", "important"), metadata.style.setProperty("min-height", "0", "important"), metadata.style.setProperty("margin", "0", "important"), metadata.style.setProperty("padding", "0", "important"), metadata.style.setProperty("font-weight", "600", "important");
     for (let tagsContainer of tags)
       if (tagsContainer instanceof HTMLElement) {
         tagsContainer.style.setProperty("position", "static", "important"), tagsContainer.style.setProperty("width", "100%", "important"), tagsContainer.style.setProperty("height", "auto", "important"), tagsContainer.style.setProperty("min-height", "0", "important"), tagsContainer.style.setProperty("flex", "0 0 auto", "important"), tagsContainer.style.setProperty("margin", "0", "important"), tagsContainer.style.setProperty("padding", "0", "important");
@@ -1694,7 +1694,7 @@ body #gdt[class],
       tag.style.setProperty("font-size", "var(--font-size-sm)", "important"), tag.style.setProperty("line-height", "1.2", "important");
     for (let item of Array.from(metadata.children))
       if (item instanceof HTMLElement) {
-        if (item.style.setProperty("float", "none", "important"), item.style.setProperty("position", "static", "important"), item.style.setProperty("flex", "0 0 auto", "important"), item.style.setProperty("min-width", "0", "important"), item.style.setProperty("margin", "0", "important"), item.style.setProperty("font-weight", "600", "important"), item.matches(".ir, .gldown")) {
+        if (item.style.setProperty("float", "none", "important"), item.style.setProperty("position", "static", "important"), item.style.setProperty("flex", "0 0 auto", "important"), item.style.setProperty("min-width", "0", "important"), item.style.setProperty("margin", "0", "important"), item.style.setProperty("font-size", "var(--font-size-sm)", "important"), item.style.setProperty("font-weight", "600", "important"), item.matches(".ir, .gldown")) {
           item.style.removeProperty("width"), item.style.removeProperty("height");
           continue;
         }
@@ -1711,12 +1711,16 @@ body #gdt[class],
     });
   }
   function prepareSearchGridModeSelect(selected, onEhPeekSelect, onOriginalSelect) {
-    let selects = Array.from(document.querySelectorAll("select[onchange*='inline_set=dm_']"));
+    let selects = Array.from(
+      document.querySelectorAll(
+        "select[onchange*='inline_set=dm_'], select[data-ehpeek-grid-mode-source='true']"
+      )
+    );
     for (let select of selects) {
       let option = Array.from(select.options).find((item) => item.value === "ehpeek");
       option || (option = new Option("EhPeek", "ehpeek"), select.add(option)), option.selected = selected, select.dataset.ehpeekGridMode !== "true" && (select.dataset.ehpeekGridMode = "true", select.addEventListener("change", (event) => {
         if (select.value !== "ehpeek") {
-          onOriginalSelect();
+          event.preventDefault(), event.stopImmediatePropagation(), onOriginalSelect(select.value);
           return;
         }
         event.preventDefault(), event.stopImmediatePropagation(), onEhPeekSelect();
@@ -1729,13 +1733,47 @@ body #gdt[class],
   function searchTopNavigationBar(root = document) {
     return searchNavigationBars(root)[0] ?? null;
   }
+  function searchNavigationLinkForUrl(url, root = document) {
+    let targetUrl = normalizeUrl(url, window.location.href);
+    for (let bar of searchNavigationBars(root)) {
+      let link = Array.from(bar.querySelectorAll("a[href]")).find(
+        (candidate) => candidate.href === targetUrl
+      );
+      if (link)
+        return link;
+    }
+    return null;
+  }
   function singlePageContentNodes(root = document.body) {
     return Array.from(root.childNodes).filter(
       (node) => !(node instanceof Element && node.matches(SINGLE_PAGE_PERSISTENT_SELECTOR))
     );
   }
+  function prepareSinglePageContent(root, baseUrl) {
+    captureGalleryApiSession(root, baseUrl), preserveSinglePageGalleryData(root, baseUrl);
+    for (let form of Array.from(root.querySelectorAll("form"))) {
+      let action = form.getAttribute("action") ?? "";
+      form.action = normalizeUrl(action || baseUrl, baseUrl);
+    }
+    for (let element of Array.from(root.querySelectorAll("*")))
+      for (let attribute of Array.from(element.attributes))
+        /^on/i.test(attribute.name) && (preserveSinglePageControlRole(element, attribute.value), element.removeAttribute(attribute.name));
+    for (let script of Array.from(root.querySelectorAll("script")))
+      script.remove();
+  }
+  function preserveSinglePageGalleryData(root, baseUrl) {
+    let scripts = Array.from(root.querySelectorAll("script"), (item) => item.textContent ?? ""), ratingScript = scripts.find((text) => text.includes("display_rating")), rating = ratingScript ? scriptNumberValue(ratingScript, "display_rating") : null, ratingImage = root.querySelector("#rating_image");
+    ratingImage && rating !== null && (ratingImage.dataset.ehpeekRating = String(rating));
+    let gallery = new URL(baseUrl).pathname.match(/^\/g\/(\d+)\/([^/]+)/i), favoriteMatch = scripts.find((text) => text.includes("popbase") && text.includes("addfav"))?.match(
+      /popbase\s*=\s*base_url\s*\+\s*"gallerypopups\.php\?gid=(\d+)&t=([^"&]+)&act="/
+    ), favorite = root.querySelector("#fav");
+    favorite && gallery && favoriteMatch?.[1] === gallery[1] && favoriteMatch[2] === gallery[2] && (favorite.dataset.ehpeekActionUrl = `/gallerypopups.php?gid=${favoriteMatch[1]}&t=${favoriteMatch[2]}&act=addfav`);
+  }
+  function preserveSinglePageControlRole(element, handler) {
+    handler.includes("toggle_advsearch") && (element.dataset.ehpeekSearchAdvancedToggle = "true"), handler.includes("toggle_filesearch") && (element.dataset.ehpeekSearchFileToggle = "true"), handler.includes("inline_set=dm_") && (element.dataset.ehpeekGridModeSource = "true");
+  }
   function importSinglePageContent(doc, baseUrl) {
-    return absolutizeDocumentUrls(doc, baseUrl), Array.from(doc.body.childNodes, (node) => document.importNode(node, !0));
+    return absolutizeDocumentUrls(doc, baseUrl), prepareSinglePageContent(doc, baseUrl), Array.from(doc.body.childNodes, (node) => document.importNode(node, !0));
   }
   function singlePageNavigationLink(target) {
     let link = target instanceof Element ? target.closest("a[href]") : null;
@@ -1803,7 +1841,11 @@ body #gdt[class],
       }
   }
   function readTouchSearchPanelInfo(root = document) {
-    let searchInput = root.querySelector("#f_search, input[name='f_search']"), form = searchInput?.form ?? null, standardSearchBox = searchInput?.closest("#searchbox") ?? null, searchControls = document.createElement("div"), searchBox = standardSearchBox ?? searchControls, categories = searchBox?.querySelector("form > table") ?? null, advancedPanel = searchBox?.querySelector("#advdiv") ?? null, optionLinksCandidate = advancedPanel?.previousElementSibling, optionLinks = optionLinksCandidate instanceof HTMLElement ? optionLinksCandidate : null, advancedToggle = optionLinks?.querySelector("a[onclick*='toggle_advsearch']") ?? null, fileSearchToggle = optionLinks?.querySelector("a[onclick*='toggle_filesearch']") ?? null, searchSubmit = form?.querySelector("input[name='f_apply'], button[name='f_apply']") ?? searchInput?.parentElement?.querySelector(
+    let searchInput = root.querySelector("#f_search, input[name='f_search']"), form = searchInput?.form ?? null, standardSearchBox = searchInput?.closest("#searchbox") ?? null, searchControls = document.createElement("div"), searchBox = standardSearchBox ?? searchControls, categories = searchBox?.querySelector("form > table") ?? null, advancedPanel = searchBox?.querySelector("#advdiv") ?? null, optionLinksCandidate = advancedPanel?.previousElementSibling, optionLinks = optionLinksCandidate instanceof HTMLElement ? optionLinksCandidate : null, advancedToggle = optionLinks?.querySelector(
+      "a[onclick*='toggle_advsearch'], a[data-ehpeek-search-advanced-toggle='true']"
+    ) ?? null, fileSearchToggle = optionLinks?.querySelector(
+      "a[onclick*='toggle_filesearch'], a[data-ehpeek-search-file-toggle='true']"
+    ) ?? null, searchSubmit = form?.querySelector("input[name='f_apply'], button[name='f_apply']") ?? searchInput?.parentElement?.querySelector(
       "input[type='submit'], button[type='submit']"
     ), clearButton = form?.querySelector("input[name='f_clear'], button[name='f_clear']") ?? searchInput?.parentElement?.querySelector(
       "input[type='button'], button[type='button']"
@@ -1854,7 +1896,7 @@ body #gdt[class],
       }
       for (let category of Array.from(info.categories.querySelectorAll("[id^='cat_']"))) {
         let colorClass = Array.from(category.classList).find((className2) => /^ct(?:[1-9a])$/.test(className2));
-        category.className = `${colorClass ? `${colorClass} ` : ""}flex box-border w-full min-w-0 !h-lg items-center justify-center px-md border rounded-md text-white text-center textsize-md font-700 leading-[1.15] whitespace-nowrap shadow-[0_2px_6px_var(--color-shadow-control)] cursor-pointer select-none transition-opacity [touch-action:manipulation] active:opacity-70 [&[data-disabled]]:opacity-40`;
+        category.className = `${colorClass ? `${colorClass} ` : ""}flex box-border w-full min-w-0 !h-lg items-center justify-center px-md border rounded-md text-white text-center textsize-md font-700 leading-[1.15] whitespace-nowrap shadow-[0_2px_6px_var(--color-shadow-control)] cursor-pointer select-none transition-opacity [touch-action:manipulation] active:opacity-70 [&[data-disabled]]:opacity-40`, prepareTouchSearchCategory(category, form);
       }
     }
     if (info.searchControls.className = `${info.clearButton ? "grid-cols-[minmax(0,1fr)_60px_60px]" : "grid-cols-[minmax(0,1fr)_60px]"} grid w-full items-start gap-0 !p-0`, searchInput && (searchInput.className = `appearance-none !box-border !w-full !h-60px min-w-0 col-span-full row-start-1 !m-0 !py-0 !pl-lg ${info.clearButton ? "!pr-[132px]" : "!pr-[72px]"} !border !border-[var(--color-site-border)] rounded-md !bg-[var(--color-site-elevated)] !text-[var(--color-site-text)] !text-[length:var(--font-size-md)] leading-[1.2] outline-none focus:(!border-[var(--color-site-accent)] !bg-[var(--color-site-elevated)] shadow-[0_0_0_3px_var(--color-site-accent-hover)])`), searchInput.before(info.searchControls), info.searchSubmit.replaceWith(info.searchActionMount), info.clearButton && info.clearActionMount && info.clearButton.replaceWith(info.clearActionMount), info.searchControls.append(searchInput), info.clearActionMount && info.searchControls.append(info.clearActionMount), info.searchControls.append(info.searchActionMount), info.optionLinks && info.categoryToggleMount && info.optionLinks.prepend(info.categoryToggleMount), info.advancedToggle && info.advancedToggleMount && info.advancedToggle.replaceWith(info.advancedToggleMount), info.fileSearchToggle && info.fileSearchToggleMount && info.fileSearchToggle.replaceWith(info.fileSearchToggleMount), info.optionLinks) {
@@ -1863,6 +1905,20 @@ body #gdt[class],
         link.className = optionClassName;
     }
     advancedPanel && (advancedPanel.className = "box-border w-full !p-0 ehp-color-site-text"), info.fileSearch && (info.fileSearch.style.removeProperty("margin-top"), info.fileSearch.className = "box-border !w-full !m-0 !mt-0 p-lg border ehp-color-site-border rounded-md bg-[var(--color-site-elevated)] ehp-color-site-text !textsize-md text-left [&_form]:flex [&_form]:flex-col [&_form]:gap-sm [&_form>div]:!p-0 [&_.searchadv>div]:!flex-wrap [&_.searchadv>div]:!justify-start [&_.searchadv>div]:!gap-sm [&_.searchadv>div>div]:!p-sm");
+  }
+  function prepareTouchSearchCategory(category, form) {
+    if (category.dataset.ehpeekCategory === "true")
+      return;
+    let categoryMask = form.querySelector("input[name='f_cats']"), bit = Number(category.id.match(/^cat_(\d+)$/)?.[1]);
+    if (!categoryMask || !Number.isInteger(bit) || bit <= 0)
+      return;
+    category.dataset.ehpeekCategory = "true";
+    let update = () => {
+      category.toggleAttribute("data-disabled", (Number(categoryMask.value) & bit) !== 0);
+    };
+    update(), category.addEventListener("click", () => {
+      categoryMask.value = String(Number(categoryMask.value) ^ bit), update();
+    });
   }
   function searchActionLabel(element) {
     return element instanceof HTMLInputElement ? element.value : element.textContent?.trim() ?? "";
@@ -1877,7 +1933,7 @@ body #gdt[class],
     let currentList = searchResultList(), incomingList = searchResultList(doc);
     if (!currentList || !incomingList)
       return null;
-    replaceFirstElement("#rangebar", doc), replaceFirstElement(".searchtext", doc), replaceSearchRangeScript(doc), replaceSearchNavigationBars(doc);
+    replaceFirstElement("#rangebar", doc), replaceFirstElement(".searchtext", doc), replaceSearchNavigationBars(doc);
     let importedList = document.importNode(incomingList, !0);
     return currentList.replaceWith(importedList), importedList;
   }
@@ -2043,6 +2099,8 @@ body #gdt[class],
   }
   function prepareTouchSearchResultsPage() {
     document.documentElement.classList.add(...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ")), document.body.classList.add(...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" "));
+    let rangeBar = document.querySelector("#rangebar");
+    rangeBar && (rangeBar.hidden = !0, rangeBar.style.setProperty("display", "none", "important"));
     let resultList = searchResultList();
     resultList?.classList.add(...TOUCH_SEARCH_RESULT_LIST_CLASS_NAME.split(" "));
     let existingWrapper = resultList?.parentElement?.classList.contains("ehpeek-touch-search-results") ? resultList.parentElement : null, content = existingWrapper?.parentElement ?? resultList?.parentElement;
@@ -2101,7 +2159,7 @@ body #gdt[class],
       newTag: readGalleryNewTagInfo(),
       tagApi: readGalleryTagApiInfo(),
       summary,
-      actions: readGalleryActionsDom(actionMenuItemClassName),
+      actions: document.querySelector("[data-ehpeek-single-page-app='true']") ? [] : readGalleryActionsDom(actionMenuItemClassName),
       rating: readGalleryRatingInfo(),
       tagGroups: readGalleryTagGroups()
     };
@@ -2134,17 +2192,6 @@ body #gdt[class],
     for (let index = 0; index < count; index += 1)
       currentBars[index].replaceWith(document.importNode(incomingBars[index], !0));
   }
-  function replaceSearchRangeScript(doc) {
-    let incomingScript = Array.from(doc.querySelectorAll("script")).find(
-      (item) => item.textContent?.includes("build_rangebar()")
-    );
-    if (!incomingScript)
-      return;
-    let currentScript = Array.from(document.querySelectorAll("script")).find(
-      (item) => item.textContent?.includes("build_rangebar()")
-    ), script = document.createElement("script");
-    script.type = incomingScript.type || "text/javascript", script.textContent = incomingScript.textContent, currentScript ? currentScript.replaceWith(script) : searchNavigationBars()[0]?.before(script);
-  }
   function readGalleryMeta() {
     let entries = Array.from(document.querySelectorAll("#gdd tr")).map((row) => {
       let cells = Array.from(row.cells), label = cells[0]?.textContent?.trim().replace(/:$/, "").toLowerCase() ?? "", value = cells.slice(1).map((cell) => cell.textContent?.trim() ?? "").filter(Boolean).join(" ");
@@ -2162,7 +2209,7 @@ body #gdt[class],
     };
   }
   function readGalleryRatingInfo() {
-    let label = textOf("#rating_label"), count = textOf("#rating_count"), ratingImage = document.querySelector("#rating_image"), script = galleryRatingScript(), value = scriptNumberValue(script, "display_rating");
+    let label = textOf("#rating_label"), count = textOf("#rating_count"), ratingImage = document.querySelector("#rating_image"), preservedValue = ratingImage instanceof HTMLElement ? Number(ratingImage.dataset.ehpeekRating) : Number.NaN, value = Number.isFinite(preservedValue) ? preservedValue : scriptNumberValue(galleryRatingScript(), "display_rating");
     return !label || value === null ? null : {
       count,
       label,
@@ -2268,20 +2315,31 @@ body #gdt[class],
       form
     };
   }
-  function readGalleryTagApiInfo() {
-    let galleryMatch = window.location.pathname.match(/^\/g\/(\d+)\/([^/]+)/i);
-    if (!galleryMatch)
-      return null;
-    let expectedGalleryId = Number(galleryMatch[1]), expectedToken = galleryMatch[2], script = Array.from(document.scripts).map((item) => item.textContent ?? "").find(
-      (text) => text.includes("var api_url") && text.includes("var apikey") && scriptNumberValue(text, "gid") === expectedGalleryId && scriptStringValue(text, "token") === expectedToken
-    );
+  function captureGalleryApiSession(root = document, baseUrl = window.location.href) {
+    if (galleryApiSession)
+      return !0;
+    let script = Array.from(root.querySelectorAll("script")).map((item) => item.textContent ?? "").find((text) => text.includes("var api_url") && text.includes("var apikey"));
     if (!script)
-      return null;
-    let apiUrl = scriptStringValue(script, "api_url"), apiKey = scriptStringValue(script, "apikey"), token = scriptStringValue(script, "token"), galleryId = scriptNumberValue(script, "gid"), apiUid = scriptNumberValue(script, "apiuid");
-    return !apiUrl || !apiKey || !token || galleryId === null || apiUid === null ? null : {
+      return !1;
+    let apiUrlValue = scriptStringValue(script, "api_url"), apiKey = scriptStringValue(script, "apikey"), apiUid = scriptNumberValue(script, "apiuid");
+    if (!apiUrlValue || !apiKey || apiUid === null)
+      return !1;
+    let apiUrl = new URL(apiUrlValue, baseUrl), pageUrl = new URL(baseUrl);
+    return !(apiUrl.origin === pageUrl.origin || apiUrl.protocol === "https:" && apiUrl.hostname === "api.e-hentai.org") || !/^\/api\.php$/i.test(apiUrl.pathname) || (apiUrl.username || apiUrl.password || apiUrl.search || apiUrl.hash) || !Number.isSafeInteger(apiUid) || apiUid <= 0 || !/^[A-Za-z0-9_-]{8,128}$/.test(apiKey) ? !1 : (galleryApiSession = {
       apiKey,
       apiUid,
-      apiUrl,
+      apiUrl: apiUrl.href
+    }, !0);
+  }
+  function readGalleryTagApiInfo() {
+    let galleryMatch = window.location.pathname.match(/^\/g\/(\d+)\/([^/]+)/i);
+    if (!galleryMatch || !galleryApiSession && !captureGalleryApiSession())
+      return null;
+    let galleryId = Number(galleryMatch[1]), token = galleryMatch[2], session = galleryApiSession;
+    return !session || !Number.isSafeInteger(galleryId) || galleryId <= 0 || !/^[A-Za-z0-9]+$/.test(token) ? null : {
+      apiKey: session.apiKey,
+      apiUid: session.apiUid,
+      apiUrl: session.apiUrl,
       galleryId,
       token
     };
@@ -2314,6 +2372,9 @@ body #gdt[class],
     return slot === void 0 ? null : `var(--color-site-favorite-${slot})`;
   }
   function galleryFavoriteActionUrl() {
+    let preserved = document.querySelector("#fav")?.dataset.ehpeekActionUrl;
+    if (preserved)
+      return preserved;
     let match = (Array.from(document.scripts).map((item) => item.textContent ?? "").find((text) => text.includes("popbase") && text.includes("addfav")) ?? "").match(/popbase\s*=\s*base_url\s*\+\s*"gallerypopups\.php\?gid=(\d+)&t=([^"]+)&act="/);
     return match ? `/gallerypopups.php?gid=${match[1]}&t=${match[2]}&act=addfav` : "";
   }
@@ -2564,9 +2625,13 @@ body #gdt[class],
   }
   function onSearchNavigationClick(event) {
     let link = findSearchNavigationLink(event.target);
-    link && (event.preventDefault(), event.stopPropagation(), navigateSearchPage(link.href));
+    link && (document.querySelector("[data-ehpeek-single-page-app='true']") || (event.preventDefault(), event.stopPropagation(), navigateSearchPage(link.href)));
   }
   async function navigateSearchPage(url) {
+    if (document.querySelector("[data-ehpeek-single-page-app='true']")) {
+      searchNavigationLinkForUrl(url)?.click();
+      return;
+    }
     if (!searchNavigationLoading) {
       searchNavigationLoading = !0, setSearchLoading?.(!0), swipeElement?.setAttribute("aria-busy", "true");
       try {
@@ -3120,7 +3185,7 @@ body #gdt[class],
   }
 
   // src/components/SettingsMenu.tsx
-  var _tmpl$8 = /* @__PURE__ */ template('<p class="box-border w-full m-0 px-md pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] textsize-sm leading-[1.35] opacity-75">'), _tmpl$25 = /* @__PURE__ */ template('<div class="border-0 border-b ehp-color-site-border-subtle-b"><div class="flex items-stretch"><button type=button class="flex min-w-0 flex-1 min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg pl-md pr-sm rounded-xs border-0 !bg-transparent hover:!bg-transparent active:!bg-transparent ehp-color-site-text cursor-pointer font-inherit text-left textsize-md [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex flex-none items-center gap-sm"><span class="textsize-sm opacity-70"></span><span></span></span></button><button type=button class="flex flex-none w-32px coarse:w-48px min-h-md coarse:min-h-88px items-center justify-center p-0 rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span class="flex w-20px h-20px items-center justify-center rounded-full border border-[var(--color-site-border-subtle)] leading-none">?'), _tmpl$34 = /* @__PURE__ */ template('<div class="ml-md border-0 border-l border-l-[var(--color-site-border-subtle)]">'), _tmpl$43 = /* @__PURE__ */ template('<div class="ehpeek-settings-menu pointer-events-auto fixed top-24px right-24px coarse:top-8px coarse:right-8px z-overlay box-border w-320px coarse:w-[calc(100vw-16px)] max-w-[calc(100vw-48px)] coarse:max-w-480px max-h-[calc(100vh-48px)] coarse:max-h-[calc(100dvh-16px)] overflow-x-hidden overflow-y-auto p-sm coarse:p-md border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text textsize-md leading-[1.2]"><div class="border-0 border-b ehp-color-site-border-subtle-b"><button type=button class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex w-20px h-20px items-center justify-center leading-none"aria-hidden=true></span></button></div><div class="border-0 border-b ehp-color-site-border-subtle-b"><button type=button class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex w-20px h-20px items-center justify-center leading-none"aria-hidden=true></span></button></div><a class="flex w-full min-h-md coarse:min-h-88px items-center overflow-hidden text-ellipsis whitespace-nowrap px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline textsize-md font-700 hover:bg-[var(--color-site-item-hover)]"href=https://github.com/yamipot/ehpeek target=_blank rel="noopener noreferrer">v</a><div class="ehpeek-settings-actions grid grid-cols-3 gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="ehpeek-settings-apply block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108"></button><button type=button class="ehpeek-settings-default block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]"></button><button type=button class="ehpeek-settings-close block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">');
+  var _tmpl$8 = /* @__PURE__ */ template('<p class="box-border w-full m-0 px-md pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] textsize-sm leading-[1.35] opacity-75">'), _tmpl$25 = /* @__PURE__ */ template('<div class="border-0 border-b ehp-color-site-border-subtle-b"><div class="flex items-stretch"><button type=button><span></span><span class="flex flex-none items-center gap-sm"><span class="textsize-sm opacity-70"></span><span></span></span></button><button type=button class="flex flex-none w-32px coarse:w-48px min-h-md coarse:min-h-88px items-center justify-center p-0 rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span class="flex w-20px h-20px items-center justify-center rounded-full border border-[var(--color-site-border-subtle)] leading-none">?'), _tmpl$34 = /* @__PURE__ */ template('<div class="ml-md border-0 border-l border-l-[var(--color-site-border-subtle)]">'), _tmpl$43 = /* @__PURE__ */ template('<div class="ehpeek-settings-menu pointer-events-auto fixed top-24px right-24px coarse:top-8px coarse:right-8px z-overlay box-border w-320px coarse:w-[calc(100vw-16px)] max-w-[calc(100vw-48px)] coarse:max-w-480px max-h-[calc(100vh-48px)] coarse:max-h-[calc(100dvh-16px)] overflow-x-hidden overflow-y-auto p-sm coarse:p-md border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text textsize-md leading-[1.2]"><div class="border-0 border-b ehp-color-site-border-subtle-b"><button type=button class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex w-20px h-20px items-center justify-center leading-none"aria-hidden=true></span></button></div><div class="border-0 border-b ehp-color-site-border-subtle-b"><button type=button class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex w-20px h-20px items-center justify-center leading-none"aria-hidden=true></span></button></div><a class="flex w-full min-h-md coarse:min-h-88px items-center overflow-hidden text-ellipsis whitespace-nowrap px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline textsize-md font-700 hover:bg-[var(--color-site-item-hover)]"href=https://github.com/yamipot/ehpeek target=_blank rel="noopener noreferrer">v</a><div class="ehpeek-settings-actions grid grid-cols-3 gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="ehpeek-settings-apply block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108"></button><button type=button class="ehpeek-settings-default block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]"></button><button type=button class="ehpeek-settings-close block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">');
   var SETTINGS_DOT_CLASS = "block flex-none w-10px h-10px coarse:w-18px coarse:h-18px rounded-full";
   function SwitchButton(props) {
     let [helpOpen, setHelpOpen] = createSignal(!1), helpId = `ehpeek-setting-help-${createUniqueId()}`;
@@ -3142,14 +3207,16 @@ body #gdt[class],
           return setAttribute(_el$9, "id", helpId), insert(_el$9, () => props.description), _el$9;
         }
       }), null), createRenderEffect((_p$) => {
-        var _v$ = helpOpen() ? helpId : void 0, _v$2 = `${SETTINGS_DOT_CLASS} ${props.checked ? "bg-[var(--color-state-on)]" : "bg-[var(--color-state-off)]"}`, _v$3 = texts_default.settings.showHelp, _v$4 = helpOpen(), _v$5 = texts_default.settings.showHelp;
-        return _v$ !== _p$.e && setAttribute(_el$3, "aria-describedby", _p$.e = _v$), _v$2 !== _p$.t && className(_el$7, _p$.t = _v$2), _v$3 !== _p$.a && setAttribute(_el$8, "aria-label", _p$.a = _v$3), _v$4 !== _p$.o && setAttribute(_el$8, "aria-expanded", _p$.o = _v$4), _v$5 !== _p$.i && setAttribute(_el$8, "title", _p$.i = _v$5), _p$;
+        var _v$ = `flex min-w-0 flex-1 min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg pl-md pr-sm rounded-xs border-0 !bg-transparent hover:!bg-transparent active:!bg-transparent ehp-color-site-text font-inherit text-left textsize-md [-webkit-tap-highlight-color:transparent] ${props.disabled ? "cursor-not-allowed opacity-45" : "cursor-pointer"}`, _v$2 = helpOpen() ? helpId : void 0, _v$3 = props.disabled, _v$4 = `${SETTINGS_DOT_CLASS} ${props.checked ? "bg-[var(--color-state-on)]" : "bg-[var(--color-state-off)]"}`, _v$5 = texts_default.settings.showHelp, _v$6 = helpOpen(), _v$7 = texts_default.settings.showHelp;
+        return _v$ !== _p$.e && className(_el$3, _p$.e = _v$), _v$2 !== _p$.t && setAttribute(_el$3, "aria-describedby", _p$.t = _v$2), _v$3 !== _p$.a && (_el$3.disabled = _p$.a = _v$3), _v$4 !== _p$.o && className(_el$7, _p$.o = _v$4), _v$5 !== _p$.i && setAttribute(_el$8, "aria-label", _p$.i = _v$5), _v$6 !== _p$.n && setAttribute(_el$8, "aria-expanded", _p$.n = _v$6), _v$7 !== _p$.s && setAttribute(_el$8, "title", _p$.s = _v$7), _p$;
       }, {
         e: void 0,
         t: void 0,
         a: void 0,
         o: void 0,
-        i: void 0
+        i: void 0,
+        n: void 0,
+        s: void 0
       }), _el$;
     })();
   }
@@ -3206,6 +3273,9 @@ body #gdt[class],
           },
           get description() {
             return texts_default.settings.singlePageAppHelp;
+          },
+          get disabled() {
+            return !draft.touchUiEnabled;
           },
           get label() {
             return texts_default.settings.singlePageApp;
@@ -3286,7 +3356,7 @@ body #gdt[class],
               onChange: (value) => setDraft("searchHistoryEnabled", value)
             }), null), _el$18;
           }
-        }), null), insert(_el$19, "260718.1540", null), _el$22.$$click = (event) => {
+        }), null), insert(_el$19, "260718.1634", null), _el$22.$$click = (event) => {
           event.stopPropagation(), props.onApply({
             ...draft
           });
@@ -3297,8 +3367,8 @@ body #gdt[class],
         }, insert(_el$23, () => texts_default.settings.default), _el$24.$$click = (event) => {
           event.stopPropagation(), close();
         }, insert(_el$24, () => texts_default.settings.close), createRenderEffect((_p$) => {
-          var _v$6 = readerOptionsOpen(), _v$7 = readerOptionsOpen() ? texts_default.settings.hideReaderOptions : texts_default.settings.showReaderOptions, _v$8 = enhanceOpen(), _v$9 = enhanceOpen() ? texts_default.settings.hideEnhance : texts_default.settings.showEnhance, _v$0 = texts_default.navigation.github, _v$1 = `${texts_default.navigation.github}: 260718.1540`;
-          return _v$6 !== _p$.e && setAttribute(_el$10, "aria-expanded", _p$.e = _v$6), _v$7 !== _p$.t && setAttribute(_el$10, "aria-label", _p$.t = _v$7), _v$8 !== _p$.a && setAttribute(_el$15, "aria-expanded", _p$.a = _v$8), _v$9 !== _p$.o && setAttribute(_el$15, "aria-label", _p$.o = _v$9), _v$0 !== _p$.i && setAttribute(_el$19, "aria-label", _p$.i = _v$0), _v$1 !== _p$.n && setAttribute(_el$19, "title", _p$.n = _v$1), _p$;
+          var _v$8 = readerOptionsOpen(), _v$9 = readerOptionsOpen() ? texts_default.settings.hideReaderOptions : texts_default.settings.showReaderOptions, _v$0 = enhanceOpen(), _v$1 = enhanceOpen() ? texts_default.settings.hideEnhance : texts_default.settings.showEnhance, _v$10 = texts_default.navigation.github, _v$11 = `${texts_default.navigation.github}: 260718.1634`;
+          return _v$8 !== _p$.e && setAttribute(_el$10, "aria-expanded", _p$.e = _v$8), _v$9 !== _p$.t && setAttribute(_el$10, "aria-label", _p$.t = _v$9), _v$0 !== _p$.a && setAttribute(_el$15, "aria-expanded", _p$.a = _v$0), _v$1 !== _p$.o && setAttribute(_el$15, "aria-label", _p$.o = _v$1), _v$10 !== _p$.i && setAttribute(_el$19, "aria-label", _p$.i = _v$10), _v$11 !== _p$.n && setAttribute(_el$19, "title", _p$.n = _v$11), _p$;
         }, {
           e: void 0,
           t: void 0,
@@ -4051,19 +4121,23 @@ body #gdt[class],
   }
   function TouchSearchFileToggle(props) {
     let [fileSearchOpen, setFileSearchOpen] = createSignal(!1);
-    return (() => {
+    return createEffect(() => {
+      props.panel.hidden = !fileSearchOpen(), props.panel.style.display = fileSearchOpen() ? "" : "none";
+    }), (() => {
       var _el$5 = _tmpl$28();
       return _el$5.$$click = () => {
-        props.toggle.click(), setFileSearchOpen((open) => !open);
+        setFileSearchOpen((open) => !open);
       }, insert(_el$5, () => texts_default.search.fileSearch), createRenderEffect(() => setAttribute(_el$5, "aria-expanded", fileSearchOpen())), _el$5;
     })();
   }
   function TouchSearchAdvancedToggle(props) {
     let [advancedOpen, setAdvancedOpen] = createSignal(!1);
-    return (() => {
+    return createEffect(() => {
+      props.panel.hidden = !advancedOpen(), props.panel.style.display = advancedOpen() ? "" : "none";
+    }), (() => {
       var _el$6 = _tmpl$28();
       return _el$6.$$click = () => {
-        props.toggle.click(), setAdvancedOpen((open) => !open);
+        setAdvancedOpen((open) => !open);
       }, insert(_el$6, () => texts_default.search.advancedOptions), createRenderEffect(() => setAttribute(_el$6, "aria-expanded", advancedOpen())), _el$6;
     })();
   }
@@ -4075,7 +4149,7 @@ body #gdt[class],
       var _el$7 = _tmpl$37();
       return _el$7.$$click = (event) => {
         if (search) {
-          event.preventDefault(), original.click();
+          event.preventDefault(), props.source.form.requestSubmit(original);
           return;
         }
         props.source.searchInput.value = "", props.source.searchInput.dispatchEvent(new Event("input", {
@@ -4567,6 +4641,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
 .cursor-default{cursor:default;}
 .disabled\\:cursor-default:disabled{cursor:default;}
 .cursor-pointer{cursor:pointer;}
+.cursor-not-allowed{cursor:not-allowed;}
 .cursor-grab{cursor:grab;}
 .\\[\\&\\[data-dragging\\=true\\]\\]\\:cursor-grabbing[data-dragging=true]{cursor:grabbing;}
 .active\\:cursor-grabbing:active{cursor:grabbing;}
@@ -4739,6 +4814,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
 .\\[\\&\\[data-disabled\\]\\]\\:opacity-40[data-disabled],
 .opacity-40{opacity:0.4;}
 .\\[\\&\\[data-open\\=false\\]\\]\\:opacity-0[data-open=false]{opacity:0;}
+.opacity-45{opacity:0.45;}
 .opacity-70{opacity:0.7;}
 .opacity-72{opacity:0.72;}
 .opacity-75{opacity:0.75;}
@@ -6624,7 +6700,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
       let sequence = ++navigationSequence;
       navigationController?.abort();
       let controller = new AbortController();
-      navigationController = controller, setFailedUrl(null), setLoading(!0), routeHost.setAttribute("aria-busy", "true");
+      navigationController = controller, setFailedUrl(null), setLoading(!0), routeHost.inert = !0, routeHost.setAttribute("aria-busy", "true");
       try {
         let response = await requestPage(request.url, {
           method: request.method,
@@ -6653,7 +6729,7 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
           return;
         console.error("[ehpeek] Single Page App navigation failed", error), setFailedUrl(request.url);
       } finally {
-        sequence === navigationSequence && (navigationController = null, stagingHost.replaceChildren(), routeHost.removeAttribute("aria-busy"), setLoading(!1));
+        sequence === navigationSequence && (navigationController = null, stagingHost.replaceChildren(), routeHost.inert = !1, routeHost.removeAttribute("aria-busy"), setLoading(!1));
       }
     };
     return onMount(() => {
@@ -6820,8 +6896,8 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
   function installSearchGridModeSelect() {
     prepareSearchGridModeSelect(state.search.grid.value, () => {
       state.search.grid.set(!0), window.location.assign(new URL("/?inline_set=dm_e", window.location.href).href);
-    }, () => {
-      state.search.grid.set(!1);
+    }, (value) => {
+      state.search.grid.set(!1), window.location.assign(new URL(`/?inline_set=dm_${value}`, window.location.href).href);
     });
   }
   function renderPageInto(host, view, owned = !1) {
@@ -6963,16 +7039,16 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
           categories
         }), !0);
       }
-      if (touchSearchInfo.advancedToggle && touchSearchInfo.advancedToggleMount) {
-        let advancedToggle = touchSearchInfo.advancedToggle;
+      if (touchSearchInfo.advancedPanel && touchSearchInfo.advancedToggleMount) {
+        let advancedPanel = touchSearchInfo.advancedPanel;
         renderPageInto(touchSearchInfo.advancedToggleMount, () => createComponent(TouchSearchAdvancedToggle, {
-          toggle: advancedToggle
+          panel: advancedPanel
         }), !0);
       }
-      if (touchSearchInfo.fileSearchToggle && touchSearchInfo.fileSearchToggleMount) {
-        let fileSearchToggle = touchSearchInfo.fileSearchToggle;
+      if (touchSearchInfo.fileSearch && touchSearchInfo.fileSearchToggleMount) {
+        let fileSearch = touchSearchInfo.fileSearch;
         renderPageInto(touchSearchInfo.fileSearchToggleMount, () => createComponent(TouchSearchFileToggle, {
-          toggle: fileSearchToggle
+          panel: fileSearch
         }), !0);
       }
       if (renderPageInto(touchSearchInfo.searchActionMount, () => createComponent(TouchSearchAction, {
@@ -7058,10 +7134,10 @@ html[data-ehpeek-touch-ui="true"] .touch\\:border-spacing-6px{--un-border-spacin
     }), originalReadHistorySession.update(pageType.pageNum, previous?.totalPages);
   }
   document.addEventListener("click", (event) => onReaderDocumentClick(event, readerCallbacks), !0);
-  var singlePageInitialRoute = settingsState.singlePageAppEnabled ? singlePageRoute(window.location.href) : null;
+  var singlePageInitialRoute = settingsState.touchUiEnabled && settingsState.singlePageAppEnabled ? singlePageRoute(window.location.href) : null;
   singlePageInitialRoute ? startSinglePageApp(singlePageInitialRoute) : activatePage(pageType);
   async function startSinglePageApp(initialPage) {
-    await waitForInitialUi();
+    await waitForInitialUi(), prepareSinglePageContent(document.body, window.location.href);
     let initialNodes = singlePageContentNodes(), host = document.createElement("div");
     host.className = "isolate", host.dataset.ehpeekPersistent = "true", document.body.append(host), renderInto(host, () => createComponent(SinglePage, {
       initialNodes,
