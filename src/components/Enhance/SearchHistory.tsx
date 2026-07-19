@@ -1,8 +1,8 @@
 import { createSignal, For, onCleanup, onMount, Show, untrack } from "solid-js";
-import type { SearchHistoryResult } from "../../eh";
+import type { SearchHistoryDom } from "../../eh";
 import { addSearchHistory, loadSearchHistory, removeSearchHistory } from "../../state";
 
-export function SearchHistory(props: { source: SearchHistoryResult }) {
+export function SearchHistory(props: { source: SearchHistoryDom }) {
   let dropdown: HTMLElement | undefined;
   const [searchValue, setSearchValue] = createSignal(
     untrack(() => props.source.data.value),

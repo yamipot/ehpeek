@@ -21,8 +21,8 @@ let setSwipeGestureTarget: ((target: HTMLElement | null) => void) | null = null;
 let galleryNavigationLoading = false;
 let replaceGalleryPageBar: ((currentIndex: number, maxIndex: number | null) => void) | null = null;
 let thumbsGridsEnabled = false;
-let galleryPreviewSource: eh.GalleryPreviewResult | null = null;
-let setGalleryPreviewSource: ((source: eh.GalleryPreviewResult) => void) | null = null;
+let galleryPreviewSource: eh.GalleryPreviewDom | null = null;
+let setGalleryPreviewSource: ((source: eh.GalleryPreviewDom) => void) | null = null;
 
 type SwipeState = {
   horizontal: boolean;
@@ -31,8 +31,8 @@ type SwipeState = {
 
 export function EnhanceThumbsGrids(props: {
   enabled: boolean;
-  galleryPreview: eh.GalleryPreviewResult;
-  onGalleryPreviewChange: (source: eh.GalleryPreviewResult) => void;
+  galleryPreview: eh.GalleryPreviewDom;
+  onGalleryPreviewChange: (source: eh.GalleryPreviewDom) => void;
   onError: (error: unknown) => void;
   replaceGalleryPageBar: (currentIndex: number, maxIndex: number | null) => void;
 }) {

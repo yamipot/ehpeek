@@ -1,4 +1,4 @@
-import type { ManagedDomNode } from "./transform/core";
+import type { ManagedDomNode } from "./dom/core";
 
 export type ImagePageInfo = {
   imageUrl: string;
@@ -12,15 +12,6 @@ export type GalleryPageBarMount = {
   descriptionText: string | null;
   element: ManagedDomNode<HTMLDivElement>;
   top: boolean;
-};
-
-export type PageViewportSnapshot = {
-  content: string | null;
-  created: boolean;
-  meta: ManagedDomNode<HTMLMetaElement>;
-  scale: number;
-  scrollX: number;
-  scrollY: number;
 };
 
 export type GalleryTagData = {

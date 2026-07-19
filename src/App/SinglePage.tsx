@@ -1,7 +1,6 @@
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import * as eh from "../eh";
 import type { PageType } from "../eh";
-import * as EhSyringe from "../eh/transform/ehSyringe";
 import texts from "../texts.json";
 
 const HISTORY_STATE_KEY = "ehpeekSinglePageApp";
@@ -14,6 +13,46 @@ type AppHistoryState = {
   scrollY: number;
 };
 
+type SinglePageLoad = {
+  page: PageType;
+  source: eh.PageContentDom;
+  url: string;
+};
+
+class PageContentProvider {
+  current(): SinglePageLoad | null {
+    const page = eh.singlePageRoute(window.location.href);
+    return page
+      ? {
+          page,
+          source: eh.extractPageContent(),
+          url: window.location.href,
+        }
+      : null;
+  }
+
+  async load(
+    request: eh.NavigationRequest,
+    signal: AbortSignal,
+  ): Promise<SinglePageLoad> {
+    const response = await eh.requestPage(request.url, {
+      method: request.method,
+      body: request.body,
+      signal,
+      timeoutMs: null,
+    });
+    const page = eh.singlePageRoute(response.url);
+    if (!page) {
+      throw new Error(`Unsupported Single Page App route: ${response.url}`);
+    }
+    return {
+      page,
+      source: eh.extractPageContent(response.document, response.url),
+      url: response.url,
+    };
+  }
+}
+
 export function SinglePage(props: {
   onPageActivate: (page: PageType) => void | Promise<void>;
   onPageDeactivate: () => void;
@@ -25,7 +64,8 @@ export function SinglePage(props: {
   let navigationController: AbortController | null = null;
   let navigationSequence = 0;
   let scrollFrame: number | null = null;
-  let pageSource: eh.SinglePageDocumentResult | null = null;
+  let pageSource: eh.PageContentDom | null = null;
+  const provider = new PageContentProvider();
 
   const updateHistoryScroll = () => {
     const current = historyState();
@@ -64,23 +104,10 @@ export function SinglePage(props: {
     routeHost.setAttribute("aria-busy", "true");
 
     try {
-      const response = await eh.requestPage(request.url, {
-        method: request.method,
-        body: request.body,
-        signal: controller.signal,
-        timeoutMs: null,
-      });
-      const responseUrl = response.url;
-      const page = eh.singlePageRoute(responseUrl);
-
-      if (!page) {
-        throw new Error(`Unsupported Single Page App route: ${responseUrl}`);
-      }
-
-      const doc = response.document;
-      const nextSource = eh.singlePageDocument(doc, responseUrl);
+      const next = await provider.load(request, controller.signal);
+      const nextSource = next.source;
       nextSource.actions.mount(stagingHost);
-      await EhSyringe.waitForRouteTranslation(stagingHost);
+      await eh.EhSyringe.waitForRouteTranslation(stagingHost);
 
       if (sequence !== navigationSequence || controller.signal.aborted) {
         return;
@@ -99,14 +126,14 @@ export function SinglePage(props: {
             } satisfies AppHistoryState,
           },
           "",
-          responseUrl,
+          next.url,
         );
       }
 
       nextSource.actions.mount(routeHost);
       pageSource = nextSource;
       document.title = nextSource.data.title || document.title;
-      await props.onPageActivate(page);
+      await props.onPageActivate(next.page);
 
       const targetScroll = mode === "pop" ? appHistoryState(popState) : null;
       window.requestAnimationFrame(() => {
@@ -202,13 +229,17 @@ export function SinglePage(props: {
     };
 
     const initialize = async () => {
-      await EhSyringe.waitForInitialUi();
+      await eh.EhSyringe.waitForInitialUi();
       if (disposed) {
         return;
       }
 
-      pageSource = eh.singlePageDocument();
-      pageSource.actions.mount(routeHost);
+      const initial = provider.current();
+      if (!initial) {
+        return;
+      }
+      pageSource = initial.source;
+      initial.source.actions.mount(routeHost);
       updateHistoryScroll();
       document.addEventListener("click", onClick, true);
       document.addEventListener("submit", onSubmit, true);
@@ -216,10 +247,7 @@ export function SinglePage(props: {
       window.addEventListener("popstate", onPopState);
       window.addEventListener("scroll", scheduleHistoryScrollUpdate, { passive: true });
 
-      const initialPage = eh.singlePageRoute(window.location.href);
-      if (initialPage) {
-        await props.onPageActivate(initialPage);
-      }
+      await props.onPageActivate(initial.page);
     };
 
     void initialize();

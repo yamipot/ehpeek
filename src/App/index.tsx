@@ -1,13 +1,10 @@
-import { createSignal, type JSX } from "solid-js";
+import { createSignal } from "solid-js";
 import { EnhanceSearchGrids } from "../components/Enhance/EnhanceSearchGrids";
 import { EnhanceThumbsGrids } from "../components/Enhance/EnhanceThumbsGrids";
-import {
-  ReadButton,
-  type ReadButtonInfo,
-} from "../components/Enhance/ReadHistory";
+import { ReadButton } from "../components/Enhance/ReadHistory";
 import { loadReadHistory, ReadHistorySession } from "../state/readHistory";
 import { SearchHistory } from "../components/Enhance/SearchHistory";
-import { applyMyTagsEnhance, refreshMyTags } from "../components/Enhance/MyTags";
+import { loadMyTagAppearances, refreshMyTags } from "../components/Enhance/MyTags";
 import {
   GalleryPageDescription,
   SCROLL_PAGE_BAR_BOTTOM_CLASS,
@@ -30,8 +27,6 @@ import {
   TouchTopBar,
 } from "../components/TouchUI";
 import * as eh from "../eh";
-import * as ehtrans from "../eh/transform";
-import * as EhSyringe from "../eh/transform/ehSyringe";
 import { state } from "../state";
 import texts from "../texts.json";
 import unoCss from "ehpeek:uno.css";
@@ -44,8 +39,8 @@ import {
   reportReaderOpenError,
   type ReaderCallbacks,
 } from "./Reader";
-import { renderInto, unmountFrom } from "./render";
 import { SinglePage } from "./SinglePage";
+import { createReaderViewport, type ReaderViewport } from "./viewport";
 
 function settingsMenuState() {
   return {
@@ -93,110 +88,32 @@ function applySettingsMenuState(
   window.location.reload();
 }
 
-function readButtonState(): {
-  info: ReadButtonInfo;
-  onClick: () => void;
-} | null {
-  if (!settingsState.readHistoryEnabled || pageType.type !== "gallery") {
-    return null;
-  }
-  const preview = galleryPreviewSource;
-  if (!preview) {
-    return null;
-  }
-
-  const record = loadReadHistory(pageType.galleryId, pageType.token);
-  const pageNum = record?.pageNum && record.pageNum > 0 ? record.pageNum : 1;
-  const totalPages = record?.totalPages ?? preview.data.totalImages;
-  const detail =
-    record && totalPages
-      ? `${pageNum}/${totalPages}`
-      : totalPages
-        ? `${totalPages} ${texts.reader.pages}`
-        : String(pageNum);
-
-  return {
-    info: {
-      label: record ? texts.reader.continueReading : texts.reader.startReading,
-      detail,
-    },
-    onClick: () => {
-      const page = preview.data.pages[0];
-
-      if (!page) {
-        return;
-      }
-
-      if (state.reader.enabled.value) {
-        openReaderFromUserAction(page.url, readerCallbacks, preview, pageNum);
-      } else {
-        void openOriginalReader(pageNum, preview).catch(reportReaderOpenError);
-      }
-    },
-  };
-}
-
 let pageType = eh.extractPageType();
-let galleryPreviewSource: eh.GalleryPreviewResult | null = null;
+let galleryPreviewSource: eh.GalleryPreviewDom | null = null;
+let pageViewportSource: ReaderViewport | null = null;
 let settingsState = settingsMenuState();
-const shell = eh.appShell({ theme: themeCss, uno: unoCss }, settingsState.touchUiEnabled);
+const shell = eh.extractAppShell({ theme: themeCss, uno: unoCss }, settingsState.touchUiEnabled);
 const [settingsMenuOpen, setSettingsMenuOpenSignal] = createSignal(false);
+const [readProgress, setReadProgress] = createSignal({
+  currentPage: 1,
+  totalPages: null as number | null,
+});
 const readerCallbacks: ReaderCallbacks = {
   enhanceThumbsGridsEnabled: () => settingsState.enhanceThumbsGridsEnabled,
   readHistoryEnabled: () => settingsState.readHistoryEnabled,
   onPageBarChange: replaceGalleryPageBar,
-  onReaderClosed: installReadButton,
+  onReaderClosed: (currentPage, totalPages) => {
+    setReadProgress({ currentPage, totalPages });
+  },
 };
-let galleryReadButtonMount: eh.ManagedDomNode | null | undefined;
-let touchGalleryReadButtonMount: HTMLElement | undefined;
+let galleryReadButtonMount: eh.ManagedDomNode | undefined;
 let originalReadHistorySession: ReadHistorySession | undefined;
-let touchFavoritesCategorySelect: eh.TouchFavoritesCategorySelectInfo | null =
-  null;
 let stopMyTagsEnhance: (() => void) | undefined;
+let resetTouchResultsPage: (() => void) | undefined;
+let refreshTouchResultsPage: (() => void) | undefined;
+let activeSearchResultsSource: eh.SearchResultsDom | null = null;
 let pageGeneration = 0;
-let pageRoots = new Set<HTMLElement>();
-let pageOwnedHosts = new Set<HTMLElement>();
-let pageManagedHosts = new Set<ehtrans.ManagedDomNode>();
-
-function installEhPeekSearchGrid(): void {
-  if (!state.search.grid.value) {
-    return;
-  }
-
-  eh.applyEhPeekSearchGrid();
-}
-
-function installSearchGridModeSelect(): void {
-  eh.searchGridModeSelect(
-    state.search.grid.value,
-    () => {
-      state.search.grid.set(true);
-      window.location.assign(
-        new URL("/?inline_set=dm_e", window.location.href).href,
-      );
-    },
-    (value) => {
-      state.search.grid.set(false);
-      window.location.assign(
-        new URL(`/?inline_set=dm_${value}`, window.location.href).href,
-      );
-    },
-  );
-}
-
-function renderPageInto(
-  host: HTMLElement,
-  view: () => JSX.Element,
-  owned = false,
-): void {
-  pageRoots.add(host);
-
-  if (owned) {
-    pageOwnedHosts.add(host);
-  }
-
-  renderInto(host, view);
-}
+let pageManagedHosts = new Set<eh.ManagedDomNode>();
 
 function deactivatePage(): void {
   pageGeneration += 1;
@@ -204,44 +121,19 @@ function deactivatePage(): void {
   originalReadHistorySession = undefined;
   stopMyTagsEnhance?.();
   stopMyTagsEnhance = undefined;
+  resetTouchResultsPage?.();
+  resetTouchResultsPage = undefined;
+  refreshTouchResultsPage = undefined;
   galleryPreviewSource = null;
+  pageViewportSource = null;
 
-  if (settingsState.touchUiEnabled) {
-    eh.resetTouchPageLayout();
-  }
-
-  for (const root of pageRoots) {
-    unmountFrom(root);
-  }
-
-  for (const host of pageOwnedHosts) {
-    host.remove();
-  }
   for (const host of pageManagedHosts) {
     host.remove();
   }
 
-  pageRoots = new Set();
-  pageOwnedHosts = new Set();
   pageManagedHosts = new Set();
   galleryReadButtonMount = undefined;
-  touchGalleryReadButtonMount = undefined;
-  touchFavoritesCategorySelect = null;
-}
-
-function installSettingsMenu(): void {
-  shell.elems.settingsMenu.mount(() => (
-    <SettingsMenu
-      open={settingsMenuOpen()}
-      defaultState={defaultSettingsMenuState()}
-      initState={settingsState}
-      onApply={(next) => {
-        settingsState = next;
-        applySettingsMenuState(next);
-      }}
-      onOpenChange={setSettingsMenuOpenSignal}
-    />
-  ));
+  activeSearchResultsSource = null;
 }
 
 function replaceGalleryPageBar(
@@ -273,43 +165,39 @@ function replaceGalleryPageBar(
   }
 }
 
-function installReadButton(): void {
-  const readButton = readButtonState();
+function openFromReadButton(): void {
+  const preview = galleryPreviewSource;
+  const viewport = pageViewportSource;
+  const firstPage = preview?.data.pages[0];
 
-  if (settingsState.touchUiEnabled && pageType.type === "gallery") {
-    if (touchGalleryReadButtonMount) {
-      renderPageInto(touchGalleryReadButtonMount, () =>
-        readButton ? (
-          <ReadButton
-            info={readButton.info}
-            onClick={readButton.onClick}
-            variant="touchGallery"
-          />
-        ) : (
-          <></>
-        ),
-      );
-    }
+  if (!preview || !viewport || !firstPage) {
     return;
   }
 
-  if (!settingsState.touchUiEnabled && pageType.type === "gallery") {
-    galleryReadButtonMount ??= eh.galleryContinueReadingButtonMountTarget();
-    pageManagedHosts.add(galleryReadButtonMount);
-  }
+  const currentPage = readProgress().currentPage;
 
-  if (galleryReadButtonMount) {
-    galleryReadButtonMount.mount(() =>
-      readButton ? (
-        <ReadButton
-          info={readButton.info}
-          onClick={readButton.onClick}
-          variant="gallery"
-        />
-      ) : (
-        <></>
-      ));
+  if (state.reader.enabled.value) {
+    openReaderFromUserAction(
+      firstPage.url,
+      readerCallbacks,
+      preview,
+      viewport,
+      currentPage,
+    );
+  } else {
+    void openOriginalReader(currentPage, preview).catch(reportReaderOpenError);
   }
+}
+
+function GalleryReadButton(props: { variant: "gallery" | "touchGallery" }) {
+  return (
+    <ReadButton
+      currentPage={readProgress().currentPage}
+      totalPages={readProgress().totalPages}
+      onClick={openFromReadButton}
+      variant={props.variant}
+    />
+  );
 }
 
 if (typeof GM_registerMenuCommand === "function") {
@@ -318,145 +206,271 @@ if (typeof GM_registerMenuCommand === "function") {
   });
 }
 
-installSettingsMenu();
+shell.elems.settingsMenu.mount(() => (
+  <SettingsMenu
+    open={settingsMenuOpen()}
+    defaultState={defaultSettingsMenuState()}
+    initState={settingsState}
+    onApply={(next) => {
+      settingsState = next;
+      applySettingsMenuState(next);
+    }}
+    onOpenChange={setSettingsMenuOpenSignal}
+  />
+));
 
-function installDesktopSettingsLink(): void {
-  const target = eh.settingsMenuMountTarget();
+function injectEnhanceUI(
+  page: eh.PageType,
+  preview: eh.GalleryPreviewDom | null,
+  searchHistoryDom: eh.SearchHistoryDom | null,
+  searchResultsDom: eh.SearchResultsDom | null,
+): void {
+  const galleryPage = page.type === "gallery";
+  const resultsPage = page.type === "search" || page.type === "favorites";
 
-  if (!target) {
-    return;
+  if (searchHistoryDom) {
+    eh.EhSyringe.reuseTagTipInput(searchHistoryDom.elems.input);
   }
 
-  target.mount(() => (
-      <a
-        href="#"
-        onClick={(event: MouseEvent) => {
-          event.preventDefault();
-          event.stopPropagation();
+  if (resultsPage) {
+    eh.extractSearchGridModeSelect(
+      state.search.grid.value,
+      () => {
+        state.search.grid.set(true);
+        window.location.assign(
+          new URL("/?inline_set=dm_e", window.location.href).href,
+        );
+      },
+      (value) => {
+        state.search.grid.set(false);
+        window.location.assign(
+          new URL(`/?inline_set=dm_${value}`, window.location.href).href,
+        );
+      },
+    );
+  }
+  const searchGridDom = resultsPage && state.search.grid.value
+    ? eh.extractSearchGrid()
+    : null;
+
+  if (!settingsState.touchUiEnabled) {
+    const settingsMount = eh.extractSettingsMenuMount();
+    if (settingsMount) {
+      settingsMount.mount(() => (
+        <a
+          href="#"
+          onClick={(event: MouseEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setSettingsMenuOpenSignal(true);
+          }}
+        >
+          {texts.settings.menuLabel}
+        </a>
+      ));
+      pageManagedHosts.add(settingsMount);
+    }
+  }
+
+  if (
+    !settingsState.touchUiEnabled &&
+    settingsState.readHistoryEnabled &&
+    galleryPage
+  ) {
+    galleryReadButtonMount = eh.extractGalleryContinueReadingButtonMount();
+    pageManagedHosts.add(galleryReadButtonMount);
+    galleryReadButtonMount.mount(() => (
+      <GalleryReadButton variant="gallery" />
+    ));
+  }
+
+  if (galleryPage && preview) {
+    const host = shell.actions.createMount();
+    host.mount(() => (
+      <EnhanceThumbsGrids
+        enabled={settingsState.enhanceThumbsGridsEnabled}
+        galleryPreview={preview}
+        onGalleryPreviewChange={(source) => {
+          galleryPreviewSource = source;
+        }}
+        onError={reportReaderOpenError}
+        replaceGalleryPageBar={replaceGalleryPageBar}
+      />
+    ));
+    pageManagedHosts.add(host);
+  }
+
+  if (
+    settingsState.enhanceSearchGridsEnabled &&
+    searchResultsDom &&
+    (searchResultsDom.data.previousUrl || searchResultsDom.data.nextUrl)
+  ) {
+    const host = shell.actions.createMount();
+    host.mount(() => (
+      <EnhanceSearchGrids
+        source={searchResultsDom}
+        onPageChange={() => {
+          refreshTouchResultsPage?.();
+          searchGridDom?.actions.refresh();
+        }}
+      />
+    ));
+    pageManagedHosts.add(host);
+  }
+
+  if (settingsState.searchHistoryEnabled && searchHistoryDom) {
+    const host = shell.actions.createMount();
+    host.mount(() => <SearchHistory source={searchHistoryDom} />);
+    pageManagedHosts.add(host);
+  }
+}
+
+function injectTouchUI(
+  page: eh.PageType,
+  preview: eh.GalleryPreviewDom | null,
+): void {
+  const galleryPage = page.type === "gallery";
+  const resultsPage = page.type === "search" || page.type === "favorites";
+  const resultsDom = resultsPage ? eh.extractTouchResultsPage(page) : null;
+  if (resultsDom) {
+    resetTouchResultsPage = resultsDom.actions.reset;
+    refreshTouchResultsPage = resultsDom.actions.refresh;
+  }
+
+  const topBarDom = eh.extractTopBar();
+  if (topBarDom) {
+    topBarDom.transforms.navItems(TOUCH_TOP_BAR_TRANSFORMS.navItems);
+    topBarDom.elems.mount.mount(() => (
+      <TouchTopBar
+        source={topBarDom}
+        onSettingsMenuOpen={() => {
           setSettingsMenuOpenSignal(true);
         }}
-      >
-        {texts.settings.menuLabel}
-      </a>
+      />
     ));
-  pageManagedHosts.add(target);
-}
-
-function installTouchTopBar(): void {
-  const transformed = ehtrans.topBar();
-
-  if (!transformed) {
-    return;
+    pageManagedHosts.add(topBarDom.elems.mount);
   }
 
-  transformed.transforms.navItems(TOUCH_TOP_BAR_TRANSFORMS.navItems);
-  transformed.elems.mount.mount(() => (
-    <TouchTopBar
-      source={transformed}
-      onSettingsMenuOpen={() => {
-        setSettingsMenuOpenSignal(true);
-      }}
-    />
-  ));
-  pageManagedHosts.add(transformed.elems.mount);
-}
-
-function installBackToTop(): void {
-  const host = eh.appMount("ehpeek-back-to-top-host");
-  host.mount(() => <BackToTop />);
-  pageManagedHosts.add(host);
-}
-
-function installGalleryInfoPanel(): void {
-  const transformed = ehtrans.galleryInfo(galleryPreviewSource?.data ?? null);
-
-  if (!transformed) {
-    return;
+  if (galleryPage || resultsPage) {
+    const host = shell.actions.createMount("ehpeek-back-to-top-host");
+    host.mount(() => <BackToTop />);
+    pageManagedHosts.add(host);
   }
 
-  eh.galleryCommentsTouch();
-  transformed.transforms.cover(TOUCH_GALLERY_INFO_TRANSFORMS.cover);
-  transformed.transforms.actions(TOUCH_GALLERY_INFO_TRANSFORMS.actions);
-  transformed.transforms.newTag(TOUCH_GALLERY_INFO_TRANSFORMS.newTag);
-  transformed.transforms.host(TOUCH_GALLERY_INFO_TRANSFORMS.host);
+  if (galleryPage) {
+    const galleryOperations = eh.extractGalleryOperations();
+    const galleryInfoDom = eh.extractGalleryInfo(
+      preview?.data ?? null,
+      galleryOperations,
+    );
+    if (galleryInfoDom) {
+      galleryInfoDom.transforms.cover(TOUCH_GALLERY_INFO_TRANSFORMS.cover);
+      galleryInfoDom.transforms.actions(TOUCH_GALLERY_INFO_TRANSFORMS.actions);
+      galleryInfoDom.transforms.newTag(TOUCH_GALLERY_INFO_TRANSFORMS.newTag);
+      galleryInfoDom.transforms.host(TOUCH_GALLERY_INFO_TRANSFORMS.host);
+      galleryInfoDom.elems.mount.mount(() => (
+        <GalleryInfoPanel
+          source={galleryInfoDom}
+          primaryAction={
+            settingsState.readHistoryEnabled ? (
+              <GalleryReadButton variant="touchGallery" />
+            ) : undefined
+          }
+        />
+      ));
+      pageManagedHosts.add(galleryInfoDom.elems.mount);
+    }
 
-  transformed.elems.mount.mount(() => (
-    <GalleryInfoPanel
-      source={transformed}
-      onPrimaryActionMount={(mount) => {
-        if (
-          touchGalleryReadButtonMount &&
-          touchGalleryReadButtonMount !== mount
-        ) {
-          unmountFrom(touchGalleryReadButtonMount);
-        }
-        touchGalleryReadButtonMount = mount;
-        installReadButton();
-      }}
-      onPrimaryActionUnmount={() => {
-        if (touchGalleryReadButtonMount) {
-          unmountFrom(touchGalleryReadButtonMount);
-          touchGalleryReadButtonMount = undefined;
-        }
-      }}
-    />
-  ));
-  pageManagedHosts.add(transformed.elems.mount);
-}
-
-function installTouchSearchPanel(): void {
-  const source = ehtrans.searchPanel();
-  if (!source) {
-    return;
+    eh.extractGalleryCommentsTouch();
   }
 
-  source.transforms.presentation(touchSearchPanelClasses(source.data.hasClear));
-  source.elems.mount.mount(() => (
-    <TouchSearchPanel
-      source={source}
-      after={
-        touchFavoritesCategorySelect ? (
-          <FavoritesCategorySelect info={touchFavoritesCategorySelect} />
-        ) : undefined
+  if (resultsPage) {
+    const searchPanelDom = eh.extractSearchPanel();
+    if (searchPanelDom) {
+      searchPanelDom.transforms.presentation(
+        touchSearchPanelClasses(searchPanelDom.data.hasClear),
+      );
+      searchPanelDom.elems.mount.mount(() => (
+        <TouchSearchPanel
+          source={searchPanelDom}
+          after={
+            resultsDom?.data.favoritesCategory ? (
+              <FavoritesCategorySelect
+                info={resultsDom.data.favoritesCategory}
+              />
+            ) : undefined
+          }
+        />
+      ));
+      pageManagedHosts.add(searchPanelDom.elems.mount);
+      if (searchPanelDom.elems.categoryToggleMount) {
+        searchPanelDom.elems.categoryToggleMount.mount(() => (
+          <TouchSearchCategoryToggle source={searchPanelDom} />
+        ));
+        pageManagedHosts.add(searchPanelDom.elems.categoryToggleMount);
       }
-    />
-  ));
-  pageManagedHosts.add(source.elems.mount);
-  if (source.elems.categoryToggleMount) {
-    source.elems.categoryToggleMount.mount(() => <TouchSearchCategoryToggle source={source} />);
-    pageManagedHosts.add(source.elems.categoryToggleMount);
-  }
-  if (source.elems.advancedToggleMount) {
-    source.elems.advancedToggleMount.mount(() => <TouchSearchAdvancedToggle source={source} />);
-    pageManagedHosts.add(source.elems.advancedToggleMount);
-  }
-  if (source.elems.fileSearchToggleMount) {
-    source.elems.fileSearchToggleMount.mount(() => <TouchSearchFileToggle source={source} />);
-    pageManagedHosts.add(source.elems.fileSearchToggleMount);
-  }
-  source.elems.searchActionMount.mount(() => <TouchSearchAction action="search" source={source} />);
-  pageManagedHosts.add(source.elems.searchActionMount);
-  if (source.elems.clearActionMount) {
-    source.elems.clearActionMount.mount(() => <TouchSearchAction action="clear" source={source} />);
-    pageManagedHosts.add(source.elems.clearActionMount);
+      if (searchPanelDom.elems.advancedToggleMount) {
+        searchPanelDom.elems.advancedToggleMount.mount(() => (
+          <TouchSearchAdvancedToggle source={searchPanelDom} />
+        ));
+        pageManagedHosts.add(searchPanelDom.elems.advancedToggleMount);
+      }
+      if (searchPanelDom.elems.fileSearchToggleMount) {
+        searchPanelDom.elems.fileSearchToggleMount.mount(() => (
+          <TouchSearchFileToggle source={searchPanelDom} />
+        ));
+        pageManagedHosts.add(searchPanelDom.elems.fileSearchToggleMount);
+      }
+      searchPanelDom.elems.searchActionMount.mount(() => (
+        <TouchSearchAction action="search" source={searchPanelDom} />
+      ));
+      pageManagedHosts.add(searchPanelDom.elems.searchActionMount);
+      if (searchPanelDom.elems.clearActionMount) {
+        searchPanelDom.elems.clearActionMount.mount(() => (
+          <TouchSearchAction action="clear" source={searchPanelDom} />
+        ));
+        pageManagedHosts.add(searchPanelDom.elems.clearActionMount);
+      }
+    }
   }
 }
 
-async function activatePage(nextPage: eh.PageType): Promise<void> {
+async function injectPage(nextPage: eh.PageType): Promise<void> {
   pageType = nextPage;
-  galleryPreviewSource = pageType.type === "gallery" ? eh.galleryPreview() : null;
+  const galleryPage = pageType.type === "gallery";
   const resultsPage =
     pageType.type === "search" || pageType.type === "favorites";
   const generation = ++pageGeneration;
+  galleryPreviewSource = galleryPage ? eh.extractGalleryPreview() : null;
+  pageViewportSource = galleryPage ? createReaderViewport() : null;
+  if (pageType.type === "gallery" && galleryPreviewSource) {
+    const record = loadReadHistory(pageType.galleryId, pageType.token);
+    setReadProgress({
+      currentPage: record?.pageNum && record.pageNum > 0 ? record.pageNum : 1,
+      totalPages: record?.totalPages ?? galleryPreviewSource.data.totalImages,
+    });
+  }
+  const searchHistorySource = resultsPage
+    ? eh.extractSearchHistory()
+    : null;
+  const searchResultsSource = resultsPage
+    ? eh.extractSearchResults()
+    : null;
+  activeSearchResultsSource = searchResultsSource;
 
   if (settingsState.myTagsEnabled) {
     if (pageType.type === "myTags") {
-      const currentMyTags = eh.myTagsPageData();
+      const currentMyTags = eh.extractMyTagsPageData();
       if (currentMyTags) {
         await refreshMyTags(currentMyTags);
       }
-    } else if (pageType.type === "gallery") {
-      stopMyTagsEnhance = await applyMyTagsEnhance();
+    } else if (galleryPage) {
+      const appearances = await loadMyTagAppearances();
+      if (appearances) {
+        stopMyTagsEnhance = eh.extractGalleryMyTags(
+          appearances,
+        ).actions.dispose;
+      }
     }
   }
 
@@ -464,148 +478,66 @@ async function activatePage(nextPage: eh.PageType): Promise<void> {
     return;
   }
 
-  if (resultsPage) {
-    const searchSource = eh.searchHistory();
-
-    if (searchSource) {
-      EhSyringe.reuseTagTipInput(searchSource.elems.input);
+  originalReadHistorySession?.dispose();
+  originalReadHistorySession = undefined;
+  if (settingsState.readHistoryEnabled && pageType.type === "image") {
+    const gallery = eh.extractImageGalleryPage();
+    if (gallery?.galleryId === pageType.galleryId) {
+      const previous = loadReadHistory(gallery.galleryId, gallery.token);
+      originalReadHistorySession = new ReadHistorySession({
+        galleryId: gallery.galleryId,
+        token: gallery.token,
+        galleryUrl: gallery.url,
+        totalPages: previous?.totalPages,
+      });
+      originalReadHistorySession.update(pageType.pageNum, previous?.totalPages);
     }
   }
 
-  trackOriginalReadHistory();
-
-  if (resultsPage) {
-    installSearchGridModeSelect();
-  }
-
-  if (!settingsState.touchUiEnabled) {
-    installDesktopSettingsLink();
-  } else {
-    touchFavoritesCategorySelect = eh.resultsPageTouch(pageType);
-  }
-
-  installReadButton();
-
-  const preview = galleryPreviewSource;
-  if (pageType.type === "gallery" && preview) {
-    const host = eh.appMount();
-    host.mount(() => (
-        <EnhanceThumbsGrids
-          enabled={settingsState.enhanceThumbsGridsEnabled}
-          galleryPreview={preview}
-          onGalleryPreviewChange={(source) => {
-            galleryPreviewSource = source;
-          }}
-          onError={reportReaderOpenError}
-          replaceGalleryPageBar={replaceGalleryPageBar}
-        />
-      ));
-    pageManagedHosts.add(host);
-  }
-
-  if (resultsPage && settingsState.enhanceSearchGridsEnabled) {
-    const source = eh.searchResults();
-
-    if (source && (source.data.previousUrl || source.data.nextUrl)) {
-      const host = eh.appMount();
-      host.mount(() => (
-          <EnhanceSearchGrids
-            source={source}
-            onPageChange={() => {
-              if (settingsState.touchUiEnabled) {
-                eh.resultsPageTouch(eh.extractPageType());
-              }
-              installEhPeekSearchGrid();
-            }}
-          />
-        ));
-      pageManagedHosts.add(host);
+  if (settingsState.touchUiEnabled) {
+    await eh.EhSyringe.waitForInitialUi();
+    if (pageType.type === "search") {
+      await eh.EhSyringe.waitForSearchUi();
+    }
+    if (generation !== pageGeneration) {
+      return;
     }
   }
 
-  if (resultsPage && settingsState.searchHistoryEnabled) {
-    const source = eh.searchHistory();
-
-    if (source) {
-      const host = eh.appMount();
-      host.mount(() => <SearchHistory source={source} />);
-      pageManagedHosts.add(host);
-    }
+  if (settingsState.touchUiEnabled) {
+    injectTouchUI(pageType, galleryPreviewSource);
   }
-
-  if (resultsPage && !settingsState.touchUiEnabled) {
-    installEhPeekSearchGrid();
-  }
+  injectEnhanceUI(
+    pageType,
+    galleryPreviewSource,
+    searchHistorySource,
+    searchResultsSource,
+  );
 
   if (
     pageType.type === "gallery" &&
     state.reader.enabled.value &&
     pageType.peekPage !== null
   ) {
-    if (galleryPreviewSource) {
-      void openReaderFromHash(readerCallbacks, galleryPreviewSource);
+    if (galleryPreviewSource && pageViewportSource) {
+      void openReaderFromHash(
+        readerCallbacks,
+        galleryPreviewSource,
+        pageViewportSource,
+      );
     }
   }
-
-  if (!settingsState.touchUiEnabled) {
-    return;
-  }
-
-  await EhSyringe.waitForInitialUi();
-
-  if (generation !== pageGeneration) {
-    return;
-  }
-
-  installTouchTopBar();
-  if (pageType.type === "gallery" || resultsPage) {
-    installBackToTop();
-  }
-
-  if (pageType.type === "gallery") {
-    installGalleryInfoPanel();
-  } else if (resultsPage) {
-    if (pageType.type === "search") {
-      await EhSyringe.waitForSearchUi();
-    }
-
-    if (generation !== pageGeneration) {
-      return;
-    }
-
-    installSearchGridModeSelect();
-    installEhPeekSearchGrid();
-    installTouchSearchPanel();
-  }
-}
-
-function trackOriginalReadHistory(): void {
-  originalReadHistorySession?.dispose();
-  originalReadHistorySession = undefined;
-
-  if (!settingsState.readHistoryEnabled || pageType.type !== "image") {
-    return;
-  }
-
-  const gallery = eh.imageGalleryPage();
-
-  if (!gallery || gallery.galleryId !== pageType.galleryId) {
-    return;
-  }
-
-  const previous = loadReadHistory(gallery.galleryId, gallery.token);
-  originalReadHistorySession = new ReadHistorySession({
-    galleryId: gallery.galleryId,
-    token: gallery.token,
-    galleryUrl: gallery.url,
-    totalPages: previous?.totalPages,
-  });
-  originalReadHistorySession.update(pageType.pageNum, previous?.totalPages);
 }
 
 document.addEventListener(
   "click",
-  (event) => onReaderDocumentClick(event, readerCallbacks, galleryPreviewSource),
+  (event) =>
+    onReaderDocumentClick(
+      event,
+      readerCallbacks,
+      galleryPreviewSource,
+      pageViewportSource,
+    ),
   true,
 );
 document.addEventListener(
@@ -615,7 +547,7 @@ document.addEventListener(
       return;
     }
 
-    eh.openClickedGalleryInNewTab(event.target);
+    activeSearchResultsSource?.actions.openGalleryInNewTab(event.target);
   },
   true,
 );
@@ -626,17 +558,13 @@ const singlePageInitialRoute =
   eh.supportsSinglePageRoute(window.location.href);
 
 if (singlePageInitialRoute) {
-  startSinglePageApp();
-} else {
-  void activatePage(pageType);
-}
-
-function startSinglePageApp(): void {
-  const host = eh.appMount("isolate", true);
+  const host = shell.actions.createMount("isolate", true);
   host.mount(() => (
     <SinglePage
-      onPageActivate={activatePage}
+      onPageActivate={injectPage}
       onPageDeactivate={deactivatePage}
     />
   ));
+} else {
+  void injectPage(pageType);
 }

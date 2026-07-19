@@ -1,5 +1,5 @@
 import { createSignal, onCleanup, onMount, Show, For } from "solid-js";
-import type { TopBarResult } from "../../eh/transform";
+import type { TopBarDom } from "../../eh";
 import { Icon } from "../Widgets/Icon";
 
 const TOUCH_TOP_BAR_ICON_SIZE = 41;
@@ -11,7 +11,7 @@ export const TOUCH_TOP_BAR_TRANSFORMS = {
   navItems: TOUCH_TOP_BAR_MENU_ITEM_CLASS,
 };
 
-function TouchTopBarMenu(props: { navItems: TopBarResult["elems"]["navItems"] }) {
+function TouchTopBarMenu(props: { navItems: TopBarDom["elems"]["navItems"] }) {
   const [open, setOpen] = createSignal(false);
   let root!: HTMLDivElement;
 
@@ -58,7 +58,7 @@ function TouchTopBarMenu(props: { navItems: TopBarResult["elems"]["navItems"] })
 }
 
 export function TouchTopBar(props: {
-  source: TopBarResult;
+  source: TopBarDom;
   onSettingsMenuOpen: () => void;
 }) {
   return (

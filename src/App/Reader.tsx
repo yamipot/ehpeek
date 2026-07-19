@@ -12,20 +12,21 @@ import type { LoadedReaderPage, ReaderPage } from "../readerTypes";
 import { state } from "../state";
 import texts from "../texts.json";
 import { renderInto, unmountFrom } from "./render";
+import type { ReaderViewport, ReaderViewportSnapshot } from "./viewport";
 
 const PREVIEW_CACHE_LIMIT = 10;
 
 type ReaderFullscreenLaunch = {
   host: HTMLDivElement;
   result: Promise<boolean>;
-  viewport: eh.PageViewportSnapshot | null;
+  viewport: ReaderViewportSnapshot | null;
 };
 
 export type ReaderCallbacks = {
   enhanceThumbsGridsEnabled: () => boolean;
   readHistoryEnabled: () => boolean;
   onPageBarChange: (currentIndex: number, maxIndex: number | null) => void;
-  onReaderClosed: () => void;
+  onReaderClosed: (currentPage: number, totalPages: number | null) => void;
 };
 
 let activeReaderClose: (() => void) | undefined;
@@ -33,13 +34,14 @@ let activeReaderClose: (() => void) | undefined;
 export function onReaderDocumentClick(
   event: MouseEvent,
   callbacks: ReaderCallbacks,
-  preview: eh.GalleryPreviewResult | null,
+  preview: eh.GalleryPreviewDom | null,
+  viewport: ReaderViewport | null,
 ): void {
   if (!state.reader.enabled.value) {
     return;
   }
 
-  if (!preview) {
+  if (!preview || !viewport) {
     return;
   }
   const pageUrl = preview.actions.imageUrlForClick(event.target);
@@ -50,17 +52,25 @@ export function onReaderDocumentClick(
 
   event.preventDefault();
   event.stopPropagation();
-  openReaderFromUserAction(pageUrl, callbacks, preview);
+  openReaderFromUserAction(pageUrl, callbacks, preview, viewport);
 }
 
 export function openReaderFromUserAction(
   startPageUrl: string,
   callbacks: ReaderCallbacks,
-  preview: eh.GalleryPreviewResult,
+  preview: eh.GalleryPreviewDom,
+  viewport: ReaderViewport,
   preferredPageNum?: number,
 ): void {
-  const fullscreenLaunch = requestConfiguredFullscreen();
-  void openReader(startPageUrl, callbacks, preview, preferredPageNum, fullscreenLaunch).catch(async (error: unknown) => {
+  const fullscreenLaunch = requestConfiguredFullscreen(viewport);
+  void openReader(
+    startPageUrl,
+    callbacks,
+    preview,
+    viewport,
+    preferredPageNum,
+    fullscreenLaunch,
+  ).catch(async (error: unknown) => {
     if (fullscreenLaunch) {
       const fullscreenEntered = await fullscreenLaunch.result;
       if (document.fullscreenElement === fullscreenLaunch.host) {
@@ -69,7 +79,7 @@ export function openReaderFromUserAction(
         });
       }
       if (fullscreenEntered && fullscreenLaunch.viewport) {
-        await eh.restorePageViewport(fullscreenLaunch.viewport);
+        await viewport.restore(fullscreenLaunch.viewport);
       }
       fullscreenLaunch.host.remove();
     }
@@ -79,7 +89,8 @@ export function openReaderFromUserAction(
 
 export async function openReaderFromHash(
   callbacks: ReaderCallbacks,
-  preview: eh.GalleryPreviewResult,
+  preview: eh.GalleryPreviewDom,
+  viewport: ReaderViewport,
 ): Promise<void> {
   const peekPage = eh.peekPageFromHash();
 
@@ -91,13 +102,15 @@ export async function openReaderFromHash(
   const page = pages.find((item) => item.pageNum === peekPage) ?? pages[0];
 
   if (page) {
-    await openReader(page.url, callbacks, preview).catch(reportReaderOpenError);
+    await openReader(page.url, callbacks, preview, viewport).catch(
+      reportReaderOpenError,
+    );
   }
 }
 
 export async function openOriginalReader(
   pageNum: number,
-  source: eh.GalleryPreviewResult,
+  source: eh.GalleryPreviewDom,
 ): Promise<void> {
   const preview = source.data;
   if (preview.pageSize === null) {
@@ -117,7 +130,8 @@ export async function openOriginalReader(
 async function openReader(
   startPageUrl: string,
   callbacks: ReaderCallbacks,
-  source: eh.GalleryPreviewResult,
+  source: eh.GalleryPreviewDom,
+  viewport: ReaderViewport,
   preferredPageNum?: number,
   fullscreenLaunch?: ReaderFullscreenLaunch,
 ): Promise<void> {
@@ -125,9 +139,8 @@ async function openReader(
     return;
   }
 
-  const pageType = eh.extractPageType();
-
-  if (pageType.type !== "gallery") {
+  const gallery = eh.galleryIdentityFromUrl(source.data.currentUrl);
+  if (!gallery) {
     return;
   }
 
@@ -149,8 +162,8 @@ async function openReader(
 
   const historySession = callbacks.readHistoryEnabled()
     ? new ReadHistorySession({
-      galleryId: pageType.galleryId,
-      token: pageType.token,
+      galleryId: gallery.galleryId,
+      token: gallery.token,
       galleryUrl: preview.currentUrl,
       totalPages,
     })
@@ -166,7 +179,7 @@ async function openReader(
   if (automaticFullscreen && document.fullscreenElement !== fullscreenLaunch?.host) {
     historySession?.dispose();
     if (fullscreenLaunch?.viewport) {
-      await eh.restorePageViewport(fullscreenLaunch.viewport);
+      await viewport.restore(fullscreenLaunch.viewport);
     }
     fullscreenLaunch?.host.remove();
     return;
@@ -179,17 +192,18 @@ async function openReader(
     fullscreenViewport = null;
 
     if (snapshot) {
-      await eh.restorePageViewport(snapshot);
+      await viewport.restore(snapshot);
     }
   };
 
   openFullscreenReader({
-    galleryId: pageType.galleryId,
+    galleryId: gallery.galleryId,
     initialPageNum: startPageNum,
+    lockPageScroll: viewport.lockScroll,
     provider,
     totalPages,
     onBeforeEnterFullscreen: () => {
-      fullscreenViewport = eh.pageViewportForFullscreen();
+      fullscreenViewport = viewport.prepareFullscreen();
     },
     restorePageViewport,
     onActivePageChange: (page) => {
@@ -205,7 +219,7 @@ async function openReader(
     },
     onExit: () => {
       historySession?.dispose();
-      callbacks.onReaderClosed();
+      callbacks.onReaderClosed(lastPageNum, totalPages ?? null);
       const exitIndex = provider.previewIndexForPage(lastPageNum);
       const galleryUrl = eh.previewUrlForIndex(exitIndex);
 
@@ -271,7 +285,9 @@ function openFullscreenReader(
   );
 }
 
-function requestConfiguredFullscreen(): ReaderFullscreenLaunch | undefined {
+function requestConfiguredFullscreen(
+  viewportSource: ReaderViewport,
+): ReaderFullscreenLaunch | undefined {
   if (!state.reader.enabled.value || !state.reader.fullscreen.value || document.fullscreenElement) {
     return undefined;
   }
@@ -283,7 +299,7 @@ function requestConfiguredFullscreen(): ReaderFullscreenLaunch | undefined {
     return { host, result: Promise.resolve(false), viewport: null };
   }
 
-  const viewport = eh.pageViewportForFullscreen();
+  const viewport = viewportSource.prepareFullscreen();
 
   return {
     host,
@@ -291,7 +307,7 @@ function requestConfiguredFullscreen(): ReaderFullscreenLaunch | undefined {
     result: enterReaderFullscreen(host).then(
       () => true,
       async (error: unknown) => {
-        await eh.restorePageViewport(viewport);
+        await viewportSource.restore(viewport);
         console.warn("[ehpeek] Fullscreen request failed", error);
         return false;
       },

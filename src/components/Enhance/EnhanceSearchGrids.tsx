@@ -16,14 +16,14 @@ let setSearchLoading: ((loading: boolean) => void) | null = null;
 let setSwipeGestureTarget: ((target: HTMLElement | null) => void) | null = null;
 let onSearchPageChange: (() => void) | null = null;
 let searchNavigationLoading = false;
-let searchSource: eh.SearchResultsResult | null = null;
+let searchSource: eh.SearchResultsDom | null = null;
 
 type SwipeState = {
   horizontal: boolean;
   cancelled: boolean;
 };
 
-export function EnhanceSearchGrids(props: { onPageChange?: () => void; source: eh.SearchResultsResult }) {
+export function EnhanceSearchGrids(props: { onPageChange?: () => void; source: eh.SearchResultsDom }) {
   const [gestureTarget, setGestureTarget] = createSignal<HTMLElement | null>(null);
   const [loading, setLoading] = createSignal(false);
   const [swipeIndicatorState, setSwipeIndicatorState] = createSignal<SwipeIndicatorState>({

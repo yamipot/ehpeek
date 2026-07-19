@@ -1,6 +1,6 @@
 import { normalizeUrl } from "../../utils";
 import { galleryIdentityFromUrl } from "../url";
-import { captureGalleryApiSession } from "./gallery";
+import { extractGalleryApiSession } from "./gallery";
 import { DomNode, type ManagedDomElements } from "./core";
 
 const PERSISTENT_SELECTOR =
@@ -13,7 +13,7 @@ export type NavigationRequest = {
 };
 
 /** Owns and sanitizes one original E-H document for the SinglePage route lifecycle. */
-export function singlePageDocument(
+export function extractPageContent(
   root: Document | HTMLElement = document,
   baseUrl = window.location.href,
 ) {
@@ -27,7 +27,7 @@ export function singlePageDocument(
   const sources = page.all<HTMLElement>("*").filter((node) => !persistent(node));
   const contentSources = container.children().filter((node) => !persistent(node));
 
-  captureGalleryApiSession(root, baseUrl);
+  extractGalleryApiSession(root, baseUrl);
 
   const own = <T extends HTMLElement>(source: DomNode<T>) => {
     const existing = source.owned();
@@ -199,7 +199,7 @@ export function singlePageDocument(
   return { actions, data, elems };
 }
 
-export type SinglePageDocumentResult = ReturnType<typeof singlePageDocument>;
+export type PageContentDom = ReturnType<typeof extractPageContent>;
 
 function scriptNumberValue(script: string, name: string): number | null {
   const match = script.match(new RegExp(`\\b(?:var\\s+)?${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`));

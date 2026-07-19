@@ -1,10 +1,8 @@
-export type ReadButtonInfo = {
-  label: string;
-  detail: string;
-};
+import texts from "../../texts.json";
 
 export function ReadButton(props: {
-  info: ReadButtonInfo;
+  currentPage: number;
+  totalPages: number | null;
   onClick: () => void;
   variant: "gallery" | "touchGallery";
 }) {
@@ -27,8 +25,14 @@ export function ReadButton(props: {
         props.onClick();
       }}
     >
-      {props.info.label}
-      <span class={detailClassName()}>{props.info.detail}</span>
+      {props.currentPage > 1
+        ? texts.reader.continueReading
+        : texts.reader.startReading}
+      <span class={detailClassName()}>
+        {props.totalPages
+          ? `${props.currentPage}/${props.totalPages}`
+          : String(props.currentPage)}
+      </span>
     </button>
   );
 }

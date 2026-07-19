@@ -2,6 +2,7 @@ import {
   createMemo,
   createSignal,
   For,
+  type JSX,
   onCleanup,
   onMount,
   Show,
@@ -12,8 +13,7 @@ import type {
   GalleryTagAction,
   MyTagMode,
 } from "../../eh";
-import { type GalleryInfoResult, type GalleryInfoTagGroup } from "../../eh/transform";
-import * as EhSyringe from "../../eh/transform/ehSyringe";
+import { type GalleryInfoDom, type GalleryInfoTagGroup } from "../../eh";
 import texts from "../../texts.json";
 import { state } from "../../state";
 import { DomNode, DomNodes } from "../Widgets/ExternalDom";
@@ -42,9 +42,8 @@ const RATING_ACTION_BUTTON_CLASS =
 type GalleryPanelTagGroup = GalleryInfoTagGroup;
 
 export function GalleryInfoPanel(props: {
-  onPrimaryActionMount: (mount: HTMLElement) => void;
-  onPrimaryActionUnmount: () => void;
-  source: GalleryInfoResult;
+  primaryAction?: JSX.Element;
+  source: GalleryInfoDom;
 }) {
   const source = untrack(() => props.source);
   const rating = source.data.rating;
@@ -89,7 +88,6 @@ export function GalleryInfoPanel(props: {
 
     onCleanup(stopObservingTags);
   });
-  onCleanup(() => props.onPrimaryActionUnmount());
 
   const submitRating = async (value: number): Promise<boolean> => {
     if (!rating || ratingUpdating()) {
@@ -227,12 +225,9 @@ export function GalleryInfoPanel(props: {
       </div>
       <div class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]">
         <TouchGalleryFavoriteButton source={source} />
-        <div
-          class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]"
-          ref={(node) => {
-            props.onPrimaryActionMount(node);
-          }}
-        />
+        <div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]">
+          {props.primaryAction}
+        </div>
       </div>
       <div class="ehpeek-touch-gallery-content flex flex-col gap-lg pt-xl pr-[max(16px,env(safe-area-inset-right,0px))] pb-lg pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text">
         <div class="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-md gap-x-lg items-center textsize-md leading-[1.2] text-center">
@@ -339,7 +334,7 @@ export function GalleryInfoPanel(props: {
 }
 
 function TouchGalleryActionsMenu(props: {
-  actions: GalleryInfoResult["elems"]["actions"];
+  actions: GalleryInfoDom["elems"]["actions"];
 }) {
   const [open, setOpen] = createSignal(false);
   let root!: HTMLDivElement;
@@ -388,7 +383,7 @@ function TouchGalleryActionsMenu(props: {
 
 function TouchGalleryTagGroup(props: {
   group: GalleryPanelTagGroup;
-  source: GalleryInfoResult;
+  source: GalleryInfoDom;
   onNewTagOpen?: () => void;
 }) {
   return (
@@ -406,7 +401,7 @@ function TouchGalleryTagGroup(props: {
 }
 
 function TouchGalleryTag(props: {
-  source: GalleryInfoResult;
+  source: GalleryInfoDom;
   tag: GalleryPanelTagGroup["tags"][number];
   onNewTagOpen?: () => void;
 }) {
@@ -715,12 +710,9 @@ function TouchGalleryTag(props: {
   );
 }
 
-function TouchGalleryNewTag(props: { source: GalleryInfoResult }) {
+function TouchGalleryNewTag(props: { source: GalleryInfoDom }) {
   onMount(() => {
-    const field = props.source.elems.newTagField;
-    if (field) {
-      props.source.elems.newTagField = EhSyringe.reuseTagTipInput(field);
-    }
+    props.source.actions.reuseNewTagInput();
   });
 
   return <DomNode node={props.source.elems.newTag} />;
@@ -744,7 +736,7 @@ function TouchGalleryTagContent(props: {
   );
 }
 
-function TouchGalleryFavoriteButton(props: { source: GalleryInfoResult }) {
+function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
   const [favorite, setFavorite] = createSignal(
     untrack(() => ({ ...props.source.data.favorite })),
   );
@@ -871,7 +863,7 @@ function TouchGalleryFavoriteOption(props: {
   actionUrl: string;
   option: GalleryFavoriteOption;
   onApplied: () => void;
-  source: GalleryInfoResult;
+  source: GalleryInfoDom;
 }) {
   return (
     <button

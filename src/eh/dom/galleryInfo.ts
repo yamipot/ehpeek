@@ -1,12 +1,6 @@
 import texts from "../../texts.json";
-import {
-  favoriteGalleryTag,
-  parseGalleryFavoriteOptions,
-  readGalleryTagApiInfo,
-  removeGalleryTagFavorite,
-  runGalleryTagAction,
-  setGalleryRating,
-} from "./gallery";
+import galleryRearrange from "../galleryRearrange.css";
+import type { GalleryOperationsDom } from "./gallery";
 import type {
   GalleryCategoryAppearance,
   GalleryFavoriteInfo,
@@ -14,14 +8,34 @@ import type {
   GalleryTagData,
 } from "../types";
 import { galleryTagNameFromUrl } from "../url";
-import { requestPage, updateGalleryFavorite, type MyTagMode } from "../request";
-import { createAnchor, DomNode, type ManagedDomElements, type ManagedDomNode } from "./core";
-import type { GalleryPreviewData } from "./galleryPreview";
-import { applyTouchGalleryPanelPageStyle } from "./galleryPage";
+import { updateGalleryFavorite } from "../request";
+import {
+  createAnchor,
+  createManagedElement,
+  documentHead,
+  DomNode,
+  type ManagedDomElements,
+  type ManagedDomNode,
+} from "./core";
+import type { GalleryPreviewData } from "./gallery";
+import * as EhSyringe from "./ehSyringe";
+
+const TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID =
+  "ehpeek-touch-gallery-page-rearrange-style";
 
 /** Reads and takes ownership of E-H's gallery header for GalleryInfoPanel. */
-export function galleryInfo(preview: GalleryPreviewData | null) {
-  applyTouchGalleryPanelPageStyle();
+export function extractGalleryInfo(
+  preview: GalleryPreviewData | null,
+  operations: GalleryOperationsDom,
+) {
+  if (!DomNode.from(document).one(`#${TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID}`)) {
+    const style = createManagedElement("style").attribute(
+      "id",
+      TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID,
+    );
+    style.setTextUnlessInput(galleryRearrange);
+    documentHead()?.append(style);
+  }
   const mount = createAnchor("gallery-info");
   if (!mount) {
     return null;
@@ -386,33 +400,31 @@ export function galleryInfo(preview: GalleryPreviewData | null) {
 
   const actions = {
     async favoriteOptions(actionUrl: string, favorited: boolean) {
-      const response = await requestPage(actionUrl);
-      return parseGalleryFavoriteOptions(response.document, favorited);
+      return operations.actions.favoriteOptions(actionUrl, favorited);
     },
-    async favoriteTag(tag: GalleryTagData, tagSet: string, mode: MyTagMode): Promise<void> {
-      await favoriteGalleryTag(tag, tagSet, mode);
+    async favoriteTag(
+      ...args: Parameters<GalleryOperationsDom["actions"]["favoriteTag"]>
+    ): Promise<void> {
+      await operations.actions.favoriteTag(...args);
     },
     observeTagGroups(onChange: (groups: GalleryInfoTagGroup[]) => void) {
       const tagList = page.one<HTMLElement>("#taglist");
       const managedTagList = tagList?.owned() ?? tagList?.inplace();
       return managedTagList?.observe(() => onChange(manageTagGroups())) ?? (() => undefined);
     },
-    async rate(value: number) {
-      const api = readGalleryTagApiInfo();
-      if (!api) {
-        throw new Error("Gallery API context is unavailable.");
+    reuseNewTagInput(): void {
+      if (elems.newTagField) {
+        elems.newTagField = EhSyringe.reuseTagTipInput(elems.newTagField);
       }
-      return setGalleryRating(api, value);
+    },
+    async rate(value: number) {
+      return operations.actions.rate(value);
     },
     async removeFavoriteTag(tag: GalleryTagData): Promise<void> {
-      await removeGalleryTagFavorite(tag);
+      await operations.actions.removeFavoriteTag(tag);
     },
     async tagAction(tag: GalleryTagData, action: import("../types").GalleryTagAction): Promise<void> {
-      const api = readGalleryTagApiInfo();
-      if (!api) {
-        throw new Error("Gallery API context is unavailable.");
-      }
-      await runGalleryTagAction(api, tag, action);
+      await operations.actions.tagAction(tag, action);
     },
     async updateFavorite(actionUrl: string, value: string): Promise<void> {
       await updateGalleryFavorite(actionUrl, value);
@@ -422,8 +434,77 @@ export function galleryInfo(preview: GalleryPreviewData | null) {
   return { actions, data, elems, transforms };
 }
 
-export type GalleryInfoResult = NonNullable<ReturnType<typeof galleryInfo>>;
+export type GalleryInfoDom = NonNullable<ReturnType<typeof extractGalleryInfo>>;
 export type GalleryInfoTagGroup = {
   namespace: string;
   tags: Array<GalleryTagData & { contentSource: ManagedDomNode }>;
 };
+
+/** Converts Gallery Comments score details from hover interaction to touch interaction. */
+export function extractGalleryCommentsTouch() {
+  const items = DomNode.from(document).all<HTMLElement>("#cdiv .c5")
+    .filter((trigger) => trigger.attribute("data-ehpeek-touch-comment-score") !== "true")
+    .map((trigger) => ({
+      trigger,
+      details: trigger.closest<HTMLElement>(".c1")?.one<HTMLElement>(".c7[id^='cvotes_']") ?? null,
+    }))
+    .filter((item): item is { trigger: DomNode<HTMLElement>; details: DomNode<HTMLElement> } => item.details !== null)
+    .map(({ trigger, details }) => ({
+      details: details.owned() ?? details.inplace(),
+      detailsId: details.attribute("id") ?? "",
+      expanded: false,
+      trigger: trigger.owned() ?? trigger.inplace(),
+    }))
+    .filter((item) => item.details !== null && item.trigger !== null);
+
+  const setExpanded = (item: (typeof items)[number], expanded: boolean) => {
+    item.expanded = expanded;
+    item.trigger?.attribute("aria-expanded", String(expanded));
+    item.details?.attribute("aria-hidden", String(!expanded));
+    item.details?.styles({ display: expanded ? "" : "none" });
+  };
+
+  for (const item of items) {
+    if (!item.trigger || !item.details) {
+      continue;
+    }
+
+    item.trigger.transform({
+      attributes: {
+        remove: ["onmouseover", "onmouseout", "onclick"],
+        set: {
+          "data-ehpeek-touch-comment-score": "true",
+          role: "button",
+          tabindex: "0",
+          "aria-controls": item.detailsId,
+        },
+      },
+      classes: { add: ["whitespace-nowrap"] },
+    });
+    setExpanded(item, false);
+
+    const toggle = (event: Event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const shouldExpand = !item.expanded;
+
+      for (const candidate of items) {
+        setExpanded(candidate, candidate === item && shouldExpand);
+      }
+    };
+
+    item.trigger.listen("click", toggle);
+    item.trigger.listen("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        toggle(event);
+      }
+    });
+  }
+
+  return {
+    elems: {
+      details: items.flatMap((item) => (item.details ? [item.details] : [])),
+      triggers: items.flatMap((item) => (item.trigger ? [item.trigger] : [])),
+    },
+  };
+}

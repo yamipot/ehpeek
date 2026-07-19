@@ -1,5 +1,5 @@
 import { createEffect, createSignal, untrack, type JSX } from "solid-js";
-import type { SearchPanelClasses, SearchPanelResult } from "../../eh/transform";
+import type { SearchPanelClasses, SearchPanelDom } from "../../eh";
 import texts from "../../texts.json";
 import { DomNode } from "../Widgets/ExternalDom";
 import { Icon } from "../Widgets/Icon";
@@ -31,7 +31,7 @@ export function touchSearchPanelClasses(hasClear: boolean): SearchPanelClasses {
   };
 }
 
-export function TouchSearchPanel(props: { after?: JSX.Element; source: SearchPanelResult }) {
+export function TouchSearchPanel(props: { after?: JSX.Element; source: SearchPanelDom }) {
   return (
     <section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_32px)] max-w-960px flex-col gap-md mx-auto mb-lg p-lg border ehp-color-site-border rounded-lg ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans">
       <DomNode node={props.source.elems.searchBox} />
@@ -41,19 +41,19 @@ export function TouchSearchPanel(props: { after?: JSX.Element; source: SearchPan
   );
 }
 
-export function TouchSearchCategoryToggle(props: { source: SearchPanelResult }) {
+export function TouchSearchCategoryToggle(props: { source: SearchPanelDom }) {
   const [open, setOpen] = createSignal(false);
   createEffect(() => props.source.transforms.categories(open()));
   return <ToggleButton expanded={open()} label={texts.search.categories} onClick={() => setOpen((value) => !value)} />;
 }
 
-export function TouchSearchFileToggle(props: { source: SearchPanelResult }) {
+export function TouchSearchFileToggle(props: { source: SearchPanelDom }) {
   const [open, setOpen] = createSignal(false);
   createEffect(() => props.source.transforms.fileSearch(open()));
   return <ToggleButton expanded={open()} label={texts.search.fileSearch} onClick={() => setOpen((value) => !value)} />;
 }
 
-export function TouchSearchAdvancedToggle(props: { source: SearchPanelResult }) {
+export function TouchSearchAdvancedToggle(props: { source: SearchPanelDom }) {
   const [open, setOpen] = createSignal(false);
   createEffect(() => props.source.transforms.advanced(open()));
   return <ToggleButton expanded={open()} label={texts.search.advancedOptions} onClick={() => setOpen((value) => !value)} />;
@@ -67,7 +67,7 @@ function ToggleButton(props: { expanded: boolean; label: string; onClick: () => 
   );
 }
 
-export function TouchSearchAction(props: { action: "search" | "clear"; source: SearchPanelResult }) {
+export function TouchSearchAction(props: { action: "search" | "clear"; source: SearchPanelDom }) {
   const source = untrack(() => props.source);
   const search = untrack(() => props.action === "search");
   const label = search ? source.data.searchLabel : source.data.clearLabel ?? "";

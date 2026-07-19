@@ -6,8 +6,8 @@
 
 ## Logic
 - Keep changes scoped to the request; do not add compatibility fallbacks or unrelated refactors.
-- Follow the original-page DOM and component ownership boundary documented in `src/eh/transform/index.ts`.
-- Keep original E-H selectors, markup assumptions, and original-node transformations inside `src/eh/transform`; components only consume detached data and managed nodes.
+- Follow the original-page DOM and component ownership boundary documented in `src/eh/dom/index.ts`.
+- Keep original E-H selectors, markup assumptions, and original-node transformations inside `src/eh/dom`; components only consume detached data and managed nodes.
 - Write component structure as coherent TSX; refs may access component-owned DOM but should not expose raw nodes when a semantic operation is sufficient.
 - Prefer `state` for persistent observable values and continuous interaction data; keep it with the closest owner that coordinates all consumers.
 - Use non-null `actions` only at imperative side-effect boundaries such as focus, scrolling, downloads, or lifecycle control where encoding a transient command as state would require consume/reset semantics; use `callbacks` for user events, results, or requests flowing back to the owner, without pass-through wrappers or conversion layers.

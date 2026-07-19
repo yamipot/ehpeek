@@ -17,7 +17,7 @@ export type SearchPanelClasses = {
 };
 
 /** Extracts and owns the original search controls for the TouchUI SearchPanel feature. */
-export function searchPanel() {
+export function extractSearchPanel() {
   const page = DomNode.from(document);
   const searchInput = page.one<HTMLInputElement>("#f_search, input[name='f_search']");
   const form = searchInput?.form() ?? null;
@@ -273,4 +273,4 @@ function attachCategoryActions(
   });
 }
 
-export type SearchPanelResult = NonNullable<ReturnType<typeof searchPanel>>;
+export type SearchPanelDom = NonNullable<ReturnType<typeof extractSearchPanel>>;

@@ -4,7 +4,8 @@
  * A feature function owns the complete source-DOM contract for one feature:
  * selectors, data extraction, required-node validation, ownership decisions,
  * and original class/style/attribute handling stay together in this package.
- * Components consume its result directly and must not query the original page.
+ * Components consume its `XxxDom` object directly and must not query the
+ * original page.
  *
  * Source nodes are read only through `DomNode`. Validate every required node
  * before taking ownership and return `null` when the feature cannot be resolved.
@@ -13,8 +14,8 @@
  * Use `DomNode.observe` for asynchronously inserted source nodes and choose
  * ownership in its acquire callback; use `ManagedDomNode.observe` after ownership.
  *
- * Feature results separate detached values in `data` from owned nodes in
- * `elems`. Every `elems` property must be `ManagedDomNode`,
+ * Extracted `XxxDom` objects separate detached values in `data` from owned
+ * nodes in `elems`. Every `elems` property must be `ManagedDomNode`,
  * `ManagedDomNode[]`, or `null`; nested element-bearing objects and raw DOM
  * nodes are not allowed. Components embed these nodes through `Component` or
  * render into an owned anchor through `mount`, never through a raw-node getter.
@@ -30,17 +31,15 @@
  * target, but it must never return a raw original-page node.
  * Keep one-off resolve/apply helpers inside their feature function; only parsers
  * shared by multiple features or repeated document loads belong at module scope.
+ * Public feature entry points use `extractXxx` names and are called together by
+ * App page injection. Async providers may extract fetched documents; later DOM
+ * refreshes stay behind the source's actions or transforms.
  */
 export * from "./core";
 export * as EhSyringe from "./ehSyringe";
 export * from "./galleryInfo";
 export * from "./gallery";
 export * from "./search";
-export * from "./galleryPage";
-export * from "./galleryPreview";
-export * from "./resultsPage";
-export * from "./reader";
 export * from "./searchPanel";
 export * from "./singlePage";
 export * from "./topBar";
-export * from "./viewport";

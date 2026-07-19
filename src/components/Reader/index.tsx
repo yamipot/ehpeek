@@ -12,7 +12,6 @@ import {
   targetSummary,
 } from "../../utils";
 import type { ScrollMotion } from "../animation";
-import { lockPageScroll } from "../../eh/transform/viewport";
 import type { PointerDragEnd, PointerGestureCallbacks } from "../PointerGesture";
 import {
   PagesViewport,
@@ -72,6 +71,7 @@ export type FullscreenReaderOptions = {
   fullscreenTarget: HTMLElement;
   galleryId: number;
   initialPageNum: number;
+  lockPageScroll: () => () => void;
   provider: ReaderPageProvider;
   totalPages?: number;
   onExit?: () => void;
@@ -507,7 +507,7 @@ export function FullscreenReader(props: {
   };
 
   onMount(() => {
-    const unlockPageScroll = lockPageScroll();
+    const unlockPageScroll = props.options.lockPageScroll();
     readerSession = new ReaderSession(
       props.options,
       {
