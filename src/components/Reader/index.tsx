@@ -625,6 +625,7 @@ class ReaderSession {
   private historyEntry = false;
   private closing = false;
   private closed = false;
+  private fullscreenExitPromise: Promise<void> | null = null;
   private fullscreenWasActive: boolean;
   private keepReaderAfterFullscreenExit = false;
 
@@ -691,6 +692,7 @@ class ReaderSession {
     }
 
     this.finishClose();
+    void this.finishReaderExit();
   }
 
   private syncInitialUi(): void {
@@ -706,8 +708,20 @@ class ReaderSession {
 
     this.historyEntry = false;
     this.finishClose();
-    this.onExit?.();
+    void this.finishReaderExit();
   };
+
+  private async finishReaderExit(): Promise<void> {
+    await this.fullscreenExitPromise;
+
+    try {
+      await this.restorePageViewport?.();
+    } catch (error) {
+      console.warn("[ehpeek] Failed to restore page viewport", error);
+    }
+
+    this.onExit?.();
+  }
 
   private finishClose(): void {
     if (this.cleanup()) {
@@ -727,9 +741,8 @@ class ReaderSession {
     window.removeEventListener("popstate", this.onPopState);
     document.removeEventListener("fullscreenchange", this.onFullscreenChange);
     if (document.fullscreenElement === this.fullscreenTarget) {
-      void document
+      this.fullscreenExitPromise = document
         .exitFullscreen()
-        .then(() => this.restorePageViewport?.())
         .catch((error: unknown) => {
           console.warn("[ehpeek] Failed to exit fullscreen", error);
         });
@@ -1395,14 +1408,15 @@ class ReaderSession {
   };
 
   private async finishFullscreenExit(keepReaderOpen: boolean): Promise<void> {
+    if (!keepReaderOpen) {
+      this.close();
+      return;
+    }
+
     try {
       await this.restorePageViewport?.();
     } catch (error) {
       console.warn("[ehpeek] Failed to restore page viewport", error);
-    }
-
-    if (!keepReaderOpen) {
-      this.close();
     }
   }
 

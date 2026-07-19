@@ -521,10 +521,10 @@ function PageSlotPlaceholder(props: {
       class={
         props.content.state === "error"
           ? "flex w-full h-full flex-col items-center justify-center gap-lg bg-[var(--color-surface)] p-xl text-[var(--color-danger)] text-center textsize-md font-700 leading-1"
-          : "relative flex w-full h-full items-center justify-center bg-[var(--color-surface)] text-[var(--color-muted)] leading-1 text-center " +
+          : "relative flex w-full h-full items-center justify-center bg-[var(--color-surface)] text-[var(--color-muted)] text-center " +
             (props.content.kind === "end"
               ? "p-xl [direction:ltr] textsize-xl font-700 leading-[1.3] [unicode-bidi:plaintext]"
-              : "text-[clamp(88px,25vw,180px)] desktop:text-[clamp(72px,10vw,140px)] font-mono font-850 [font-variant-numeric:tabular-nums]")
+              : "text-[clamp(88px,25vw,180px)] desktop:text-[clamp(72px,10vw,140px)] font-mono font-850 leading-[1] [font-variant-numeric:tabular-nums]")
       }
       role={props.content.state === "loading" ? "status" : undefined}
       aria-label={props.content.state === "loading" ? `${texts.reader.loading} ${props.text}` : undefined}
