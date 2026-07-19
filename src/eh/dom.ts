@@ -19,6 +19,7 @@ const TOUCH_FAVORITES_NAV_CLASS_NAME = "box-border !max-w-full overflow-x-auto";
 const TOUCH_FAVORITES_RESULTS_CLASS_NAME = "ehpeek-touch-favorites-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto";
 const TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
 const TOUCH_FAVORITES_ALL_RESULTS_CLASS_NAME = "!overflow-x-hidden";
+const preparedTouchSearchCategories = new WeakSet<HTMLElement>();
 const TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden";
 const TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !max-w-full !overflow-x-hidden";
 const TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME =
@@ -606,6 +607,7 @@ export function prepareSinglePageContent(root: ParentNode, baseUrl: string): voi
   captureGalleryApiSession(root, baseUrl);
   preserveSinglePageGalleryData(root, baseUrl);
   preserveSinglePageGalleryUtilityLinks(root, baseUrl);
+  preserveSinglePageFileSearchAction(root, baseUrl);
 
   for (const form of Array.from(root.querySelectorAll<HTMLFormElement>("form"))) {
     const action = form.getAttribute("action") ?? "";
@@ -624,6 +626,73 @@ export function prepareSinglePageContent(root: ParentNode, baseUrl: string): voi
   for (const script of Array.from(root.querySelectorAll<HTMLScriptElement>("script"))) {
     script.remove();
   }
+}
+
+function preserveSinglePageFileSearchAction(root: ParentNode, baseUrl: string): void {
+  const fileSearch = root.querySelector<HTMLElement>("#fsdiv");
+  const action = readFileSearchAction(root, baseUrl);
+
+  if (fileSearch && action) {
+    fileSearch.dataset.ehpeekFileSearchAction = action;
+  }
+}
+
+function readFileSearchAction(root: ParentNode, baseUrl: string): string {
+  const preserved = root.querySelector<HTMLElement>("#fsdiv")?.dataset.ehpeekFileSearchAction;
+  if (preserved) {
+    return preserved;
+  }
+
+  const script = Array.from(root.querySelectorAll<HTMLScriptElement>("script"), (item) => item.textContent ?? "")
+    .find((text) => text.includes("ulhost")) ?? "";
+  const uploadBase = script.match(/\bulhost\s*=\s*["']([^"']+)["']/)?.[1];
+  return uploadBase ? new URL("image_lookup.php", normalizeUrl(uploadBase, baseUrl)).href : "";
+}
+
+function prepareAdvancedSearchPanel(panel: HTMLElement): void {
+  const template = document.createElement("template");
+  template.innerHTML = `
+    <input type="hidden" id="advsearch" name="advsearch" value="1">
+    <div class="searchadv">
+      <div>
+        <div><label class="lc"><input type="checkbox" name="f_sh"><span></span> Browse Expunged Galleries</label></div>
+        <div><label class="lc"><input type="checkbox" name="f_sto"><span></span> Require Gallery Torrent</label></div>
+      </div>
+      <div>
+        <div>Between <input type="text" id="f_spf" name="f_spf" size="4" maxlength="4"> and <input type="text" id="f_spt" name="f_spt" size="4" maxlength="4"> pages</div>
+        <div>Minimum Rating: <select id="f_srdd" name="f_srdd"><option value="0">Any Rating</option><option value="2">2 Stars</option><option value="3">3 Stars</option><option value="4">4 Stars</option><option value="5">5 Stars</option></select></div>
+      </div>
+      <div>
+        <div>Disable custom filters for:</div>
+        <div><label class="lc"><input type="checkbox" name="f_sfl"><span></span> Language</label></div>
+        <div><label class="lc"><input type="checkbox" name="f_sfu"><span></span> Uploader</label></div>
+        <div><label class="lc"><input type="checkbox" name="f_sft"><span></span> Tags</label></div>
+      </div>
+    </div>`;
+  panel.replaceChildren(template.content);
+}
+
+function prepareFileSearchPanel(panel: HTMLElement): void {
+  const action = panel.dataset.ehpeekFileSearchAction;
+  if (!action) {
+    return;
+  }
+
+  const form = document.createElement("form");
+  form.action = action;
+  form.method = "post";
+  form.enctype = "multipart/form-data";
+  const template = document.createElement("template");
+  template.innerHTML = `
+    <div>Select a file to upload, then hit File Search. All public galleries containing this exact file will be displayed.</div>
+    <div><input type="file" name="sfile"> <input type="submit" name="f_sfile" value="File Search"></div>
+    <div>For color images, the system can also perform a similarity lookup to find resampled images.</div>
+    <div class="searchadv"><div>
+      <div><label class="lc"><input type="checkbox" name="fs_similar" checked><span></span> Use Similarity Scan</label></div>
+      <div><label class="lc"><input type="checkbox" name="fs_covers"><span></span> Only Search Covers</label></div>
+    </div></div>`;
+  form.append(template.content);
+  panel.replaceChildren(form);
 }
 
 function preserveSinglePageGalleryUtilityLinks(root: ParentNode, baseUrl: string): void {
@@ -691,6 +760,14 @@ export function singlePageNavigationLink(target: EventTarget | null): HTMLAnchor
   }
 
   return link;
+}
+
+export function findClickedGalleryLink(
+  target: EventTarget | null,
+  extractPageType: (url: string) => PageType,
+): HTMLAnchorElement | null {
+  const link = target instanceof Element ? target.closest<HTMLAnchorElement>("a[href]") : null;
+  return link && extractPageType(link.href).type === "gallery" ? link : null;
 }
 
 export function singlePageSearchForm(target: EventTarget | null): HTMLFormElement | null {
@@ -818,6 +895,11 @@ export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSear
   const fileSearchToggle = optionLinks?.querySelector<HTMLAnchorElement>(
     "a[onclick*='toggle_filesearch'], a[data-ehpeek-search-file-toggle='true']",
   ) ?? null;
+  const fileSearch = root.querySelector<HTMLElement>("#fsdiv");
+  const fileSearchAction = readFileSearchAction(root, window.location.href);
+  if (fileSearch && fileSearchAction) {
+    fileSearch.dataset.ehpeekFileSearchAction = fileSearchAction;
+  }
   const searchSubmit =
     form?.querySelector<HTMLInputElement | HTMLButtonElement>("input[name='f_apply'], button[name='f_apply']") ??
     searchInput?.parentElement?.querySelector<HTMLInputElement | HTMLButtonElement>(
@@ -866,7 +948,7 @@ export function readTouchSearchPanelInfo(root: ParentNode = document): TouchSear
     clearActionMount,
     clearButton,
     clearLabel: clearButton ? searchActionLabel(clearButton) : null,
-    fileSearch: root.querySelector<HTMLElement>("#fsdiv"),
+    fileSearch,
     fileSearchToggle,
     fileSearchToggleMount,
     form,
@@ -895,6 +977,13 @@ export function prepareTouchSearchPanel(info: TouchSearchPanelInfo, optionClassN
   const form = info.form;
   const searchInput = info.searchInput;
   const advancedPanel = form?.querySelector<HTMLElement>("#advdiv");
+
+  if (advancedPanel && advancedPanel.childElementCount === 0) {
+    prepareAdvancedSearchPanel(advancedPanel);
+  }
+  if (info.fileSearch && info.fileSearch.childElementCount === 0) {
+    prepareFileSearchPanel(info.fileSearch);
+  }
 
   if (!info.searchBox.contains(form)) {
     form.id ||= "ehpeek-search-form";
@@ -936,7 +1025,7 @@ export function prepareTouchSearchPanel(info: TouchSearchPanelInfo, optionClassN
       const colorClass = Array.from(category.classList).find((className) => /^ct(?:[1-9a])$/.test(className));
       category.className =
         `${colorClass ? `${colorClass} ` : ""}` +
-        "flex box-border w-full min-w-0 !h-lg items-center justify-center px-md border rounded-md text-white text-center textsize-md font-700 leading-[1.15] whitespace-nowrap shadow-[0_2px_6px_var(--color-shadow-control)] cursor-pointer select-none transition-opacity [touch-action:manipulation] active:opacity-70 [&[data-disabled]]:opacity-40";
+        "flex box-border w-full min-w-0 !h-lg items-center justify-center px-md border rounded-md text-white text-center textsize-md font-700 leading-[1.15] whitespace-nowrap shadow-[0_2px_6px_var(--color-shadow-control)] cursor-pointer select-none transition-opacity [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] active:opacity-70 [&[data-disabled]]:opacity-40";
       prepareTouchSearchCategory(category, form);
     }
   }
@@ -992,7 +1081,7 @@ export function prepareTouchSearchPanel(info: TouchSearchPanelInfo, optionClassN
 }
 
 function prepareTouchSearchCategory(category: HTMLElement, form: HTMLFormElement): void {
-  if (category.dataset.ehpeekCategory === "true") {
+  if (preparedTouchSearchCategories.has(category)) {
     return;
   }
 
@@ -1003,12 +1092,15 @@ function prepareTouchSearchCategory(category: HTMLElement, form: HTMLFormElement
     return;
   }
 
+  preparedTouchSearchCategories.add(category);
+  category.removeAttribute("onclick");
   category.dataset.ehpeekCategory = "true";
   const update = () => {
     category.toggleAttribute("data-disabled", (Number(categoryMask.value) & bit) !== 0);
   };
   update();
   category.addEventListener("click", () => {
+    categoryMask.disabled = false;
     categoryMask.value = String(Number(categoryMask.value) ^ bit);
     update();
   });

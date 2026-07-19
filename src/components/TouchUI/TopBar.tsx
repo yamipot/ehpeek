@@ -1,6 +1,5 @@
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import * as eh from "../../eh";
-import texts from "../../texts.json";
 import { Icon } from "../Widgets/Icon";
 
 const TOUCH_TOP_BAR_ICON_SIZE = 41;
@@ -45,8 +44,6 @@ function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
         class={`ehpeek-touch-top-bar-menu-button ${TOUCH_ICON_BUTTON_CLASS}`}
         aria-haspopup="menu"
         aria-expanded={open()}
-        aria-label={texts.navigation.menu}
-        title={texts.navigation.menu}
         onClick={(event: MouseEvent) => {
           event.stopPropagation();
           setOpen((value) => !value);
@@ -71,8 +68,6 @@ export function TouchTopBar(props: { info: eh.TouchTopBarInfo; onSettingsMenuOpe
       <a
         class={`ehpeek-touch-top-bar-project ${TOUCH_ICON_BUTTON_CLASS}`}
         href={props.info.homeHref}
-        aria-label={texts.navigation.home}
-        title={texts.navigation.home}
       >
         <Icon name="panda-peek" size={58} strokeWidth={1.8} />
       </a>
@@ -80,24 +75,18 @@ export function TouchTopBar(props: { info: eh.TouchTopBarInfo; onSettingsMenuOpe
         <a
           class={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`}
           href={props.info.homeHref}
-          aria-label={texts.navigation.home}
-          title={texts.navigation.home}
         >
           <Icon name="home" size={TOUCH_TOP_BAR_ICON_SIZE} />
         </a>
         <a
           class={`ehpeek-touch-top-bar-favorites ${TOUCH_ICON_BUTTON_CLASS}`}
           href={props.info.favoritesHref}
-          aria-label={texts.navigation.favorites}
-          title={texts.navigation.favorites}
         >
           <Icon name="heart" size={TOUCH_TOP_BAR_ICON_SIZE} />
         </a>
         <button
           type="button"
           class={`ehpeek-touch-top-bar-settings ${TOUCH_ICON_BUTTON_CLASS}`}
-          aria-label={texts.settings.openSettings}
-          title={texts.settings.openSettings}
           onClick={(event: MouseEvent) => {
             event.stopPropagation();
             props.onSettingsMenuOpen();

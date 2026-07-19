@@ -1,16 +1,12 @@
 {
-  "description": "A mobile-optimized E-H/ExH viewer",
-  "reader": {
+  "description": "A touch-optimized E-H/ExH viewer",
+  "button": {
+    "apply": "Apply",
     "close": "Close",
-    "scrollMode": "Switch to scroll mode",
-    "pagedMode": "Switch to page-flip mode",
-    "readLeftToRight": "Read left to right",
-    "readRightToLeft": "Read right to left",
-    "rightTapPrevious": "Right tap goes to previous page",
-    "rightTapNext": "Right tap goes to next page",
-    "openOriginalPage": "Open original image page",
-    "enterFullscreen": "Enter fullscreen",
-    "exitFullscreen": "Exit fullscreen",
+    "confirm": "Confirm",
+    "default": "Default"
+  },
+  "reader": {
     "download": "Download",
     "downloadDisplayedImage": "Displayed image",
     "downloadOriginalImage": "Original image",
@@ -18,23 +14,14 @@
     "originalImageUnavailable": "Original image unavailable",
     "startReading": "Read",
     "continueReading": "Continue",
-    "backToTop": "Back to top",
     "loading": "Loading...",
     "pages": "Pages",
     "endPage": "End",
     "end": "End of gallery. Tap to exit.",
-    "failedPrefix": "Failed",
-    "reload": "Reload"
-  },
-  "navigation": {
-    "favorites": "Favorites",
-    "github": "Ehpeek on GitHub",
-    "home": "Home",
-    "menu": "Menu"
+    "failedPrefix": "Failed"
   },
   "favorites": {
-    "all": "All",
-    "categories": "Favorite category"
+    "all": "All"
   },
   "gallery": {
     "favoriteTag": "Favorite",
@@ -54,21 +41,18 @@
   "settings": {
     "openSettings": "Settings",
     "menuLabel": "Ehpeek",
-    "showHelp": "What does this setting do?",
     "on": "On",
     "off": "Off",
     "singlePageApp": "Single Page App",
-    "singlePageAppHelp": "Loads pages without a full page refresh; requires Touch UI",
+    "singlePageAppHelp": "Loads pages without a full page refresh; only applys to Touch UI",
     "readerLabel": "Reader",
     "readerHelp": "Opens gallery images in Ehpeek's reader",
-    "readerFullscreenLabel": "Open in Fullscreen",
-    "readerFullscreenHelp": "Fullscreen when reader opens",
-    "readerOptions": "Reader Options",
-    "showReaderOptions": "Show Reader options",
-    "hideReaderOptions": "Hide Reader options",
+    "readerFullscreenLabel": "Reader in Fullscreen",
+    "readerFullscreenHelp": "Enters fullscreen when the Reader opens",
+    "readerOptions": "Options",
+    "openGalleryInNewTabLabel": "Gallery in New Tab",
+    "openGalleryInNewTabHelp": "Opens Gallery links in a new browser tab",
     "enhance": "Enhance",
-    "showEnhance": "Show Enhance settings",
-    "hideEnhance": "Hide Enhance settings",
     "enhanceSearchLabel": "Search Grids",
     "enhanceSearchHelp": "Adds swipe navigation to search pages",
     "enhanceThumbsLabel": "Thumbs Grids",
@@ -80,25 +64,17 @@
     "searchHistoryLabel": "Search History",
     "searchHistoryHelp": "Remembers previous searches",
     "touchUiLabel": "Touch UI",
-    "touchUiHelp": "Uses touch-friendly navigation UI.",
-    "apply": "Apply",
-    "default": "Default",
-    "close": "Close"
+    "touchUiHelp": "Uses touch-friendly navigation UI."
   },
   "search": {
     "advancedOptions": "Advanced Options",
     "categories": "Categories",
-    "fileSearch": "File Search",
-    "history": "Search History",
-    "deleteHistory": "Delete search history item"
+    "fileSearch": "File Search"
   },
   "singlePageApp": {
     "loadFailed": "Could not load this page",
     "openOriginal": "Open original page",
     "dismiss": "Dismiss"
-  },
-  "text": {
-    "confirm": "Confirm"
   },
   "errors": {
     "imageNotFound": "Image not found",

@@ -1,6 +1,5 @@
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import type { SearchHistorySource } from "../../eh";
-import texts from "../../texts.json";
 
 const SEARCH_HISTORY_KEY = "ehpeek:search:history";
 
@@ -130,7 +129,6 @@ export function SearchHistory(props: { source: SearchHistorySource }) {
             top: `${currentPosition.top}px`,
             width: `${currentPosition.width}px`,
           }}
-          aria-label={texts.search.history}
           role="list"
         >
           <For each={history()}>{(item, index) => (
@@ -151,8 +149,6 @@ export function SearchHistory(props: { source: SearchHistorySource }) {
               <button
                 type="button"
                 class="appearance-none inline-flex w-60px min-h-lg flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text textsize-xl font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"
-                aria-label={`${texts.search.deleteHistory}: ${item}`}
-                title={texts.search.deleteHistory}
                 onClick={() => {
                   const next = history().filter((candidate) => candidate !== item);
                   saveSearchHistory(next);

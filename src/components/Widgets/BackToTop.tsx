@@ -1,5 +1,4 @@
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
-import texts from "../../texts.json";
 import { Icon } from "./Icon";
 
 const BACK_TO_TOP_POSITION_KEY = "ehpeek:back-to-top:position";
@@ -38,8 +37,6 @@ export function BackToTop() {
         type="button"
         class="ehpeek-back-to-top fixed right-[max(16px,env(safe-area-inset-right,0px))] bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_64px)] z-ui inline-flex w-lg h-lg items-center justify-center rounded-full border ehp-color-site-border bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96"
         style={position() ? { bottom: `${position()!.bottom}px`, right: `${position()!.right}px` } : undefined}
-        aria-label={texts.reader.backToTop}
-        title={texts.reader.backToTop}
         onPointerDown={(event) => {
           const rect = button.getBoundingClientRect();
           dragged = false;

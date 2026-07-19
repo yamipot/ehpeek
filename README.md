@@ -1,6 +1,6 @@
-# <img src="./icon.svg" width="42" alt="ehpeek panda icon" align="absmiddle"> ehpeek
+# <img src="./icon.svg" width="42" alt="ehpeek panda icon" align="absmiddle"> EhPeek
 
-Another reader for E-H / ExH galleries. Optimized for touchscreen and mobile.
+Another touch-optimized reader for E-H / ExH galleries.
 
 ## Features
 

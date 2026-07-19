@@ -10,9 +10,12 @@ type StateValue<T> = {
   reload: () => T;
 };
 
+const touchUiDefault = window.matchMedia("(pointer: coarse)").matches;
+
 export const state = {
   app: {
-    singlePage: persisted("ehpeek:single-page-app:enabled", true),
+    openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", false),
+    singlePage: persisted("ehpeek:single-page-app:enabled", touchUiDefault),
   },
   reader: {
     enabled: persisted("ehpeek:reader:enabled", true),
@@ -32,7 +35,7 @@ export const state = {
     history: persisted("ehpeek:search-history:enabled", true),
   },
   touch: {
-    enabled: persisted("ehpeek:touch-ui:enabled", true),
+    enabled: persisted("ehpeek:touch-ui:enabled", touchUiDefault),
   },
 } as const;
 

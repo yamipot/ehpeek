@@ -64,6 +64,7 @@ if (themeCss && !document.getElementById(THEME_STYLE_ID)) {
 
 function settingsMenuState() {
   return {
+    openGalleryInNewTab: state.app.openGalleryInNewTab.value,
     singlePageAppEnabled: state.app.singlePage.value,
     readerEnabled: state.reader.enabled.value,
     readerFullscreenEnabled: state.reader.fullscreen.value,
@@ -78,6 +79,7 @@ function settingsMenuState() {
 
 function defaultSettingsMenuState(): ReturnType<typeof settingsMenuState> {
   return {
+    openGalleryInNewTab: state.app.openGalleryInNewTab.defaultValue,
     singlePageAppEnabled: state.app.singlePage.defaultValue,
     readerEnabled: state.reader.enabled.defaultValue,
     readerFullscreenEnabled: state.reader.fullscreen.defaultValue,
@@ -91,6 +93,7 @@ function defaultSettingsMenuState(): ReturnType<typeof settingsMenuState> {
 }
 
 function applySettingsMenuState(next: ReturnType<typeof settingsMenuState>): void {
+  state.app.openGalleryInNewTab.set(next.openGalleryInNewTab);
   state.app.singlePage.set(next.singlePageAppEnabled);
   state.reader.enabled.set(next.readerEnabled);
   state.reader.fullscreen.set(next.readerFullscreenEnabled);
@@ -640,6 +643,17 @@ function trackOriginalReadHistory(): void {
 }
 
 document.addEventListener("click", (event) => onReaderDocumentClick(event, readerCallbacks), true);
+document.addEventListener("click", (event) => {
+  if (!settingsState.openGalleryInNewTab) {
+    return;
+  }
+
+  const link = eh.findClickedGalleryLink(event.target);
+  if (link) {
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+  }
+}, true);
 
 const singlePageInitialRoute = settingsState.touchUiEnabled && settingsState.singlePageAppEnabled
   ? eh.singlePageRoute(window.location.href)

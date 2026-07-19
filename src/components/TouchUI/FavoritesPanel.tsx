@@ -1,6 +1,5 @@
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import type { TouchFavoritesCategorySelectInfo } from "../../eh";
-import texts from "../../texts.json";
 
 export function FavoritesCategorySelect(props: { info: TouchFavoritesCategorySelectInfo }) {
   let container!: HTMLDivElement;
@@ -24,7 +23,6 @@ export function FavoritesCategorySelect(props: { info: TouchFavoritesCategorySel
         type="button"
         class="flex box-border w-full min-h-md items-center justify-between gap-md px-md py-sm rounded-xs border-0 !bg-transparent ehp-color-site-text text-left textsize-md font-700 font-inherit cursor-pointer hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)]"
         aria-expanded={open()}
-        aria-label={texts.favorites.categories}
         onClick={() => setOpen((value) => !value)}
       >
         <span class="flex min-w-0 items-center gap-sm overflow-hidden">

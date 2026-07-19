@@ -20,7 +20,7 @@ const projectIconUrl = "https://raw.githubusercontent.com/yamipot/ehpeek/master/
 
 const metadata = [
   "// ==UserScript==",
-  `// @name         ehpeek: E-H/ExH viewer`,
+  `// @name         EhPeek`,
   `// @namespace    ehpeek`,
   `// @version      ${version}`,
   `// @description  ${texts.description}`,

@@ -109,7 +109,6 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           <button
             type="button"
             class={READER_BUTTON_CLASS}
-            title={rightTapButton().title}
             onClick={props.callbacks.onRightTapClick}
           >
             {rightTapButton().text}
@@ -117,19 +116,17 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           <button
             type="button"
             class={READER_BUTTON_CLASS}
-            title={readDirectionButton().title}
             onClick={props.callbacks.onReadDirectionClick}
           >
             <Icon name={readDirectionButton().icon} size={READER_ICON_SIZE} />
           </button>
-          <button type="button" class={READER_BUTTON_CLASS} title={modeButton().title} onClick={props.callbacks.onModeClick}>
+          <button type="button" class={READER_BUTTON_CLASS} onClick={props.callbacks.onModeClick}>
             <Icon name={modeButton().icon} size={READER_ICON_SIZE} />
           </button>
           <button
             type="button"
             class={READER_BUTTON_CLASS}
             disabled={!props.state.downloadAvailable}
-            title={texts.reader.download}
             onClick={props.callbacks.onDownloadClick}
           >
             <Icon name="download" size={READER_ICON_SIZE} />
@@ -137,7 +134,6 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           <button
             type="button"
             class={READER_BUTTON_CLASS}
-            title={texts.reader.openOriginalPage}
             onClick={props.callbacks.onOpenOriginalPageClick}
           >
             <Icon name="external-link" size={READER_ICON_SIZE} />
@@ -145,12 +141,11 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           <button
             type="button"
             class={READER_BUTTON_CLASS}
-            title={props.state.fullscreenActive ? texts.reader.exitFullscreen : texts.reader.enterFullscreen}
             onClick={props.callbacks.onFullscreenClick}
           >
             <Icon name={props.state.fullscreenActive ? "fullscreen-exit" : "fullscreen"} size={READER_ICON_SIZE} />
           </button>
-          <button type="button" class={READER_BUTTON_CLASS} title={texts.reader.close} onClick={props.callbacks.onCloseClick}>
+          <button type="button" class={READER_BUTTON_CLASS} onClick={props.callbacks.onCloseClick}>
             <Icon name="close" size={READER_ICON_SIZE} />
           </button>
         </div>
@@ -231,8 +226,8 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
               <button
                 type="button"
                 class={READER_BUTTON_CLASS}
-                title={texts.reader.close}
-                aria-label={texts.reader.close}
+                title={texts.button.close}
+                aria-label={texts.button.close}
                 onClick={props.callbacks.onDownloadDialogClose}
               >
                 <Icon name="close" size={READER_ICON_SIZE} />
@@ -306,26 +301,23 @@ function pageNumberText(pageNum: number, totalPages: number | undefined): string
   return totalPages ? `${pageNum} / ${totalPages}` : String(pageNum);
 }
 
-function modeButtonInfo(mode: ViewMode): { icon: IconName; title: string } {
+function modeButtonInfo(mode: ViewMode): { icon: IconName } {
   const paged = mode === "paged";
   return {
     icon: paged ? "arrows-horizontal" : "arrows-vertical",
-    title: paged ? texts.reader.scrollMode : texts.reader.pagedMode,
   };
 }
 
-function readDirectionButtonInfo(direction: ReadDirection): { icon: IconName; title: string } {
+function readDirectionButtonInfo(direction: ReadDirection): { icon: IconName } {
   const rtl = direction === "rtl";
   return {
     icon: rtl ? "arrow-left" : "arrow-right",
-    title: rtl ? texts.reader.readLeftToRight : texts.reader.readRightToLeft,
   };
 }
 
-function rightTapButtonInfo(action: RightTapAction): { text: string; title: string } {
+function rightTapButtonInfo(action: RightTapAction): { text: string } {
   const previous = action === "previous";
   return {
     text: previous ? "R-" : "R+",
-    title: previous ? texts.reader.rightTapNext : texts.reader.rightTapPrevious,
   };
 }

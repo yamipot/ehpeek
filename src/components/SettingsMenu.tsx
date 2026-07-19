@@ -1,8 +1,9 @@
-import { createEffect, createSignal, createUniqueId, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import texts from "../texts.json";
 
 export type SettingsMenuState = {
+  openGalleryInNewTab: boolean;
   singlePageAppEnabled: boolean;
   readerEnabled: boolean;
   readerFullscreenEnabled: boolean;
@@ -31,7 +32,6 @@ function SwitchButton(props: {
   onChange: (value: boolean) => void;
 }) {
   const [helpOpen, setHelpOpen] = createSignal(false);
-  const helpId = `ehpeek-setting-help-${createUniqueId()}`;
 
   return (
     <div class="border-0 border-b ehp-color-site-border-subtle-b">
@@ -39,7 +39,6 @@ function SwitchButton(props: {
         <button
           type="button"
           class={`flex min-w-0 flex-1 min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg pl-md pr-sm rounded-xs border-0 !bg-transparent hover:!bg-transparent active:!bg-transparent ehp-color-site-text font-inherit text-left textsize-md [-webkit-tap-highlight-color:transparent] ${props.disabled ? "cursor-not-allowed opacity-45" : "cursor-pointer"}`}
-          aria-describedby={helpOpen() ? helpId : undefined}
           disabled={props.disabled}
           onClick={(event: MouseEvent) => {
             event.stopPropagation();
@@ -55,10 +54,6 @@ function SwitchButton(props: {
         <button
           type="button"
           class="flex flex-none w-32px coarse:w-48px min-h-md coarse:min-h-88px items-center justify-center p-0 rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit textsize-md font-700 [-webkit-tap-highlight-color:transparent]"
-          aria-label={texts.settings.showHelp}
-          aria-controls={helpId}
-          aria-expanded={helpOpen()}
-          title={texts.settings.showHelp}
           onClick={(event: MouseEvent) => {
             event.stopPropagation();
             setHelpOpen((open) => !open);
@@ -69,7 +64,6 @@ function SwitchButton(props: {
       </div>
       <Show when={helpOpen()}>
         <p
-          id={helpId}
           class="box-border w-full m-0 px-md pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] textsize-sm leading-[1.35] opacity-75"
         >
           {props.description}
@@ -160,7 +154,6 @@ export function SettingsMenu(props: {
             type="button"
             class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"
             aria-expanded={readerOptionsOpen()}
-            aria-label={readerOptionsOpen() ? texts.settings.hideReaderOptions : texts.settings.showReaderOptions}
             onClick={(event: MouseEvent) => {
               event.stopPropagation();
               setReaderOptionsOpen((open) => !open);
@@ -179,6 +172,12 @@ export function SettingsMenu(props: {
                 label={texts.settings.readerFullscreenLabel}
                 onChange={(value) => setDraft("readerFullscreenEnabled", value)}
               />
+              <SwitchButton
+                checked={draft.openGalleryInNewTab}
+                description={texts.settings.openGalleryInNewTabHelp}
+                label={texts.settings.openGalleryInNewTabLabel}
+                onChange={(value) => setDraft("openGalleryInNewTab", value)}
+              />
             </div>
           </Show>
         </div>
@@ -187,7 +186,6 @@ export function SettingsMenu(props: {
             type="button"
             class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"
             aria-expanded={enhanceOpen()}
-            aria-label={enhanceOpen() ? texts.settings.hideEnhance : texts.settings.showEnhance}
             onClick={(event: MouseEvent) => {
               event.stopPropagation();
               setEnhanceOpen((open) => !open);
@@ -238,8 +236,6 @@ export function SettingsMenu(props: {
           href="https://github.com/yamipot/ehpeek"
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={texts.navigation.github}
-          title={`${texts.navigation.github}: ${__EHPEEK_VERSION__}`}
         >
           v{__EHPEEK_VERSION__}
         </a>
@@ -252,7 +248,7 @@ export function SettingsMenu(props: {
               props.onApply({ ...draft });
             }}
           >
-            {texts.settings.apply}
+            {texts.button.apply}
           </button>
           <button
             type="button"
@@ -262,7 +258,7 @@ export function SettingsMenu(props: {
               setDraft({ ...props.defaultState });
             }}
           >
-            {texts.settings.default}
+            {texts.button.default}
           </button>
           <button
             type="button"
@@ -272,7 +268,7 @@ export function SettingsMenu(props: {
               close();
             }}
           >
-            {texts.settings.close}
+            {texts.button.close}
           </button>
         </div>
       </div>

@@ -368,6 +368,10 @@ export function findClickedImageLink(target: EventTarget | null): HTMLAnchorElem
   return dom.findClickedImageLink(target, extractPageType);
 }
 
+export function findClickedGalleryLink(target: EventTarget | null): HTMLAnchorElement | null {
+  return dom.findClickedGalleryLink(target, extractPageType);
+}
+
 export async function loadEhImagePage(page: ReaderPage): Promise<LoadedReaderPage> {
   const response = await requestPage(page.url);
   const info = dom.readImagePageInfo(response.document, page.url);

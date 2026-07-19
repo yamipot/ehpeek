@@ -262,7 +262,7 @@ export function GalleryInfoPanel(props: {
                   setRatingPickerOpen(false);
                 }}
               >
-                {texts.settings.close}
+                {texts.button.close}
               </button>
             </div>
           </div>
@@ -303,8 +303,6 @@ function TouchGalleryActionsMenu(props: { actions: HTMLElement[] }) {
         class="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text"
         aria-haspopup="menu"
         aria-expanded={open()}
-        aria-label={texts.navigation.menu}
-        title={texts.navigation.menu}
         onClick={(event: MouseEvent) => {
           event.stopPropagation();
           setOpen((value) => !value);
@@ -598,7 +596,7 @@ function TouchGalleryTag(props: {
                 class="min-h-md rounded-xs border-0 ehp-color-site-surface ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer"
                 onClick={() => setFavoriteDialogOpen(false)}
               >
-                {texts.settings.close}
+                {texts.button.close}
               </button>
               <button
                 type="button"
@@ -607,7 +605,7 @@ function TouchGalleryTag(props: {
                 onClick={() => void updateFavoriteTag()}
               >
                 <Icon name="heart" />
-                <span>{texts.text.confirm}</span>
+                <span>{texts.button.confirm}</span>
               </button>
             </div>
           </div>

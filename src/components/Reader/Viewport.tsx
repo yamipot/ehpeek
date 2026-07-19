@@ -545,7 +545,6 @@ function PageSlotPlaceholder(props: {
         <button
           type="button"
           class="ehpeek-reader-page-reload inline-flex w-64px h-64px items-center justify-center border border-[var(--color-danger-border)] rounded-full bg-[var(--color-danger-soft)] text-[var(--color-danger)] cursor-pointer font-sans textsize-lg font-700 leading-1 active:scale-96 [touch-action:manipulation]"
-          aria-label={texts.reader.reload}
           onPointerDown={stop}
           onClick={(event: MouseEvent) => {
             stop(event);
