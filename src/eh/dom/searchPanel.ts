@@ -2,6 +2,7 @@ import { normalizeUrl } from "../../utils";
 import { createAnchor, DomNode, type ManagedDomElements, type ManagedDomNode } from "./core";
 
 export type SearchPanelClasses = {
+  actionMount: string;
   advancedPanel: string;
   category: string;
   categoryCell: string;
@@ -16,8 +17,8 @@ export type SearchPanelClasses = {
   searchBox: string;
 };
 
-/** Extracts and owns the original search controls for the TouchUI SearchPanel feature. */
-export function extractSearchPanel() {
+/** Manages the original search controls for the TouchUI SearchPanel feature. */
+export function manageSearchPanel() {
   const page = DomNode.from(document);
   const searchInput = page.one<HTMLInputElement>("#f_search, input[name='f_search']");
   const form = searchInput?.form() ?? null;
@@ -149,6 +150,8 @@ export function extractSearchPanel() {
 
   const handle = {
     transformPresentation(classes: SearchPanelClasses) {
+      searchActionMount.transform({ classes: { replace: classes.actionMount } });
+      clearActionMount?.transform({ classes: { replace: classes.actionMount } });
       searchBoxElem.transform({ classes: { replace: standardSearchBox ? classes.searchBox : classes.controls } });
       if (formInsideSearchBox) {
         formElem.transform({ attributes: { remove: ["style"] }, classes: { replace: classes.form } });
@@ -258,4 +261,4 @@ function attachCategoryActions(
   });
 }
 
-export type SearchPanelDom = NonNullable<ReturnType<typeof extractSearchPanel>>;
+export type SearchPanelDom = NonNullable<ReturnType<typeof manageSearchPanel>>;

@@ -24,7 +24,7 @@ const TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME =
 const TOUCH_SEARCH_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
 
 /** Owns Search results and pagination for the enhanced navigation lifecycle. */
-export function extractSearchResults() {
+export function manageSearchResults() {
   const page = DomNode.from(document);
   const resultSource = page.one<HTMLElement>(".itg");
   if (!resultSource) {
@@ -75,7 +75,13 @@ export function extractSearchResults() {
     },
     transformSwipeInput(): void {
       resultList.transform({
-        classes: { add: ["overscroll-x-contain", "touch-pan-y"] },
+        classes: {
+          add: [
+            "overscroll-x-contain",
+            "touch-pan-y",
+            "[&[data-dragging=true]]:select-none",
+          ],
+        },
       });
     },
     transformGalleryLinksToNewTab(): void {
@@ -94,10 +100,10 @@ export function extractSearchResults() {
   return { data, elems, handle };
 }
 
-export type SearchResultsDom = NonNullable<ReturnType<typeof extractSearchResults>>;
+export type SearchResultsDom = NonNullable<ReturnType<typeof manageSearchResults>>;
 
 /** Owns the original Search text input, form, submit control, and their events. */
-export function extractSearchTextInput() {
+export function manageSearchTextInput() {
   const page = DomNode.from(document);
   const inputSource = page.one<HTMLInputElement>("#f_search, input[name='f_search']");
   const formSource = inputSource?.form() ?? null;
@@ -171,10 +177,10 @@ export function extractSearchTextInput() {
   return { data, elems, handle };
 }
 
-export type SearchTextInputDom = NonNullable<ReturnType<typeof extractSearchTextInput>>;
+export type SearchTextInputDom = NonNullable<ReturnType<typeof manageSearchTextInput>>;
 
 /** Transforms Search's extended result table into the EhPeek grid presentation. */
-export function extractSearchGrid() {
+export function mutateSearchGrid() {
   applySearchGrid();
   return applySearchGrid;
 }
@@ -423,7 +429,7 @@ function applySearchGrid(): void {
 }
 
 /** Adds the local EhPeek grid choice to Search's original display-mode selector. */
-export function extractSearchGridModeSelect(
+export function mutateSearchGridModeSelect(
   selected: boolean,
   onEhPeekSelect: () => void,
   onOriginalSelect: (value: string) => void,
@@ -473,13 +479,68 @@ function replaceSearchPageContent(doc: Document): boolean {
     return false;
   }
 
-  replaceFirstElement("#rangebar", doc);
+  if (!refreshSearchRangeBar(doc)) {
+    return false;
+  }
   replaceFirstElement(".searchtext", doc);
   replaceSearchNavigationBars(doc);
 
   const current = currentList.inplace();
   const importedList = incomingList.clone();
   current.replaceWith(importedList);
+  return true;
+}
+
+/** Rebuilds the original range bar because scripts in fetched documents are not executed. */
+function refreshSearchRangeBar(doc: Document): boolean {
+  const current = DomNode.from(document).one<HTMLElement>("#rangebar");
+  const incomingPage = DomNode.from(doc);
+  const incoming = incomingPage.one<HTMLElement>("#rangebar");
+  if (!current && !incoming) {
+    return true;
+  }
+  if (!current || !incoming) {
+    return false;
+  }
+
+  const script = incomingPage
+    .all<HTMLScriptElement>("script")
+    .map((item) => item.text())
+    .find((item) => item.includes("build_rangebar()"));
+  const rangeUrl = script?.match(/\brangeurl\s*=\s*["']([^"']*)["']/)?.[1];
+  const rangeMin = Number(script?.match(/\brangemin\s*=\s*(-?\d+)/)?.[1]);
+  const rangeMax = Number(script?.match(/\brangemax\s*=\s*(-?\d+)/)?.[1]);
+  const rangeSpan = Number(script?.match(/\brangespan\s*=\s*(-?\d+)/)?.[1]);
+  if (
+    rangeUrl === undefined ||
+    !Number.isFinite(rangeMin) ||
+    !Number.isFinite(rangeMax) ||
+    !Number.isFinite(rangeSpan)
+  ) {
+    return false;
+  }
+
+  const items: ManagedDomNode[] = [];
+  if (rangeSpan > 0) {
+    for (let index = 0; index < 99; index += rangeSpan) {
+      const marker = createManagedElement("div");
+      if (
+        (index === 98 && rangeMin === 99) ||
+        (index >= rangeMin && index <= rangeMax)
+      ) {
+        marker.attribute("data-inrange", "1");
+      }
+      if (!rangeUrl) {
+        items.push(marker);
+        continue;
+      }
+      const href = index === 0
+        ? rangeUrl
+        : `${rangeUrl}${rangeUrl.includes("?") ? "&" : "?"}range=${index}`;
+      items.push(createManagedElement("a").attribute("href", href).append(marker));
+    }
+  }
+  current.inplace().replaceChildren(...items);
   return true;
 }
 
@@ -647,14 +708,16 @@ function readFavoritesCategories(
 }
 
 /** Applies TouchUI layout ownership to Search-like result pages. */
-function searchResultsPageTouch(): void {
+function searchResultsPageTouch(hideRangeBar: boolean): void {
   documentElement().transform({ classes: { add: TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ") } });
   documentBody().transform({ classes: { add: TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ") } });
 
   const page = DomNode.from(document);
-  const rangeBar = page.one<HTMLElement>("#rangebar")?.inplace();
-  rangeBar?.setHidden(true);
-  rangeBar?.styles({ display: "none" }, "important");
+  if (hideRangeBar) {
+    const rangeBar = page.one<HTMLElement>("#rangebar")?.inplace();
+    rangeBar?.setHidden(true);
+    rangeBar?.styles({ display: "none" }, "important");
+  }
 
   const resultSource = page.one<HTMLElement>(".itg");
   if (!resultSource) {
@@ -686,13 +749,13 @@ function searchResultsPageTouch(): void {
 }
 
 /** Owns the TouchUI layout lifecycle for one Search or Favorites results page. */
-export function extractTouchResultsPage(page: PageType) {
+export function manageTouchResultsPage(page: PageType, hideRangeBar = false) {
   const apply = () => {
     if (page.type === "favorites") {
       return favoritesPageTouch();
     }
     if (page.type === "search") {
-      searchResultsPageTouch();
+      searchResultsPageTouch(hideRangeBar);
     }
     return null;
   };
@@ -713,4 +776,4 @@ export function extractTouchResultsPage(page: PageType) {
   return { data, handle };
 }
 
-export type TouchResultsPageDom = ReturnType<typeof extractTouchResultsPage>;
+export type TouchResultsPageDom = ReturnType<typeof manageTouchResultsPage>;

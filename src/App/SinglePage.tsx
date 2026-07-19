@@ -39,7 +39,7 @@ export function SinglePage(props: {
     }
     return {
       page,
-      source: eh.extractPageContent(response.document, response.url),
+      source: eh.managePageContent(response.document, response.url),
       url: response.url,
     };
   };
@@ -174,7 +174,7 @@ export function SinglePage(props: {
       if (!page) {
         return;
       }
-      const pageSource = eh.extractPageContent();
+      const pageSource = eh.managePageContent();
       pageSource.handle.mount(routeHost);
       const onPageNavigation = (request: eh.NavigationRequest) => {
         void navigate(request, "push");

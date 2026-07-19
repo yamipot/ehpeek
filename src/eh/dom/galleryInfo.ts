@@ -16,7 +16,7 @@ import type {
   GalleryTagAction,
   GalleryTagData,
 } from "../types";
-import { galleryTagNameFromUrl, isSameOriginUrl } from "../url";
+import { galleryTagNameFromUrl } from "../url";
 import {
   createAnchor,
   DomNode,
@@ -30,8 +30,8 @@ import {
 } from "./gallery";
 import * as EhSyringe from "./ehSyringe";
 
-/** Reads and takes ownership of E-H's gallery header for GalleryInfoPanel. */
-export function extractGalleryInfo(
+/** Manages E-H's gallery header for GalleryInfoPanel. */
+export function manageGalleryInfo(
   preview: GalleryPreviewData | null,
 ) {
   const mount = createAnchor("gallery-info");
@@ -400,7 +400,10 @@ export function extractGalleryInfo(
     },
     transformHost(className: string) {
       hostElem.transform({ classes: { add: [className] } });
-      hostChildElems.forEach((child) => child.transform({ hidden: true }));
+      hostChildElems.forEach((child) => {
+        child.transform({ hidden: true });
+        child.styles({ display: "none" }, "important");
+      });
       hostElem.prepend(mount);
     },
     async favoriteOptions(actionUrl: string, favorited: boolean) {
@@ -413,8 +416,8 @@ export function extractGalleryInfo(
       mode: MyTagMode,
     ): Promise<void> {
       const response = await addMyTag(tag.name, tagSet, mode);
-      if (!isSameOriginUrl(response.url) || !extractMyTagsPageData(response.document, tagSet)) {
-        throw new Error("My Tags page is unavailable");
+      if (!extractMyTagsPageData(response.document, tagSet)) {
+        throw new Error("The tag was submitted, but the returned My Tags page could not be read.");
       }
     },
     observeTagGroups(onChange: (groups: GalleryInfoTagGroup[]) => void) {
@@ -443,8 +446,8 @@ export function extractGalleryInfo(
         return;
       }
       const response = await deleteMyTag(tag.myTag.id, tag.myTag.tagSet);
-      if (!isSameOriginUrl(response.url) || !extractMyTagsPageData(response.document, tag.myTag.tagSet)) {
-        throw new Error("My Tags page is unavailable");
+      if (!extractMyTagsPageData(response.document, tag.myTag.tagSet)) {
+        throw new Error("The tag removal was submitted, but the returned My Tags page could not be read.");
       }
     },
     async tagAction(tag: GalleryTagData, action: GalleryTagAction): Promise<void> {
@@ -478,14 +481,14 @@ export function extractGalleryInfo(
   return { data, elems, handle };
 }
 
-export type GalleryInfoDom = NonNullable<ReturnType<typeof extractGalleryInfo>>;
+export type GalleryInfoDom = NonNullable<ReturnType<typeof manageGalleryInfo>>;
 export type GalleryInfoTagGroup = {
   namespace: string;
   tags: Array<GalleryTagData & { contentSource: ManagedDomNode }>;
 };
 
 /** Converts Gallery Comments score details from hover interaction to touch interaction. */
-export function extractGalleryCommentsTouch() {
+export function mutateGalleryCommentsTouch() {
   const items = DomNode.from(document).all<HTMLElement>("#cdiv .c5")
     .filter((trigger) => trigger.attribute("data-ehpeek-touch-comment-score") !== "true")
     .map((trigger) => ({

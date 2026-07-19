@@ -55,7 +55,7 @@ export function EnhanceSearchGrids(props: {
     source.handle.setBusy(true);
     try {
       await source.handle.navigate(url);
-      const nextSource = eh.extractSearchResults();
+      const nextSource = eh.manageSearchResults();
       if (!nextSource) {
         throw new Error(texts.errors.searchPageContentNotFound);
       }

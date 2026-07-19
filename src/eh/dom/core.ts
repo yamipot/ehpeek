@@ -21,7 +21,6 @@ type ElemChanges = {
 const MANAGED_DOM_NODE_CLASS = "ehpeek-managed";
 const EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor";
 const mountedNodes = new WeakMap<HTMLElement, () => void>();
-const managedNodes = new WeakMap<HTMLElement, ManagedDomNode>();
 let managedDocumentElement: ManagedDomNode<HTMLElement> | null = null;
 let managedBody: ManagedDomNode<HTMLElement> | null = null;
 
@@ -248,13 +247,7 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
   static from<TElement extends HTMLElement>(
     element: TElement,
   ): ManagedDomNode<TElement> {
-    const existing = managedNodes.get(element) as ManagedDomNode<TElement> | undefined;
-    if (existing) {
-      return existing;
-    }
-    const managed = new ManagedDomNode(element);
-    managedNodes.set(element, managed);
-    return managed;
+    return new ManagedDomNode(element);
   }
 
   transform(changes: ElemChanges): this {
@@ -429,7 +422,9 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
 }
 
 function manageElem<T extends HTMLElement>(element: T): T {
-  element.classList.add(MANAGED_DOM_NODE_CLASS);
+  if (__EHPEEK_DEBUG__) {
+    element.classList.add(MANAGED_DOM_NODE_CLASS);
+  }
   return element;
 }
 
@@ -467,6 +462,5 @@ function changeElem<T extends HTMLElement>(
   if (changes.hidden !== undefined) {
     element.hidden = changes.hidden;
   }
-  element.classList.add(MANAGED_DOM_NODE_CLASS);
-  return element;
+  return manageElem(element);
 }

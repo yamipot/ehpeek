@@ -1,6 +1,9 @@
 import { createSignal } from "solid-js";
 import { EnhanceSearchGrids } from "../components/Enhance/EnhanceSearchGrids";
-import { ThumbsGrids } from "../components/Enhance/EnhanceThumbsGrids";
+import {
+  ThumbsGrids,
+  type ThumbsGridsActions,
+} from "../components/Enhance/EnhanceThumbsGrids";
 import { ReadButton } from "../components/Enhance/ReadHistory";
 import { loadReadHistory, ReadHistorySession } from "../state/readHistory";
 import { SearchHistory } from "../components/Enhance/SearchHistory";
@@ -101,11 +104,13 @@ const [readProgress, setReadProgress] = createSignal({
   currentPage: 1,
   totalPages: null as number | null,
 });
-const [gotoPreviewIndex, setGotoPreviewIndex] = createSignal<number>();
+let thumbsGridsActions: ThumbsGridsActions | undefined;
 const readerCallbacks: ReaderCallbacks = {
   enhanceThumbsGridsEnabled: settingsState.enhanceThumbsGridsEnabled,
   readHistoryEnabled: settingsState.readHistoryEnabled,
-  onGotoPreviewIndex: setGotoPreviewIndex,
+  onGotoPreviewIndex: (previewIndex) => {
+    thumbsGridsActions?.gotoPreview(previewIndex);
+  },
   onReaderClosed: (currentPage, totalPages) => {
     setReadProgress({ currentPage, totalPages });
   },
@@ -120,7 +125,7 @@ function deactivatePage(): void {
     cleanup();
   }
   pageCleanups.clear();
-  setGotoPreviewIndex(undefined);
+  thumbsGridsActions = undefined;
 
   for (const host of pageManagedHosts) {
     host.remove();
@@ -210,7 +215,7 @@ function injectEnhanceUI(
   }
 
   if (resultsPage) {
-    eh.extractSearchGridModeSelect(
+    eh.mutateSearchGridModeSelect(
       state.search.grid.value,
       () => {
         state.search.grid.set(true);
@@ -227,7 +232,7 @@ function injectEnhanceUI(
     );
   }
   const refreshSearchGrid = resultsPage && state.search.grid.value
-    ? eh.extractSearchGrid()
+    ? eh.mutateSearchGrid()
     : null;
 
   if (settingsState.openGalleryInNewTab && searchResultsDom) {
@@ -235,7 +240,7 @@ function injectEnhanceUI(
   }
 
   if (!settingsState.touchUiEnabled) {
-    const settingsMount = eh.extractSettingsMenuMount();
+    const settingsMount = eh.manageSettingsMenuMount();
     if (settingsMount) {
       settingsMount.mount(() => (
         <a
@@ -260,7 +265,7 @@ function injectEnhanceUI(
     preview &&
     previewCache
   ) {
-    const galleryReadButtonMount = eh.extractGalleryContinueReadingButtonMount();
+    const galleryReadButtonMount = eh.manageGalleryContinueReadingButtonMount();
     pageManagedHosts.add(galleryReadButtonMount);
     galleryReadButtonMount.mount(() => (
       <GalleryReadButton previewCache={previewCache} variant="gallery" />
@@ -276,7 +281,9 @@ function injectEnhanceUI(
     const previewMount = preview.elems.mount;
     previewMount.mount(() => (
       <ThumbsGrids
-        gotoPreviewIndex={gotoPreviewIndex}
+        actionsRef={(actions) => {
+          thumbsGridsActions = actions;
+        }}
         onLoadError={reportReaderOpenError}
         previewCache={previewCache}
       />
@@ -321,12 +328,14 @@ function injectTouchUI(
   const galleryPage = page.type === "gallery";
   const resultsPage = page.type === "search" || page.type === "favorites";
   const preview = previewCache?.current() ?? null;
-  const resultsDom = resultsPage ? eh.extractTouchResultsPage(page) : null;
+  const resultsDom = resultsPage
+    ? eh.manageTouchResultsPage(page, singlePageInitialRoute)
+    : null;
   if (resultsDom) {
     pageCleanups.add(resultsDom.handle.reset);
   }
 
-  const topBarDom = eh.extractTopBar();
+  const topBarDom = eh.manageTopBar();
   if (topBarDom) {
     topBarDom.handle.transformNavItems(TOUCH_TOP_BAR_NAV_ITEM_CLASS);
     topBarDom.elems.mount.mount(() => (
@@ -351,7 +360,7 @@ function injectTouchUI(
       "ehpeek-touch-gallery-page-rearrange-style",
       galleryRearrange,
     );
-    const galleryInfoDom = eh.extractGalleryInfo(preview?.data ?? null);
+    const galleryInfoDom = eh.manageGalleryInfo(preview?.data ?? null);
     if (galleryInfoDom) {
       galleryInfoDom.handle.transformCover(TOUCH_GALLERY_INFO_CLASSES.cover);
       galleryInfoDom.handle.transformActionItems(TOUCH_GALLERY_INFO_CLASSES.actionItems);
@@ -373,11 +382,11 @@ function injectTouchUI(
       pageManagedHosts.add(galleryInfoDom.elems.mount);
     }
 
-    eh.extractGalleryCommentsTouch();
+    eh.mutateGalleryCommentsTouch();
   }
 
   if (resultsPage) {
-    const searchPanelDom = eh.extractSearchPanel();
+    const searchPanelDom = eh.manageSearchPanel();
     if (searchPanelDom) {
       searchPanelDom.handle.transformPresentation(
         touchSearchPanelClasses(searchPanelDom.data.hasClear),
@@ -435,7 +444,10 @@ async function injectPage(nextPage: eh.PageType): Promise<void> {
   const resultsPage =
     pageType.type === "search" || pageType.type === "favorites";
   const generation = ++pageGeneration;
-  const galleryPreview = galleryPage ? eh.extractGalleryPreview() : null;
+  if (galleryPage) {
+    eh.manageGalleryApiSession();
+  }
+  const galleryPreview = galleryPage ? eh.manageGalleryPreview() : null;
   const galleryPreviewCache = galleryPreview
     ? createGalleryPreviewCache(galleryPreview)
     : null;
@@ -447,10 +459,10 @@ async function injectPage(nextPage: eh.PageType): Promise<void> {
     });
   }
   const searchTextInput = resultsPage
-    ? eh.extractSearchTextInput()
+    ? eh.manageSearchTextInput()
     : null;
   const searchResultsSource = resultsPage
-    ? eh.extractSearchResults()
+    ? eh.manageSearchResults()
     : null;
 
   let myTagAppearances: Awaited<ReturnType<typeof loadMyTagAppearances>> = null;
@@ -471,7 +483,7 @@ async function injectPage(nextPage: eh.PageType): Promise<void> {
   }
 
   if (myTagAppearances) {
-    pageCleanups.add(eh.extractGalleryMyTags(myTagAppearances));
+    pageCleanups.add(eh.mutateGalleryMyTags(myTagAppearances));
   }
 
   if (settingsState.readHistoryEnabled && pageType.type === "image") {

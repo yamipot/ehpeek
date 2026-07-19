@@ -11,6 +11,7 @@ const TOUCH_SEARCH_ACTION_CLASS =
 
 export function touchSearchPanelClasses(hasClear: boolean): SearchPanelClasses {
   return {
+    actionMount: "contents",
     advancedPanel: "box-border w-full !p-0 ehp-color-site-text",
     category:
       "flex box-border w-full min-w-0 !h-lg items-center justify-center px-md border rounded-md text-white text-center textsize-md font-700 leading-[1.15] whitespace-nowrap shadow-[0_2px_6px_var(--color-shadow-control)] cursor-pointer select-none transition-opacity [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] active:opacity-70 [&[data-disabled]]:opacity-40",

@@ -11,12 +11,11 @@
  * before taking ownership and return `null` when the feature cannot be resolved.
  * `inplace`, `clone`, and `move` fix ownership immediately without applying
  * presentation changes; `move` also detaches the source node. Repeated
- * acquisition is supported and returns the same managed wrapper for the same
- * node.
+ * acquisition is supported.
  * Use `DomNode.observe` for asynchronously inserted source nodes and choose
  * ownership in its acquire callback; use `ManagedDomNode.observe` after ownership.
  *
- * Extracted `XxxDom` objects separate detached values in `data`, owned nodes in
+ * Managed `XxxDom` objects separate detached values in `data`, owned nodes in
  * `elems`, and callable behavior in the non-null `handle` object. Every `elems`
  * property must be `ManagedDomNode`, `ManagedDomNode[]`, or `null`; nested
  * element-bearing objects and raw DOM nodes are not allowed. Components embed
@@ -34,8 +33,10 @@
  * semantic callbacks instead of making callers pass `event.target` back in.
  * Keep one-off resolve/apply helpers inside their feature function; only parsers
  * shared by multiple features or repeated document loads belong at module scope.
- * Public feature entry points use `extractXxx` names and are called together by
- * App page injection. Async providers may extract fetched documents; later DOM
+ * Public feature entry points use `manageXxx` when they return owned DOM and
+ * lifecycle handles, `mutateXxx` when they apply an immediate page mutation,
+ * and `extractXxx` only for detached data. App page injection coordinates
+ * these entry points. Async providers may manage fetched documents; later DOM
  * refreshes stay behind the source's handle. Pure EhPeek-owned
  * mounts and global styles belong to App rather than this original-page boundary.
  */

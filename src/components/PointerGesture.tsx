@@ -538,6 +538,9 @@ class PointerGesture {
   private activateDrag(drag: GesturePointer, event: PointerEvent | MouseEvent): void {
     drag.active = true;
     this.setDragging(true);
+    if (drag.pointerType === "mouse") {
+      window.getSelection()?.removeAllRanges();
+    }
     this.callbacks().onStart?.(
       {
         pointerId: drag.pointerId,

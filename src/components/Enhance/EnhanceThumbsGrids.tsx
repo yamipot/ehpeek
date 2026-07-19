@@ -4,7 +4,6 @@ import {
   onCleanup,
   Show,
   untrack,
-  type Accessor,
 } from "solid-js";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
 import * as eh from "../../eh";
@@ -19,32 +18,28 @@ const SWIPE_INTENT_DISTANCE = 28;
 const HORIZONTAL_INTENT_RATIO = 2.2;
 const SWIPE_MAX_VERTICAL_RATIO = 0.38;
 
+export type ThumbsGridsActions = {
+  gotoPreview: (previewIndex: number) => void;
+};
+
 export function ThumbsGrids(props: {
+  actionsRef: (actions: ThumbsGridsActions) => void;
   onLoadError: (error: unknown) => void;
   previewCache: GalleryPreviewCache;
-  gotoPreviewIndex: Accessor<number | undefined>;
 }) {
   const pageBarSource = untrack(() => props.previewCache.current());
-  const [gestureTarget, setGestureTarget] = createSignal<HTMLElement | null>(null);
-  const [pageBarCurrentIndex, setPageBarCurrentIndex] = createSignal(
-    pageBarSource.data.currentIndex,
-  );
-  const [pageBarMaxIndex, setPageBarMaxIndex] = createSignal(
-    pageBarSource.data.maxIndex,
-  );
+  const [gotoPreviewIndex, setGotoPreviewIndex] = createSignal<number>();
   const [pageBarWindowIndex, setPageBarWindowIndex] = createSignal<number | null>(null);
   const [swipeIndicatorState, setSwipeIndicatorState] = createSignal<SwipeIndicatorState>({
     blocked: false,
     direction: "left",
     progress: 0,
   });
-  let activePreview = pageBarSource;
-
-  const setPageBar = (currentIndex: number, maxIndex: number | null): void => {
-    setPageBarCurrentIndex(currentIndex);
-    setPageBarMaxIndex(maxIndex);
-    setPageBarWindowIndex(currentIndex);
-  };
+  const pageBarCurrentIndex = (): number =>
+    gotoPreviewIndex() ??
+    props.previewCache.current().data.currentIndex;
+  const pageBarMaxIndex = (): number | null =>
+    props.previewCache.current().data.maxIndex;
 
   const requestPreviewPage = (
     previewIndex: number,
@@ -52,7 +47,6 @@ export function ThumbsGrids(props: {
   ): void => {
     const current = props.previewCache.current();
     const onLoadError = props.onLoadError;
-    setPageBar(previewIndex, current.data.maxIndex);
     pageBarSource.handle.scrollPageBar(scrollToPageBar);
     if (previewIndex === current.data.currentIndex) {
       return;
@@ -65,8 +59,6 @@ export function ThumbsGrids(props: {
         }
       },
       (error: unknown) => {
-        const active = untrack(() => props.previewCache.current());
-        setPageBar(active.data.currentIndex, active.data.maxIndex);
         onLoadError(error);
       },
     );
@@ -106,22 +98,25 @@ export function ThumbsGrids(props: {
     }
   };
 
+  const actions: ThumbsGridsActions = {
+    gotoPreview: setGotoPreviewIndex,
+  };
   createEffect(() => {
-    const index = props.gotoPreviewIndex();
-    if (index !== undefined) {
-      setPageBarCurrentIndex(index);
-      setPageBarWindowIndex(index);
-    }
+    props.actionsRef(actions);
   });
 
-  createEffect(() => {
+  createEffect<eh.GalleryPreviewDom>((previous) => {
     const current = props.previewCache.current();
-    setPageBar(current.data.currentIndex, current.data.maxIndex);
+    setGotoPreviewIndex(undefined);
     current.handle.transformSwipeInput();
-    if (current !== activePreview) {
+    if (current !== previous) {
       pageBarSource.handle.replaceThumbs(current.elems.thumbItems);
-      activePreview = current;
     }
+    return current;
+  }, pageBarSource);
+
+  createEffect(() => {
+    setPageBarWindowIndex(pageBarCurrentIndex());
   });
 
   createEffect(() => {
@@ -132,12 +127,8 @@ export function ThumbsGrids(props: {
     pageBarSource.handle.setThumbsLoading(false);
   });
 
-  createEffect(() => {
-    setGestureTarget(pageBarSource.elems.thumbs?.Component() ?? null);
-  });
-
   createPointerGestureElement(
-    gestureTarget,
+    () => pageBarSource.elems.thumbs?.Component() ?? null,
     () => ({
       onStart: hideSwipeIndicator,
       onMove: updateSwipeIndicator,

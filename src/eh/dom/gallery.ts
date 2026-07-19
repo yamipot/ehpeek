@@ -158,7 +158,7 @@ function observeGalleryTagChanges(onChange: () => void): () => void {
 }
 
 /** Applies and maintains stored My Tags appearances for the GalleryInfo enhancer lifecycle. */
-export function extractGalleryMyTags(appearances: MyTagAppearance[]) {
+export function mutateGalleryMyTags(appearances: MyTagAppearance[]) {
   applyMyTagAppearances(appearances);
   return observeGalleryTagChanges(() =>
     applyMyTagAppearances(appearances),
@@ -166,7 +166,7 @@ export function extractGalleryMyTags(appearances: MyTagAppearance[]) {
 }
 
 /** Captures GalleryInfo API credentials before SinglePage removes original scripts. */
-export function extractGalleryApiSession(root: ParentNode = document, baseUrl = window.location.href): boolean {
+export function manageGalleryApiSession(root: ParentNode = document, baseUrl = window.location.href): boolean {
   if (galleryApiSession) {
     return true;
   }
@@ -237,7 +237,7 @@ export function extractGalleryTagApiInfo(): GalleryTagApiInfo | null {
     return null;
   }
 
-  if (!galleryApiSession && !extractGalleryApiSession()) {
+  if (!galleryApiSession) {
     console.warn("[ehpeek] Gallery API context unavailable", {
       reason: "api-session-unavailable",
       galleryId: gallery.galleryId,
@@ -272,7 +272,7 @@ function scriptStringValue(script: string, name: string): string | null {
 }
 
 /** Returns the original GalleryInfo control used to mount the Continue/Read button. */
-export function extractGalleryContinueReadingButtonMount() {
+export function manageGalleryContinueReadingButtonMount() {
   const managedHost = createManagedElement("div");
   const viewerOptionsSource = DomNode.from(document).one<HTMLElement>("#gd5");
   const viewerOptions = viewerOptionsSource?.inplace();
@@ -300,8 +300,8 @@ export type GalleryPreviewData = {
   totalImages: number | null;
 };
 
-/** Extracts all Gallery Preview pagination and Reader-page data from one original document. */
-export function extractGalleryPreview(
+/** Manages Gallery Preview pagination, thumbnails, and Reader-page data. */
+export function manageGalleryPreview(
   root: ParentNode = document,
   baseUrl = window.location.href,
 ) {
@@ -451,7 +451,7 @@ export function extractGalleryPreview(
   return { data, elems, handle };
 }
 
-export type GalleryPreviewDom = ReturnType<typeof extractGalleryPreview>;
+export type GalleryPreviewDom = ReturnType<typeof manageGalleryPreview>;
 
 /** Loads and extracts one Preview page without changing the active document. */
 export async function loadGalleryPreviewPage(
@@ -460,7 +460,7 @@ export async function loadGalleryPreviewPage(
 ): Promise<GalleryPreviewDom> {
   const url = previewUrlForIndex(previewIndex, pageUrl);
   const response = await requestPage(url);
-  return extractGalleryPreview(response.document, response.url);
+  return manageGalleryPreview(response.document, response.url);
 }
 
 /** Resolves Reader's gallery identity from the current original image page. */

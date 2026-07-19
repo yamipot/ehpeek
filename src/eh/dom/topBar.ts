@@ -6,7 +6,7 @@ import {
 } from "./core";
 
 /** Creates the Settings mount beside the original page navigation or gallery header. */
-export function extractSettingsMenuMount() {
+export function manageSettingsMenuMount() {
   const page = DomNode.from(document);
   const thumbnailContainer = page.one<HTMLElement>("#gdt");
   const titleContainer = page.one<HTMLElement>("#gd2, h1");
@@ -35,8 +35,8 @@ export function extractSettingsMenuMount() {
   return item;
 }
 
-/** Extracts and owns the original top navigation for the TouchUI TopBar feature. */
-export function extractTopBar() {
+/** Manages the original top navigation for the TouchUI TopBar feature. */
+export function manageTopBar() {
   const mount = createAnchor("top-bar");
   if (!mount) {
     return null;
@@ -77,4 +77,4 @@ export function extractTopBar() {
   };
 }
 
-export type TopBarDom = NonNullable<ReturnType<typeof extractTopBar>>;
+export type TopBarDom = NonNullable<ReturnType<typeof manageTopBar>>;
