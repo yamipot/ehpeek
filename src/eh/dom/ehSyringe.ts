@@ -244,7 +244,7 @@ function captureTagTipInput(): boolean {
 
   const page = DomNode.from(document);
   const listSource = page.one<HTMLElement>(TAG_TIP_LIST_SELECTOR);
-  const list = listSource?.owned() ?? listSource?.inplace();
+  const list = listSource?.inplace();
   if (!list) {
     return false;
   }
@@ -252,7 +252,7 @@ function captureTagTipInput(): boolean {
   list.transform({ classes: { add: TAG_TIP_LIST_CLASS_NAME.split(" ") } });
 
   const input = page.one<HTMLInputElement>(TAG_TIP_INPUT_SELECTOR);
-  tagTipInput = input?.owned() ?? input?.inplace() ?? null;
+  tagTipInput = input?.inplace() ?? null;
   return tagTipInput !== null;
 }
 

@@ -29,6 +29,7 @@ import {
 import * as eh from "../eh";
 import { state } from "../state";
 import texts from "../texts.json";
+import galleryRearrange from "../eh/galleryRearrange.css";
 import unoCss from "ehpeek:uno.css";
 import themeCss from "../theme.css";
 import {
@@ -40,6 +41,7 @@ import {
   type ReaderCallbacks,
 } from "./Reader";
 import { SinglePage } from "./SinglePage";
+import { createAppMount, installAppStyle } from "./render";
 import { createReaderViewport, type ReaderViewport } from "./viewport";
 
 function settingsMenuState() {
@@ -92,7 +94,16 @@ let pageType = eh.extractPageType();
 let galleryPreviewSource: eh.GalleryPreviewDom | null = null;
 let pageViewportSource: ReaderViewport | null = null;
 let settingsState = settingsMenuState();
-const shell = eh.extractAppShell({ theme: themeCss, uno: unoCss }, settingsState.touchUiEnabled);
+document.documentElement.setAttribute("data-ehpeek-site", eh.ehSiteTheme());
+if (settingsState.touchUiEnabled) {
+  document.documentElement.setAttribute("data-ehpeek-touch-ui", "true");
+}
+installAppStyle("ehpeek-uno-style", unoCss);
+installAppStyle("ehpeek-theme-style", themeCss);
+const settingsMenuMount = createAppMount(
+  "fixed inset-0 z-[1150] pointer-events-none",
+  true,
+);
 const [settingsMenuOpen, setSettingsMenuOpenSignal] = createSignal(false);
 const [readProgress, setReadProgress] = createSignal({
   currentPage: 1,
@@ -206,7 +217,7 @@ if (typeof GM_registerMenuCommand === "function") {
   });
 }
 
-shell.elems.settingsMenu.mount(() => (
+settingsMenuMount.mount(() => (
   <SettingsMenu
     open={settingsMenuOpen()}
     defaultState={defaultSettingsMenuState()}
@@ -285,7 +296,7 @@ function injectEnhanceUI(
   }
 
   if (galleryPage && preview) {
-    const host = shell.actions.createMount();
+    const host = createAppMount();
     host.mount(() => (
       <EnhanceThumbsGrids
         enabled={settingsState.enhanceThumbsGridsEnabled}
@@ -305,7 +316,7 @@ function injectEnhanceUI(
     searchResultsDom &&
     (searchResultsDom.data.previousUrl || searchResultsDom.data.nextUrl)
   ) {
-    const host = shell.actions.createMount();
+    const host = createAppMount();
     host.mount(() => (
       <EnhanceSearchGrids
         source={searchResultsDom}
@@ -319,7 +330,7 @@ function injectEnhanceUI(
   }
 
   if (settingsState.searchHistoryEnabled && searchHistoryDom) {
-    const host = shell.actions.createMount();
+    const host = createAppMount();
     host.mount(() => <SearchHistory source={searchHistoryDom} />);
     pageManagedHosts.add(host);
   }
@@ -352,12 +363,16 @@ function injectTouchUI(
   }
 
   if (galleryPage || resultsPage) {
-    const host = shell.actions.createMount("ehpeek-back-to-top-host");
+    const host = createAppMount("ehpeek-back-to-top-host");
     host.mount(() => <BackToTop />);
     pageManagedHosts.add(host);
   }
 
   if (galleryPage) {
+    installAppStyle(
+      "ehpeek-touch-gallery-page-rearrange-style",
+      galleryRearrange,
+    );
     const galleryOperations = eh.extractGalleryOperations();
     const galleryInfoDom = eh.extractGalleryInfo(
       preview?.data ?? null,
@@ -558,7 +573,7 @@ const singlePageInitialRoute =
   eh.supportsSinglePageRoute(window.location.href);
 
 if (singlePageInitialRoute) {
-  const host = shell.actions.createMount("isolate", true);
+  const host = createAppMount("isolate", true);
   host.mount(() => (
     <SinglePage
       onPageActivate={injectPage}

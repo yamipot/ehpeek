@@ -1,51 +1,9 @@
-import { ehSiteTheme } from "../url";
 import {
   createAnchor,
   createManagedElement,
-  documentBody,
-  documentElement,
-  documentHead,
   DomNode,
   type ManagedDomElements,
 } from "./core";
-
-/** Installs global styles and owns the persistent Settings mount for the EhPeek App shell. */
-export function extractAppShell(styles: { theme: string; uno: string }, touch: boolean) {
-  const page = DomNode.from(document);
-  documentElement()?.attribute("data-ehpeek-site", ehSiteTheme());
-  const installStyle = (id: string, content: string) => {
-    if (!content || page.one(`#${id}`)) {
-      return;
-    }
-    const style = createManagedElement("style").attribute("id", id);
-    style.setTextUnlessInput(content);
-    documentHead()?.append(style);
-  };
-  installStyle("ehpeek-uno-style", styles.uno);
-  installStyle("ehpeek-theme-style", styles.theme);
-  if (touch) {
-    documentElement()?.attribute("data-ehpeek-touch-ui", "true");
-  }
-  const settingsMenu = createManagedElement("div").transform({
-    attributes: { set: { "data-ehpeek-persistent": "true" } },
-    classes: { replace: "fixed inset-0 z-[1150] pointer-events-none" },
-  });
-  documentBody()?.append(settingsMenu);
-  const actions = {
-    createMount(className = "", persistent = false) {
-      const mount = createManagedElement("div");
-      if (className) {
-        mount.transform({ classes: { replace: className } });
-      }
-      if (persistent) {
-        mount.attribute("data-ehpeek-persistent", "true");
-      }
-      documentBody()?.append(mount);
-      return mount;
-    },
-  };
-  return { actions, elems: { settingsMenu } };
-}
 
 /** Creates the Settings mount beside the original page navigation or gallery header. */
 export function extractSettingsMenuMount() {
@@ -57,7 +15,7 @@ export function extractSettingsMenuMount() {
   const item = createManagedElement("div");
 
   if (topNav) {
-    (topNav.owned() ?? topNav.inplace())?.append(item);
+    topNav.inplace().append(item);
     return item;
   }
 
@@ -66,15 +24,15 @@ export function extractSettingsMenuMount() {
   }
 
   item.styles({ "text-align": "right" });
-  const managedAnchor = anchor.owned() ?? anchor.inplace();
+  const managedAnchor = anchor.inplace();
 
   if (thumbnailContainer) {
-    managedAnchor?.before(item);
+    managedAnchor.before(item);
   } else {
-    managedAnchor?.after(item);
+    managedAnchor.after(item);
   }
 
-  return managedAnchor ? item : null;
+  return item;
 }
 
 /** Extracts and owns the original top navigation for the TouchUI TopBar feature. */
@@ -91,22 +49,14 @@ export function extractTopBar() {
   if (!original || !host || links.length === 0) {
     return null;
   }
-  if (!original.manageable() || links.some((link) => !link.manageable())) {
-    return null;
-  }
 
   const data = {
     favoritesHref: new URL("/favorites.php", window.location.href).href,
     homeHref: links[0]?.attribute("href") ?? "/",
   };
 
-  const navItems = links
-    .map((link) => link.clone())
-    .filter((item) => item !== null);
+  const navItems = links.map((link) => link.clone());
   const originalElem = original.inplace();
-  if (!originalElem || navItems.length !== links.length) {
-    return null;
-  }
   originalElem.replaceWith(mount);
 
   const transforms = {

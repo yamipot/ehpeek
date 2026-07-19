@@ -55,14 +55,6 @@ export function extractSearchPanel() {
   const categoryMask = form.one<HTMLInputElement>("input[name='f_cats']");
   const categoryBits = categoryItems.map((item) => Number(item.attribute("id")?.match(/^cat_(\d+)$/)?.[1]));
   const optionLinkItems = optionLinks?.all<HTMLAnchorElement>("a") ?? [];
-  const sourceNodes = [form, searchInput, searchSubmit, ...categoryRows, ...categoryCells, ...categoryItems, ...optionLinkItems]
-    .concat([categories, advancedPanel, optionLinks, advancedToggle, fileSearchToggle, fileSearch, clearButton, categoryMask].filter((node) => node !== null));
-  if (standardSearchBox) {
-    sourceNodes.push(standardSearchBox);
-  }
-  if (sourceNodes.some((node) => !node.manageable())) {
-    return null;
-  }
 
   const sourceSearchBoxElem = standardSearchBox?.inplace() ?? null;
   const formElem = form.inplace();
@@ -75,17 +67,12 @@ export function extractSearchPanel() {
   const advancedToggleElem = advancedToggle?.inplace() ?? null;
   const fileSearchToggleElem = fileSearchToggle?.inplace() ?? null;
   const fileSearchElem = fileSearch?.inplace() ?? null;
-  const categoryRowElems = categoryRows.map((row) => row.inplace()).filter((row) => row !== null);
-  const categoryCellElems = categoryCells.map((cell) => cell.inplace()).filter((cell) => cell !== null);
-  const categoryItemElems = categoryItems.map((item) => item.inplace()).filter((item) => item !== null);
+  const categoryRowElems = categoryRows.map((row) => row.inplace());
+  const categoryCellElems = categoryCells.map((cell) => cell.inplace());
+  const categoryItemElems = categoryItems.map((item) => item.inplace());
   const categoryMaskElem = categoryMask?.inplace() ?? null;
-  const optionLinkElems = optionLinkItems.map((link) => link.inplace()).filter((link) => link !== null);
+  const optionLinkElems = optionLinkItems.map((link) => link.inplace());
   const searchControlsElem = DomNode.from(document.createElement("div")).inplace();
-  if (!formElem || !searchInputElem || !searchSubmitElem || !searchControlsElem
-    || categoryRowElems.length !== categoryRows.length || categoryCellElems.length !== categoryCells.length
-    || categoryItemElems.length !== categoryItems.length || optionLinkElems.length !== optionLinkItems.length) {
-    return null;
-  }
   const searchBoxElem = sourceSearchBoxElem ?? searchControlsElem;
 
   const targetElem = sourceSearchBoxElem ?? formElem;

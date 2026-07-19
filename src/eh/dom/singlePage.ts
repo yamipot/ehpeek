@@ -29,13 +29,7 @@ export function extractPageContent(
 
   extractGalleryApiSession(root, baseUrl);
 
-  const own = <T extends HTMLElement>(source: DomNode<T>) => {
-    const existing = source.owned();
-    if (existing) {
-      return existing;
-    }
-    return source.inplace();
-  };
+  const own = <T extends HTMLElement>(source: DomNode<T>) => source.inplace();
 
   const absoluteAttributes: Array<[string, string]> = [
     ["a[href]", "href"],
@@ -109,9 +103,6 @@ export function extractPageContent(
 
   for (const source of sources) {
     const managedSource = own(source);
-    if (!managedSource) {
-      continue;
-    }
     const inlineAttributes = source.attributeNames().filter((name) => /^on/i.test(name));
     const handlers = inlineAttributes.map((name) => source.attribute(name) ?? "");
     const attributes: Record<string, string> = {};
@@ -133,13 +124,10 @@ export function extractPageContent(
   }
 
   scriptSources.forEach((script) => own(script)?.remove());
-  const content = contentSources.flatMap((source) => {
-    const node = source.owned() ?? own(source);
-    if (!node) {
-      return [];
-    }
+  const content = contentSources.map((source) => {
+    const node = own(source);
     node.remove();
-    return [node];
+    return node;
   });
   const elems = { content } satisfies ManagedDomElements;
   const data = {
@@ -176,10 +164,7 @@ export function extractPageContent(
       if (method !== "GET" && method !== "POST") {
         return null;
       }
-      const formElement = form.owned()?.Component();
-      if (!formElement) {
-        return null;
-      }
+      const formElement = form.inplace().Component();
       const data = new FormData(formElement, event.submitter);
       const url = new URL(form.attribute("action") || window.location.href, window.location.href);
       if (method === "GET") {

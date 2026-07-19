@@ -1,5 +1,4 @@
 import texts from "../../texts.json";
-import galleryRearrange from "../galleryRearrange.css";
 import type { GalleryOperationsDom } from "./gallery";
 import type {
   GalleryCategoryAppearance,
@@ -11,8 +10,6 @@ import { galleryTagNameFromUrl } from "../url";
 import { updateGalleryFavorite } from "../request";
 import {
   createAnchor,
-  createManagedElement,
-  documentHead,
   DomNode,
   type ManagedDomElements,
   type ManagedDomNode,
@@ -20,22 +17,11 @@ import {
 import type { GalleryPreviewData } from "./gallery";
 import * as EhSyringe from "./ehSyringe";
 
-const TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID =
-  "ehpeek-touch-gallery-page-rearrange-style";
-
 /** Reads and takes ownership of E-H's gallery header for GalleryInfoPanel. */
 export function extractGalleryInfo(
   preview: GalleryPreviewData | null,
   operations: GalleryOperationsDom,
 ) {
-  if (!DomNode.from(document).one(`#${TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID}`)) {
-    const style = createManagedElement("style").attribute(
-      "id",
-      TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID,
-    );
-    style.setTextUnlessInput(galleryRearrange);
-    documentHead()?.append(style);
-  }
   const mount = createAnchor("gallery-info");
   if (!mount) {
     return null;
@@ -221,8 +207,7 @@ export function extractGalleryInfo(
   const manageTagGroups = (): GalleryInfoTagGroup[] => readTagGroups().map((group) => ({
     namespace: group.namespace,
     tags: group.tags.flatMap(({ data: tag, source }) => {
-      const contentSource = source.owned() ?? source.inplace();
-      return contentSource ? [{ ...tag, contentSource }] : [];
+      return [{ ...tag, contentSource: source.inplace() }];
     }),
   }));
 
@@ -294,7 +279,6 @@ export function extractGalleryInfo(
   if (
     sources.some(
       (source, index) =>
-        !source.manageable() ||
         sources.slice(0, index).some((previous) => source.sameNode(previous)),
     )
   ) {
@@ -304,9 +288,7 @@ export function extractGalleryInfo(
   const coverElem = coverUrl
     ? (coverSource ?? DomNode.from(document.createElement("img"))).clone()
     : null;
-  const actionElems = actionSources
-    .map(({ node }) => node.clone(false))
-    .filter((action) => action !== null);
+  const actionElems = actionSources.map(({ node }) => node.clone(false));
   const newTagButtonElem = newTagButton?.inplace() ?? null;
   const newTagFieldElem = newTagField?.inplace() ?? null;
   const newTagFormElem = newTagForm?.inplace() ?? null;
@@ -314,23 +296,9 @@ export function extractGalleryInfo(
     newTagButtonElem && newTagFieldElem && newTagFormElem
       ? (newTag?.move() ?? null)
       : null;
-  const hostChildElems = hostChildSources
-    .map((child) => child.inplace())
-    .filter((child) => child !== null);
+  const hostChildElems = hostChildSources.map((child) => child.inplace());
   const hostElem = host.inplace();
-  const tagContents = tagContentSources
-    .map((source) => source.inplace())
-    .filter((content) => content !== null);
-  if (
-    (coverUrl && !coverElem) ||
-    actionElems.length !== actionSources.length ||
-    hostChildElems.length !== hostChildSources.length ||
-    (newTag && newTagButton && newTagField && newTagForm && !newTagElem) ||
-    !hostElem ||
-    tagContents.length !== tagContentSources.length
-  ) {
-    return null;
-  }
+  const tagContents = tagContentSources.map((source) => source.inplace());
   const elems = {
     actions: actionElems,
     cover: coverElem,
@@ -409,7 +377,7 @@ export function extractGalleryInfo(
     },
     observeTagGroups(onChange: (groups: GalleryInfoTagGroup[]) => void) {
       const tagList = page.one<HTMLElement>("#taglist");
-      const managedTagList = tagList?.owned() ?? tagList?.inplace();
+      const managedTagList = tagList?.inplace();
       return managedTagList?.observe(() => onChange(manageTagGroups())) ?? (() => undefined);
     },
     reuseNewTagInput(): void {
@@ -450,10 +418,10 @@ export function extractGalleryCommentsTouch() {
     }))
     .filter((item): item is { trigger: DomNode<HTMLElement>; details: DomNode<HTMLElement> } => item.details !== null)
     .map(({ trigger, details }) => ({
-      details: details.owned() ?? details.inplace(),
+      details: details.inplace(),
       detailsId: details.attribute("id") ?? "",
       expanded: false,
-      trigger: trigger.owned() ?? trigger.inplace(),
+      trigger: trigger.inplace(),
     }))
     .filter((item) => item.details !== null && item.trigger !== null);
 

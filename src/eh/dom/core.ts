@@ -24,7 +24,6 @@ const mountedNodes = new WeakMap<HTMLElement, () => void>();
 const managedNodes = new WeakMap<HTMLElement, ManagedDomNode>();
 let managedDocumentElement: ManagedDomNode<HTMLElement> | null = null;
 let managedBody: ManagedDomNode<HTMLElement> | null = null;
-let managedHead: ManagedDomNode<HTMLHeadElement> | null = null;
 
 export type ManagedDomElements = Record<
   string,
@@ -53,21 +52,15 @@ export function createManagedElement<K extends keyof HTMLElementTagNameMap>(
 }
 
 /** Acquires the document element for page-level feature transforms. */
-export function documentElement(): ManagedDomNode<HTMLElement> | null {
+export function documentElement(): ManagedDomNode<HTMLElement> {
   managedDocumentElement ??= DomNode.from(document.documentElement).inplace();
   return managedDocumentElement;
 }
 
 /** Acquires the document body for page-level feature transforms. */
-export function documentBody(): ManagedDomNode<HTMLElement> | null {
+export function documentBody(): ManagedDomNode<HTMLElement> {
   managedBody ??= DomNode.from(document.body).inplace();
   return managedBody;
-}
-
-/** Acquires the document head for feature styles and metadata transforms. */
-export function documentHead(): ManagedDomNode<HTMLHeadElement> | null {
-  managedHead ??= DomNode.from(document.head).inplace();
-  return managedHead;
 }
 
 /** Read-only access to an original-page node before ownership is decided. */
@@ -183,14 +176,6 @@ export class DomNode<T extends ParentNode = ParentNode> {
     return this.#node.selected;
   }
 
-  manageable(this: DomNode<HTMLElement>): boolean {
-    return !this.#node.classList.contains(MANAGED_DOM_NODE_CLASS);
-  }
-
-  owned(this: DomNode<T & HTMLElement>): ManagedDomNode<T & HTMLElement> | null {
-    return (managedNodes.get(this.#node) as ManagedDomNode<T & HTMLElement> | undefined) ?? null;
-  }
-
   sameNode(other: DomNode): boolean {
     return this.#node === other.#node;
   }
@@ -230,26 +215,20 @@ export class DomNode<T extends ParentNode = ParentNode> {
 
   inplace(
     this: DomNode<T & HTMLElement>,
-  ): ManagedDomNode<T & HTMLElement> | null {
-    if (this.#node.classList.contains(MANAGED_DOM_NODE_CLASS)) {
-      return null;
-    }
+  ): ManagedDomNode<T & HTMLElement> {
     return ManagedDomNode.from(manageElem(this.#node));
   }
 
-  move(this: DomNode<T & HTMLElement>): ManagedDomNode<T & HTMLElement> | null {
+  move(this: DomNode<T & HTMLElement>): ManagedDomNode<T & HTMLElement> {
     const managed = this.inplace();
-    managed?.remove();
+    managed.remove();
     return managed;
   }
 
   clone(
     this: DomNode<T & HTMLElement>,
     deep = true,
-  ): ManagedDomNode<T & HTMLElement> | null {
-    if (this.#node.classList.contains(MANAGED_DOM_NODE_CLASS)) {
-      return null;
-    }
+  ): ManagedDomNode<T & HTMLElement> {
     return ManagedDomNode.from(
       manageElem(this.#node.cloneNode(deep) as T & HTMLElement),
     );

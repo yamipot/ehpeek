@@ -10,7 +10,9 @@
  * Source nodes are read only through `DomNode`. Validate every required node
  * before taking ownership and return `null` when the feature cannot be resolved.
  * `inplace`, `clone`, and `move` fix ownership immediately without applying
- * presentation changes; `move` also detaches the source node.
+ * presentation changes; `move` also detaches the source node. Repeated
+ * acquisition is supported and returns the same managed wrapper for the same
+ * node.
  * Use `DomNode.observe` for asynchronously inserted source nodes and choose
  * ownership in its acquire callback; use `ManagedDomNode.observe` after ownership.
  *
@@ -33,7 +35,8 @@
  * shared by multiple features or repeated document loads belong at module scope.
  * Public feature entry points use `extractXxx` names and are called together by
  * App page injection. Async providers may extract fetched documents; later DOM
- * refreshes stay behind the source's actions or transforms.
+ * refreshes stay behind the source's actions or transforms. Pure EhPeek-owned
+ * mounts and global styles belong to App rather than this original-page boundary.
  */
 export * from "./core";
 export * as EhSyringe from "./ehSyringe";

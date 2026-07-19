@@ -44,10 +44,9 @@ export function extractSearchResults(): SearchResultsDom | null {
   if (!resultSource) {
     return null;
   }
-  const resultList = resultSource.owned() ?? resultSource.inplace();
+  const resultList = resultSource.inplace();
   const navigationBars = page.all<HTMLElement>(".searchnav").flatMap((source) => {
-    const bar = source.owned() ?? source.inplace();
-    return bar ? [bar] : [];
+    return [source.inplace()];
   });
   if (!resultList) {
     return null;
@@ -119,9 +118,9 @@ export function extractSearchHistory() {
   ) ?? inputSource?.parent()?.one<HTMLInputElement | HTMLButtonElement>(
     "input[type='submit'], button[type='submit']",
   ) ?? null;
-  const input = inputSource?.owned() ?? inputSource?.inplace() ?? null;
-  const form = formSource?.owned() ?? formSource?.inplace() ?? null;
-  const submit = submitSource?.owned() ?? submitSource?.inplace() ?? null;
+  const input = inputSource?.inplace() ?? null;
+  const form = formSource?.inplace() ?? null;
+  const submit = submitSource?.inplace() ?? null;
   if (!input || !submit) {
     return null;
   }
@@ -189,7 +188,7 @@ function applySearchGrid(): void {
 
   const body = resultList.one<HTMLElement>("tbody");
   const rows = resultList.all<HTMLTableRowElement>("tbody > tr").map(resolveSearchGridRow).filter(isSearchGridRow);
-  const resultListElem = resultList.owned() ?? resultList.inplace();
+  const resultListElem = resultList.inplace();
   const bodyElem = body?.inplace() ?? null;
 
   resultListElem
@@ -249,27 +248,11 @@ function applySearchGrid(): void {
   }
   
   function applySearchGridRow(source: SearchGridRow): void {
-    const required = [
-      source.row,
-      source.thumbnailCell,
-      source.contentCell,
-      source.detail,
-      source.metadata,
-    ];
-  
-    if (required.some((node) => !node.manageable())) {
-      return;
-    }
-  
     const row = source.row.inplace();
     const thumbnailCell = source.thumbnailCell.inplace();
     const contentCell = source.contentCell.inplace();
     const detail = source.detail.inplace();
     const metadata = source.metadata.inplace();
-  
-    if (!row || !thumbnailCell || !contentCell || !detail || !metadata) {
-      return;
-    }
   
     row.styles({
       display: "grid",
@@ -301,7 +284,7 @@ function applySearchGrid(): void {
     detail: ManagedDomNode,
     metadata: ManagedDomNode,
   ): void {
-    const tags = source.tags.map((node) => node.inplace()).filter(isManagedNode);
+    const tags = source.tags.map((node) => node.inplace());
     const title = source.title?.inplace() ?? null;
     const galleryLink = source.galleryLink?.inplace() ?? null;
   
@@ -417,10 +400,6 @@ function applySearchGrid(): void {
     }
   }
   
-  function isManagedNode(node: ManagedDomNode | null): node is ManagedDomNode {
-    return node !== null;
-  }
-  
   function makeSearchGridContentClickable(
     contentCell: ManagedDomNode,
     galleryLink: ManagedDomNode<HTMLAnchorElement>,
@@ -456,26 +435,20 @@ export function extractSearchGridModeSelect(
   const managedSelects: ManagedDomNode<HTMLSelectElement>[] = [];
 
   for (const source of selects) {
-    if (!source.manageable()) {
-      continue;
-    }
-
     const select = source.inplace();
-    if (select) {
-      managedSelects.push(select);
-    }
+    managedSelects.push(select);
     let option = source.all<HTMLOptionElement>("option").find((item) => item.inputValue() === "ehpeek")?.inplace() ?? null;
 
     if (!option) {
       option = createManagedElement("option")
         .attribute("value", "ehpeek");
       option.setTextUnlessInput("EhPeek");
-      select?.append(option);
+      select.append(option);
     }
 
     option.setSelected(selected);
 
-    if (!select || source.attribute("data-ehpeek-grid-mode") === "true") {
+    if (source.attribute("data-ehpeek-grid-mode") === "true") {
       continue;
     }
 
@@ -509,11 +482,8 @@ function replaceSearchPageContent(doc: Document): void {
   replaceFirstElement(".searchtext", doc);
   replaceSearchNavigationBars(doc);
 
-  const current = currentList.owned() ?? currentList.inplace();
+  const current = currentList.inplace();
   const importedList = incomingList.clone();
-  if (!current || !importedList) {
-    return;
-  }
   current.replaceWith(importedList);
 }
 
@@ -523,11 +493,9 @@ function replaceSearchNavigationBars(doc: Document): void {
   const count = Math.min(currentBars.length, incomingBars.length);
 
   for (let index = 0; index < count; index += 1) {
-    const current = currentBars[index].owned() ?? currentBars[index].inplace();
+    const current = currentBars[index].inplace();
     const incoming = incomingBars[index].clone();
-    if (current && incoming) {
-      current.replaceWith(incoming);
-    }
+    current.replaceWith(incoming);
   }
 }
 
@@ -539,21 +507,19 @@ function replaceFirstElement(selector: string, doc: Document): void {
     return;
   }
 
-  const currentElement = current.owned() ?? current.inplace();
+  const currentElement = current.inplace();
   const incomingElement = incoming.clone();
-  if (currentElement && incomingElement) {
-    currentElement.replaceWith(incomingElement);
-  }
+  currentElement.replaceWith(incomingElement);
 }
 
 /** Applies TouchUI layout ownership to Favorites results and extracts its collection selector. */
 function favoritesPageTouch(): TouchFavoritesCategorySelectInfo | null {
-  documentElement()?.transform({ classes: { add: TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" ") } });
-  documentBody()?.transform({ classes: { add: TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" ") } });
+  documentElement().transform({ classes: { add: TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" ") } });
+  documentBody().transform({ classes: { add: TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" ") } });
 
   const page = DomNode.from(document);
   const pageContainer = page.one<HTMLElement>(".ido");
-  (pageContainer?.owned() ?? pageContainer?.inplace())
+  pageContainer?.inplace()
     ?.removeStyles("min-width")
     .transform({ classes: { add: TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" ") } });
 
@@ -581,9 +547,9 @@ function favoritesPageTouch(): TouchFavoritesCategorySelectInfo | null {
   const contentSource = existingWrapper?.parent() ?? resultSource.parent();
   const allSelected = categorySelect?.categories[0]?.selected === true;
 
-  (contentSource?.owned() ?? contentSource?.inplace())
+  contentSource?.inplace()
     ?.transform({ classes: { add: TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" ") } });
-  const resultList = resultSource.owned() ?? resultSource.inplace();
+  const resultList = resultSource.inplace();
   resultList?.transform({ classes: { add: TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME.split(" ") } });
 
   if (!resultList || existingWrapper) {
@@ -605,7 +571,7 @@ function favoritesPageTouch(): TouchFavoritesCategorySelectInfo | null {
 }
 
 function compactFavoritesResultList(source: DomNode<HTMLElement>): void {
-  (source.owned() ?? source.inplace())?.styles({
+  source.inplace().styles({
     "table-layout": "auto",
     width: "100%",
   }, "important");
@@ -686,8 +652,8 @@ function readFavoritesCategories(
 
 /** Applies TouchUI layout ownership to Search-like result pages. */
 function searchResultsPageTouch(): void {
-  documentElement()?.transform({ classes: { add: TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ") } });
-  documentBody()?.transform({ classes: { add: TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ") } });
+  documentElement().transform({ classes: { add: TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ") } });
+  documentBody().transform({ classes: { add: TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ") } });
 
   const page = DomNode.from(document);
   const rangeBar = page.one<HTMLElement>("#rangebar")?.inplace();
@@ -706,11 +672,11 @@ function searchResultsPageTouch(): void {
   const contentSource = existingWrapper?.parent() ?? resultSource.parent();
   const pageContent = resultSource.closest<HTMLElement>(".ido");
 
-  (pageContent?.owned() ?? pageContent?.inplace())
+  pageContent?.inplace()
     ?.transform({ classes: { add: TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ") } });
-  (contentSource?.owned() ?? contentSource?.inplace())
+  contentSource?.inplace()
     ?.transform({ classes: { add: TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ") } });
-  const resultList = resultSource.owned() ?? resultSource.inplace();
+  const resultList = resultSource.inplace();
   resultList?.transform({ classes: { add: TOUCH_SEARCH_RESULT_LIST_CLASS_NAME.split(" ") } });
 
   if (!resultList || existingWrapper) {
@@ -744,8 +710,8 @@ export function extractTouchResultsPage(page: PageType) {
         ...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "),
         ...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" "),
       ];
-      documentElement()?.transform({ classes: { remove: classes } });
-      documentBody()?.transform({ classes: { remove: classes } });
+      documentElement().transform({ classes: { remove: classes } });
+      documentBody().transform({ classes: { remove: classes } });
     },
   };
   return { actions, data };

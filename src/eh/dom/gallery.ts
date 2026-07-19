@@ -139,9 +139,9 @@ function applyMyTagAppearances(appearances: MyTagAppearance[], root: ParentNode 
     }
 
     if (appearance.backgroundColor) {
-      (container.owned() ?? container.inplace())?.styles({ "background-color": appearance.backgroundColor }, "important");
-      (tag.owned() ?? tag.inplace())
-        ?.styles({ color: appearance.color }, "important")
+      container.inplace().styles({ "background-color": appearance.backgroundColor }, "important");
+      tag.inplace()
+        .styles({ color: appearance.color }, "important")
         .transform({
           attributes: {
             set: {
@@ -200,7 +200,7 @@ function readableTagColor(backgroundColor: string): "#000000" | "#ffffff" {
 
 function observeGalleryTagChanges(onChange: () => void): () => void {
   const tagListSource = DomNode.from(document).one<HTMLElement>("#taglist");
-  const tagList = tagListSource?.owned() ?? tagListSource?.inplace();
+  const tagList = tagListSource?.inplace();
 
   if (!tagList) {
     return () => undefined;
@@ -235,7 +235,7 @@ async function runGalleryTagAction(
           : 0;
   const tagPane = await updateGalleryTagVote(info, tag.name, vote);
   const tagListSource = DomNode.from(document).one<HTMLElement>("#taglist");
-  const tagList = tagListSource?.owned() ?? tagListSource?.inplace();
+  const tagList = tagListSource?.inplace();
 
   if (!tagList) {
     throw new Error("Gallery tag list is unavailable.");
@@ -416,7 +416,7 @@ export type GalleryOperationsDom = ReturnType<
 export function extractGalleryContinueReadingButtonMount() {
   const managedHost = createManagedElement("div");
   const viewerOptionsSource = DomNode.from(document).one<HTMLElement>("#gd5");
-  const viewerOptions = viewerOptionsSource?.owned() ?? viewerOptionsSource?.inplace();
+  const viewerOptions = viewerOptionsSource?.inplace();
 
   if (viewerOptions) {
     viewerOptions
@@ -425,7 +425,7 @@ export function extractGalleryContinueReadingButtonMount() {
     return managedHost;
   }
 
-  documentBody()?.append(managedHost);
+  documentBody().append(managedHost);
   return managedHost;
 }
 
@@ -540,28 +540,28 @@ export function extractGalleryPreview(
     },
     scrollPageBar(position: "bottom" | "top"): void {
       const target = DomNode.from(document).one<HTMLElement>(`[data-ehpeek-preview-page-bar='${position}']`);
-      (target?.owned() ?? target?.inplace())?.scrollIntoView({
+      target?.inplace().scrollIntoView({
         behavior: "smooth",
         block: position === "top" ? "start" : "end",
       });
     },
     setBusy(busy: boolean): void {
       const thumbsSource = page.one<HTMLElement>("#gdt");
-      const thumbs = thumbsSource?.owned() ?? thumbsSource?.inplace();
+      const thumbs = thumbsSource?.inplace();
       thumbs?.transform({ attributes: busy ? { set: { "aria-busy": "true" } } : { remove: ["aria-busy"] } });
     },
     swipeTarget(): HTMLElement | null {
       const thumbsSource = page.one<HTMLElement>("#gdt");
-      const thumbs = thumbsSource?.owned() ?? thumbsSource?.inplace() ?? null;
+      const thumbs = thumbsSource?.inplace() ?? null;
       if (!thumbs || !thumbsSource) {
         return null;
       }
       thumbs.styles({ "touch-action": "pan-y", "user-select": "none" });
       for (const source of thumbsSource.all<HTMLElement>("a, img, .gdtm, .gdtl")) {
-        const target = source.owned() ?? source.inplace();
-        target?.styles({ "touch-action": "pan-y", "user-select": "none" });
+        const target = source.inplace();
+        target.styles({ "touch-action": "pan-y", "user-select": "none" });
         if (source.matches("img")) {
-          target?.attribute("draggable", "false").styles({ "-webkit-user-drag": "none" });
+          target.attribute("draggable", "false").styles({ "-webkit-user-drag": "none" });
         }
       }
       return thumbs.Component();
@@ -584,7 +584,7 @@ function replaceGalleryPageBarMounts(
   const descriptionText = description?.text() || null;
 
   if (description) {
-    (description.owned() ?? description.inplace())?.setHidden(true);
+    description.inplace().setHidden(true);
   }
 
   if (topSource) {
@@ -596,7 +596,7 @@ function replaceGalleryPageBarMounts(
   }
 
   for (const original of originals) {
-    (original.owned() ?? original.inplace())?.setHidden(true);
+    original.inplace().setHidden(true);
   }
 
   return mounts;
@@ -614,7 +614,7 @@ function snapshotPreview() {
 /** Replaces Preview thumbnails with its loading or error placeholder. */
 function showPreviewPlaceholder(content: Node | string): void {
   const currentSource = DomNode.from(document).one<HTMLElement>("#gdt");
-  const current = currentSource?.owned() ?? currentSource?.inplace();
+  const current = currentSource?.inplace();
 
   if (!current || !currentSource) {
     return;
@@ -644,7 +644,7 @@ function applyPreviewContent(doc: Document): void {
 /** Restores a detached Preview snapshot during SinglePage history navigation. */
 function restorePreview(snapshot: ReturnType<typeof snapshotPreview>): void {
   const currentThumbsSource = DomNode.from(document).one<HTMLElement>("#gdt");
-  const currentThumbs = currentThumbsSource?.owned() ?? currentThumbsSource?.inplace();
+  const currentThumbs = currentThumbsSource?.inplace();
 
   if (snapshot.description) {
     replaceGalleryPageDescription(snapshot.description);
@@ -663,12 +663,12 @@ function replaceGalleryPageBarAt(
 ): GalleryPageBarMount {
   const page = DomNode.from(document);
   const existingSource = page.one<HTMLDivElement>(`.${className}`);
-  const existing = existingSource?.owned() ?? existingSource?.inplace() ?? null;
+  const existing = existingSource?.inplace() ?? null;
   const descriptionSource = top
     ? page.one<HTMLDivElement>("[data-ehpeek-gallery-page-description-mount]")
     : null;
   const descriptionElement = top
-    ? descriptionSource?.owned() ?? descriptionSource?.inplace() ?? createManagedElement("div")
+    ? descriptionSource?.inplace() ?? createManagedElement("div")
     : null;
   descriptionElement?.attribute("data-ehpeek-gallery-page-description-mount", "true");
 
@@ -682,7 +682,7 @@ function replaceGalleryPageBarAt(
 
   const pageBar = createManagedElement("div");
   pageBar.attribute("data-ehpeek-preview-page-bar", top ? "top" : "bottom");
-  (source.owned() ?? source.inplace())?.after(pageBar);
+  source.inplace().after(pageBar);
   if (descriptionElement) {
     pageBar.before(descriptionElement);
   }
@@ -697,7 +697,7 @@ function replaceFirstGalleryElement(selector: string, doc: Document): void {
     return;
   }
 
-  const currentElement = current.owned() ?? current.inplace();
+  const currentElement = current.inplace();
   const incomingElement = incoming.clone();
   if (currentElement && incomingElement) {
     currentElement.replaceWith(incomingElement);
@@ -716,7 +716,7 @@ function replaceGalleryPageDescription(incoming: DomNode<HTMLElement> | ManagedD
   }
 
   const staleDescriptions = DomNode.from(document).all<HTMLElement>(".gpc");
-  const currentElement = current.owned() ?? current.inplace();
+  const currentElement = current.inplace();
   const incomingElement = incoming instanceof ManagedDomNode ? incoming : incoming.clone();
   if (currentElement && incomingElement) {
     currentElement.replaceWith(incomingElement);
@@ -724,7 +724,7 @@ function replaceGalleryPageDescription(incoming: DomNode<HTMLElement> | ManagedD
 
   for (const description of staleDescriptions) {
     if (!description.sameNode(current)) {
-      (description.owned() ?? description.inplace())?.remove();
+      description.inplace().remove();
     }
   }
 }
