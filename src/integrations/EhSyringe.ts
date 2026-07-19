@@ -5,7 +5,8 @@ const SEARCH_SUBMIT_SELECTOR = "#searchbox button[ehs-input][type='submit']";
 const CLEAR_BUTTON_SELECTOR = "#searchbox button[ehs-input][type='button']";
 const TAG_TIP_INPUT_SELECTOR = "#f_search, #newtagfield, [name='f_search']";
 const TAG_TIP_LIST_SELECTOR = ".eh-syringe-lite-auto-complete-list";
-const TAG_TIP_LIST_CLASS_NAME = "!max-h-[60dvh] !py-sm [&_.auto-complete-item]:box-border [&_.auto-complete-item]:min-h-lg [&_.auto-complete-item]:!py-sm [&_.auto-complete-item]:!px-lg [&_.auto-complete-item]:!text-[length:var(--font-size-lg)] [&_.auto-complete-item]:!leading-[1.25] [&_.auto-complete-text]:!text-inherit [&_.auto-complete-text]:!leading-inherit";
+const TAG_TIP_LIST_CLASS_NAME =
+  "!max-h-[60dvh] !py-sm [&_.auto-complete-item]:box-border [&_.auto-complete-item]:min-h-lg [&_.auto-complete-item]:!py-sm [&_.auto-complete-item]:!px-lg [&_.auto-complete-item]:!text-[length:var(--font-size-lg)] [&_.auto-complete-item]:!leading-[1.25] [&_.auto-complete-text]:!text-inherit [&_.auto-complete-text]:!leading-inherit";
 const DETECTED_KEY = "ehpeek:ehsyringe:detected";
 const INJECTION_TIMEOUT_MS = 3_000;
 const ROUTE_TRANSLATION_TIMEOUT_MS = 450;
@@ -26,7 +27,9 @@ export async function waitForSearchUi(): Promise<void> {
   }
 }
 
-export async function waitForRouteTranslation(root: HTMLElement): Promise<void> {
+export async function waitForRouteTranslation(
+  root: HTMLElement,
+): Promise<void> {
   await waitForInitialUi();
 
   if (!isInjected()) {
@@ -49,16 +52,25 @@ export async function waitForRouteTranslation(root: HTMLElement): Promise<void> 
     );
 
     if (observed) {
-      await waitForMutationQuiet(root, ROUTE_TRANSLATION_QUIET_MS, ROUTE_TRANSLATION_TIMEOUT_MS);
+      await waitForMutationQuiet(
+        root,
+        ROUTE_TRANSLATION_QUIET_MS,
+        ROUTE_TRANSLATION_TIMEOUT_MS,
+      );
     }
   } finally {
     probe.remove();
   }
 }
 
-export function mirrorTranslatedContent(source: HTMLElement, target: HTMLElement): () => void {
+export function mirrorTranslatedContent(
+  source: HTMLElement,
+  target: HTMLElement,
+): () => void {
   const update = () => {
-    target.replaceChildren(...Array.from(source.childNodes, (node) => node.cloneNode(true)));
+    target.replaceChildren(
+      ...Array.from(source.childNodes, (node) => node.cloneNode(true)),
+    );
     const language = source.getAttribute("lang");
 
     if (language) {
@@ -81,10 +93,30 @@ export function mirrorTranslatedContent(source: HTMLElement, target: HTMLElement
   return () => observer.disconnect();
 }
 
-export function reuseTagTipInput(target: HTMLInputElement): HTMLInputElement {
+export function reuseTagTipInput(target: HTMLInputElement): HTMLInputElement;
+export function reuseTagTipInput(
+  target: ManagedDomNode<HTMLInputElement>,
+): ManagedDomNode<HTMLInputElement>;
+export function reuseTagTipInput(
+  target: HTMLInputElement | ManagedDomNode<HTMLInputElement>,
+): HTMLInputElement | ManagedDomNode<HTMLInputElement> {
   captureTagTipInput();
 
-  if (!tagTipInput || tagTipInput === target || tagTipInput.isConnected) {
+  if (!tagTipInput || tagTipInput.isConnected) {
+    return target;
+  }
+
+  if (target instanceof ManagedDomNode) {
+    if (target.isNode(tagTipInput)) {
+      return target;
+    }
+
+    target.copyAttributesTo(tagTipInput);
+    tagTipInput.value = target.inputValue();
+    return target.replaceInput(tagTipInput);
+  }
+
+  if (tagTipInput === target) {
     return target;
   }
 
@@ -145,7 +177,11 @@ function waitFor(
   });
 }
 
-function waitForMutationQuiet(root: Node, quietMs: number, timeoutMs: number): Promise<void> {
+function waitForMutationQuiet(
+  root: Node,
+  quietMs: number,
+  timeoutMs: number,
+): Promise<void> {
   return new Promise((resolve) => {
     let finished = false;
     let quietTimer = window.setTimeout(finish, quietMs);
@@ -230,7 +266,10 @@ function isTranslatingUi(): boolean {
 }
 
 function searchUiReady(): boolean {
-  return Boolean(document.querySelector(SEARCH_SUBMIT_SELECTOR) && document.querySelector(CLEAR_BUTTON_SELECTOR));
+  return Boolean(
+    document.querySelector(SEARCH_SUBMIT_SELECTOR) &&
+      document.querySelector(CLEAR_BUTTON_SELECTOR),
+  );
 }
 
 function captureTagTipInput(): boolean {
@@ -245,13 +284,21 @@ function captureTagTipInput(): boolean {
 
   list.classList.add(...TAG_TIP_LIST_CLASS_NAME.split(" "));
 
-  tagTipInput = document.querySelector<HTMLInputElement>(TAG_TIP_INPUT_SELECTOR);
+  tagTipInput = document.querySelector<HTMLInputElement>(
+    TAG_TIP_INPUT_SELECTOR,
+  );
   return tagTipInput !== null;
 }
 
-function copyInputAttributes(source: HTMLInputElement, target: HTMLInputElement): void {
+function copyInputAttributes(
+  source: HTMLInputElement,
+  target: HTMLInputElement,
+): void {
   const injectedAttributes = Array.from(target.attributes)
-    .filter((attribute) => attribute.name === "autocomplete" || attribute.name.startsWith("ehs-"))
+    .filter(
+      (attribute) =>
+        attribute.name === "autocomplete" || attribute.name.startsWith("ehs-"),
+    )
     .map((attribute) => [attribute.name, attribute.value] as const);
 
   for (const attribute of Array.from(target.attributes)) {
@@ -288,3 +335,4 @@ function watchForTagTipInput(): void {
 
 watchForSuccessfulInjection();
 watchForTagTipInput();
+import { ManagedDomNode } from "../eh/transform";

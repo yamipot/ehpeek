@@ -11,6 +11,23 @@ import {
   type MyTagMode,
 } from "./request";
 import galleryRearrange from "./galleryRearrange.css";
+import type {
+  GalleryFavoriteOption,
+  GalleryNewTagInfo,
+  GalleryPageBarMount,
+  GalleryTag,
+  GalleryTagAction,
+  GalleryTagData,
+  GalleryTagGroup,
+  ImagePageInfo,
+  MyTagAppearance,
+  MyTagSetOption,
+  PageViewportSnapshot,
+  PreviewSnapshot,
+  SearchHistorySource,
+  TouchFavoritesCategorySelectInfo,
+  TouchSearchPanelInfo,
+} from "./types";
 
 const TOUCH_GALLERY_PAGE_REARRANGE_STYLE_ID = "ehpeek-touch-gallery-page-rearrange-style";
 const TOUCH_FAVORITES_PAGE_CLASS_NAME = "!min-w-0 !max-w-full !overflow-x-hidden";
@@ -27,8 +44,6 @@ const TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME =
 const TOUCH_SEARCH_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
 const GALLERY_PAGE_DESCRIPTION_SELECTOR = ".gpc:not(.eh-syringe-ignore)";
 const EXHENTAI_ONION_HOST = "exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion";
-const SINGLE_PAGE_PERSISTENT_SELECTOR =
-  "[data-ehpeek-persistent], #eh-syringe-popup-button, #eh-syringe-popup-back, .eh-syringe-lite-auto-complete-list";
 
 type GalleryApiSession = {
   apiKey: string;
@@ -37,179 +52,6 @@ type GalleryApiSession = {
 };
 
 let galleryApiSession: GalleryApiSession | null = null;
-
-export type PreviewSnapshot = {
-  description: Node | null;
-  thumbs: Node | null;
-};
-
-export type ImagePageInfo = {
-  imageUrl: string;
-  originalImageUrl: string | null;
-  width: number | null;
-  height: number | null;
-};
-
-export type GalleryPageBarMount = {
-  descriptionElement: HTMLDivElement | null;
-  descriptionText: string | null;
-  element: HTMLDivElement;
-  top: boolean;
-};
-
-export type PageViewportSnapshot = {
-  content: string | null;
-  created: boolean;
-  meta: HTMLMetaElement;
-  scale: number;
-  scrollX: number;
-  scrollY: number;
-};
-
-export type GallerySummaryItem = {
-  value: string;
-};
-
-export type GalleryTagGroup = {
-  namespace: string;
-  tags: GalleryTag[];
-};
-
-export type GalleryTag = {
-  appearance: GalleryTagAppearance;
-  contentSource: HTMLElement;
-  definitionHref: string;
-  href: string;
-  label: string;
-  myTag: { id: string; tagSet: string } | null;
-  name: string;
-  vote: "down" | "up" | null;
-};
-
-export type GalleryTagAction = "voteDown" | "voteUp" | "withdrawVote";
-
-export type GalleryNewTagInfo = {
-  button: HTMLInputElement | HTMLButtonElement;
-  container: HTMLElement;
-  field: HTMLInputElement;
-  form: HTMLFormElement;
-};
-
-export type GalleryTagAppearance = {
-  backgroundColor: string;
-  borderColor: string;
-  color: string;
-};
-
-export type MyTagAppearance = {
-  backgroundColor: string;
-  color: string;
-  id: string;
-  name: string;
-  tagSet: string;
-};
-
-export type MyTagSetOption = {
-  label: string;
-  selected: boolean;
-  value: string;
-};
-
-export type GalleryCategoryAppearance = {
-  "background-color": string;
-  "background-image": string;
-  "border-color": string;
-  color: string;
-};
-
-export type GalleryRatingInfo = {
-  count: string;
-  label: string;
-  rated: boolean;
-  value: number;
-};
-
-export type GalleryInfo = {
-  available: boolean;
-  titleMain: string;
-  titleSub: string;
-  category: string;
-  categoryAppearance: GalleryCategoryAppearance;
-  cover: HTMLElement | null;
-  favorite: GalleryFavoriteInfo;
-  newTag: GalleryNewTagInfo | null;
-  tagApi: GalleryTagApiInfo | null;
-  summary: GallerySummaryItem[];
-  actions: HTMLElement[];
-  rating: GalleryRatingInfo | null;
-  tagGroups: GalleryTagGroup[];
-};
-
-export type GalleryFavoriteInfo = {
-  actionUrl: string;
-  color: string | null;
-  favorited: boolean;
-  label: string;
-};
-
-export type GalleryFavoriteOption = {
-  color: string | null;
-  label: string;
-  selected: boolean;
-  value: string;
-};
-
-export type TouchTopBarInfo = {
-  available: boolean;
-  navItems: HTMLElement[];
-  homeHref: string;
-  favoritesHref: string;
-};
-
-export type TouchSearchPanelInfo = {
-  advancedPanel: HTMLElement | null;
-  advancedToggle: HTMLAnchorElement | null;
-  advancedToggleMount: HTMLSpanElement | null;
-  categories: HTMLTableElement | null;
-  categoryToggleMount: HTMLSpanElement | null;
-  clearActionMount: HTMLSpanElement | null;
-  clearButton: HTMLInputElement | HTMLButtonElement | null;
-  clearLabel: string | null;
-  fileSearch: HTMLElement | null;
-  fileSearchToggle: HTMLAnchorElement | null;
-  fileSearchToggleMount: HTMLSpanElement | null;
-  form: HTMLFormElement;
-  optionLinks: HTMLElement | null;
-  searchActionMount: HTMLSpanElement;
-  searchBox: HTMLElement;
-  searchControls: HTMLDivElement;
-  searchInput: HTMLInputElement;
-  searchLabel: string;
-  searchSubmit: HTMLInputElement | HTMLButtonElement;
-};
-
-export type TouchFavoritesCategory = {
-  appearance: TouchFavoritesCategoryAppearance | null;
-  count: number;
-  href: string;
-  label: string;
-  selected: boolean;
-};
-
-export type TouchFavoritesCategoryAppearance = {
-  backgroundImage: string;
-  backgroundPosition: string;
-  backgroundSize: string;
-};
-
-export type TouchFavoritesCategorySelectInfo = {
-  categories: TouchFavoritesCategory[];
-};
-
-export type SearchHistorySource = {
-  searchInput: HTMLInputElement;
-  searchSubmit: HTMLInputElement | HTMLButtonElement;
-};
 
 type PageType =
   | {
@@ -597,46 +439,6 @@ export function searchNavigationLinkForUrl(url: string, root: ParentNode = docum
   return null;
 }
 
-export function singlePageContentNodes(root: HTMLElement = document.body): Node[] {
-  return Array.from(root.childNodes).filter(
-    (node) => !(node instanceof Element && node.matches(SINGLE_PAGE_PERSISTENT_SELECTOR)),
-  );
-}
-
-export function prepareSinglePageContent(root: ParentNode, baseUrl: string): void {
-  captureGalleryApiSession(root, baseUrl);
-  preserveSinglePageGalleryData(root, baseUrl);
-  preserveSinglePageGalleryUtilityLinks(root, baseUrl);
-  preserveSinglePageFileSearchAction(root, baseUrl);
-
-  for (const form of Array.from(root.querySelectorAll<HTMLFormElement>("form"))) {
-    const action = form.getAttribute("action") ?? "";
-    form.action = normalizeUrl(action || baseUrl, baseUrl);
-  }
-
-  for (const element of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
-    for (const attribute of Array.from(element.attributes)) {
-      if (/^on/i.test(attribute.name)) {
-        preserveSinglePageControlRole(element, attribute.value);
-        element.removeAttribute(attribute.name);
-      }
-    }
-  }
-
-  for (const script of Array.from(root.querySelectorAll<HTMLScriptElement>("script"))) {
-    script.remove();
-  }
-}
-
-function preserveSinglePageFileSearchAction(root: ParentNode, baseUrl: string): void {
-  const fileSearch = root.querySelector<HTMLElement>("#fsdiv");
-  const action = readFileSearchAction(root, baseUrl);
-
-  if (fileSearch && action) {
-    fileSearch.dataset.ehpeekFileSearchAction = action;
-  }
-}
-
 function readFileSearchAction(root: ParentNode, baseUrl: string): string {
   const preserved = root.querySelector<HTMLElement>("#fsdiv")?.dataset.ehpeekFileSearchAction;
   if (preserved) {
@@ -695,89 +497,12 @@ function prepareFileSearchPanel(panel: HTMLElement): void {
   panel.replaceChildren(form);
 }
 
-function preserveSinglePageGalleryUtilityLinks(root: ParentNode, baseUrl: string): void {
-  for (const link of Array.from(root.querySelectorAll<HTMLAnchorElement>("#gd5 a[onclick]"))) {
-    const handler = link.getAttribute("onclick") ?? "";
-    const popupUrl = handler.match(/\bpopUp\(['\"]([^'\"]+)['\"]/)?.[1];
-
-    if (!popupUrl) {
-      continue;
-    }
-
-    link.href = new URL(popupUrl, baseUrl).href;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.dataset.ehpeekGalleryUtility = "true";
-  }
-}
-
-function preserveSinglePageGalleryData(root: ParentNode, baseUrl: string): void {
-  // Preserve the values needed for direct API calls instead of retaining and executing the original page scripts.
-  const scripts = Array.from(root.querySelectorAll<HTMLScriptElement>("script"), (item) => item.textContent ?? "");
-  const ratingScript = scripts.find((text) => text.includes("display_rating"));
-  const rating = ratingScript ? scriptNumberValue(ratingScript, "display_rating") : null;
-  const ratingImage = root.querySelector<HTMLElement>("#rating_image");
-
-  if (ratingImage && rating !== null) {
-    ratingImage.dataset.ehpeekRating = String(rating);
-  }
-
-  const gallery = new URL(baseUrl).pathname.match(/^\/g\/(\d+)\/([^/]+)/i);
-  const favoriteScript = scripts.find((text) => text.includes("popbase") && text.includes("addfav"));
-  const favoriteMatch = favoriteScript?.match(
-    /popbase\s*=\s*base_url\s*\+\s*"gallerypopups\.php\?gid=(\d+)&t=([^"&]+)&act="/,
-  );
-  const favorite = root.querySelector<HTMLElement>("#fav");
-
-  if (favorite && gallery && favoriteMatch?.[1] === gallery[1] && favoriteMatch[2] === gallery[2]) {
-    favorite.dataset.ehpeekActionUrl = `/gallerypopups.php?gid=${favoriteMatch[1]}&t=${favoriteMatch[2]}&act=addfav`;
-  }
-}
-
-function preserveSinglePageControlRole(element: HTMLElement, handler: string): void {
-  if (handler.includes("toggle_advsearch")) {
-    element.dataset.ehpeekSearchAdvancedToggle = "true";
-  }
-  if (handler.includes("toggle_filesearch")) {
-    element.dataset.ehpeekSearchFileToggle = "true";
-  }
-  if (handler.includes("inline_set=dm_")) {
-    element.dataset.ehpeekGridModeSource = "true";
-  }
-}
-
-export function importSinglePageContent(doc: Document, baseUrl: string): Node[] {
-  absolutizeDocumentUrls(doc, baseUrl);
-  prepareSinglePageContent(doc, baseUrl);
-  return Array.from(doc.body.childNodes, (node) => document.importNode(node, true));
-}
-
-export function singlePageNavigationLink(target: EventTarget | null): HTMLAnchorElement | null {
-  const link = target instanceof Element ? target.closest<HTMLAnchorElement>("a[href]") : null;
-
-  if (!(link instanceof HTMLAnchorElement) || link.hasAttribute("data-ehpeek-single-page-bypass")) {
-    return null;
-  }
-
-  return link;
-}
-
 export function findClickedGalleryLink(
   target: EventTarget | null,
   extractPageType: (url: string) => PageType,
 ): HTMLAnchorElement | null {
   const link = target instanceof Element ? target.closest<HTMLAnchorElement>("a[href]") : null;
   return link && extractPageType(link.href).type === "gallery" ? link : null;
-}
-
-export function singlePageSearchForm(target: EventTarget | null): HTMLFormElement | null {
-  const form = target instanceof HTMLFormElement ? target : null;
-
-  if (!form || (!form.matches("#searchbox form, #fsdiv form") && !form.querySelector("[name='f_search']"))) {
-    return null;
-  }
-
-  return form;
 }
 
 export function resetTouchPageLayout(): void {
@@ -1528,17 +1253,6 @@ export function prepareTouchSearchResultsPage(): void {
   wrapper.append(resultList);
 }
 
-export function insertTouchTopBar(topBar: HTMLElement): boolean {
-  const original = document.querySelector("#nb");
-
-  if (!original?.parentElement) {
-    return false;
-  }
-
-  original.replaceWith(topBar);
-  return true;
-}
-
 export function insertTouchSearchPanel(panel: HTMLElement): boolean {
   const original =
     document.querySelector("#searchbox") ??
@@ -1550,82 +1264,6 @@ export function insertTouchSearchPanel(panel: HTMLElement): boolean {
 
   original.before(panel);
   return true;
-}
-
-export function insertTouchGalleryPanel(panel: HTMLElement): boolean {
-  const original = document.querySelector("#gmid");
-  const host = original?.parentElement ?? document.querySelector("#gleft")?.parentElement;
-
-  if (!host) {
-    return false;
-  }
-
-  host.classList.add("ehpeek-touch-gallery-host");
-
-  for (const child of Array.from(host.children)) {
-    const element = child as HTMLElement;
-    element.hidden = true;
-    element.classList.add("!hidden");
-  }
-
-  host.prepend(panel);
-  return true;
-}
-
-export function readTouchTopBarInfo(menuItemClassName: string): TouchTopBarInfo {
-  const navItems = Array.from(document.querySelectorAll<HTMLAnchorElement>("#nb a[href]")).map((link) => {
-    const clone = link.cloneNode(true) as HTMLAnchorElement;
-    clone.removeAttribute("id");
-    clone.className = menuItemClassName;
-    return clone;
-  });
-
-  return {
-    available: navItems.length > 0,
-    navItems,
-    homeHref: navItems.find((item): item is HTMLAnchorElement => item instanceof HTMLAnchorElement)?.href ?? "/",
-    favoritesHref: new URL("/favorites.php", window.location.href).href,
-  };
-}
-
-export function readGalleryInfo(actionMenuItemClassName: string): GalleryInfo {
-  const meta = readGalleryMeta();
-  const range = readShowingRange();
-  const coverSource = document.querySelector<HTMLImageElement>("#gd1 img");
-  const coverUrl =
-    coverSource?.currentSrc ||
-    coverSource?.src ||
-    coverSource?.getAttribute("src") ||
-    backgroundImageUrl(document.querySelector("#gd1"));
-  const summary = [
-    meta.get("language"),
-    range?.total ? `${range.total} ${texts.reader.pages.toLowerCase()}` : undefined,
-    meta.get("file size") ?? meta.get("size"),
-    meta.get("favorited"),
-    meta.get("posted") ?? meta.get("parent"),
-  ]
-    .filter((value): value is string => Boolean(value))
-    .slice(0, 6)
-    .map((value) => ({ value }));
-
-  return {
-    available: Boolean(document.querySelector("#gmid")),
-    titleMain: textOf("#gn"),
-    titleSub: textOf("#gj"),
-    category: textOf("#gdc"),
-    categoryAppearance: readGalleryCategoryAppearance(),
-    cover: coverUrl ? galleryCoverImageElement(coverUrl) : null,
-    favorite: readGalleryFavoriteInfo(),
-    newTag: readGalleryNewTagInfo(),
-    tagApi: readGalleryTagApiInfo(),
-    summary,
-    actions: readGalleryActionsDom(
-      actionMenuItemClassName,
-      Boolean(document.querySelector("[data-ehpeek-single-page-app='true']")),
-    ),
-    rating: readGalleryRatingInfo(),
-    tagGroups: readGalleryTagGroups(),
-  };
 }
 
 function replaceGalleryPageBarAt(
@@ -1700,62 +1338,6 @@ function replaceSearchNavigationBars(doc: Document): void {
   }
 }
 
-function readGalleryMeta(): Map<string, string> {
-  const entries = Array.from(document.querySelectorAll<HTMLTableRowElement>("#gdd tr"))
-    .map((row) => {
-      const cells = Array.from(row.cells);
-      const label = cells[0]?.textContent?.trim().replace(/:$/, "").toLowerCase() ?? "";
-      const value = cells.slice(1).map((cell) => cell.textContent?.trim() ?? "").filter(Boolean).join(" ");
-
-      return [label, value] as const;
-    })
-    .filter(([label, value]) => label && value);
-
-  return new Map(entries);
-}
-
-function readGalleryCategoryAppearance(): GalleryCategoryAppearance {
-  const category = document.querySelector("#gdc");
-  const categoryStyleElement = category?.querySelector("[class*='ct']") ?? category;
-  const style = categoryStyleElement ? window.getComputedStyle(categoryStyleElement) : null;
-
-  return {
-    "background-color": style?.backgroundColor ?? "",
-    "background-image": style?.backgroundImage ?? "",
-    "border-color": style?.borderColor ?? "",
-    color: style?.color ?? "",
-  };
-}
-
-function readGalleryRatingInfo(): GalleryRatingInfo | null {
-  const label = textOf("#rating_label");
-  const count = textOf("#rating_count");
-  const ratingImage = document.querySelector("#rating_image");
-  const preservedValue = ratingImage instanceof HTMLElement ? Number(ratingImage.dataset.ehpeekRating) : Number.NaN;
-  const value = Number.isFinite(preservedValue)
-    ? preservedValue
-    : scriptNumberValue(galleryRatingScript(), "display_rating");
-
-  if (!label || value === null) {
-    return null;
-  }
-
-  return {
-    count,
-    label,
-    rated: ["irb", "irg", "irr"].some((className) => ratingImage?.classList.contains(className)),
-    value,
-  };
-}
-
-function galleryRatingScript(): string {
-  return (
-    Array.from(document.scripts)
-      .map((item) => item.textContent ?? "")
-      .find((text) => text.includes("display_rating")) ?? ""
-  );
-}
-
 function scriptNumberValue(script: string, name: string): number | null {
   const match = script.match(new RegExp(`\\b${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`));
   const value = Number(match?.[1]);
@@ -1773,33 +1355,6 @@ export async function setGalleryRating(
   }
 
   return updateGalleryRating(info, value);
-}
-
-function readGalleryActionsDom(actionMenuItemClassName: string, singlePage: boolean): HTMLElement[] {
-  return Array.from(document.querySelectorAll<HTMLElement>("#gd5 a, #gd5 button, #gd5 input[type='button'], #gd5 input[type='submit']"))
-    .filter((item) => !singlePage || (item instanceof HTMLAnchorElement && isSinglePageGalleryUtilityLink(item)))
-    .map((item) => {
-      const clone = item.cloneNode(false) as HTMLElement;
-      clone.removeAttribute("id");
-      clone.removeAttribute("style");
-      clone.className = actionMenuItemClassName;
-
-      if (!(clone instanceof HTMLInputElement)) {
-        clone.textContent = item.textContent?.trim() || item.getAttribute("title")?.trim() || item.getAttribute("aria-label")?.trim() || "";
-      }
-
-      return clone;
-    })
-    .slice(0, 6);
-}
-
-function isSinglePageGalleryUtilityLink(link: HTMLAnchorElement): boolean {
-  try {
-    const path = new URL(link.href).pathname;
-    return link.dataset.ehpeekGalleryUtility === "true" || /^\/mpv\/\d+\/[^/]+\/?$/.test(path);
-  } catch {
-    return false;
-  }
 }
 
 export function readGalleryTagGroups(): GalleryTagGroup[] {
@@ -1926,7 +1481,7 @@ export function applyMyTagAppearances(appearances: MyTagAppearance[], root: Pare
   }
 }
 
-export async function favoriteGalleryTag(tag: GalleryTag, tagSet: string, mode: MyTagMode): Promise<void> {
+export async function favoriteGalleryTag(tag: GalleryTagData, tagSet: string, mode: MyTagMode): Promise<void> {
   const response = await addMyTag(tag.name, tagSet, mode);
 
   if (new URL(response.url).origin !== window.location.origin || !isMyTagsPage(response.document)) {
@@ -1936,7 +1491,7 @@ export async function favoriteGalleryTag(tag: GalleryTag, tagSet: string, mode: 
   window.localStorage.removeItem("ehpeek:my-tags");
 }
 
-export async function removeGalleryTagFavorite(tag: GalleryTag): Promise<void> {
+export async function removeGalleryTagFavorite(tag: GalleryTagData): Promise<void> {
   if (!tag.myTag) {
     return;
   }
@@ -2013,7 +1568,7 @@ export function observeGalleryTagChanges(onChange: () => void): () => void {
 
 export async function runGalleryTagAction(
   info: GalleryTagApiInfo,
-  tag: GalleryTag,
+  tag: GalleryTagData,
   action: GalleryTagAction,
 ): Promise<void> {
   const vote = action === "voteUp"
@@ -2046,12 +1601,6 @@ export function prepareGalleryNewTag(info: GalleryNewTagInfo): void {
   info.field.removeAttribute("size");
   addClassNames(info.button, "box-border flex-none h-md px-lg rounded-xs border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit textsize-md font-700 cursor-pointer");
 
-  if (document.querySelector("[data-ehpeek-single-page-app='true']")) {
-    const action = new URL(window.location.href);
-    action.hash = "";
-    info.form.action = action.href;
-    info.button.removeAttribute("onclick");
-  }
 }
 
 export function focusGalleryNewTag(info: GalleryNewTagInfo): void {
@@ -2071,24 +1620,6 @@ function galleryTagName(tag: HTMLAnchorElement): string | null {
   } catch {
     return null;
   }
-}
-
-function readGalleryNewTagInfo(): GalleryNewTagInfo | null {
-  const container = document.querySelector<HTMLElement>("#tagmenu_new");
-  const form = container?.querySelector<HTMLFormElement>("form") ?? null;
-  const field = container?.querySelector<HTMLInputElement>("#newtagfield") ?? null;
-  const button = container?.querySelector<HTMLInputElement | HTMLButtonElement>("#newtagbutton") ?? null;
-
-  if (!container || !form || !field || !button) {
-    return null;
-  }
-
-  return {
-    button,
-    container,
-    field,
-    form,
-  };
 }
 
 export function captureGalleryApiSession(root: ParentNode = document, baseUrl = window.location.href): boolean {
@@ -2200,20 +1731,6 @@ function scriptStringValue(script: string, name: string): string | null {
   return match?.[2] ?? null;
 }
 
-function readGalleryFavoriteInfo(): GalleryFavoriteInfo {
-  const label = textOf("#favoritelink");
-  const iconTitle = document.querySelector("#fav [title]")?.getAttribute("title")?.trim() ?? "";
-  const text = label || iconTitle;
-  const favorited = /^favorites?\s+\d+/i.test(text);
-
-  return {
-    actionUrl: galleryFavoriteActionUrl(),
-    color: galleryFavoriteColor(text),
-    favorited,
-    label: favorited ? text : "Not Favorited",
-  };
-}
-
 export function parseGalleryFavoriteOptions(doc: Document, favorited: boolean): GalleryFavoriteOption[] {
   return Array.from(doc.querySelectorAll<HTMLInputElement>("input[name='favcat']")).map((input) => {
     const row = input.closest<HTMLElement>("div[style*='height']");
@@ -2233,25 +1750,6 @@ function galleryFavoriteColor(value: string): string | null {
   return slot === undefined ? null : `var(--color-site-favorite-${slot})`;
 }
 
-function galleryFavoriteActionUrl(): string {
-  const preserved = document.querySelector<HTMLElement>("#fav")?.dataset.ehpeekActionUrl;
-
-  if (preserved) {
-    return preserved;
-  }
-
-  const script = Array.from(document.scripts)
-    .map((item) => item.textContent ?? "")
-    .find((text) => text.includes("popbase") && text.includes("addfav")) ?? "";
-  const match = script.match(/popbase\s*=\s*base_url\s*\+\s*"gallerypopups\.php\?gid=(\d+)&t=([^"]+)&act="/);
-
-  if (match) {
-    return `/gallerypopups.php?gid=${match[1]}&t=${match[2]}&act=addfav`;
-  }
-
-  return "";
-}
-
 export function galleryContinueReadingButtonMountTarget(): HTMLElement {
   const host = document.createElement("div");
   const viewerOptions = document.querySelector<HTMLElement>("#gd5");
@@ -2264,37 +1762,6 @@ export function galleryContinueReadingButtonMountTarget(): HTMLElement {
 
   document.body.append(host);
   return host;
-}
-
-function textOf(selector: string): string {
-  return document.querySelector(selector)?.textContent?.trim() ?? "";
-}
-
-function galleryCoverImageElement(imageUrl: string): HTMLImageElement {
-  const image = document.createElement("img");
-  image.className = "block w-full max-w-full h-full max-h-full mx-auto object-contain object-center";
-  image.src = imageUrl;
-  image.alt = "";
-  image.decoding = "async";
-  image.loading = "eager";
-  return image;
-}
-
-function backgroundImageUrl(root: Element | null): string {
-  if (!root) {
-    return "";
-  }
-
-  for (const item of [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))]) {
-    const backgroundImage = window.getComputedStyle(item).backgroundImage;
-    const match = backgroundImage.match(/url\(["']?(.+?)["']?\)/);
-
-    if (match?.[1]) {
-      return match[1];
-    }
-  }
-
-  return "";
 }
 
 function numericAttribute(element: Element | null, attribute: string): number | null {

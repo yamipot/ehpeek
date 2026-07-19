@@ -9,6 +9,7 @@ const SWIPE_MIN_DISTANCE = 96;
 const SWIPE_INTENT_DISTANCE = 28;
 const HORIZONTAL_INTENT_RATIO = 2.2;
 const SWIPE_MAX_VERTICAL_RATIO = 0.38;
+const NAVIGATION_REQUEST_EVENT = "ehpeek:navigation-request";
 
 let installed = false;
 let swipeElement: HTMLElement | null = null;
@@ -140,18 +141,18 @@ function onSearchNavigationClick(event: MouseEvent): void {
     return;
   }
 
-  if (document.querySelector("[data-ehpeek-single-page-app='true']")) {
-    return;
-  }
-
   event.preventDefault();
   event.stopPropagation();
   void navigateSearchPage(link.href);
 }
 
 async function navigateSearchPage(url: string): Promise<void> {
-  if (document.querySelector("[data-ehpeek-single-page-app='true']")) {
-    eh.searchNavigationLinkForUrl(url)?.click();
+  const navigationRequest = new CustomEvent(NAVIGATION_REQUEST_EVENT, {
+    cancelable: true,
+    detail: { url },
+  });
+  document.dispatchEvent(navigationRequest);
+  if (navigationRequest.defaultPrevented) {
     return;
   }
 

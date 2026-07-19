@@ -3,8 +3,11 @@ import * as eh from "../eh";
 import type { PageType } from "../eh";
 import * as EhSyringe from "../integrations/EhSyringe";
 import texts from "../texts.json";
+import { normalizeUrl } from "../utils";
 
 const HISTORY_STATE_KEY = "ehpeekSinglePageApp";
+const PERSISTENT_SELECTOR =
+  "[data-ehpeek-persistent], #eh-syringe-popup-button, #eh-syringe-popup-back, .eh-syringe-lite-auto-complete-list";
 
 type NavigationRequest = {
   body?: FormData;
@@ -13,6 +16,7 @@ type NavigationRequest = {
 };
 
 type NavigationMode = "push" | "pop";
+const NAVIGATION_REQUEST_EVENT = "ehpeek:navigation-request";
 
 type AppHistoryState = {
   scrollX: number;
@@ -20,8 +24,6 @@ type AppHistoryState = {
 };
 
 export function SinglePage(props: {
-  initialNodes: Node[];
-  initialPage: PageType;
   onPageActivate: (page: PageType) => void | Promise<void>;
   onPageDeactivate: () => void;
 }) {
@@ -77,14 +79,14 @@ export function SinglePage(props: {
         timeoutMs: null,
       });
       const responseUrl = response.url;
-      const page = eh.singlePageRoute(responseUrl);
+      const page = singlePageRoute(responseUrl);
 
       if (!page) {
         throw new Error(`Unsupported Single Page App route: ${responseUrl}`);
       }
 
       const doc = response.document;
-      stagingHost.replaceChildren(...eh.importSinglePageContent(doc, responseUrl));
+      stagingHost.replaceChildren(...importPageContent(doc, responseUrl));
       await EhSyringe.waitForRouteTranslation(stagingHost);
 
       if (sequence !== navigationSequence || controller.signal.aborted) {
@@ -135,11 +137,9 @@ export function SinglePage(props: {
   };
 
   onMount(() => {
+    let disposed = false;
     const previousScrollRestoration = window.history.scrollRestoration;
     window.history.scrollRestoration = "manual";
-    routeHost.replaceChildren(...props.initialNodes);
-    updateHistoryScroll();
-    void props.onPageActivate(props.initialPage);
 
     const onClick = (event: MouseEvent) => {
       if (
@@ -153,7 +153,7 @@ export function SinglePage(props: {
         return;
       }
 
-      const link = eh.singlePageNavigationLink(event.target);
+      const link = navigationLink(event.target);
 
       if (
         !link ||
@@ -166,7 +166,7 @@ export function SinglePage(props: {
 
       const url = new URL(link.href, window.location.href);
 
-      if (url.origin !== window.location.origin || !eh.singlePageRoute(url.href)) {
+      if (url.origin !== window.location.origin || !singlePageRoute(url.href)) {
         return;
       }
 
@@ -176,7 +176,7 @@ export function SinglePage(props: {
     };
 
     const onSubmit = (event: SubmitEvent) => {
-      const form = eh.singlePageSearchForm(event.target);
+      const form = searchForm(event.target);
 
       if (!form || !routeHost.contains(form)) {
         return;
@@ -184,7 +184,7 @@ export function SinglePage(props: {
 
       const request = navigationRequestForForm(form, event.submitter);
 
-      if (!request || !eh.singlePageRoute(request.url)) {
+      if (!request || !singlePageRoute(request.url)) {
         return;
       }
 
@@ -193,7 +193,7 @@ export function SinglePage(props: {
     };
 
     const onPopState = (event: PopStateEvent) => {
-      const page = eh.singlePageRoute(window.location.href);
+      const page = singlePageRoute(window.location.href);
 
       if (!page) {
         window.location.assign(window.location.href);
@@ -203,17 +203,53 @@ export function SinglePage(props: {
       void navigate({ method: "GET", url: window.location.href }, "pop", event.state);
     };
 
-    document.addEventListener("click", onClick);
-    document.addEventListener("submit", onSubmit, true);
-    window.addEventListener("popstate", onPopState);
-    window.addEventListener("scroll", scheduleHistoryScrollUpdate, { passive: true });
+    const onNavigationRequest = (event: Event) => {
+      const request = event as CustomEvent<{ url?: unknown }>;
+      if (typeof request.detail?.url !== "string") {
+        return;
+      }
+
+      const url = new URL(request.detail.url, window.location.href);
+      if (url.origin !== window.location.origin || !singlePageRoute(url.href)) {
+        return;
+      }
+
+      event.preventDefault();
+      void navigate({ method: "GET", url: url.href }, "push");
+    };
+
+    const initialize = async () => {
+      await EhSyringe.waitForInitialUi();
+      if (disposed) {
+        return;
+      }
+
+      eh.captureGalleryApiSession();
+      preparePageContent(document.body, window.location.href);
+      routeHost.replaceChildren(...pageContentNodes());
+      updateHistoryScroll();
+      document.addEventListener("click", onClick, true);
+      document.addEventListener("submit", onSubmit, true);
+      document.addEventListener(NAVIGATION_REQUEST_EVENT, onNavigationRequest);
+      window.addEventListener("popstate", onPopState);
+      window.addEventListener("scroll", scheduleHistoryScrollUpdate, { passive: true });
+
+      const initialPage = singlePageRoute(window.location.href);
+      if (initialPage) {
+        await props.onPageActivate(initialPage);
+      }
+    };
+
+    void initialize();
 
     onCleanup(() => {
+      disposed = true;
       navigationController?.abort();
       props.onPageDeactivate();
       window.history.scrollRestoration = previousScrollRestoration;
-      document.removeEventListener("click", onClick);
+      document.removeEventListener("click", onClick, true);
       document.removeEventListener("submit", onSubmit, true);
+      document.removeEventListener(NAVIGATION_REQUEST_EVENT, onNavigationRequest);
       window.removeEventListener("popstate", onPopState);
       window.removeEventListener("scroll", scheduleHistoryScrollUpdate);
 
@@ -224,7 +260,7 @@ export function SinglePage(props: {
   });
 
   return (
-    <div class="ehpeek-single-page-app contents" data-ehpeek-single-page-app="true">
+    <div class="ehpeek-single-page-app contents">
       <div ref={routeHost} class="ehpeek-single-page-route contents" />
       <div ref={stagingHost} class="hidden" aria-hidden="true" inert />
       <Show when={loading()}>
@@ -264,6 +300,175 @@ export function SinglePage(props: {
       </Show>
     </div>
   );
+}
+
+export function supportsSinglePageRoute(url: string): boolean {
+  return singlePageRoute(url) !== null;
+}
+
+function singlePageRoute(url: string): PageType | null {
+  const page = eh.extractPageType(url);
+
+  if (page.type === "search" || page.type === "favorites") {
+    return page;
+  }
+
+  if (page.type !== "gallery") {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(url, window.location.href);
+    let unsupportedParameter = false;
+    parsed.searchParams.forEach((_value, key) => {
+      unsupportedParameter ||= key !== "p";
+    });
+    const hash = new URLSearchParams(parsed.hash.replace(/^#/, ""));
+    let unsupportedHash = false;
+    hash.forEach((_value, key) => {
+      unsupportedHash ||= key !== "peek_page";
+    });
+    return unsupportedParameter || unsupportedHash ? null : page;
+  } catch {
+    return null;
+  }
+}
+
+function pageContentNodes(root: HTMLElement = document.body): Node[] {
+  return Array.from(root.childNodes).filter(
+    (node) => !(node instanceof Element && node.matches(PERSISTENT_SELECTOR)),
+  );
+}
+
+function preparePageContent(root: ParentNode, baseUrl: string): void {
+  eh.captureGalleryApiSession(root, baseUrl);
+  preserveGalleryData(root, baseUrl);
+  preserveGalleryUtilityLinks(root, baseUrl);
+  preserveFileSearchAction(root, baseUrl);
+
+  for (const form of Array.from(root.querySelectorAll<HTMLFormElement>("form"))) {
+    const action = form.getAttribute("action") ?? "";
+    form.action = normalizeUrl(action || baseUrl, baseUrl);
+  }
+
+  for (const element of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
+    for (const attribute of Array.from(element.attributes)) {
+      if (/^on/i.test(attribute.name)) {
+        preserveControlRole(element, attribute.value);
+        element.removeAttribute(attribute.name);
+      }
+    }
+  }
+
+  for (const script of Array.from(root.querySelectorAll<HTMLScriptElement>("script"))) {
+    script.remove();
+  }
+}
+
+function importPageContent(doc: Document, baseUrl: string): Node[] {
+  absolutizeDocumentUrls(doc, baseUrl);
+  preparePageContent(doc, baseUrl);
+  return Array.from(doc.body.childNodes, (node) => document.importNode(node, true));
+}
+
+function navigationLink(target: EventTarget | null): HTMLAnchorElement | null {
+  const link = target instanceof Element ? target.closest<HTMLAnchorElement>("a[href]") : null;
+  return link instanceof HTMLAnchorElement && !link.hasAttribute("data-ehpeek-single-page-bypass") ? link : null;
+}
+
+function searchForm(target: EventTarget | null): HTMLFormElement | null {
+  const form = target instanceof HTMLFormElement ? target : null;
+  return form && (form.matches("#searchbox form, #fsdiv form") || form.querySelector("[name='f_search']"))
+    ? form
+    : null;
+}
+
+function preserveFileSearchAction(root: ParentNode, baseUrl: string): void {
+  const fileSearch = root.querySelector<HTMLElement>("#fsdiv");
+  const script = Array.from(root.querySelectorAll<HTMLScriptElement>("script"), (item) => item.textContent ?? "")
+    .find((text) => text.includes("ulhost")) ?? "";
+  const uploadBase = script.match(/\bulhost\s*=\s*["']([^"']+)["']/)?.[1];
+
+  if (fileSearch && uploadBase) {
+    fileSearch.dataset.ehpeekFileSearchAction = new URL("image_lookup.php", normalizeUrl(uploadBase, baseUrl)).href;
+  }
+}
+
+function preserveGalleryUtilityLinks(root: ParentNode, baseUrl: string): void {
+  for (const link of Array.from(root.querySelectorAll<HTMLAnchorElement>("#gd5 a[onclick]"))) {
+    const popupUrl = (link.getAttribute("onclick") ?? "").match(/\bpopUp\(['"]([^'"]+)['"]/)?.[1];
+    if (!popupUrl) {
+      continue;
+    }
+
+    link.href = new URL(popupUrl, baseUrl).href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.dataset.ehpeekGalleryUtility = "true";
+  }
+}
+
+function preserveGalleryData(root: ParentNode, baseUrl: string): void {
+  const scripts = Array.from(root.querySelectorAll<HTMLScriptElement>("script"), (item) => item.textContent ?? "");
+  const ratingScript = scripts.find((text) => text.includes("display_rating"));
+  const rating = ratingScript ? scriptNumberValue(ratingScript, "display_rating") : null;
+  const ratingImage = root.querySelector<HTMLElement>("#rating_image");
+  if (ratingImage && rating !== null) {
+    ratingImage.dataset.ehpeekRating = String(rating);
+  }
+
+  const gallery = new URL(baseUrl).pathname.match(/^\/g\/(\d+)\/([^/]+)/i);
+  const favoriteScript = scripts.find((text) => text.includes("popbase") && text.includes("addfav"));
+  const favoriteMatch = favoriteScript?.match(
+    /popbase\s*=\s*base_url\s*\+\s*"gallerypopups\.php\?gid=(\d+)&t=([^"&]+)&act="/,
+  );
+  const favorite = root.querySelector<HTMLElement>("#fav");
+  if (favorite && gallery && favoriteMatch?.[1] === gallery[1] && favoriteMatch[2] === gallery[2]) {
+    favorite.dataset.ehpeekActionUrl = `/gallerypopups.php?gid=${favoriteMatch[1]}&t=${favoriteMatch[2]}&act=addfav`;
+  }
+}
+
+function preserveControlRole(element: HTMLElement, handler: string): void {
+  if (handler.includes("toggle_advsearch")) {
+    element.dataset.ehpeekSearchAdvancedToggle = "true";
+  }
+  if (handler.includes("toggle_filesearch")) {
+    element.dataset.ehpeekSearchFileToggle = "true";
+  }
+  if (handler.includes("inline_set=dm_")) {
+    element.dataset.ehpeekGridModeSource = "true";
+  }
+}
+
+function absolutizeDocumentUrls(doc: Document, baseUrl: string): void {
+  const attributes: Array<[string, string]> = [
+    ["a[href]", "href"],
+    ["area[href]", "href"],
+    ["form[action]", "action"],
+    ["img[src]", "src"],
+    ["input[src]", "src"],
+    ["script[src]", "src"],
+    ["source[src]", "src"],
+  ];
+
+  for (const [selector, attribute] of attributes) {
+    for (const element of Array.from(doc.querySelectorAll<HTMLElement>(selector))) {
+      const value = element.getAttribute(attribute);
+      if (!value || value.startsWith("#") || /^(?:data|javascript|mailto):/i.test(value)) {
+        continue;
+      }
+      element.setAttribute(attribute, normalizeUrl(value, baseUrl));
+    }
+  }
+}
+
+function scriptNumberValue(script: string, name: string): number | null {
+  const match = script.match(new RegExp(`\\b(?:var\\s+)?${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`));
+  if (!match) {
+    return null;
+  }
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : null;
 }
 
 function navigationRequestForForm(form: HTMLFormElement, submitter: HTMLElement | null): NavigationRequest | null {

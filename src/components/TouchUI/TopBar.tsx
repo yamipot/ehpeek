@@ -1,25 +1,19 @@
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import * as eh from "../../eh";
 import { Icon } from "../Widgets/Icon";
 
 const TOUCH_TOP_BAR_ICON_SIZE = 41;
 const TOUCH_ICON_BUTTON_CLASS =
   "inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]";
-export const TOUCH_TOP_BAR_MENU_ITEM_CLASS =
+const TOUCH_TOP_BAR_MENU_ITEM_CLASS =
   "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-lg coarse:min-h-88px py-md coarse:py-xl px-lg coarse:px-xl border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]";
+export const TOUCH_TOP_BAR_TRANSFORM = {
+  menuItemClassName: TOUCH_TOP_BAR_MENU_ITEM_CLASS,
+};
 
-function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
+function TouchTopBarMenu(props: { navItems: eh.TouchTopBarInfo["navItems"] }) {
   const [open, setOpen] = createSignal(false);
   let root!: HTMLDivElement;
-  let navItemsHost: HTMLDivElement | undefined;
-
-  createEffect(() => {
-    if (!open() || !navItemsHost) {
-      return;
-    }
-
-    navItemsHost.replaceChildren(...props.navItems.map((item) => item.cloneNode(true)));
-  });
 
   onMount(() => {
     const onClick = (event: MouseEvent) => {
@@ -52,17 +46,21 @@ function TouchTopBarMenu(props: { navItems: HTMLElement[] }) {
         <Icon name="menu" size={TOUCH_TOP_BAR_ICON_SIZE} />
       </button>
       <Show when={open()}>
-        <div
-          class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+8px)] right-0 z-overlay flex w-240px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-24px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"
-        >
-          <div ref={navItemsHost} class="contents" />
+        <div class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+8px)] right-0 z-overlay flex w-240px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-24px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">
+          {props.navItems.map((item) => {
+            const Component = item.clone().Component;
+            return <Component />;
+          })}
         </div>
       </Show>
     </div>
   );
 }
 
-export function TouchTopBar(props: { info: eh.TouchTopBarInfo; onSettingsMenuOpen: () => void }) {
+export function TouchTopBar(props: {
+  info: eh.TouchTopBarInfo;
+  onSettingsMenuOpen: () => void;
+}) {
   return (
     <nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-xl items-center justify-between py-lg pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans">
       <a

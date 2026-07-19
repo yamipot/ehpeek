@@ -1,33 +1,95 @@
-import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import * as eh from "../../eh";
-import type { GalleryFavoriteInfo, GalleryFavoriteOption, GalleryInfo, GalleryNewTagInfo, GalleryTag, GalleryTagAction, GalleryTagGroup, MyTagMode } from "../../eh";
+import type {
+  GalleryFavoriteInfo,
+  GalleryFavoriteOption,
+  GalleryTagAction,
+  GalleryTagData,
+  GalleryTagGroup,
+  MyTagMode,
+} from "../../eh";
+import { ManagedDomNode, type GalleryInfoResult } from "../../eh/transform";
 import * as EhSyringe from "../../integrations/EhSyringe";
 import texts from "../../texts.json";
 import { DomNode, DomNodes } from "../Widgets/ExternalDom";
 import { Icon } from "../Widgets/Icon";
 
-export const TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]";
+const TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS =
+  "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]";
+export const TOUCH_GALLERY_INFO_TRANSFORMS = {
+  actions: TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS,
+  cover:
+    "block w-full max-w-full h-full max-h-full mx-auto object-contain object-center",
+  host: "ehpeek-touch-gallery-host",
+  newTag: {
+    button:
+      "box-border flex-none h-md px-lg rounded-xs border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit textsize-md font-700 cursor-pointer",
+    container: "ehpeek-touch-gallery-new-tag box-border w-full pt-md",
+    field:
+      "box-border min-w-0 flex-1 h-md px-md rounded-xs border ehp-color-site-border bg-[var(--color-site-surface)] ehp-color-site-text font-inherit textsize-md outline-none focus:border-[var(--color-site-accent)]",
+    form: "flex w-full min-w-0 items-center gap-sm",
+  },
+};
 const RATING_STAR_INDEXES = [0, 1, 2, 3, 4];
-const RATING_ACTION_BUTTON_CLASS = "block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default";
+const RATING_ACTION_BUTTON_CLASS =
+  "block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default";
+
+type GalleryPanelTagGroup = Omit<GalleryTagGroup, "tags"> & {
+  tags: Array<
+    GalleryTagData & {
+      contentSource: HTMLElement | ManagedDomNode;
+    }
+  >;
+};
 
 export function GalleryInfoPanel(props: {
   onPrimaryActionMount: (mount: HTMLElement) => void;
   onPrimaryActionUnmount: () => void;
-  source: GalleryInfo;
+  source: GalleryInfoResult;
 }) {
-  const rating = props.source.rating;
-  const hasCover = props.source.cover !== null;
+  const rating = props.source.data.rating;
+  const hasCover = props.source.elems.cover !== null;
   const [ratingValue, setRatingValue] = createSignal(rating?.value ?? 0);
   const [ratingPreview, setRatingPreview] = createSignal<number | null>(null);
   const [ratingPickerOpen, setRatingPickerOpen] = createSignal(false);
-  const [ratingSubmitted, setRatingSubmitted] = createSignal(rating?.rated ?? false);
+  const [ratingSubmitted, setRatingSubmitted] = createSignal(
+    rating?.rated ?? false,
+  );
   const [ratingUpdating, setRatingUpdating] = createSignal(false);
   const [ratingCount, setRatingCount] = createSignal(rating?.count ?? "");
-  const [ratingValueLabel, setRatingValueLabel] = createSignal(rating?.label ?? "");
-  const [tagGroups, setTagGroups] = createSignal(props.source.tagGroups);
+  const [ratingValueLabel, setRatingValueLabel] = createSignal(
+    rating?.label ?? "",
+  );
+  const initialTagGroups = props.source.data.tagGroups.map((group) => ({
+    ...group,
+    tags: group.tags.map(({ contentSourceIndex, ...tag }) => ({
+      ...tag,
+      contentSource: props.source.elems.tagContents[contentSourceIndex],
+    })),
+  }));
+  const [tagGroups, setTagGroups] =
+    createSignal<GalleryPanelTagGroup[]>(initialTagGroups);
   const [newTagVisible, setNewTagVisible] = createSignal(false);
+  const hasNewTag = () =>
+    Boolean(
+      props.source.elems.newTag &&
+        props.source.elems.newTagButton &&
+        props.source.elems.newTagField &&
+        props.source.elems.newTagForm,
+    );
   const displayedRating = createMemo(() => ratingPreview() ?? ratingValue());
-  const ratingLabel = createMemo(() => ratingPreview() ? `Rate as ${ratingPreview()!.toFixed(1)} stars` : ratingValueLabel());
+  const ratingLabel = createMemo(() =>
+    ratingPreview()
+      ? `Rate as ${ratingPreview()!.toFixed(1)} stars`
+      : ratingValueLabel(),
+  );
 
   onMount(() => {
     const stopObservingTags = eh.observeGalleryTagChanges(() => {
@@ -62,7 +124,9 @@ export function GalleryInfoPanel(props: {
     } catch (error) {
       setRatingPreview(null);
       console.error("[ehpeek]", error);
-      window.alert(error instanceof Error ? error.message : texts.errors.loadFailed);
+      window.alert(
+        error instanceof Error ? error.message : texts.errors.loadFailed,
+      );
       return false;
     } finally {
       setRatingUpdating(false);
@@ -70,14 +134,15 @@ export function GalleryInfoPanel(props: {
   };
 
   const openNewTag = () => {
-    const newTag = props.source.newTag;
-
-    if (!newTag) {
+    if (!hasNewTag()) {
       return;
     }
 
     setNewTagVisible(true);
-    queueMicrotask(() => eh.focusGalleryNewTag(newTag));
+    queueMicrotask(() => {
+      props.source.elems.newTag?.scrollIntoView({ block: "nearest" });
+      props.source.elems.newTagField?.focus();
+    });
   };
 
   return (
@@ -88,24 +153,24 @@ export function GalleryInfoPanel(props: {
         >
           {hasCover && (
             <div class="ehpeek-touch-gallery-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">
-              <DomNode node={props.source.cover} />
+              <DomNode node={props.source.elems.cover} />
             </div>
           )}
           <div class="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 flex-col items-start gap-8px pt-2px">
             <div class="ehpeek-touch-gallery-heading flex min-w-0 w-full flex-none flex-col gap-sm items-start pb-xs">
               <div class="ehpeek-touch-gallery-title-main line-clamp-4 flex-none overflow-hidden textsize-lg font-400 leading-[1.16] text-left break-anywhere">
-                {props.source.titleMain}
+                {props.source.data.titleMain}
               </div>
               <div class="ehpeek-touch-gallery-title-sub line-clamp-3 flex-none overflow-hidden opacity-82 textsize-md leading-[1.2] text-left break-anywhere">
-                {props.source.titleSub}
+                {props.source.data.titleSub}
               </div>
             </div>
             <div class="ehpeek-touch-gallery-category-row grid grid-cols-[minmax(0,35fr)_minmax(0,65fr)] w-full flex-none items-center gap-lg mt-auto pt-md">
               <div
                 class="ehpeek-touch-gallery-category box-border w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xs border border-solid py-6px px-10px text-center textsize-md font-700 leading-[1.1] uppercase"
-                style={props.source.categoryAppearance}
+                style={props.source.data.categoryAppearance}
               >
-                {props.source.category}
+                {props.source.data.category}
               </div>
               {rating && (
                 <button
@@ -131,10 +196,18 @@ export function GalleryInfoPanel(props: {
                         return;
                       }
 
-                      setRatingPreview(ratingFromPointer(event.clientX, event.currentTarget as HTMLElement));
+                      setRatingPreview(
+                        ratingFromPointer(
+                          event.clientX,
+                          event.currentTarget as HTMLElement,
+                        ),
+                      );
                     }}
                   >
-                    <span class="ehpeek-touch-gallery-rating-stars-empty flex gap-1px text-[rgba(255,255,255,0.25)]" aria-hidden="true">
+                    <span
+                      class="ehpeek-touch-gallery-rating-stars-empty flex gap-1px text-[rgba(255,255,255,0.25)]"
+                      aria-hidden="true"
+                    >
                       {RATING_STAR_INDEXES.map(() => (
                         <Icon name="star" />
                       ))}
@@ -169,7 +242,7 @@ export function GalleryInfoPanel(props: {
         </div>
       </div>
       <div class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]">
-        <TouchGalleryFavoriteButton source={props.source.favorite} />
+        <TouchGalleryFavoriteButton source={props.source.data.favorite} />
         <div
           class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]"
           ref={(node) => {
@@ -179,25 +252,25 @@ export function GalleryInfoPanel(props: {
       </div>
       <div class="ehpeek-touch-gallery-content flex flex-col gap-lg pt-xl pr-[max(16px,env(safe-area-inset-right,0px))] pb-lg pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text">
         <div class="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-md gap-x-lg items-center textsize-md leading-[1.2] text-center">
-          {props.source.summary.map((item) => (
+          {props.source.data.summary.map((item) => (
             <div class="ehpeek-touch-gallery-meta-value line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">
               {item.value}
             </div>
           ))}
-          <TouchGalleryActionsMenu actions={props.source.actions} />
+          <TouchGalleryActionsMenu actions={props.source.elems.actions} />
         </div>
         {tagGroups().length > 0 && (
           <div class="ehpeek-touch-gallery-tag-groups flex flex-col gap-md pt-2px">
             {tagGroups().map((group) => (
               <TouchGalleryTagGroup
                 group={group}
-                onNewTagOpen={props.source.newTag ? openNewTag : undefined}
+                onNewTagOpen={hasNewTag() ? openNewTag : undefined}
               />
             ))}
           </div>
         )}
-        <Show when={newTagVisible() ? props.source.newTag : null} keyed>
-          {(newTag) => <TouchGalleryNewTag source={newTag} />}
+        <Show when={newTagVisible() && hasNewTag()}>
+          <TouchGalleryNewTag source={props.source} />
         </Show>
       </div>
       <Show when={ratingPickerOpen()}>
@@ -221,10 +294,18 @@ export function GalleryInfoPanel(props: {
               disabled={ratingUpdating()}
               aria-label={`Rate gallery: ${displayedRating().toFixed(1)} stars`}
               onClick={(event: MouseEvent) => {
-                setRatingPreview(ratingFromPointer(event.clientX, event.currentTarget as HTMLElement));
+                setRatingPreview(
+                  ratingFromPointer(
+                    event.clientX,
+                    event.currentTarget as HTMLElement,
+                  ),
+                );
               }}
             >
-              <span class="flex gap-1px pointer-events-none text-[rgba(255,255,255,0.25)]" aria-hidden="true">
+              <span
+                class="flex gap-1px pointer-events-none text-[rgba(255,255,255,0.25)]"
+                aria-hidden="true"
+              >
                 {RATING_STAR_INDEXES.map(() => (
                   <Icon name="star" size={48} />
                 ))}
@@ -276,7 +357,9 @@ export function prepareGalleryInfoPanel(): void {
   eh.applyTouchGalleryPanelPageStyle();
 }
 
-function TouchGalleryActionsMenu(props: { actions: HTMLElement[] }) {
+function TouchGalleryActionsMenu(props: {
+  actions: GalleryInfoResult["elems"]["actions"];
+}) {
   const [open, setOpen] = createSignal(false);
   let root!: HTMLDivElement;
 
@@ -297,7 +380,10 @@ function TouchGalleryActionsMenu(props: { actions: HTMLElement[] }) {
   });
 
   return (
-    <div ref={root} class="ehpeek-touch-gallery-actions-menu relative flex min-w-0 items-center justify-center">
+    <div
+      ref={root}
+      class="ehpeek-touch-gallery-actions-menu relative flex min-w-0 items-center justify-center"
+    >
       <button
         type="button"
         class="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text"
@@ -320,7 +406,7 @@ function TouchGalleryActionsMenu(props: { actions: HTMLElement[] }) {
 }
 
 function TouchGalleryTagGroup(props: {
-  group: GalleryTagGroup;
+  group: GalleryPanelTagGroup;
   onNewTagOpen?: () => void;
 }) {
   return (
@@ -338,13 +424,17 @@ function TouchGalleryTagGroup(props: {
 }
 
 function TouchGalleryTag(props: {
-  tag: GalleryTag;
+  tag: GalleryPanelTagGroup["tags"][number];
   onNewTagOpen?: () => void;
 }) {
   const [open, setOpen] = createSignal(false);
   const [favoriteDialogOpen, setFavoriteDialogOpen] = createSignal(false);
   const tagSets = eh.readCachedMyTagSetOptions();
-  const [selectedTagSet, setSelectedTagSet] = createSignal(tagSets.find((option) => option.selected)?.value ?? tagSets[0]?.value ?? "1");
+  const [selectedTagSet, setSelectedTagSet] = createSignal(
+    tagSets.find((option) => option.selected)?.value ??
+      tagSets[0]?.value ??
+      "1",
+  );
   const [tagMode, setTagMode] = createSignal<MyTagMode>("marked");
   const [updating, setUpdating] = createSignal(false);
   let root!: HTMLDivElement;
@@ -381,7 +471,9 @@ function TouchGalleryTag(props: {
         pathname: window.location.pathname,
         reason: "gallery-api-context-unavailable",
       });
-      window.alert("Gallery API context is unavailable. Check the console for details.");
+      window.alert(
+        "Gallery API context is unavailable. Check the console for details.",
+      );
       return;
     }
 
@@ -389,11 +481,17 @@ function TouchGalleryTag(props: {
     try {
       await eh.runGalleryTagAction(tagApi, props.tag, action);
     } catch (error) {
-      console.error("[ehpeek] Gallery tag vote failed", {
-        action,
-        galleryId: tagApi.galleryId,
-      }, error);
-      window.alert(error instanceof Error ? error.message : texts.errors.loadFailed);
+      console.error(
+        "[ehpeek] Gallery tag vote failed",
+        {
+          action,
+          galleryId: tagApi.galleryId,
+        },
+        error,
+      );
+      window.alert(
+        error instanceof Error ? error.message : texts.errors.loadFailed,
+      );
     } finally {
       setUpdating(false);
     }
@@ -411,14 +509,19 @@ function TouchGalleryTag(props: {
       window.location.reload();
     } catch (error) {
       console.error("[ehpeek]", error);
-      window.alert(error instanceof Error ? error.message : texts.errors.loadFailed);
+      window.alert(
+        error instanceof Error ? error.message : texts.errors.loadFailed,
+      );
     } finally {
       setUpdating(false);
     }
   };
 
   return (
-    <div ref={root} class="ehpeek-touch-gallery-tag-menu relative inline-flex max-w-full">
+    <div
+      ref={root}
+      class="ehpeek-touch-gallery-tag-menu relative inline-flex max-w-full"
+    >
       <button
         type="button"
         class="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-none transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"
@@ -451,106 +554,126 @@ function TouchGalleryTag(props: {
             role="menu"
             onClick={closeMenu}
           >
-          <Show
-            when={props.tag.vote !== null}
-            fallback={(
-              <>
-                <button
-                  type="button"
-                  class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
-                  role="menuitem"
-                  disabled={updating()}
-                  onClick={() => void runTagAction("voteUp")}
-                >
-                  <span class="w-24px text-center ehp-color-site-accent" aria-hidden="true">↑</span>
-                  <span>{texts.gallery.voteUp}</span>
-                </button>
-                <button
-                  type="button"
-                  class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
-                  role="menuitem"
-                  disabled={updating()}
-                  onClick={() => void runTagAction("voteDown")}
-                >
-                  <span class="w-24px text-center ehp-color-site-accent" aria-hidden="true">↓</span>
-                  <span>{texts.gallery.voteDown}</span>
-                </button>
-              </>
-            )}
-          >
-            <button
-              type="button"
-              class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
-              role="menuitem"
-              disabled={updating()}
-              onClick={() => void runTagAction("withdrawVote")}
+            <Show
+              when={props.tag.vote !== null}
+              fallback={
+                <>
+                  <button
+                    type="button"
+                    class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
+                    role="menuitem"
+                    disabled={updating()}
+                    onClick={() => void runTagAction("voteUp")}
+                  >
+                    <span
+                      class="w-24px text-center ehp-color-site-accent"
+                      aria-hidden="true"
+                    >
+                      ↑
+                    </span>
+                    <span>{texts.gallery.voteUp}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
+                    role="menuitem"
+                    disabled={updating()}
+                    onClick={() => void runTagAction("voteDown")}
+                  >
+                    <span
+                      class="w-24px text-center ehp-color-site-accent"
+                      aria-hidden="true"
+                    >
+                      ↓
+                    </span>
+                    <span>{texts.gallery.voteDown}</span>
+                  </button>
+                </>
+              }
             >
-              <span class="w-24px text-center ehp-color-site-accent" aria-hidden="true">↺</span>
-              <span>{texts.gallery.withdrawVote}</span>
-            </button>
-          </Show>
-          <a
-            class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left"
-            href={props.tag.href}
-            role="menuitem"
-            onClick={closeMenu}
-          >
-            <Icon name="search" />
-            <span>{texts.gallery.showTaggedGalleries}</span>
-          </a>
-          <a
-            class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer"
-            href={props.tag.definitionHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            role="menuitem"
-            onClick={closeMenu}
-          >
-            <Icon name="external-link" />
-            <span>{texts.gallery.showTagDefinition}</span>
-          </a>
-          <Show
-            when={!props.tag.myTag}
-            fallback={(
+              <button
+                type="button"
+                class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
+                role="menuitem"
+                disabled={updating()}
+                onClick={() => void runTagAction("withdrawVote")}
+              >
+                <span
+                  class="w-24px text-center ehp-color-site-accent"
+                  aria-hidden="true"
+                >
+                  ↺
+                </span>
+                <span>{texts.gallery.withdrawVote}</span>
+              </button>
+            </Show>
+            <a
+              class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left"
+              href={props.tag.href}
+              role="menuitem"
+              onClick={closeMenu}
+            >
+              <Icon name="search" />
+              <span>{texts.gallery.showTaggedGalleries}</span>
+            </a>
+            <a
+              class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer"
+              href={props.tag.definitionHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              role="menuitem"
+              onClick={closeMenu}
+            >
+              <Icon name="external-link" />
+              <span>{texts.gallery.showTagDefinition}</span>
+            </a>
+            <Show
+              when={!props.tag.myTag}
+              fallback={
+                <button
+                  type="button"
+                  class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
+                  role="menuitem"
+                  disabled={updating()}
+                  onClick={() => void updateFavoriteTag()}
+                >
+                  <Icon name="heart" filled />
+                  <span>{texts.gallery.removeFavoriteTag}</span>
+                </button>
+              }
+            >
               <button
                 type="button"
                 class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
                 role="menuitem"
                 disabled={updating()}
-                onClick={() => void updateFavoriteTag()}
+                onClick={() => {
+                  closeMenu();
+                  setFavoriteDialogOpen(true);
+                }}
               >
-                <Icon name="heart" filled />
-                <span>{texts.gallery.removeFavoriteTag}</span>
+                <Icon name="heart" />
+                <span>{texts.gallery.favoriteTag}</span>
               </button>
-            )}
-          >
+            </Show>
             <button
               type="button"
-              class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
+              class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
               role="menuitem"
-              disabled={updating()}
+              disabled={!props.onNewTagOpen}
               onClick={() => {
                 closeMenu();
-                setFavoriteDialogOpen(true);
+                props.onNewTagOpen?.();
               }}
             >
-              <Icon name="heart" />
-              <span>{texts.gallery.favoriteTag}</span>
+              <span
+                class="w-24px text-center ehp-color-site-accent textsize-lg leading-none"
+                aria-hidden="true"
+              >
+                +
+              </span>
+              <span>{texts.gallery.addNewTag}</span>
             </button>
-          </Show>
-          <button
-            type="button"
-            class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
-            role="menuitem"
-            disabled={!props.onNewTagOpen}
-            onClick={() => {
-              closeMenu();
-              props.onNewTagOpen?.();
-            }}
-          >
-            <span class="w-24px text-center ehp-color-site-accent textsize-lg leading-none" aria-hidden="true">+</span>
-            <span>{texts.gallery.addNewTag}</span>
-          </button>
           </div>
         </div>
       </Show>
@@ -567,15 +690,21 @@ function TouchGalleryTag(props: {
           }}
         >
           <div class="box-border flex w-full max-w-420px flex-col gap-lg rounded-md border ehp-color-site-border ehp-color-site-elevated p-lg shadow-xl">
-            <div class="ehp-color-site-text textsize-lg font-700">{texts.gallery.favoriteTag}</div>
+            <div class="ehp-color-site-text textsize-lg font-700">
+              {texts.gallery.favoriteTag}
+            </div>
             <label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600">
               <span>{texts.gallery.tagCollection}</span>
               <select
                 class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"
                 value={selectedTagSet()}
-                onChange={(event) => setSelectedTagSet(event.currentTarget.value)}
+                onChange={(event) =>
+                  setSelectedTagSet(event.currentTarget.value)
+                }
               >
-                {tagSets.map((option) => <option value={option.value}>{option.label}</option>)}
+                {tagSets.map((option) => (
+                  <option value={option.value}>{option.label}</option>
+                ))}
               </select>
             </label>
             <label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600">
@@ -583,7 +712,9 @@ function TouchGalleryTag(props: {
               <select
                 class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"
                 value={tagMode()}
-                onChange={(event) => setTagMode(event.currentTarget.value as MyTagMode)}
+                onChange={(event) =>
+                  setTagMode(event.currentTarget.value as MyTagMode)
+                }
               >
                 <option value="marked">{texts.gallery.markTag}</option>
                 <option value="watched">{texts.gallery.watchTag}</option>
@@ -615,29 +746,45 @@ function TouchGalleryTag(props: {
   );
 }
 
-function TouchGalleryNewTag(props: { source: GalleryNewTagInfo }) {
+function TouchGalleryNewTag(props: { source: GalleryInfoResult }) {
   onMount(() => {
-    props.source.field = EhSyringe.reuseTagTipInput(props.source.field);
-    eh.prepareGalleryNewTag(props.source);
+    const field = props.source.elems.newTagField;
+    if (field) {
+      props.source.elems.newTagField = EhSyringe.reuseTagTipInput(field);
+    }
   });
 
-  return <DomNode node={props.source.container} />;
+  return <DomNode node={props.source.elems.newTag} />;
 }
 
-function TouchGalleryTagContent(props: { tag: GalleryTag }) {
+function TouchGalleryTagContent(props: {
+  tag: GalleryPanelTagGroup["tags"][number];
+}) {
   let host!: HTMLSpanElement;
 
   onMount(() => {
-    onCleanup(EhSyringe.mirrorTranslatedContent(props.tag.contentSource, host));
+    onCleanup(
+      props.tag.contentSource instanceof ManagedDomNode
+        ? props.tag.contentSource.mirrorContentTo(host)
+        : EhSyringe.mirrorTranslatedContent(props.tag.contentSource, host),
+    );
   });
 
-  return <span ref={host} class="contents [&_*]:!bg-transparent [&_*]:!text-inherit" translate="no" />;
+  return (
+    <span
+      ref={host}
+      class="contents [&_*]:!bg-transparent [&_*]:!text-inherit"
+      translate="no"
+    />
+  );
 }
 
 function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
   const [favorite, setFavorite] = createSignal({ ...props.source });
   const [open, setOpen] = createSignal(false);
-  const [loadingState, setLoadingState] = createSignal<"idle" | "loading" | "failed">("idle");
+  const [loadingState, setLoadingState] = createSignal<
+    "idle" | "loading" | "failed"
+  >("idle");
   const [options, setOptions] = createSignal<GalleryFavoriteOption[]>([]);
   const favorited = () => favorite().favorited;
   let root!: HTMLDivElement;
@@ -670,7 +817,12 @@ function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
 
     try {
       const response = await eh.requestPage(currentFavorite.actionUrl);
-      setOptions(eh.parseGalleryFavoriteOptions(response.document, currentFavorite.favorited));
+      setOptions(
+        eh.parseGalleryFavoriteOptions(
+          response.document,
+          currentFavorite.favorited,
+        ),
+      );
       setLoadingState("idle");
     } catch (error) {
       console.error("[ehpeek]", error);
@@ -679,7 +831,10 @@ function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
   };
 
   return (
-    <div ref={root} class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0">
+    <div
+      ref={root}
+      class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0"
+    >
       <button
         type="button"
         class={`ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] textsize-md font-700 normal-case ${favorited() ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`}
@@ -712,21 +867,26 @@ function TouchGalleryFavoriteButton(props: { source: GalleryFavoriteInfo }) {
             <TouchGalleryFavoriteStatus text="Failed" />
           </Show>
           <Show when={loadingState() === "idle"}>
-            <For each={options()}>{(option) => (
-              <TouchGalleryFavoriteOption
-                actionUrl={favorite().actionUrl}
-                option={option}
-                onApplied={() => {
-                  setFavorite({
-                    ...favorite(),
-                    color: option.color,
-                    favorited: option.value !== "favdel",
-                    label: option.value === "favdel" ? "Not Favorited" : option.label,
-                  });
-                  setOpen(false);
-                }}
-              />
-            )}</For>
+            <For each={options()}>
+              {(option) => (
+                <TouchGalleryFavoriteOption
+                  actionUrl={favorite().actionUrl}
+                  option={option}
+                  onApplied={() => {
+                    setFavorite({
+                      ...favorite(),
+                      color: option.color,
+                      favorited: option.value !== "favdel",
+                      label:
+                        option.value === "favdel"
+                          ? "Not Favorited"
+                          : option.label,
+                    });
+                    setOpen(false);
+                  }}
+                />
+              )}
+            </For>
           </Show>
         </div>
       </Show>
@@ -754,7 +914,8 @@ function TouchGalleryFavoriteOption(props: {
       aria-pressed={props.option.selected}
       onClick={(event: MouseEvent) => {
         event.stopPropagation();
-        void eh.updateGalleryFavorite(props.actionUrl, props.option.value)
+        void eh
+          .updateGalleryFavorite(props.actionUrl, props.option.value)
           .then(props.onApplied)
           .catch((error) => {
             console.error("[ehpeek]", error);
@@ -782,7 +943,9 @@ function TouchGalleryFavoriteOption(props: {
 
 function formatRatingLabel(label: string, value: number): string {
   const formatted = value.toFixed(2);
-  return /\d+(?:\.\d+)?/.test(label) ? label.replace(/\d+(?:\.\d+)?/, formatted) : `${label} ${formatted}`.trim();
+  return /\d+(?:\.\d+)?/.test(label)
+    ? label.replace(/\d+(?:\.\d+)?/, formatted)
+    : `${label} ${formatted}`.trim();
 }
 
 function ratingFromPointer(clientX: number, element: HTMLElement): number {

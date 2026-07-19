@@ -4,7 +4,11 @@ import { prepareGalleryInfoPanel } from "./GalleryInfoPanel";
 import { prepareResultsPanel } from "./ResultsPanel";
 
 export { prepareCommentsPanel } from "./CommentsPanel";
-export { GalleryInfoPanel, prepareGalleryInfoPanel, TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS } from "./GalleryInfoPanel";
+export {
+  GalleryInfoPanel,
+  prepareGalleryInfoPanel,
+  TOUCH_GALLERY_INFO_TRANSFORMS,
+} from "./GalleryInfoPanel";
 export { prepareResultsPanel, resetTouchUiPage } from "./ResultsPanel";
 export { FavoritesCategorySelect } from "./FavoritesPanel";
 export {
@@ -16,7 +20,7 @@ export {
   TouchSearchFileToggle,
   TouchSearchPanel,
 } from "./SearchPanel";
-export { TOUCH_TOP_BAR_MENU_ITEM_CLASS, TouchTopBar } from "./TopBar";
+export { TouchTopBar, TOUCH_TOP_BAR_TRANSFORM } from "./TopBar";
 
 export function prepareTouchGalleryPage(): void {
   prepareGalleryInfoPanel();

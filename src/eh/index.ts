@@ -22,9 +22,7 @@ export {
   findSearchNavigationLink,
   favoriteGalleryTag,
   galleryContinueReadingButtonMountTarget,
-  insertTouchGalleryPanel,
   insertTouchSearchPanel,
-  insertTouchTopBar,
   isMyTagsPage,
   isMyTagSetEnabled,
   maxPreviewPageIndex,
@@ -35,10 +33,8 @@ export {
   prepareTouchSearchResultsPage,
   prepareThumbsGridSwipeTargets,
   preparePageViewportForFullscreen,
-  prepareSinglePageContent,
   parseGalleryFavoriteOptions,
   prepareGalleryNewTag,
-  readGalleryInfo,
   readGalleryTagApiInfo,
   readMyTagAppearances,
   readCachedMyTagSetOptions,
@@ -47,7 +43,6 @@ export {
   readShowingRange,
   readSearchHistorySource,
   readTouchSearchPanelInfo,
-  readTouchTopBarInfo,
   prepareTouchSearchPanel,
   replaceGalleryPageBarMounts,
   runGalleryTagAction,
@@ -60,11 +55,7 @@ export {
   searchNavigationLinkForUrl,
   searchResultList,
   searchTopNavigationBar,
-  singlePageContentNodes,
-  importSinglePageContent,
   resetTouchPageLayout,
-  singlePageNavigationLink,
-  singlePageSearchForm,
   setGalleryRating,
   applyMyTagAppearances,
   settingsMenuMountTarget,
@@ -80,6 +71,7 @@ export type {
   GalleryNewTagInfo,
   GalleryTag,
   GalleryTagAction,
+  GalleryTagData,
   GalleryTagGroup,
   MyTagAppearance,
   MyTagSetOption,
@@ -87,10 +79,9 @@ export type {
   TouchSearchPanelInfo,
   TouchFavoritesCategorySelectInfo,
   TouchTopBarInfo,
-} from "./dom";
+} from "./types";
 
-export type PreviewSnapshot = dom.PreviewSnapshot;
-export type PageViewportSnapshot = dom.PageViewportSnapshot;
+export type { PreviewSnapshot, PageViewportSnapshot } from "./types";
 
 export type PageType =
   | {
@@ -184,34 +175,6 @@ export function extractPageType(url = window.location.href): PageType {
       type: "other",
       url,
     };
-  }
-}
-
-export function singlePageRoute(url: string): PageType | null {
-  const page = extractPageType(url);
-
-  if (page.type === "search" || page.type === "favorites") {
-    return page;
-  }
-
-  if (page.type !== "gallery") {
-    return null;
-  }
-
-  try {
-    const parsed = new URL(url, window.location.href);
-    let unsupportedParameter = false;
-    parsed.searchParams.forEach((_value, key) => {
-      unsupportedParameter ||= key !== "p";
-    });
-    const hash = new URLSearchParams(parsed.hash.replace(/^#/, ""));
-    let unsupportedHash = false;
-    hash.forEach((_value, key) => {
-      unsupportedHash ||= key !== "peek_page";
-    });
-    return unsupportedParameter || unsupportedHash ? null : page;
-  } catch {
-    return null;
   }
 }
 
