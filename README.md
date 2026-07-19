@@ -11,6 +11,10 @@ Another reader for E-H / ExH galleries. Optimized for touchscreen and mobile.
 
 ## Install
 
-- Install [Tampermonkey](https://www.tampermonkey.net/). On Android, it can be used with [Quetta](https://www.quetta.net/products/android), which supports browser extensions.
-- Install the userscript from one of these sources:
-  - [GitHub](https://github.com/yamipot/ehpeek/raw/build-master/ehpeek.user.js)
+- Install [Tampermonkey](https://www.tampermonkey.net/). On Android, it can be used with [Quetta](https://www.quetta.net/products/android).
+- Install from one of these channels:
+
+| Channel | Sources |
+| --- | --- |
+| Stable | [GitHub](https://github.com/yamipot/ehpeek/raw/build-release/ehpeek.user.js) · [jsDelivr](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-release/ehpeek.user.js) |
+| Latest | [GitHub](https://github.com/yamipot/ehpeek/raw/build-master/ehpeek.user.js) · [jsDelivr](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-master/ehpeek.user.js) |

@@ -11,6 +11,7 @@ const packageDir = path.dirname(fileURLToPath(import.meta.url));
 const outfile = path.join(packageDir, "dist/ehpeek.user.js");
 const texts = JSON.parse(readFileSync(path.join(packageDir, "src/texts.json"), "utf-8"));
 const releaseBuild = process.env.EHPEEK_RELEASE_BUILD === "true";
+const releaseBranch = process.env.EHPEEK_RELEASE_BRANCH || "master";
 const debugBuild = process.env.EHPEEK_DEBUG === "true";
 const installUrl = userscriptInstallUrl();
 const version = userscriptVersion();
@@ -105,7 +106,8 @@ function userscriptVersion() {
 
 function userscriptInstallUrl() {
   if (releaseBuild) {
-    return "https://github.com/yamipot/ehpeek/raw/build-master/ehpeek.user.js";
+    const sourceBranch = releaseBranch.replace(/[^a-zA-Z0-9._-]+/g, "-");
+    return `https://github.com/yamipot/ehpeek/raw/build-${sourceBranch}/ehpeek.user.js`;
   }
 
   return pathToFileURL(outfile).href;

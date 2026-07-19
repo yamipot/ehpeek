@@ -40,6 +40,7 @@ jobs:
       - name: Build
         env:
           EHPEEK_RELEASE_BUILD: "true"
+          EHPEEK_RELEASE_BRANCH: ${{ github.ref_name }}
         run: pnpm build
 
       - name: Publish built userscript branch
@@ -47,7 +48,7 @@ jobs:
         working-directory: .
         run: |
           safe_ref="${GITHUB_REF_NAME//\//-}"
-          build_branch="build-${safe_ref}"
+          publish_branch="build-${safe_ref}"
           worktree="$(mktemp -d)"
           artifact="$(mktemp)"
 
@@ -56,13 +57,13 @@ jobs:
 
           cp dist/ehpeek.user.js "$artifact"
 
-          if git ls-remote --exit-code --heads origin "$build_branch" >/dev/null 2>&1; then
-            git fetch origin "$build_branch"
-            git worktree add -B "$build_branch" "$worktree" "origin/$build_branch"
+          if git ls-remote --exit-code --heads origin "$publish_branch" >/dev/null 2>&1; then
+            git fetch origin "$publish_branch"
+            git worktree add -B "$publish_branch" "$worktree" "origin/$publish_branch"
           else
             git worktree add --detach "$worktree"
             cd "$worktree"
-            git checkout --orphan "$build_branch"
+            git checkout --orphan "$publish_branch"
             git rm -rf . >/dev/null 2>&1 || true
             cd -
           fi
@@ -75,4 +76,4 @@ jobs:
             exit 0
           fi
           git commit -m "build ehpeek from ${GITHUB_SHA}"
-          git push origin "HEAD:${build_branch}"
+          git push origin "HEAD:${publish_branch}"
