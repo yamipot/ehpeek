@@ -1,8 +1,8 @@
 import { createSignal, For, onCleanup, onMount, Show, untrack } from "solid-js";
-import type { SearchHistoryDom } from "../../eh";
+import type { SearchTextInputDom } from "../../eh";
 import { addSearchHistory, loadSearchHistory, removeSearchHistory } from "../../state";
 
-export function SearchHistory(props: { source: SearchHistoryDom }) {
+export function SearchHistory(props: { source: SearchTextInputDom }) {
   let dropdown: HTMLElement | undefined;
   const [searchValue, setSearchValue] = createSignal(
     untrack(() => props.source.data.value),
@@ -14,13 +14,13 @@ export function SearchHistory(props: { source: SearchHistoryDom }) {
   const itemButtons: HTMLButtonElement[] = [];
   const visiblePosition = () => open() && !searchValue().trim() && history().length > 0 ? position() : null;
   const selectHistory = (item: string) => {
-    props.source.actions.select(item);
+    props.source.handle.select(item);
     setOpen(false);
   };
 
   onMount(() => {
     const updatePosition = () => {
-      setPosition(props.source.actions.position());
+      setPosition(props.source.handle.position());
     };
     const showHistory = () => {
       updatePosition();
@@ -71,32 +71,18 @@ export function SearchHistory(props: { source: SearchHistoryDom }) {
 
       setHistory(addSearchHistory(value));
     };
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      const target = event.target;
-
-      if (props.source.actions.isInputTarget(target) || (target instanceof Node && dropdown?.contains(target))) {
-        return;
-      }
-
-      setOpen(false);
-    };
-
-    const disconnect = props.source.actions.connect({
+    const disconnect = props.source.handle.connect({
       onFocus: showHistory,
       onInput: updateSearchValue,
       onKeyDown: onInputKeyDown,
+      onOutsidePointer: () => setOpen(false),
+      onPositionChange: updatePosition,
       onSubmit: recordSearch,
-    });
-    document.addEventListener("pointerdown", closeOnOutsidePointer, true);
-    document.addEventListener("scroll", updatePosition, true);
-    window.addEventListener("resize", updatePosition);
+    }, () => dropdown ?? null);
     updateSearchValue(props.source.data.value, false);
 
     onCleanup(() => {
       disconnect();
-      document.removeEventListener("pointerdown", closeOnOutsidePointer, true);
-      document.removeEventListener("scroll", updatePosition, true);
-      window.removeEventListener("resize", updatePosition);
     });
   });
 

@@ -7,9 +7,7 @@ const TOUCH_ICON_BUTTON_CLASS =
   "inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]";
 const TOUCH_TOP_BAR_MENU_ITEM_CLASS =
   "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-lg coarse:min-h-88px py-md coarse:py-xl px-lg coarse:px-xl border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]";
-export const TOUCH_TOP_BAR_TRANSFORMS = {
-  navItems: TOUCH_TOP_BAR_MENU_ITEM_CLASS,
-};
+export const TOUCH_TOP_BAR_NAV_ITEM_CLASS = TOUCH_TOP_BAR_MENU_ITEM_CLASS;
 
 function TouchTopBarMenu(props: { navItems: TopBarDom["elems"]["navItems"] }) {
   const [open, setOpen] = createSignal(false);

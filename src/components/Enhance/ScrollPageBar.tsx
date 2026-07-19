@@ -1,39 +1,33 @@
-import { createEffect, createMemo, createSignal, For, untrack } from "solid-js";
+import { createMemo, For, untrack } from "solid-js";
 import { clamp } from "../../utils";
 import { createPointerGestureElement } from "../PointerGesture";
 import type { ManagedDomNode } from "../../eh";
 
-export const SCROLL_PAGE_BAR_CLASS = "ehpeek-scroll-page-bar";
-export const SCROLL_PAGE_BAR_TOP_CLASS = "ehpeek-scroll-page-bar-top";
-export const SCROLL_PAGE_BAR_BOTTOM_CLASS = "ehpeek-scroll-page-bar-bottom";
-export const SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR = "data-ehpeek-window-index";
+const SCROLL_PAGE_BAR_CLASS = "ehpeek-scroll-page-bar";
+const SCROLL_PAGE_BAR_TOP_CLASS = "ehpeek-scroll-page-bar-top";
+const SCROLL_PAGE_BAR_BOTTOM_CLASS = "ehpeek-scroll-page-bar-bottom";
 
 const DRAG_PIXEL_STEP = 18;
 const PAGE_BAR_BOTTOM_CLASS = "mt-0 mb-10px";
-const PAGE_BAR_CELL_CLASS = "!w-sm !h-sm touch:!w-md touch:!h-md !p-0 rounded-sm touch:rounded-md cursor-pointer text-center align-middle select-none";
+const PAGE_BAR_CELL_CLASS = "!w-sm !h-sm coarse:!w-md coarse:!h-md !p-0 rounded-sm coarse:rounded-md cursor-pointer text-center align-middle select-none";
 const PAGE_BAR_CLASS = "w-max mx-auto touch-pan-y [&[data-dragging=true]]:select-none";
-const PAGE_BAR_LINK_CLASS = "flex !w-sm !h-sm touch:!w-md touch:!h-md items-center justify-center box-border !p-0 rounded-sm touch:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
+const PAGE_BAR_LINK_CLASS = "flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
 const PAGE_BAR_LINK_COLOR_CLASS = "!border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)]";
 const PAGE_BAR_CURRENT_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)]";
 const PAGE_BAR_DISABLED_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)] opacity-40 cursor-default";
-const PAGE_BAR_TABLE_CLASS = "border-separate border-spacing-4px touch:border-spacing-6px";
+const PAGE_BAR_TABLE_CLASS = "border-separate border-spacing-4px coarse:border-spacing-6px";
 const PAGE_BAR_TOP_CLASS = "mt-2px mb-0";
-let galleryPageBarWindowIndex: number | null = null;
-
-type PageBarSlot =
-  | {
-      type: "page";
-      pageIndex: number;
-    };
 
 type PageBarItemState = "link" | "current" | "disabled";
 
-export type ScrollPageBarOptions = {
+type ScrollPageBarOptions = {
   currentIndex: number;
-  initialWindowIndex?: number;
   maxIndex: number | null;
+  onNavigate: (previewIndex: number, scrollToPageBar: "bottom" | "top") => void;
+  onWindowIndexChange: (index: number) => void;
   top: boolean;
   urlForIndex: (index: number) => string;
+  windowIndex: () => number | null;
 };
 
 export function GalleryPageDescription(props: { text: string }) {
@@ -41,18 +35,18 @@ export function GalleryPageDescription(props: { text: string }) {
 }
 
 export function ScrollPageBar(options: ScrollPageBarOptions & { element: ManagedDomNode<HTMLDivElement> }) {
-  const maxIndex = untrack(() => Math.max(0, options.maxIndex ?? options.currentIndex));
-  const currentIndex = untrack(() => clamp(options.currentIndex, 0, maxIndex));
-  const [windowIndex, setWindowIndex] = createSignal(
-    clamp(galleryPageBarWindowIndex ?? options.initialWindowIndex ?? currentIndex, 0, maxIndex),
-  );
+  const maxIndex = createMemo(() => Math.max(0, options.maxIndex ?? options.currentIndex));
+  const currentIndex = createMemo(() => clamp(options.currentIndex, 0, maxIndex()));
+  const windowIndex = createMemo(() => clamp(options.windowIndex() ?? currentIndex(), 0, maxIndex()));
   let dragStartWindowIndex = untrack(windowIndex);
-  const draggable = () => maxIndex + 1 > 7;
-  const slots = createMemo(() => pageSlots(windowIndex(), currentIndex, maxIndex));
-  const firstSlotIndex = createMemo(() => slots()[0]?.pageIndex ?? currentIndex);
-  const lastSlotIndex = createMemo(() => slots()[slots().length - 1]?.pageIndex ?? currentIndex);
-  const currentBeforeWindow = () => currentIndex < firstSlotIndex();
-  const currentAfterWindow = () => currentIndex > lastSlotIndex();
+  const draggable = () => maxIndex() + 1 > 7;
+  const slots = createMemo(() => pageSlots(windowIndex(), currentIndex(), maxIndex()));
+  const firstSlotIndex = createMemo(() => slots()[0] ?? currentIndex());
+  const lastSlotIndex = createMemo(() => slots()[slots().length - 1] ?? currentIndex());
+  const currentBeforeWindow = () => currentIndex() < firstSlotIndex();
+  const currentAfterWindow = () => currentIndex() > lastSlotIndex();
+  const scrollTargetForIndex = (pageIndex: number): "bottom" | "top" =>
+    pageIndex === currentIndex() - 1 || pageIndex === maxIndex() ? "bottom" : "top";
   const linkCell = (text: string, pageIndex: number, itemState: PageBarItemState = "link") => {
     if (itemState !== "link") {
       return (
@@ -72,9 +66,17 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: Managed
       <td class={PAGE_BAR_CELL_CLASS}>
         <a
           class={`${PAGE_BAR_LINK_CLASS} ${PAGE_BAR_LINK_COLOR_CLASS}`}
+          data-ehpeek-single-page-bypass=""
           href={options.urlForIndex(pageIndex)}
-          data-page-index={String(pageIndex)}
           draggable={false}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            options.onNavigate(
+              pageIndex,
+              scrollTargetForIndex(pageIndex),
+            );
+          }}
         >
           {text}
         </a>
@@ -87,10 +89,12 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: Managed
     </td>
   );
 
-  createEffect(() => {
-    options.element
-      .transform({ classes: { replace: `${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${options.top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}` } })
-      .attribute(SCROLL_PAGE_BAR_WINDOW_INDEX_ATTR, String(windowIndex()));
+  untrack(() => {
+    options.element.transform({
+      classes: {
+        replace: `${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${options.top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}`,
+      },
+    });
   });
 
   createPointerGestureElement(
@@ -106,14 +110,13 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: Managed
           return;
         }
 
-        const nextIndex = clamp(dragStartWindowIndex - acceleratedPageOffset(info.dx), 0, maxIndex);
+        const nextIndex = clamp(dragStartWindowIndex - acceleratedPageOffset(info.dx), 0, maxIndex());
 
         if (nextIndex === windowIndex()) {
           return;
         }
 
-        galleryPageBarWindowIndex = nextIndex;
-        setWindowIndex(nextIndex);
+        options.onWindowIndexChange(nextIndex);
       },
     }),
   );
@@ -122,33 +125,29 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: Managed
     <table class={PAGE_BAR_TABLE_CLASS}>
       <tbody>
         <tr>
-          {linkCell("<<", 0, currentIndex === 0 ? "disabled" : "link")}
-          {currentBeforeWindow() ? linkCell(String(currentIndex + 1), currentIndex, "current") : emptyCell()}
-          {linkCell("<", Math.max(0, currentIndex - 1), currentIndex === 0 ? "disabled" : "link")}
-          <For each={slots()}>{(slot) =>
-            slot ? linkCell(String(slot.pageIndex + 1), slot.pageIndex, slot.pageIndex === currentIndex ? "current" : "link") : emptyCell()
+          {linkCell("<<", 0, currentIndex() === 0 ? "disabled" : "link")}
+          {currentBeforeWindow() ? linkCell(String(currentIndex() + 1), currentIndex(), "current") : emptyCell()}
+          {linkCell("<", Math.max(0, currentIndex() - 1), currentIndex() === 0 ? "disabled" : "link")}
+          <For each={slots()}>{(pageIndex) =>
+            pageIndex !== null ? linkCell(String(pageIndex + 1), pageIndex, pageIndex === currentIndex() ? "current" : "link") : emptyCell()
           }</For>
-          {linkCell(">", Math.min(maxIndex, currentIndex + 1), currentIndex === maxIndex ? "disabled" : "link")}
-          {currentAfterWindow() ? linkCell(String(currentIndex + 1), currentIndex, "current") : emptyCell()}
-          {linkCell(">>", maxIndex, currentIndex === maxIndex ? "disabled" : "link")}
+          {linkCell(">", Math.min(maxIndex(), currentIndex() + 1), currentIndex() === maxIndex() ? "disabled" : "link")}
+          {currentAfterWindow() ? linkCell(String(currentIndex() + 1), currentIndex(), "current") : emptyCell()}
+          {linkCell(">>", maxIndex(), currentIndex() === maxIndex() ? "disabled" : "link")}
         </tr>
       </tbody>
     </table>
   );
 }
 
-export function setScrollPageBarWindowIndex(index: number): void {
-  galleryPageBarWindowIndex = Math.max(0, Math.round(index));
-}
-
-function pageSlots(windowIndex: number, currentIndex: number, maxIndex: number): Array<PageBarSlot | null> {
+function pageSlots(windowIndex: number, currentIndex: number, maxIndex: number): Array<number | null> {
   if (maxIndex + 1 <= 7) {
-    return range(0, maxIndex).map((pageIndex) => ({ type: "page", pageIndex }));
+    return range(0, maxIndex);
   }
 
   const windowStart = clamp(windowIndex - 3, -1, maxIndex - 5);
   return range(windowStart, windowStart + 6).map((pageIndex) =>
-    pageIndex >= 0 && pageIndex <= maxIndex ? { type: "page", pageIndex } : null,
+    pageIndex >= 0 && pageIndex <= maxIndex ? pageIndex : null,
   );
 }
 

@@ -21,8 +21,8 @@ import { Icon } from "../Widgets/Icon";
 
 const TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS =
   "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]";
-export const TOUCH_GALLERY_INFO_TRANSFORMS = {
-  actions: TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS,
+export const TOUCH_GALLERY_INFO_CLASSES = {
+  actionItems: TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS,
   cover:
     "block w-full max-w-full h-full max-h-full mx-auto object-contain object-center",
   host: "ehpeek-touch-gallery-host",
@@ -84,7 +84,7 @@ export function GalleryInfoPanel(props: {
   );
 
   onMount(() => {
-    const stopObservingTags = source.actions.observeTagGroups(setTagGroups);
+    const stopObservingTags = source.handle.observeTagGroups(setTagGroups);
 
     onCleanup(stopObservingTags);
   });
@@ -96,7 +96,7 @@ export function GalleryInfoPanel(props: {
 
     setRatingUpdating(true);
     try {
-      const result = await source.actions.rate(value);
+      const result = await source.handle.rate(value);
       setRatingValue(result.value);
       setRatingCount(String(result.count));
       setRatingValueLabel(formatRatingLabel(rating.label, result.average));
@@ -236,7 +236,7 @@ export function GalleryInfoPanel(props: {
               {item.value}
             </div>
           )}</For>
-          <TouchGalleryActionsMenu actions={source.elems.actions} />
+          <TouchGalleryActionsMenu items={source.elems.actionItems} />
         </div>
         {tagGroups().length > 0 && (
           <div class="ehpeek-touch-gallery-tag-groups flex flex-col gap-md pt-2px">
@@ -334,7 +334,7 @@ export function GalleryInfoPanel(props: {
 }
 
 function TouchGalleryActionsMenu(props: {
-  actions: GalleryInfoDom["elems"]["actions"];
+  items: GalleryInfoDom["elems"]["actionItems"];
 }) {
   const [open, setOpen] = createSignal(false);
   let root!: HTMLDivElement;
@@ -374,7 +374,7 @@ function TouchGalleryActionsMenu(props: {
       </button>
       <Show when={open()}>
         <div class="ehpeek-touch-gallery-actions-menu-panel absolute top-48px right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">
-          <DomNodes nodes={props.actions} />
+          <DomNodes nodes={props.items} />
         </div>
       </Show>
     </div>
@@ -443,7 +443,7 @@ function TouchGalleryTag(props: {
     closeMenu();
     setUpdating(true);
     try {
-      await props.source.actions.tagAction(props.tag, action);
+      await props.source.handle.tagAction(props.tag, action);
     } catch (error) {
       console.error(
         "[ehpeek] Gallery tag vote failed",
@@ -465,9 +465,9 @@ function TouchGalleryTag(props: {
     setUpdating(true);
     try {
       if (props.tag.myTag) {
-        await props.source.actions.removeFavoriteTag(props.tag);
+        await props.source.handle.removeFavoriteTag(props.tag);
       } else {
-        await props.source.actions.favoriteTag(props.tag, selectedTagSet(), tagMode());
+        await props.source.handle.favoriteTag(props.tag, selectedTagSet(), tagMode());
       }
       state.gallery.myTagAppearances.clear();
       window.location.reload();
@@ -712,7 +712,7 @@ function TouchGalleryTag(props: {
 
 function TouchGalleryNewTag(props: { source: GalleryInfoDom }) {
   onMount(() => {
-    props.source.actions.reuseNewTagInput();
+    props.source.handle.reuseNewTagInput();
   });
 
   return <DomNode node={props.source.elems.newTag} />;
@@ -775,7 +775,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
     setLoadingState("loading");
 
     try {
-      setOptions(await props.source.actions.favoriteOptions(
+      setOptions(await props.source.handle.favoriteOptions(
         currentFavorite.actionUrl,
         currentFavorite.favorited,
       ));
@@ -872,7 +872,7 @@ function TouchGalleryFavoriteOption(props: {
       aria-pressed={props.option.selected}
       onClick={(event: MouseEvent) => {
         event.stopPropagation();
-        void props.source.actions
+        void props.source.handle
           .updateFavorite(props.actionUrl, props.option.value)
           .then(props.onApplied)
           .catch((error) => {

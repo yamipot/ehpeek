@@ -44,9 +44,8 @@ export function extractTopBar() {
 
   const page = DomNode.from(document);
   const original = page.one<HTMLElement>("#nb");
-  const host = original?.parent();
   const links = original?.all<HTMLAnchorElement>("a[href]") ?? [];
-  if (!original || !host || links.length === 0) {
+  if (!original || links.length === 0) {
     return null;
   }
 
@@ -59,8 +58,8 @@ export function extractTopBar() {
   const originalElem = original.inplace();
   originalElem.replaceWith(mount);
 
-  const transforms = {
-    navItems(className: string) {
+  const handle = {
+    transformNavItems(className: string) {
       navItems.forEach((item) =>
         item.transform({
           attributes: { remove: ["id"] },
@@ -74,7 +73,7 @@ export function extractTopBar() {
   return {
     data,
     elems: { mount, navItems } satisfies ManagedDomElements,
-    transforms,
+    handle,
   };
 }
 

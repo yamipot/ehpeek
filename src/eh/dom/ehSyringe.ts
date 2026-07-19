@@ -71,9 +71,6 @@ export async function waitForRouteTranslation(
 /** Rebinds EhSyringe tag suggestions to TouchUI's component-owned search input. */
 export function reuseTagTipInput(
   target: ManagedDomNode<HTMLInputElement>,
-): ManagedDomNode<HTMLInputElement>;
-export function reuseTagTipInput(
-  target: ManagedDomNode<HTMLInputElement>,
 ): ManagedDomNode<HTMLInputElement> {
   captureTagTipInput();
 
@@ -85,7 +82,7 @@ export function reuseTagTipInput(
     return target;
   }
 
-  target.copyAttributesTo(tagTipInput.Component());
+  target.copyAttributesTo(tagTipInput);
   tagTipInput.setInputValue(target.inputValue());
   target.replaceWith(tagTipInput);
   return tagTipInput;

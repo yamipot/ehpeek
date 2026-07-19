@@ -1,7 +1,7 @@
 import type { JSX } from "solid-js";
 import { render } from "solid-js/web";
 
-export type ElemChanges = {
+type ElemChanges = {
   attributes?: {
     remove?: readonly string[];
     set?: Readonly<Record<string, string>>;
@@ -18,7 +18,7 @@ export type ElemChanges = {
   };
 };
 
-export const MANAGED_DOM_NODE_CLASS = "ehpeek-managed";
+const MANAGED_DOM_NODE_CLASS = "ehpeek-managed";
 const EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor";
 const mountedNodes = new WeakMap<HTMLElement, () => void>();
 const managedNodes = new WeakMap<HTMLElement, ManagedDomNode>();
@@ -343,8 +343,9 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
     type: K,
     listener: (event: HTMLElementEventMap[K]) => void,
     options?: boolean | AddEventListenerOptions,
-  ): void {
+  ): () => void {
     this.#node.addEventListener(type, listener, options);
+    return () => this.#node.removeEventListener(type, listener, options);
   }
 
   observe(
@@ -368,9 +369,9 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
     return this.#node === node;
   }
 
-  copyAttributesTo(target: Element): void {
+  copyAttributesTo(target: ManagedDomNode): void {
     for (const attribute of Array.from(this.#node.attributes)) {
-      target.setAttribute(attribute.name, attribute.value);
+      target.#node.setAttribute(attribute.name, attribute.value);
     }
   }
 

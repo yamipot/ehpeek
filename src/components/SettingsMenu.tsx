@@ -2,7 +2,7 @@ import { createEffect, createSignal, onCleanup, onMount, Show, untrack } from "s
 import { createStore } from "solid-js/store";
 import texts from "../texts.json";
 
-export type SettingsMenuState = {
+type SettingsMenuState = {
   openGalleryInNewTab: boolean;
   singlePageAppEnabled: boolean;
   readerEnabled: boolean;

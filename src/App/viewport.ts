@@ -65,16 +65,13 @@ async function restorePageViewport(
   window.scrollTo(snapshot.scrollX, snapshot.scrollY);
 }
 
-/** Creates the host-page viewport lifecycle used by Reader. */
-export function createReaderViewport() {
-  return {
-    lockScroll: lockPageScroll,
-    prepareFullscreen: pageViewportForFullscreen,
-    restore: restorePageViewport,
-  };
-}
+export const readerViewport = {
+  lockScroll: lockPageScroll,
+  prepareFullscreen: pageViewportForFullscreen,
+  restore: restorePageViewport,
+};
 
-export type ReaderViewport = ReturnType<typeof createReaderViewport>;
+export type ReaderViewport = typeof readerViewport;
 
 function lockedViewportContent(content: string | null, scale: number): string {
   const preserved = (content ?? "")

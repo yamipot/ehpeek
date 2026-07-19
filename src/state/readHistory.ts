@@ -5,7 +5,7 @@ const HISTORY_LIMIT = 2_000;
 const HISTORY_PRUNE_COUNT = 1_000;
 const SAVE_DELAY_MS = 10_000;
 
-export type ReadHistoryRecord = {
+type ReadHistoryRecord = {
   galleryId: number;
   token: string;
   galleryUrl: string;

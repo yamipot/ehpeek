@@ -1,17 +1,8 @@
-import type { ManagedDomNode } from "./dom/core";
-
 export type ImagePageInfo = {
   imageUrl: string;
   originalImageUrl: string | null;
   width: number | null;
   height: number | null;
-};
-
-export type GalleryPageBarMount = {
-  descriptionElement: ManagedDomNode<HTMLDivElement> | null;
-  descriptionText: string | null;
-  element: ManagedDomNode<HTMLDivElement>;
-  top: boolean;
 };
 
 export type GalleryTagData = {
@@ -26,7 +17,7 @@ export type GalleryTagData = {
 
 export type GalleryTagAction = "voteDown" | "voteUp" | "withdrawVote";
 
-export type GalleryTagAppearance = {
+type GalleryTagAppearance = {
   backgroundColor: string;
   borderColor: string;
   color: string;
@@ -60,7 +51,7 @@ export type GalleryFavoriteOption = {
   value: string;
 };
 
-export type TouchFavoritesCategory = {
+type TouchFavoritesCategory = {
   appearance: TouchFavoritesCategoryAppearance | null;
   count: number;
   href: string;
@@ -68,7 +59,7 @@ export type TouchFavoritesCategory = {
   selected: boolean;
 };
 
-export type TouchFavoritesCategoryAppearance = {
+type TouchFavoritesCategoryAppearance = {
   backgroundImage: string;
   backgroundPosition: string;
   backgroundSize: string;

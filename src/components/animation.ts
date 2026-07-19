@@ -1,7 +1,7 @@
 import { clamp } from "../utils";
 
 type ScrollAnimationMode = "none" | "native" | "raf";
-export type ScrollAxis = "x" | "y";
+type ScrollAxis = "x" | "y";
 export type ScrollMotion = "instant" | "animated";
 
 const SCROLL_ANIMATION_MODE: ScrollAnimationMode = "raf";

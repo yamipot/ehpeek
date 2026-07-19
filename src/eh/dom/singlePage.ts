@@ -1,5 +1,5 @@
 import { normalizeUrl } from "../../utils";
-import { galleryIdentityFromUrl } from "../url";
+import { galleryIdentityFromUrl, isSameOriginUrl, singlePageRoute } from "../url";
 import { extractGalleryApiSession } from "./gallery";
 import { DomNode, type ManagedDomElements } from "./core";
 
@@ -45,7 +45,7 @@ export function extractPageContent(
       if (!value || value.startsWith("#") || /^(?:data|javascript|mailto):/i.test(value)) {
         continue;
       }
-      own(source)?.attribute(attribute, normalizeUrl(value, baseUrl));
+      own(source).attribute(attribute, normalizeUrl(value, baseUrl));
     }
   }
 
@@ -53,7 +53,7 @@ export function extractPageContent(
   const uploadScript = scriptTexts.find((text) => text.includes("ulhost")) ?? "";
   const uploadBase = uploadScript.match(/\bulhost\s*=\s*["']([^"']+)["']/)?.[1];
   if (fileSearch && uploadBase) {
-    own(fileSearch)?.attribute(
+    own(fileSearch).attribute(
       "data-ehpeek-file-search-action",
       new URL("image_lookup.php", normalizeUrl(uploadBase, baseUrl)).href,
     );
@@ -64,10 +64,9 @@ export function extractPageContent(
     if (!popupUrl) {
       continue;
     }
-    own(source)?.transform({
+    own(source).transform({
       attributes: {
         set: {
-          "data-ehpeek-gallery-utility": "true",
           href: new URL(popupUrl, baseUrl).href,
           rel: "noopener noreferrer",
           target: "_blank",
@@ -80,7 +79,7 @@ export function extractPageContent(
   const rating = ratingScript ? scriptNumberValue(ratingScript, "display_rating") : null;
   const ratingImage = page.one<HTMLElement>("#rating_image");
   if (ratingImage && rating !== null) {
-    own(ratingImage)?.attribute("data-ehpeek-rating", String(rating));
+    own(ratingImage).attribute("data-ehpeek-rating", String(rating));
   }
 
   const gallery = galleryIdentityFromUrl(baseUrl);
@@ -95,7 +94,7 @@ export function extractPageContent(
     Number(favoriteMatch?.[1]) === gallery.galleryId &&
     favoriteMatch?.[2] === gallery.token
   ) {
-    own(favorite)?.attribute(
+    own(favorite).attribute(
       "data-ehpeek-action-url",
       `/gallerypopups.php?gid=${favoriteMatch[1]}&t=${favoriteMatch[2]}&act=addfav`,
     );
@@ -123,7 +122,7 @@ export function extractPageContent(
     });
   }
 
-  scriptSources.forEach((script) => own(script)?.remove());
+  scriptSources.forEach((script) => own(script).remove());
   const content = contentSources.map((source) => {
     const node = own(source);
     node.remove();
@@ -133,55 +132,96 @@ export function extractPageContent(
   const data = {
     title: documentSource.one<HTMLTitleElement>("title")?.text() ?? "",
   };
-  const actions = {
+  const navigationRequest = (event: MouseEvent | SubmitEvent): NavigationRequest | null => {
+    if (event instanceof MouseEvent) {
+      const link = event.target instanceof Element
+        ? DomNode.from(event.target).closest<HTMLAnchorElement>("a[href]")
+        : null;
+      if (
+        !link ||
+        link.hasAttribute("data-ehpeek-single-page-bypass") ||
+        (link.attribute("target") && link.attribute("target") !== "_self") ||
+        link.hasAttribute("download")
+      ) {
+        return null;
+      }
+      return {
+        method: "GET",
+        url: new URL(link.attribute("href") ?? "", window.location.href).href,
+      };
+    }
+
+    const form = event.target instanceof HTMLFormElement ? DomNode.from(event.target) : null;
+    if (!form || (!form.matches("#searchbox form, #fsdiv form") && !form.one("[name='f_search']"))) {
+      return null;
+    }
+    const method = (form.attribute("method") ?? "GET").toUpperCase();
+    if (method !== "GET" && method !== "POST") {
+      return null;
+    }
+    const formElement = form.inplace().Component();
+    const formData = new FormData(formElement, event.submitter);
+    const url = new URL(form.attribute("action") || window.location.href, window.location.href);
+    if (method === "GET") {
+      url.search = "";
+      url.hash = "";
+      formData.forEach((value, key) => {
+        if (typeof value === "string") {
+          url.searchParams.append(key, value);
+        }
+      });
+      return { method, url: url.href };
+    }
+    return { body: formData, method, url: url.href };
+  };
+  const handle = {
+    connectNavigation(
+      host: HTMLElement,
+      onNavigate: (request: NavigationRequest) => void,
+    ): () => void {
+      const onClick = (event: MouseEvent) => {
+        if (
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey
+        ) {
+          return;
+        }
+        const request = navigationRequest(event);
+        if (!request || !isSameOriginUrl(request.url) || !singlePageRoute(request.url)) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        onNavigate(request);
+      };
+      const onSubmit = (event: SubmitEvent) => {
+        const request = navigationRequest(event);
+        if (!request || !isSameOriginUrl(request.url) || !singlePageRoute(request.url)) {
+          return;
+        }
+
+        event.preventDefault();
+        onNavigate(request);
+      };
+
+      host.addEventListener("click", onClick, true);
+      host.addEventListener("submit", onSubmit, true);
+      return () => {
+        host.removeEventListener("click", onClick, true);
+        host.removeEventListener("submit", onSubmit, true);
+      };
+    },
     mount(host: HTMLElement): void {
       host.replaceChildren(...content.map((node) => node.Component()));
     },
-    navigationRequest(event: MouseEvent | SubmitEvent): NavigationRequest | null {
-      if (event instanceof MouseEvent) {
-        const link = event.target instanceof Element
-          ? DomNode.from(event.target).closest<HTMLAnchorElement>("a[href]")
-          : null;
-        if (
-          !link ||
-          link.hasAttribute("data-ehpeek-single-page-bypass") ||
-          (link.attribute("target") && link.attribute("target") !== "_self") ||
-          link.hasAttribute("download")
-        ) {
-          return null;
-        }
-        return {
-          method: "GET",
-          url: new URL(link.attribute("href") ?? "", window.location.href).href,
-        };
-      }
-
-      const form = event.target instanceof HTMLFormElement ? DomNode.from(event.target) : null;
-      if (!form || (!form.matches("#searchbox form, #fsdiv form") && !form.one("[name='f_search']"))) {
-        return null;
-      }
-      const method = (form.attribute("method") ?? "GET").toUpperCase();
-      if (method !== "GET" && method !== "POST") {
-        return null;
-      }
-      const formElement = form.inplace().Component();
-      const data = new FormData(formElement, event.submitter);
-      const url = new URL(form.attribute("action") || window.location.href, window.location.href);
-      if (method === "GET") {
-        url.search = "";
-        url.hash = "";
-        data.forEach((value, key) => {
-          if (typeof value === "string") {
-            url.searchParams.append(key, value);
-          }
-        });
-        return { method, url: url.href };
-      }
-      return { body: data, method, url: url.href };
-    },
   };
 
-  return { actions, data, elems };
+  return { data, elems, handle };
 }
 
 export type PageContentDom = ReturnType<typeof extractPageContent>;

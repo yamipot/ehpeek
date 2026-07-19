@@ -1,26 +1,38 @@
 import texts from "../../texts.json";
-import type { GalleryOperationsDom } from "./gallery";
+import type { MyTagMode } from "../request";
+import {
+  addMyTag,
+  deleteMyTag,
+  requestPage,
+  updateGalleryFavorite,
+  updateGalleryRating,
+  updateGalleryTagVote,
+} from "../request";
 import type {
   GalleryCategoryAppearance,
+  GalleryFavoriteOption,
   GalleryFavoriteInfo,
   GalleryRatingInfo,
+  GalleryTagAction,
   GalleryTagData,
 } from "../types";
-import { galleryTagNameFromUrl } from "../url";
-import { updateGalleryFavorite } from "../request";
+import { galleryTagNameFromUrl, isSameOriginUrl } from "../url";
 import {
   createAnchor,
   DomNode,
   type ManagedDomElements,
   type ManagedDomNode,
 } from "./core";
-import type { GalleryPreviewData } from "./gallery";
+import {
+  extractGalleryTagApiInfo,
+  extractMyTagsPageData,
+  type GalleryPreviewData,
+} from "./gallery";
 import * as EhSyringe from "./ehSyringe";
 
 /** Reads and takes ownership of E-H's gallery header for GalleryInfoPanel. */
 export function extractGalleryInfo(
   preview: GalleryPreviewData | null,
-  operations: GalleryOperationsDom,
 ) {
   const mount = createAnchor("gallery-info");
   if (!mount) {
@@ -105,7 +117,7 @@ export function extractGalleryInfo(
     return {
       actionUrl: match
         ? `/gallerypopups.php?gid=${match[1]}&t=${match[2]}&act=addfav`
-        : "",
+        : element?.attribute("data-ehpeek-action-url") ?? "",
       color: slot === undefined ? null : `var(--color-site-favorite-${slot})`,
       favorited,
       label: favorited ? displayed : "Not Favorited",
@@ -122,8 +134,14 @@ export function extractGalleryInfo(
     const match = (
       scripts.find((item) => item.includes("display_rating")) ?? ""
     ).match(/\bdisplay_rating\s*=\s*(-?\d+(?:\.\d+)?)/);
-    const parsed = Number(match?.[1]);
-    const value = match && Number.isFinite(parsed) ? parsed : null;
+    const scriptValue = Number(match?.[1]);
+    const preservedRating = image?.attribute("data-ehpeek-rating");
+    const preservedValue = preservedRating ? Number(preservedRating) : Number.NaN;
+    const value = match && Number.isFinite(scriptValue)
+      ? scriptValue
+      : Number.isFinite(preservedValue)
+        ? preservedValue
+        : null;
     return label && value !== null
       ? {
           count: count?.text() ?? "",
@@ -203,6 +221,27 @@ export function extractGalleryInfo(
       tags: page.all<HTMLAnchorElement>("#taglist a").map(readTag).filter((tag) => tag !== null).slice(0, 60),
     }].filter((group) => group.tags.length > 0);
   };
+
+  const favoriteColor = (value: string): string | null => {
+    const slot = value.match(/^(?:fav)?([0-9])$/i)?.[1]
+      ?? value.match(/^favorites?\s+([0-9])$/i)?.[1];
+    return slot === undefined ? null : `var(--color-site-favorite-${slot})`;
+  };
+
+  const readFavoriteOptions = (
+    doc: Document,
+    favorited: boolean,
+  ): GalleryFavoriteOption[] =>
+    DomNode.from(doc).all<HTMLInputElement>("input[name='favcat']").map((input) => {
+      const row = input.closest<HTMLElement>("div[style*='height']");
+      const value = input.inputValue();
+      return {
+        color: favoriteColor(value),
+        label: row?.text().replace(/\s+/g, " ") || value,
+        selected: favorited && input.checked(),
+        value,
+      };
+    });
 
   const manageTagGroups = (): GalleryInfoTagGroup[] => readTagGroups().map((group) => ({
     namespace: group.namespace,
@@ -300,7 +339,7 @@ export function extractGalleryInfo(
   const hostElem = host.inplace();
   const tagContents = tagContentSources.map((source) => source.inplace());
   const elems = {
-    actions: actionElems,
+    actionItems: actionElems,
     cover: coverElem,
     host: hostElem,
     hostChildren: hostChildElems,
@@ -312,8 +351,8 @@ export function extractGalleryInfo(
     tagContents,
   } satisfies ManagedDomElements;
 
-  const transforms = {
-    cover(className: string) {
+  const handle = {
+    transformCover(className: string) {
       coverElem?.transform({
         attributes: {
           remove: ["id", "style", "width", "height"],
@@ -327,7 +366,7 @@ export function extractGalleryInfo(
         classes: { replace: className },
       });
     },
-    actions(className: string) {
+    transformActionItems(className: string) {
       actionElems.forEach((action, index) => {
         action.transform({
           attributes: { remove: ["id"] },
@@ -337,7 +376,7 @@ export function extractGalleryInfo(
         action.setTextUnlessInput(actionSources[index]?.label ?? "");
       });
     },
-    newTag(classes: {
+    transformNewTag(classes: {
       button: string;
       container: string;
       field: string;
@@ -359,21 +398,24 @@ export function extractGalleryInfo(
         classes: { add: classes.form.split(" ") },
       });
     },
-    host(className: string) {
+    transformHost(className: string) {
       hostElem.transform({ classes: { add: [className] } });
       hostChildElems.forEach((child) => child.transform({ hidden: true }));
       hostElem.prepend(mount);
     },
-  };
-
-  const actions = {
     async favoriteOptions(actionUrl: string, favorited: boolean) {
-      return operations.actions.favoriteOptions(actionUrl, favorited);
+      const response = await requestPage(actionUrl);
+      return readFavoriteOptions(response.document, favorited);
     },
     async favoriteTag(
-      ...args: Parameters<GalleryOperationsDom["actions"]["favoriteTag"]>
+      tag: GalleryTagData,
+      tagSet: string,
+      mode: MyTagMode,
     ): Promise<void> {
-      await operations.actions.favoriteTag(...args);
+      const response = await addMyTag(tag.name, tagSet, mode);
+      if (!isSameOriginUrl(response.url) || !extractMyTagsPageData(response.document, tagSet)) {
+        throw new Error("My Tags page is unavailable");
+      }
     },
     observeTagGroups(onChange: (groups: GalleryInfoTagGroup[]) => void) {
       const tagList = page.one<HTMLElement>("#taglist");
@@ -386,20 +428,54 @@ export function extractGalleryInfo(
       }
     },
     async rate(value: number) {
-      return operations.actions.rate(value);
+      const rating = Math.round(value * 2);
+      if (rating < 1 || rating > 10) {
+        throw new RangeError("Gallery rating must be between 0.5 and 5 stars.");
+      }
+      const api = extractGalleryTagApiInfo();
+      if (!api) {
+        throw new Error("Gallery API context is unavailable.");
+      }
+      return updateGalleryRating(api, value);
     },
     async removeFavoriteTag(tag: GalleryTagData): Promise<void> {
-      await operations.actions.removeFavoriteTag(tag);
+      if (!tag.myTag) {
+        return;
+      }
+      const response = await deleteMyTag(tag.myTag.id, tag.myTag.tagSet);
+      if (!isSameOriginUrl(response.url) || !extractMyTagsPageData(response.document, tag.myTag.tagSet)) {
+        throw new Error("My Tags page is unavailable");
+      }
     },
-    async tagAction(tag: GalleryTagData, action: import("../types").GalleryTagAction): Promise<void> {
-      await operations.actions.tagAction(tag, action);
+    async tagAction(tag: GalleryTagData, action: GalleryTagAction): Promise<void> {
+      const api = extractGalleryTagApiInfo();
+      if (!api) {
+        throw new Error("Gallery API context is unavailable.");
+      }
+      const vote = action === "voteUp"
+        ? 1
+        : action === "voteDown"
+          ? -1
+          : tag.vote === "up"
+            ? -1
+            : tag.vote === "down"
+              ? 1
+              : 0;
+      const tagPane = await updateGalleryTagVote(api, tag.name, vote);
+      const tagList = page.one<HTMLElement>("#taglist")?.inplace();
+      if (!tagList) {
+        throw new Error("Gallery tag list is unavailable.");
+      }
+      const template = document.createElement("template");
+      template.innerHTML = tagPane;
+      tagList.replaceChildren(...Array.from(template.content.childNodes));
     },
     async updateFavorite(actionUrl: string, value: string): Promise<void> {
       await updateGalleryFavorite(actionUrl, value);
     },
   };
 
-  return { actions, data, elems, transforms };
+  return { data, elems, handle };
 }
 
 export type GalleryInfoDom = NonNullable<ReturnType<typeof extractGalleryInfo>>;
@@ -422,21 +498,16 @@ export function extractGalleryCommentsTouch() {
       detailsId: details.attribute("id") ?? "",
       expanded: false,
       trigger: trigger.inplace(),
-    }))
-    .filter((item) => item.details !== null && item.trigger !== null);
+    }));
 
   const setExpanded = (item: (typeof items)[number], expanded: boolean) => {
     item.expanded = expanded;
-    item.trigger?.attribute("aria-expanded", String(expanded));
-    item.details?.attribute("aria-hidden", String(!expanded));
-    item.details?.styles({ display: expanded ? "" : "none" });
+    item.trigger.attribute("aria-expanded", String(expanded));
+    item.details.attribute("aria-hidden", String(!expanded));
+    item.details.styles({ display: expanded ? "" : "none" });
   };
 
   for (const item of items) {
-    if (!item.trigger || !item.details) {
-      continue;
-    }
-
     item.trigger.transform({
       attributes: {
         remove: ["onmouseover", "onmouseout", "onclick"],
@@ -468,11 +539,4 @@ export function extractGalleryCommentsTouch() {
       }
     });
   }
-
-  return {
-    elems: {
-      details: items.flatMap((item) => (item.details ? [item.details] : [])),
-      triggers: items.flatMap((item) => (item.trigger ? [item.trigger] : [])),
-    },
-  };
 }

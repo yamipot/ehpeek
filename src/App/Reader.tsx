@@ -1,20 +1,15 @@
 import {
   enterReaderFullscreen,
   FullscreenReader,
-  removePreviousReaderRoot,
   type FullscreenReaderOptions,
-  type ReaderPageProvider,
 } from "../components/Reader";
-import { navigateGalleryPreview } from "../components/Enhance/EnhanceThumbsGrids";
 import { ReadHistorySession } from "../state/readHistory";
 import * as eh from "../eh";
-import type { LoadedReaderPage, ReaderPage } from "../readerTypes";
 import { state } from "../state";
 import texts from "../texts.json";
-import { renderInto, unmountFrom } from "./render";
+import { render } from "solid-js/web";
+import type { GalleryPreviewCache } from "./GalleryPreviewCache";
 import type { ReaderViewport, ReaderViewportSnapshot } from "./viewport";
-
-const PREVIEW_CACHE_LIMIT = 10;
 
 type ReaderFullscreenLaunch = {
   host: HTMLDivElement;
@@ -23,42 +18,18 @@ type ReaderFullscreenLaunch = {
 };
 
 export type ReaderCallbacks = {
-  enhanceThumbsGridsEnabled: () => boolean;
-  readHistoryEnabled: () => boolean;
-  onPageBarChange: (currentIndex: number, maxIndex: number | null) => void;
+  enhanceThumbsGridsEnabled: boolean;
+  readHistoryEnabled: boolean;
+  onGotoPreviewIndex: (previewIndex: number) => void;
   onReaderClosed: (currentPage: number, totalPages: number | null) => void;
 };
 
 let activeReaderClose: (() => void) | undefined;
 
-export function onReaderDocumentClick(
-  event: MouseEvent,
-  callbacks: ReaderCallbacks,
-  preview: eh.GalleryPreviewDom | null,
-  viewport: ReaderViewport | null,
-): void {
-  if (!state.reader.enabled.value) {
-    return;
-  }
-
-  if (!preview || !viewport) {
-    return;
-  }
-  const pageUrl = preview.actions.imageUrlForClick(event.target);
-
-  if (!pageUrl) {
-    return;
-  }
-
-  event.preventDefault();
-  event.stopPropagation();
-  openReaderFromUserAction(pageUrl, callbacks, preview, viewport);
-}
-
 export function openReaderFromUserAction(
   startPageUrl: string,
   callbacks: ReaderCallbacks,
-  preview: eh.GalleryPreviewDom,
+  previewCache: GalleryPreviewCache,
   viewport: ReaderViewport,
   preferredPageNum?: number,
 ): void {
@@ -66,7 +37,7 @@ export function openReaderFromUserAction(
   void openReader(
     startPageUrl,
     callbacks,
-    preview,
+    previewCache,
     viewport,
     preferredPageNum,
     fullscreenLaunch,
@@ -89,7 +60,7 @@ export function openReaderFromUserAction(
 
 export async function openReaderFromHash(
   callbacks: ReaderCallbacks,
-  preview: eh.GalleryPreviewDom,
+  previewCache: GalleryPreviewCache,
   viewport: ReaderViewport,
 ): Promise<void> {
   const peekPage = eh.peekPageFromHash();
@@ -98,11 +69,12 @@ export async function openReaderFromHash(
     return;
   }
 
+  const preview = previewCache.current();
   const pages = preview.data.pages;
   const page = pages.find((item) => item.pageNum === peekPage) ?? pages[0];
 
   if (page) {
-    await openReader(page.url, callbacks, preview, viewport).catch(
+    await openReader(page.url, callbacks, previewCache, viewport).catch(
       reportReaderOpenError,
     );
   }
@@ -110,15 +82,14 @@ export async function openReaderFromHash(
 
 export async function openOriginalReader(
   pageNum: number,
-  source: eh.GalleryPreviewDom,
+  previewCache: GalleryPreviewCache,
 ): Promise<void> {
+  const source = previewCache.current();
   const preview = source.data;
   if (preview.pageSize === null) {
     throw new Error(texts.errors.previewPageSizeUnknown);
   }
-  const provider = new GalleryPageProvider(preview.pageSize, preview.maxIndex);
-  provider.cachePages(preview.pages);
-  const page = (await provider.getPages([pageNum]))[0];
+  const page = (await previewCache.getPages([pageNum]))[0];
 
   if (!page || page.pageNum !== pageNum) {
     throw new Error(texts.errors.imageNotFound);
@@ -130,7 +101,7 @@ export async function openOriginalReader(
 async function openReader(
   startPageUrl: string,
   callbacks: ReaderCallbacks,
-  source: eh.GalleryPreviewDom,
+  previewCache: GalleryPreviewCache,
   viewport: ReaderViewport,
   preferredPageNum?: number,
   fullscreenLaunch?: ReaderFullscreenLaunch,
@@ -139,6 +110,7 @@ async function openReader(
     return;
   }
 
+  const source = previewCache.current();
   const gallery = eh.galleryIdentityFromUrl(source.data.currentUrl);
   if (!gallery) {
     return;
@@ -152,15 +124,13 @@ async function openReader(
   const pageSize = preview.pageSize;
   const maxPreviewIndex = preview.maxIndex;
   const totalPages = preview.totalImages ?? undefined;
-  const provider = new GalleryPageProvider(pageSize, maxPreviewIndex);
-  provider.cachePages(preview.pages);
   const startPageNum = preferredPageNum ?? eh.peekPageFromHash() ?? eh.galleryPageNumber(startPageUrl);
 
   if (!startPageNum) {
     throw new Error(texts.errors.imageNotFound);
   }
 
-  const historySession = callbacks.readHistoryEnabled()
+  const historySession = callbacks.readHistoryEnabled
     ? new ReadHistorySession({
       galleryId: gallery.galleryId,
       token: gallery.token,
@@ -200,7 +170,7 @@ async function openReader(
     galleryId: gallery.galleryId,
     initialPageNum: startPageNum,
     lockPageScroll: viewport.lockScroll,
-    provider,
+    previewCache,
     totalPages,
     onBeforeEnterFullscreen: () => {
       fullscreenViewport = viewport.prepareFullscreen();
@@ -209,8 +179,10 @@ async function openReader(
     onActivePageChange: (page) => {
       if (page.pageNum) {
         lastPageNum = page.pageNum;
-        if (callbacks.enhanceThumbsGridsEnabled()) {
-          callbacks.onPageBarChange(provider.previewIndexForPage(page.pageNum), maxPreviewIndex);
+        if (callbacks.enhanceThumbsGridsEnabled) {
+          callbacks.onGotoPreviewIndex(
+            previewCache.previewIndexForPage(page.pageNum),
+          );
         }
       }
 
@@ -220,12 +192,12 @@ async function openReader(
     onExit: () => {
       historySession?.dispose();
       callbacks.onReaderClosed(lastPageNum, totalPages ?? null);
-      const exitIndex = provider.previewIndexForPage(lastPageNum);
+      const exitIndex = previewCache.previewIndexForPage(lastPageNum);
       const galleryUrl = eh.previewUrlForIndex(exitIndex);
 
-      if (callbacks.enhanceThumbsGridsEnabled()) {
-        callbacks.onPageBarChange(exitIndex, maxPreviewIndex);
-        void navigateGalleryPreview(galleryUrl).catch(() => {
+      if (callbacks.enhanceThumbsGridsEnabled) {
+        callbacks.onGotoPreviewIndex(exitIndex);
+        void previewCache.select(exitIndex).catch(() => {
           window.location.replace(galleryUrl);
         });
         return;
@@ -249,14 +221,15 @@ function openFullscreenReader(
   existingHost?: HTMLDivElement,
 ): void {
   activeReaderClose?.();
-  removePreviousReaderRoot();
 
   const host = existingHost ?? createReaderHost();
   let closeReader = onClosed;
+  let disposeRoot: () => void = () => undefined;
   const close = () => closeReader();
 
   function onClosed(): void {
-    unmountFrom(host);
+    disposeRoot();
+    disposeRoot = () => undefined;
     host.remove();
 
     if (activeReaderClose === close) {
@@ -268,20 +241,17 @@ function openFullscreenReader(
     document.body.append(host);
   }
   activeReaderClose = close;
-  renderInto(
-    host,
+  disposeRoot = render(
     () => (
       <FullscreenReader
         options={{ ...options, fullscreenTarget: host }}
         actionsRef={(actions) => {
           closeReader = actions.close;
         }}
-        onActionsDispose={() => {
-          closeReader = onClosed;
-        }}
         onClosed={onClosed}
       />
     ),
+    host,
   );
 }
 
@@ -325,81 +295,4 @@ export function reportReaderOpenError(error: unknown): void {
   const message = error instanceof Error ? error.message : texts.errors.loadFailed;
   console.error("[ehpeek]", error);
   window.alert(message);
-}
-
-class GalleryPageProvider implements ReaderPageProvider {
-  private readonly pages = new Map<number, ReaderPage>();
-  private readonly previewLoads = new Map<number, Promise<ReaderPage[]>>();
-
-  constructor(
-    private readonly pageSize: number,
-    private readonly maxPreviewIndex: number | null,
-  ) {}
-
-  cachePages(pages: ReaderPage[]): void {
-    for (const page of pages) {
-      if (page.pageNum && page.pageNum > 0) {
-        this.pages.set(page.pageNum, page);
-      }
-    }
-  }
-
-  previewIndexForPage(pageNum: number): number {
-    return eh.previewPageIndexForGalleryPage(pageNum, this.pageSize, this.maxPreviewIndex);
-  }
-
-  async getPages(pageNums: number[]): Promise<ReaderPage[]> {
-    const requested = Array.from(new Set(pageNums.filter((pageNum) => pageNum > 0)));
-    const previewIndexes = Array.from(new Set(requested
-      .filter((pageNum) => !this.pages.has(pageNum))
-      .map((pageNum) => this.previewIndexForPage(pageNum)))).filter(
-      (value) => value >= 0 && (this.maxPreviewIndex === null || value <= this.maxPreviewIndex),
-    );
-    await Promise.all(previewIndexes.map((index) => this.loadPreviewPage(index)));
-    return requested.flatMap((pageNum) => this.pages.get(pageNum) ?? []);
-  }
-
-  loadPage(page: ReaderPage): Promise<LoadedReaderPage> {
-    return eh.loadEhImagePage(page);
-  }
-
-  private loadPreviewPage(index: number): Promise<ReaderPage[]> {
-    const boundedIndex = this.maxPreviewIndex === null ? index : Math.min(index, this.maxPreviewIndex);
-
-    if (boundedIndex < 0) {
-      return Promise.resolve([]);
-    }
-
-    const cached = this.previewLoads.get(boundedIndex);
-
-    if (cached) {
-      this.previewLoads.delete(boundedIndex);
-      this.previewLoads.set(boundedIndex, cached);
-      return cached;
-    }
-
-    const load = eh.pullPreviewPage(boundedIndex).then(
-      (pages) => {
-        this.cachePages(pages);
-        return pages;
-      },
-      (error: unknown) => {
-        this.previewLoads.delete(boundedIndex);
-        throw error;
-      },
-    );
-    this.previewLoads.set(boundedIndex, load);
-
-    while (this.previewLoads.size > PREVIEW_CACHE_LIMIT) {
-      const oldest = this.previewLoads.keys().next().value;
-
-      if (oldest === undefined) {
-        break;
-      }
-
-      this.previewLoads.delete(oldest);
-    }
-
-    return load;
-  }
 }

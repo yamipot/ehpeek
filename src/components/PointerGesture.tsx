@@ -1,30 +1,30 @@
 import { createEffect, onCleanup, type Accessor } from "solid-js";
 
-export type PointerDragStart = {
+type PointerDragStart = {
   clientX: number;
   clientY: number;
   pointerId: number;
 };
 
-export type PointerDragMove = PointerDragStart & {
+type PointerDragMove = PointerDragStart & {
   dx: number;
   dy: number;
   velocityY: number;
 };
 
 export type PointerDragEnd = PointerDragMove;
-export type PointerDragTap = PointerDragEnd & {
+type PointerDragTap = PointerDragEnd & {
   startTarget: EventTarget | null;
 };
-export type PointerDragAxis = "any" | "x" | "y";
+type PointerDragAxis = "any" | "x" | "y";
 
-export type PointerPinchStart = {
+type PointerPinchStart = {
   clientX: number;
   clientY: number;
   distance: number;
 };
 
-export type PointerPinchMove = PointerPinchStart & {
+type PointerPinchMove = PointerPinchStart & {
   scale: number;
 };
 
@@ -48,7 +48,7 @@ export type PointerGestureCallbacks = {
   tapMoveThreshold?: number;
 };
 
-export class PointerGesture {
+class PointerGesture {
   private mousePointerId = -1;
   private readonly pinchPointers = new Map<number, { clientX: number; clientY: number }>();
   private drag: GesturePointer | null = null;
@@ -60,7 +60,7 @@ export class PointerGesture {
 
   constructor(
     private readonly target: HTMLElement,
-    private readonly callbacks: PointerGestureCallbacks,
+    private readonly callbacks: Accessor<PointerGestureCallbacks>,
   ) {
     this.setDragging(false);
     target.addEventListener("pointerdown", this.onPointerDown);
@@ -122,7 +122,7 @@ export class PointerGesture {
 
     this.suppressClick = false;
     event.preventDefault();
-    event.stopPropagation();
+    event.stopImmediatePropagation();
   };
 
   private onContextMenu = (): void => {
@@ -149,8 +149,9 @@ export class PointerGesture {
       return;
     }
 
-    const canDrag = this.callbacks.shouldCaptureDrag?.(event) ?? true;
-    const observeTap = canDrag || (this.callbacks.shouldObserveTap?.(event) ?? false);
+    const callbacks = this.callbacks();
+    const canDrag = callbacks.shouldCaptureDrag?.(event) ?? true;
+    const observeTap = canDrag || (callbacks.shouldObserveTap?.(event) ?? false);
 
     if (!observeTap) {
       return;
@@ -168,7 +169,7 @@ export class PointerGesture {
       return;
     }
 
-    const canDrag = this.callbacks.shouldCaptureDrag?.(event) ?? true;
+    const canDrag = this.callbacks().shouldCaptureDrag?.(event) ?? true;
 
     if (!canDrag) {
       return;
@@ -295,7 +296,7 @@ export class PointerGesture {
     drag.lastClientY = clientY;
     drag.lastMoveTime = event.timeStamp;
 
-    this.callbacks.onMove?.(
+    this.callbacks().onMove?.(
       {
         pointerId: drag.pointerId,
         clientX,
@@ -335,17 +336,17 @@ export class PointerGesture {
     const isTap = !drag.tapCancelled && Math.abs(info.dx) < this.tapMoveThreshold() && Math.abs(info.dy) < this.tapMoveThreshold();
 
     if (!cancelled && !drag.active && isTap) {
-      this.callbacks.onTap?.({ ...info, startTarget: drag.startTarget }, event);
+      this.callbacks().onTap?.({ ...info, startTarget: drag.startTarget }, event);
     }
 
     if (drag.active) {
       if (cancelled) {
-        this.callbacks.onEnd?.({ ...info, dx: 0, dy: 0, velocityY: 0 }, event);
+        this.callbacks().onEnd?.({ ...info, dx: 0, dy: 0, velocityY: 0 }, event);
         return;
       }
 
       this.suppressNextClick();
-      this.callbacks.onEnd?.(info, event);
+      this.callbacks().onEnd?.(info, event);
     }
   }
 
@@ -372,7 +373,8 @@ export class PointerGesture {
   }
 
   private trackPinchPointerDown(event: PointerEvent): boolean {
-    if (!this.callbacks.onPinchStart || event.pointerType === "mouse") {
+    const callbacks = this.callbacks();
+    if (!callbacks.onPinchStart || event.pointerType === "mouse") {
       return false;
     }
 
@@ -391,7 +393,7 @@ export class PointerGesture {
       return false;
     }
 
-    const started = this.callbacks.onPinchStart(snapshot, event);
+    const started = callbacks.onPinchStart(snapshot, event);
 
     if (!started) {
       this.pinchPointers.delete(event.pointerId);
@@ -424,7 +426,7 @@ export class PointerGesture {
       return;
     }
 
-    this.callbacks.onPinchMove?.(
+    this.callbacks().onPinchMove?.(
       {
         ...snapshot,
         scale: snapshot.distance / this.pinch.startDistance,
@@ -445,7 +447,7 @@ export class PointerGesture {
       return;
     }
 
-    this.callbacks.onPinchEnd?.();
+    this.callbacks().onPinchEnd?.();
     this.clearPinch();
     event.preventDefault();
   };
@@ -493,19 +495,19 @@ export class PointerGesture {
   }
 
   private tapMoveThreshold(): number {
-    return this.callbacks.tapMoveThreshold ?? DEFAULT_TAP_MOVE_THRESHOLD_PX;
+    return this.callbacks().tapMoveThreshold ?? DEFAULT_TAP_MOVE_THRESHOLD_PX;
   }
 
   private dragStartThreshold(): number {
-    return this.callbacks.dragStartThreshold ?? DEFAULT_DRAG_START_THRESHOLD_PX;
+    return this.callbacks().dragStartThreshold ?? DEFAULT_DRAG_START_THRESHOLD_PX;
   }
 
   private dragIntentRatio(): number {
-    return this.callbacks.dragIntentRatio ?? DEFAULT_DRAG_INTENT_RATIO;
+    return this.callbacks().dragIntentRatio ?? DEFAULT_DRAG_INTENT_RATIO;
   }
 
   private dragAxis(): PointerDragAxis {
-    return this.callbacks.dragAxis ?? "any";
+    return this.callbacks().dragAxis ?? "any";
   }
 
   private dragIntent(dx: number, dy: number): "pending" | "start" | "cancel" {
@@ -536,7 +538,7 @@ export class PointerGesture {
   private activateDrag(drag: GesturePointer, event: PointerEvent | MouseEvent): void {
     drag.active = true;
     this.setDragging(true);
-    this.callbacks.onStart?.(
+    this.callbacks().onStart?.(
       {
         pointerId: drag.pointerId,
         clientX: drag.startClientX,
@@ -608,7 +610,7 @@ export function createPointerGestureElement<E extends HTMLElement>(
       return;
     }
 
-    gesture = new PointerGesture(element, pointerGestureCallbackProxy(callbacks));
+    gesture = new PointerGesture(element, callbacks);
 
     onCleanup(() => {
       gesture?.dispose();
@@ -617,30 +619,4 @@ export function createPointerGestureElement<E extends HTMLElement>(
   });
 
   return () => gesture?.isDragging() ?? false;
-}
-
-function pointerGestureCallbackProxy(callbacks: Accessor<PointerGestureCallbacks>): PointerGestureCallbacks {
-  return {
-    get dragAxis() {
-      return callbacks().dragAxis;
-    },
-    get dragIntentRatio() {
-      return callbacks().dragIntentRatio;
-    },
-    get dragStartThreshold() {
-      return callbacks().dragStartThreshold;
-    },
-    shouldCaptureDrag: (event) => callbacks().shouldCaptureDrag?.(event) ?? true,
-    shouldObserveTap: (event) => callbacks().shouldObserveTap?.(event) ?? false,
-    onStart: (info, event) => callbacks().onStart?.(info, event),
-    onMove: (info, event) => callbacks().onMove?.(info, event),
-    onEnd: (info, event) => callbacks().onEnd?.(info, event),
-    onTap: (info, event) => callbacks().onTap?.(info, event),
-    onPinchStart: (info, event) => callbacks().onPinchStart?.(info, event) ?? false,
-    onPinchMove: (info, event) => callbacks().onPinchMove?.(info, event),
-    onPinchEnd: () => callbacks().onPinchEnd?.(),
-    get tapMoveThreshold() {
-      return callbacks().tapMoveThreshold;
-    },
-  };
 }

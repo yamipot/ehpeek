@@ -12,16 +12,16 @@ export type ZoomOverlayImage = {
   height: number | null;
 };
 
-export type ZoomPinchStart = {
+type ZoomPinchStart = {
   centerX: number;
   centerY: number;
 };
 
-export type ZoomPinchMove = ZoomPinchStart & {
+type ZoomPinchMove = ZoomPinchStart & {
   scale: number;
 };
 
-export type ZoomDragMove = {
+type ZoomDragMove = {
   dx: number;
   dy: number;
 };

@@ -8,7 +8,6 @@ export default defineConfig({
     mediaVariant("desktop", "(min-width: 760px)"),
     mediaVariant("landscape", "(orientation: landscape)"),
     mediaVariant("coarse-landscape", "(orientation: landscape) and (pointer: coarse)"),
-    selectVariant("touch", (s) => `html[data-ehpeek-touch-ui="true"] ${s}`),
   ],
   shortcuts: {
     "ehp-color-reader": "bg-[var(--color-background)] text-[var(--color-text)]",
@@ -39,21 +38,6 @@ export default defineConfig({
   },
 });
 
-function selectVariant(prefix, fSelect) {
-  return (matcher) => {
-    const marker = `${prefix}:`;
-
-    if (!matcher.startsWith(marker)) {
-      return matcher;
-    }
-
-    return {
-      matcher: matcher.slice(marker.length),
-      selector: (selector) => fSelect(selector),
-    };
-  };
-}
-
 function pixelShortcuts(properties, sizes) {
   return Object.fromEntries(
     properties.flatMap((property) =>
@@ -61,7 +45,6 @@ function pixelShortcuts(properties, sizes) {
     ),
   );
 }
-
 
 function mediaVariant(prefix, media) {
   return (matcher) => {

@@ -147,8 +147,8 @@ export function extractSearchPanel() {
     searchSubmit: searchSubmitElem,
   } satisfies ManagedDomElements;
 
-  const transforms = {
-    presentation(classes: SearchPanelClasses) {
+  const handle = {
+    transformPresentation(classes: SearchPanelClasses) {
       searchBoxElem.transform({ classes: { replace: standardSearchBox ? classes.searchBox : classes.controls } });
       if (formInsideSearchBox) {
         formElem.transform({ attributes: { remove: ["style"] }, classes: { replace: classes.form } });
@@ -175,18 +175,16 @@ export function extractSearchPanel() {
       searchSubmitElem.setHidden(true);
       clearButtonElem?.setHidden(true);
     },
-    categories(open: boolean) {
+    transformCategories(open: boolean) {
       categoriesElem?.setHidden(!open);
       categoriesElem?.transform({ attributes: { set: { "aria-hidden": String(!open) } } });
     },
-    advanced(open: boolean) {
+    transformAdvanced(open: boolean) {
       advancedPanelElem?.setHidden(!open);
     },
-    fileSearch(open: boolean) {
+    transformFileSearch(open: boolean) {
       fileSearchElem?.setHidden(!open);
     },
-  };
-  const actions = {
     submit() {
       formElem.requestSubmit(searchSubmitElem);
     },
@@ -197,7 +195,7 @@ export function extractSearchPanel() {
     },
   };
 
-  return { actions, data, elems, transforms };
+  return { data, elems, handle };
 }
 
 function actionLabel(element: DomNode<HTMLInputElement | HTMLButtonElement>): string {

@@ -1,6 +1,6 @@
 export {
   GalleryInfoPanel,
-  TOUCH_GALLERY_INFO_TRANSFORMS,
+  TOUCH_GALLERY_INFO_CLASSES,
 } from "./GalleryInfoPanel";
 export { FavoritesCategorySelect } from "./FavoritesPanel";
 export {
@@ -11,4 +11,4 @@ export {
   TouchSearchFileToggle,
   TouchSearchPanel,
 } from "./SearchPanel";
-export { TouchTopBar, TOUCH_TOP_BAR_TRANSFORMS } from "./TopBar";
+export { TouchTopBar, TOUCH_TOP_BAR_NAV_ITEM_CLASS } from "./TopBar";

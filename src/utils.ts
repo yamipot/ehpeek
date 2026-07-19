@@ -39,14 +39,12 @@ export function stopEvent(event: Event): void {
 }
 
 export function registerGlobalStyle(id: string, css: string): void {
-  const styleId = `style-${id}`;
-
-  if (document.getElementById(styleId)) {
+  if (!css || document.getElementById(id)) {
     return;
   }
 
   const style = document.createElement("style");
-  style.id = styleId;
+  style.id = id;
   style.textContent = css;
   document.head.append(style);
 }

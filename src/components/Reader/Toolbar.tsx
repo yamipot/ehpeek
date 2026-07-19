@@ -1,8 +1,8 @@
-import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import type { ReadDirection, RightTapAction, ViewMode } from "../../state";
 import texts from "../../texts.json";
 import { stopEvent } from "../../utils";
-import { Icon, type IconName } from "../Widgets/Icon";
+import { Icon } from "../Widgets/Icon";
 import { ProgressBar } from "../Widgets/ProgressBar";
 
 export type ReaderControls = {
@@ -66,13 +66,9 @@ export type ToolbarState = {
   progress: PageProgress;
 };
 
-export function initialToolbarState(): ToolbarState {
+export function initialToolbarState(controls: ReaderControls): ToolbarState {
   return {
-    controls: {
-      mode: "scroll",
-      readDirection: "rtl",
-      rightTapAction: "previous",
-    },
+    controls,
     downloadAvailable: false,
     downloadDialog: null,
     fullscreenActive: false,
@@ -88,9 +84,9 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
   const controls = () => props.state.controls;
   const progress = () => props.state.progress;
   const open = () => props.state.open;
-  const modeButton = createMemo(() => modeButtonInfo(controls().mode));
-  const readDirectionButton = createMemo(() => readDirectionButtonInfo(controls().readDirection));
-  const rightTapButton = createMemo(() => rightTapButtonInfo(controls().rightTapAction));
+  const modeIcon = () => controls().mode === "paged" ? "arrows-horizontal" as const : "arrows-vertical" as const;
+  const readDirectionIcon = () => controls().readDirection === "rtl" ? "arrow-left" as const : "arrow-right" as const;
+  const rightTapText = () => controls().rightTapAction === "previous" ? "R-" : "R+";
   const fullscreenTime = createFullscreenTime(() => props.state.fullscreenActive);
 
   return (
@@ -111,17 +107,17 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
             class={READER_BUTTON_CLASS}
             onClick={() => props.callbacks.onRightTapClick()}
           >
-            {rightTapButton().text}
+            {rightTapText()}
           </button>
           <button
             type="button"
             class={READER_BUTTON_CLASS}
             onClick={() => props.callbacks.onReadDirectionClick()}
           >
-            <Icon name={readDirectionButton().icon} size={READER_ICON_SIZE} />
+            <Icon name={readDirectionIcon()} size={READER_ICON_SIZE} />
           </button>
           <button type="button" class={READER_BUTTON_CLASS} onClick={() => props.callbacks.onModeClick()}>
-            <Icon name={modeButton().icon} size={READER_ICON_SIZE} />
+            <Icon name={modeIcon()} size={READER_ICON_SIZE} />
           </button>
           <button
             type="button"
@@ -299,25 +295,4 @@ function pageNumberText(pageNum: number, totalPages: number | undefined): string
   }
 
   return totalPages ? `${pageNum} / ${totalPages}` : String(pageNum);
-}
-
-function modeButtonInfo(mode: ViewMode): { icon: IconName } {
-  const paged = mode === "paged";
-  return {
-    icon: paged ? "arrows-horizontal" : "arrows-vertical",
-  };
-}
-
-function readDirectionButtonInfo(direction: ReadDirection): { icon: IconName } {
-  const rtl = direction === "rtl";
-  return {
-    icon: rtl ? "arrow-left" : "arrow-right",
-  };
-}
-
-function rightTapButtonInfo(action: RightTapAction): { text: string } {
-  const previous = action === "previous";
-  return {
-    text: previous ? "R-" : "R+",
-  };
 }

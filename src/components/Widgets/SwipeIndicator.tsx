@@ -1,7 +1,7 @@
 import { createMemo } from "solid-js";
 import { Icon, type IconName } from "./Icon";
 
-export type SwipeDirection = "left" | "right";
+type SwipeDirection = "left" | "right";
 
 export type SwipeIndicatorState = {
   blocked?: boolean;

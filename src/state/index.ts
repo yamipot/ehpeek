@@ -18,7 +18,6 @@ export type MyTagSetOption = {
 };
 
 type StateValue<T> = {
-  key: string;
   defaultValue: T;
   value: T;
   set: (value: T) => void;
@@ -87,7 +86,6 @@ function prefersTouchFullscreen(): boolean {
 
 function persisted<T>(key: string, defaultValue: T): StateValue<T> {
   const item: StateValue<T> = {
-    key,
     defaultValue,
     value: GM_getValue(key, defaultValue),
     set(value) {
@@ -106,7 +104,6 @@ function persisted<T>(key: string, defaultValue: T): StateValue<T> {
 function localSelection(key: string, selectedValue: string): StateValue<boolean> {
   const read = () => window.localStorage.getItem(key) === selectedValue;
   const item: StateValue<boolean> = {
-    key,
     defaultValue: false,
     value: read(),
     set(value) {
@@ -138,7 +135,6 @@ function localJson<T>(key: string, defaultValue: T[], valid: (value: unknown) =>
     }
   };
   const item = {
-    key,
     defaultValue,
     value: read(),
     set(value: T[]) {

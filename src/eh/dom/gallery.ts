@@ -1,23 +1,11 @@
 import {
-  addMyTag,
-  deleteMyTag,
   requestPage,
-  updateGalleryRating,
-  updateGalleryTagVote,
-  type GalleryRatingResult,
   type GalleryTagApiInfo,
-  type MyTagMode,
 } from "../request";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
 import texts from "../../texts.json";
 import { normalizeUrl } from "../../utils";
-import type {
-  GalleryFavoriteOption,
-  GalleryPageBarMount,
-  GalleryTagAction,
-  GalleryTagData,
-  ImagePageInfo,
-} from "../types";
+import type { ImagePageInfo } from "../types";
 import type { MyTagAppearance, MyTagSetOption } from "../../state";
 import {
   extractPageType,
@@ -25,7 +13,6 @@ import {
   galleryTagNameFromUrl,
   isAllowedGalleryApiUrl,
   isFullImageUrl,
-  isSameOriginUrl,
   previewPageIndex,
   previewUrlForIndex,
   type PageType,
@@ -34,7 +21,6 @@ import {
   createManagedElement,
   documentBody,
   DomNode,
-  ManagedDomNode,
 } from "./core";
 
 const GALLERY_PAGE_DESCRIPTION_SELECTOR = ".gpc:not(.eh-syringe-ignore)";
@@ -51,20 +37,6 @@ function scriptNumberValue(script: string, name: string): number | null {
   const match = script.match(new RegExp(`\\b${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`));
   const value = Number(match?.[1]);
   return match && Number.isFinite(value) ? value : null;
-}
-
-/** Submits GalleryInfo's rating control through the original gallery API context. */
-async function setGalleryRating(
-  info: GalleryTagApiInfo,
-  value: number,
-): Promise<GalleryRatingResult> {
-  const rating = Math.round(value * 2);
-
-  if (rating < 1 || rating > 10) {
-    throw new RangeError("Gallery rating must be between 0.5 and 5 stars.");
-  }
-
-  return updateGalleryRating(info, value);
 }
 
 export type MyTagsPageData = {
@@ -154,30 +126,6 @@ function applyMyTagAppearances(appearances: MyTagAppearance[], root: ParentNode 
   }
 }
 
-/** Adds a GalleryInfo tag to a My Tags collection. */
-async function favoriteGalleryTag(tag: GalleryTagData, tagSet: string, mode: MyTagMode): Promise<void> {
-  const response = await addMyTag(tag.name, tagSet, mode);
-
-  if (!isSameOriginUrl(response.url) || !extractMyTagsPageData(response.document, tagSet)) {
-    throw new Error("My Tags page is unavailable");
-  }
-
-}
-
-/** Removes a GalleryInfo tag from its My Tags collection. */
-async function removeGalleryTagFavorite(tag: GalleryTagData): Promise<void> {
-  if (!tag.myTag) {
-    return;
-  }
-
-  const response = await deleteMyTag(tag.myTag.id, tag.myTag.tagSet);
-
-  if (!isSameOriginUrl(response.url) || !extractMyTagsPageData(response.document, tag.myTag.tagSet)) {
-    throw new Error("My Tags page is unavailable");
-  }
-
-}
-
 function normalizeTagName(value: string): string {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
@@ -212,38 +160,9 @@ function observeGalleryTagChanges(onChange: () => void): () => void {
 /** Applies and maintains stored My Tags appearances for the GalleryInfo enhancer lifecycle. */
 export function extractGalleryMyTags(appearances: MyTagAppearance[]) {
   applyMyTagAppearances(appearances);
-  const dispose = observeGalleryTagChanges(() =>
+  return observeGalleryTagChanges(() =>
     applyMyTagAppearances(appearances),
   );
-  return { actions: { dispose } };
-}
-
-/** Submits GalleryInfo's vote action and replaces the managed original tag list. */
-async function runGalleryTagAction(
-  info: GalleryTagApiInfo,
-  tag: GalleryTagData,
-  action: GalleryTagAction,
-): Promise<void> {
-  const vote = action === "voteUp"
-    ? 1
-    : action === "voteDown"
-      ? -1
-      : tag.vote === "up"
-        ? -1
-        : tag.vote === "down"
-          ? 1
-          : 0;
-  const tagPane = await updateGalleryTagVote(info, tag.name, vote);
-  const tagListSource = DomNode.from(document).one<HTMLElement>("#taglist");
-  const tagList = tagListSource?.inplace();
-
-  if (!tagList) {
-    throw new Error("Gallery tag list is unavailable.");
-  }
-
-  const template = document.createElement("template");
-  template.innerHTML = tagPane;
-  tagList.replaceChildren(...Array.from(template.content.childNodes));
 }
 
 /** Captures GalleryInfo API credentials before SinglePage removes original scripts. */
@@ -307,7 +226,7 @@ export function extractGalleryApiSession(root: ParentNode = document, baseUrl = 
 }
 
 /** Builds GalleryInfo's tag/rating API data from the captured session and current URL. */
-function extractGalleryTagApiInfo(): GalleryTagApiInfo | null {
+export function extractGalleryTagApiInfo(): GalleryTagApiInfo | null {
   const gallery = galleryIdentityFromUrl();
 
   if (!gallery) {
@@ -352,66 +271,6 @@ function scriptStringValue(script: string, name: string): string | null {
   return match?.[2] ?? null;
 }
 
-/** Extracts GalleryInfo's favorite-slot choices from the fetched original dialog. */
-function extractGalleryFavoriteOptions(doc: Document, favorited: boolean): GalleryFavoriteOption[] {
-  return DomNode.from(doc).all<HTMLInputElement>("input[name='favcat']").map((input) => {
-    const row = input.closest<HTMLElement>("div[style*='height']");
-    const value = input.inputValue();
-    const label = row?.text().replace(/\s+/g, " ") || value;
-
-    return {
-      color: galleryFavoriteColor(value),
-      label,
-      selected: favorited && input.checked(),
-      value,
-    };
-  });
-}
-
-function galleryFavoriteColor(value: string): string | null {
-  const slot = value.match(/^(?:fav)?([0-9])$/i)?.[1] ?? value.match(/^favorites?\s+([0-9])$/i)?.[1];
-  return slot === undefined ? null : `var(--color-site-favorite-${slot})`;
-}
-
-/** Extracts the original Gallery API operations consumed by GalleryInfo. */
-export function extractGalleryOperations() {
-  const actions = {
-    async favoriteOptions(actionUrl: string, favorited: boolean) {
-      const response = await requestPage(actionUrl);
-      return extractGalleryFavoriteOptions(response.document, favorited);
-    },
-    async favoriteTag(
-      tag: GalleryTagData,
-      tagSet: string,
-      mode: MyTagMode,
-    ): Promise<void> {
-      await favoriteGalleryTag(tag, tagSet, mode);
-    },
-    async rate(value: number) {
-      const api = extractGalleryTagApiInfo();
-      if (!api) {
-        throw new Error("Gallery API context is unavailable.");
-      }
-      return setGalleryRating(api, value);
-    },
-    async removeFavoriteTag(tag: GalleryTagData): Promise<void> {
-      await removeGalleryTagFavorite(tag);
-    },
-    async tagAction(tag: GalleryTagData, action: GalleryTagAction): Promise<void> {
-      const api = extractGalleryTagApiInfo();
-      if (!api) {
-        throw new Error("Gallery API context is unavailable.");
-      }
-      await runGalleryTagAction(api, tag, action);
-    },
-  };
-  return { actions };
-}
-
-export type GalleryOperationsDom = ReturnType<
-  typeof extractGalleryOperations
->;
-
 /** Returns the original GalleryInfo control used to mount the Continue/Read button. */
 export function extractGalleryContinueReadingButtonMount() {
   const managedHost = createManagedElement("div");
@@ -432,6 +291,7 @@ export function extractGalleryContinueReadingButtonMount() {
 export type GalleryPreviewData = {
   currentIndex: number;
   currentUrl: string;
+  descriptionText: string | null;
   endImage: number | null;
   maxIndex: number | null;
   pageSize: number | null;
@@ -440,27 +300,16 @@ export type GalleryPreviewData = {
   totalImages: number | null;
 };
 
-export type GalleryPreviewDom = {
-  actions: {
-    imageUrlForClick: (target: EventTarget | null) => string | null;
-    navigate: (url: string, placeholder: Node | string) => Promise<GalleryPreviewDom>;
-    pageBarMounts: (topClassName: string, bottomClassName: string) => GalleryPageBarMount[];
-    scrollPageBar: (position: "bottom" | "top") => void;
-    setBusy: (busy: boolean) => void;
-    swipeTarget: () => HTMLElement | null;
-  };
-  data: GalleryPreviewData;
-};
-
 /** Extracts all Gallery Preview pagination and Reader-page data from one original document. */
 export function extractGalleryPreview(
   root: ParentNode = document,
   baseUrl = window.location.href,
-): GalleryPreviewDom {
+) {
   const page = DomNode.from(root);
   const currentUrl = new URL(baseUrl, window.location.href).href;
   const currentIndex = previewPageIndex(currentUrl);
-  const rangeText = page.one<HTMLElement>(GALLERY_PAGE_DESCRIPTION_SELECTOR)?.text() ?? "";
+  const pageDescriptionSource = page.one<HTMLElement>(GALLERY_PAGE_DESCRIPTION_SELECTOR);
+  const rangeText = pageDescriptionSource?.text() ?? "";
   const rangeMatch = rangeText.match(/([\d,]+)\s*-\s*([\d,]+)\D+([\d,]+)/);
   const rangeValues = rangeMatch
     ? rangeMatch.slice(1).map((value) => Number(value.replace(/,/g, "")))
@@ -500,6 +349,7 @@ export function extractGalleryPreview(
   const data: GalleryPreviewData = {
     currentIndex,
     currentUrl,
+    descriptionText: rangeText || null,
     endImage,
     maxIndex,
     pageSize,
@@ -507,226 +357,110 @@ export function extractGalleryPreview(
     startImage,
     totalImages,
   };
-  const actions = {
-    imageUrlForClick(target: EventTarget | null): string | null {
-      const link = target instanceof Element
-        ? DomNode.from(target).closest<HTMLAnchorElement>("a[href]")
-        : null;
-      const href = link?.attribute("href") ?? "";
-      if (!link || extractPageType(href).type !== "image") {
-        return null;
-      }
-      return link.one("img") || link.closest("#gdt, .gdtm, .gdtl")
-        ? normalizeUrl(href, currentUrl)
-        : null;
+  const thumbsSource = page.one<HTMLElement>("#gdt");
+  const thumbImages = thumbsSource?.all<HTMLImageElement>("img") ?? [];
+  const thumbs = root === document ? thumbsSource?.inplace() ?? null : null;
+  const thumbItems = thumbsSource?.children().map((item) =>
+    root === document ? item.inplace() : item.move()
+  ) ?? [];
+  const mount = root === document && thumbs
+    ? createManagedElement("div").transform({ classes: { replace: "contents" } })
+    : null;
+  const originalPageBarTop = page.one<HTMLElement>(".ptt")?.inplace() ?? null;
+  const originalPageBarBottom = page.one<HTMLElement>(".ptb")?.inplace() ?? null;
+  const originalPageDescription = pageDescriptionSource?.inplace() ?? null;
+  const pageBarTop = originalPageBarTop ? createManagedElement("div") : null;
+  const pageBarBottom = originalPageBarBottom ? createManagedElement("div") : null;
+  const pageBarDescription = originalPageDescription && pageBarTop
+    ? createManagedElement("div")
+    : null;
+  if (mount && thumbs) {
+    thumbs.before(mount);
+  }
+  const elems = {
+    mount,
+    pageBarBottom,
+    pageBarDescription,
+    pageBarTop,
+    thumbItems,
+    thumbs,
+  };
+  const handle = {
+    connectImageOpen(onOpen: (url: string) => void): () => void {
+      const handleClick = (event: MouseEvent) => {
+        const link = event.target instanceof Element
+          ? DomNode.from(event.target).closest<HTMLAnchorElement>("a[href]")
+          : null;
+        const href = link?.attribute("href") ?? "";
+        if (
+          !link ||
+          extractPageType(href).type !== "image" ||
+          (!link.one("img") && !link.closest("#gdt, .gdtm, .gdtl"))
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        onOpen(normalizeUrl(href, currentUrl));
+      };
+
+      return thumbs?.listen("click", handleClick) ?? (() => undefined);
     },
-    async navigate(url: string, placeholder: Node | string): Promise<GalleryPreviewDom> {
-      const previousUrl = window.location.href;
-      const snapshot = snapshotPreview();
-      window.history.replaceState(window.history.state, "", url);
-      showPreviewPlaceholder(placeholder);
-      try {
-        const response = await requestPage(url);
-        applyPreviewContent(response.document);
-        return extractGalleryPreview();
-      } catch (error) {
-        restorePreview(snapshot);
-        window.history.replaceState(window.history.state, "", previousUrl);
-        throw error;
+    transformSwipeInput(): void {
+      if (!thumbsSource) {
+        return;
+      }
+      thumbs?.transform({ classes: { add: ["select-none", "touch-pan-y"] } });
+      for (const source of thumbImages) {
+        source.inplace().transform({
+          attributes: { set: { draggable: "false" } },
+          classes: { add: ["[-webkit-user-drag:none]"] },
+        });
       }
     },
-    pageBarMounts(topClassName: string, bottomClassName: string) {
-      return replaceGalleryPageBarMounts(topClassName, bottomClassName);
+    replaceThumbs(items: typeof thumbItems): void {
+      thumbs?.replaceChildren(...items);
+    },
+    setThumbsLoading(loading: boolean): void {
+      thumbs?.attribute("aria-busy", String(loading));
+    },
+    transformPageBars(): void {
+      if (originalPageBarTop && pageBarTop) {
+        originalPageBarTop.after(pageBarTop);
+        originalPageBarTop.setHidden(true);
+      }
+      if (originalPageBarBottom && pageBarBottom) {
+        originalPageBarBottom.after(pageBarBottom);
+        originalPageBarBottom.setHidden(true);
+      }
+      if (originalPageDescription && pageBarDescription && pageBarTop) {
+        originalPageDescription.setHidden(true);
+        pageBarTop.before(pageBarDescription);
+      }
     },
     scrollPageBar(position: "bottom" | "top"): void {
-      const target = DomNode.from(document).one<HTMLElement>(`[data-ehpeek-preview-page-bar='${position}']`);
-      target?.inplace().scrollIntoView({
+      const pageBar = position === "top" ? pageBarTop : pageBarBottom;
+      pageBar?.scrollIntoView({
         behavior: "smooth",
         block: position === "top" ? "start" : "end",
       });
     },
-    setBusy(busy: boolean): void {
-      const thumbsSource = page.one<HTMLElement>("#gdt");
-      const thumbs = thumbsSource?.inplace();
-      thumbs?.transform({ attributes: busy ? { set: { "aria-busy": "true" } } : { remove: ["aria-busy"] } });
-    },
-    swipeTarget(): HTMLElement | null {
-      const thumbsSource = page.one<HTMLElement>("#gdt");
-      const thumbs = thumbsSource?.inplace() ?? null;
-      if (!thumbs || !thumbsSource) {
-        return null;
-      }
-      thumbs.styles({ "touch-action": "pan-y", "user-select": "none" });
-      for (const source of thumbsSource.all<HTMLElement>("a, img, .gdtm, .gdtl")) {
-        const target = source.inplace();
-        target.styles({ "touch-action": "pan-y", "user-select": "none" });
-        if (source.matches("img")) {
-          target.attribute("draggable", "false").styles({ "-webkit-user-drag": "none" });
-        }
-      }
-      return thumbs.Component();
-    },
   };
 
-  return { actions, data };
+  return { data, elems, handle };
 }
 
-/** Replaces Preview's original page bars with managed ScrollPageBar mounts. */
-function replaceGalleryPageBarMounts(
-  topClassName: string,
-  bottomClassName: string,
-): GalleryPageBarMount[] {
-  const originals = DomNode.from(document).all<HTMLElement>(".ptt, .ptb");
-  const topSource = originals.find((item) => item.hasClass("ptt")) ?? originals[0];
-  const bottomSource = originals.find((item) => item.hasClass("ptb")) ?? originals[1] ?? originals[0];
-  const mounts: GalleryPageBarMount[] = [];
-  const description = galleryPageDescription();
-  const descriptionText = description?.text() || null;
+export type GalleryPreviewDom = ReturnType<typeof extractGalleryPreview>;
 
-  if (description) {
-    description.inplace().setHidden(true);
-  }
-
-  if (topSource) {
-    mounts.push(replaceGalleryPageBarAt(topSource, true, topClassName, descriptionText));
-  }
-
-  if (bottomSource) {
-    mounts.push(replaceGalleryPageBarAt(bottomSource, false, bottomClassName, descriptionText));
-  }
-
-  for (const original of originals) {
-    original.inplace().setHidden(true);
-  }
-
-  return mounts;
-}
-
-/** Detaches the current Preview content for SinglePage history restoration. */
-function snapshotPreview() {
-  const page = DomNode.from(document);
-  return {
-    description: galleryPageDescription()?.clone() ?? null,
-    thumbs: page.one<HTMLElement>("#gdt")?.clone() ?? null,
-  };
-}
-
-/** Replaces Preview thumbnails with its loading or error placeholder. */
-function showPreviewPlaceholder(content: Node | string): void {
-  const currentSource = DomNode.from(document).one<HTMLElement>("#gdt");
-  const current = currentSource?.inplace();
-
-  if (!current || !currentSource) {
-    return;
-  }
-
-  const rect = currentSource.rect();
-  const placeholder = createManagedElement("div")
-    .attribute("id", "gdt")
-    .attribute("aria-busy", "true")
-    .transform({ classes: { replace: "ehpeek-preview-placeholder flex items-center justify-center opacity-72" } })
-    .styles({ "min-height": `${Math.max(160, Math.round(rect.height))}px` })
-    .appendContent(content);
-  current.replaceWith(placeholder);
-}
-
-/** Imports fetched Preview description and thumbnails into the current gallery page. */
-function applyPreviewContent(doc: Document): void {
-  const description = galleryPageDescription(doc);
-
-  if (description) {
-    replaceGalleryPageDescription(description);
-  }
-
-  replaceFirstGalleryElement("#gdt", doc);
-}
-
-/** Restores a detached Preview snapshot during SinglePage history navigation. */
-function restorePreview(snapshot: ReturnType<typeof snapshotPreview>): void {
-  const currentThumbsSource = DomNode.from(document).one<HTMLElement>("#gdt");
-  const currentThumbs = currentThumbsSource?.inplace();
-
-  if (snapshot.description) {
-    replaceGalleryPageDescription(snapshot.description);
-  }
-
-  if (snapshot.thumbs && currentThumbs) {
-    currentThumbs.replaceWith(snapshot.thumbs);
-  }
-}
-
-function replaceGalleryPageBarAt(
-  source: DomNode<HTMLElement>,
-  top: boolean,
-  className: string,
-  descriptionText: string | null,
-): GalleryPageBarMount {
-  const page = DomNode.from(document);
-  const existingSource = page.one<HTMLDivElement>(`.${className}`);
-  const existing = existingSource?.inplace() ?? null;
-  const descriptionSource = top
-    ? page.one<HTMLDivElement>("[data-ehpeek-gallery-page-description-mount]")
-    : null;
-  const descriptionElement = top
-    ? descriptionSource?.inplace() ?? createManagedElement("div")
-    : null;
-  descriptionElement?.attribute("data-ehpeek-gallery-page-description-mount", "true");
-
-  if (existing) {
-    existing.attribute("data-ehpeek-preview-page-bar", top ? "top" : "bottom");
-    if (descriptionElement) {
-      existing.before(descriptionElement);
-    }
-    return { descriptionElement, descriptionText, element: existing, top };
-  }
-
-  const pageBar = createManagedElement("div");
-  pageBar.attribute("data-ehpeek-preview-page-bar", top ? "top" : "bottom");
-  source.inplace().after(pageBar);
-  if (descriptionElement) {
-    pageBar.before(descriptionElement);
-  }
-  return { descriptionElement, descriptionText, element: pageBar, top };
-}
-
-function replaceFirstGalleryElement(selector: string, doc: Document): void {
-  const current = DomNode.from(document).one<HTMLElement>(selector);
-  const incoming = DomNode.from(doc).one<HTMLElement>(selector);
-
-  if (!current || !incoming) {
-    return;
-  }
-
-  const currentElement = current.inplace();
-  const incomingElement = incoming.clone();
-  if (currentElement && incomingElement) {
-    currentElement.replaceWith(incomingElement);
-  }
-}
-
-function galleryPageDescription(root: ParentNode = document): DomNode<HTMLElement> | null {
-  return DomNode.from(root).one<HTMLElement>(GALLERY_PAGE_DESCRIPTION_SELECTOR);
-}
-
-function replaceGalleryPageDescription(incoming: DomNode<HTMLElement> | ManagedDomNode): void {
-  const current = galleryPageDescription();
-
-  if (!current) {
-    return;
-  }
-
-  const staleDescriptions = DomNode.from(document).all<HTMLElement>(".gpc");
-  const currentElement = current.inplace();
-  const incomingElement = incoming instanceof ManagedDomNode ? incoming : incoming.clone();
-  if (currentElement && incomingElement) {
-    currentElement.replaceWith(incomingElement);
-  }
-
-  for (const description of staleDescriptions) {
-    if (!description.sameNode(current)) {
-      description.inplace().remove();
-    }
-  }
+/** Loads and extracts one Preview page without changing the active document. */
+export async function loadGalleryPreviewPage(
+  previewIndex: number,
+  pageUrl: string,
+): Promise<GalleryPreviewDom> {
+  const url = previewUrlForIndex(previewIndex, pageUrl);
+  const response = await requestPage(url);
+  return extractGalleryPreview(response.document, response.url);
 }
 
 /** Resolves Reader's gallery identity from the current original image page. */
@@ -737,13 +471,6 @@ export function extractImageGalleryPage(root: ParentNode = document): Extract<Pa
   }
   const page = extractPageType(url);
   return page.type === "gallery" ? page : null;
-}
-
-/** Fetches one original preview page for Reader Provider pagination. */
-export async function pullPreviewPage(index: number): Promise<ReaderPage[]> {
-  const previewUrl = previewUrlForIndex(index);
-  const response = await requestPage(previewUrl);
-  return extractGalleryPreview(response.document, previewUrl).data.pages;
 }
 
 /** Fetches and extracts one original image page for Reader Provider. */

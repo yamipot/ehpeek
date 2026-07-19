@@ -1,6 +1,6 @@
 const REQUEST_TIMEOUT_MS = 30_000;
 
-export type PageRequestOptions = {
+type PageRequestOptions = {
   body?: BodyInit | null;
   headers?: HeadersInit;
   method?: "GET" | "POST";
@@ -8,7 +8,7 @@ export type PageRequestOptions = {
   timeoutMs?: number | null;
 };
 
-export type PageResponse = {
+type PageResponse = {
   document: Document;
   url: string;
 };
@@ -21,7 +21,7 @@ export type GalleryTagApiInfo = {
   token: string;
 };
 
-export type GalleryRatingResult = {
+type GalleryRatingResult = {
   average: number;
   count: number;
   value: number;

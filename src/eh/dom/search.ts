@@ -23,22 +23,8 @@ const TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME =
   "ehpeek-touch-search-results box-border !min-w-0 !w-full !max-w-full overflow-x-auto";
 const TOUCH_SEARCH_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
 
-export type SearchResultsDom = {
-  actions: {
-    navigate: (url: string) => Promise<SearchResultsDom | null>;
-    navigationUrlForClick: (target: EventTarget | null) => string | null;
-    openGalleryInNewTab: (target: EventTarget | null) => boolean;
-    replace: (incoming: Document) => SearchResultsDom | null;
-    scrollToTop: () => void;
-    setBusy: (busy: boolean) => void;
-    swipeTarget: () => HTMLElement;
-  };
-  data: { nextUrl: string | null; previousUrl: string | null };
-  elems: { navigationBars: ManagedDomNode[]; resultList: ManagedDomNode };
-};
-
 /** Owns Search results and pagination for the enhanced navigation lifecycle. */
-export function extractSearchResults(): SearchResultsDom | null {
+export function extractSearchResults() {
   const page = DomNode.from(document);
   const resultSource = page.one<HTMLElement>(".itg");
   if (!resultSource) {
@@ -48,51 +34,38 @@ export function extractSearchResults(): SearchResultsDom | null {
   const navigationBars = page.all<HTMLElement>(".searchnav").flatMap((source) => {
     return [source.inplace()];
   });
-  if (!resultList) {
-    return null;
-  }
   const data = {
     nextUrl: page.one<HTMLAnchorElement>(".searchnav a[id$='next'][href]")?.attribute("href") ?? null,
     previousUrl: page.one<HTMLAnchorElement>(".searchnav a[id$='prev'][href]")?.attribute("href") ?? null,
   };
   const elems = { navigationBars, resultList };
-  const actions = {
-    async navigate(url: string): Promise<SearchResultsDom | null> {
+  const handle = {
+    connectNavigation(onNavigate: (url: string) => void): () => void {
+      const handleClick = (event: MouseEvent) => {
+        const link = event.target instanceof Element
+          ? DomNode.from(event.target).closest<HTMLAnchorElement>(
+              ".searchnav a[id$='first'][href], .searchnav a[id$='prev'][href], .searchnav a[id$='next'][href], .searchnav a[id$='last'][href]",
+            )
+          : null;
+        const url = link?.attribute("href") ?? null;
+        if (!url) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        onNavigate(url);
+      };
+
+      document.addEventListener("click", handleClick, true);
+      return () => document.removeEventListener("click", handleClick, true);
+    },
+    async navigate(url: string): Promise<void> {
       const response = await requestPage(url);
-      const next = actions.replace(response.document);
-      if (next) {
-        window.history.pushState(window.history.state, "", url);
+      if (!replaceSearchPageContent(response.document)) {
+        throw new Error(texts.errors.searchPageContentNotFound);
       }
-      return next;
-    },
-    navigationUrlForClick(target: EventTarget | null): string | null {
-      const link = target instanceof Element
-        ? DomNode.from(target).closest<HTMLAnchorElement>(
-            ".searchnav a[id$='first'][href], .searchnav a[id$='prev'][href], .searchnav a[id$='next'][href], .searchnav a[id$='last'][href]",
-          )
-        : null;
-      return link?.attribute("href") ?? null;
-    },
-    openGalleryInNewTab(target: EventTarget | null): boolean {
-      const link = target instanceof Element
-        ? DomNode.from(target).closest<HTMLAnchorElement>("a[href]")
-        : null;
-      const href = link?.attribute("href") ?? "";
-
-      if (!link || extractPageType(href).type !== "gallery") {
-        return false;
-      }
-
-      link.inplace()?.transform({
-        attributes: {
-          set: { target: "_blank", rel: "noopener noreferrer" },
-        },
-      });
-      return true;
-    },
-    replace(incoming: Document) {
-      replaceSearchPageContent(incoming);
-      return extractSearchResults();
+      window.history.pushState(window.history.state, "", url);
     },
     scrollToTop(): void {
       navigationBars[0]?.scrollIntoView({ block: "start", behavior: "auto" });
@@ -100,16 +73,31 @@ export function extractSearchResults(): SearchResultsDom | null {
     setBusy(busy: boolean): void {
       resultList.transform({ attributes: busy ? { set: { "aria-busy": "true" } } : { remove: ["aria-busy"] } });
     },
-    swipeTarget(): HTMLElement {
-      resultList.styles({ "touch-action": "pan-y", "overscroll-behavior-x": "contain" });
-      return resultList.Component();
+    transformSwipeInput(): void {
+      resultList.transform({
+        classes: { add: ["overscroll-x-contain", "touch-pan-y"] },
+      });
+    },
+    transformGalleryLinksToNewTab(): void {
+      for (const link of resultSource.all<HTMLAnchorElement>("a[href]")) {
+        if (extractPageType(link.attribute("href") ?? "").type !== "gallery") {
+          continue;
+        }
+        link.inplace().transform({
+          attributes: {
+            set: { target: "_blank", rel: "noopener noreferrer" },
+          },
+        });
+      }
     },
   };
-  return { actions, data, elems };
+  return { data, elems, handle };
 }
 
-/** Owns the original Search input events and mutations used by SearchHistory. */
-export function extractSearchHistory() {
+export type SearchResultsDom = NonNullable<ReturnType<typeof extractSearchResults>>;
+
+/** Owns the original Search text input, form, submit control, and their events. */
+export function extractSearchTextInput() {
   const page = DomNode.from(document);
   const inputSource = page.one<HTMLInputElement>("#f_search, input[name='f_search']");
   const formSource = inputSource?.form() ?? null;
@@ -126,21 +114,36 @@ export function extractSearchHistory() {
   }
   const data = { value: input.inputValue() };
   const elems = { form, input, submit };
-  const actions = {
+  const handle = {
     connect(callbacks: {
       onFocus: () => void;
       onInput: (value: string, focused: boolean) => void;
       onKeyDown: (event: KeyboardEvent) => void;
+      onOutsidePointer: () => void;
+      onPositionChange: () => void;
       onSubmit: (value: string) => void;
-    }): () => void {
+    }, overlay: () => HTMLElement | null): () => void {
       const update = () => callbacks.onInput(input.inputValue(), document.activeElement === input.Component());
       const submitValue = () => callbacks.onSubmit(input.inputValue());
+      const outsidePointer = (event: PointerEvent) => {
+        const target = event.target;
+        if (
+          target instanceof Node &&
+          (input.isNode(target) || overlay()?.contains(target))
+        ) {
+          return;
+        }
+        callbacks.onOutsidePointer();
+      };
       input.listen("input", update);
       input.listen("focus", callbacks.onFocus);
       input.listen("pointerdown", callbacks.onFocus);
       input.listen("keydown", callbacks.onKeyDown);
       form?.listen("submit", submitValue);
       submit.listen("click", submitValue);
+      document.addEventListener("pointerdown", outsidePointer, true);
+      document.addEventListener("scroll", callbacks.onPositionChange, true);
+      window.addEventListener("resize", callbacks.onPositionChange);
       return () => {
         const inputNode = input.Component();
         inputNode.removeEventListener("input", update);
@@ -149,10 +152,10 @@ export function extractSearchHistory() {
         inputNode.removeEventListener("keydown", callbacks.onKeyDown);
         form?.Component().removeEventListener("submit", submitValue);
         submit.Component().removeEventListener("click", submitValue);
+        document.removeEventListener("pointerdown", outsidePointer, true);
+        document.removeEventListener("scroll", callbacks.onPositionChange, true);
+        window.removeEventListener("resize", callbacks.onPositionChange);
       };
-    },
-    isInputTarget(target: EventTarget | null): boolean {
-      return target instanceof Node && input.isNode(target);
     },
     position(): { left: number; top: number; width: number } {
       const rect = inputSource?.rect() ?? new DOMRect();
@@ -165,21 +168,20 @@ export function extractSearchHistory() {
       input.Component().setSelectionRange(value.length, value.length);
     },
   };
-  return { actions, data, elems };
+  return { data, elems, handle };
 }
 
-export type SearchHistoryDom = NonNullable<ReturnType<typeof extractSearchHistory>>;
+export type SearchTextInputDom = NonNullable<ReturnType<typeof extractSearchTextInput>>;
 
 /** Transforms Search's extended result table into the EhPeek grid presentation. */
 export function extractSearchGrid() {
-  const actions = { refresh: applySearchGrid };
-  actions.refresh();
-  return { actions };
+  applySearchGrid();
+  return applySearchGrid;
 }
 
 function applySearchGrid(): void {
   const page = DomNode.from(document);
-  page.one<HTMLElement>(".ehpeek-search-grid-host")?.inplace()?.remove();
+  page.one<HTMLElement>(".ehpeek-search-grid-host")?.inplace().remove();
   const resultList = page.one<HTMLElement>(".itg");
 
   if (!resultList) {
@@ -192,7 +194,7 @@ function applySearchGrid(): void {
   const bodyElem = body?.inplace() ?? null;
 
   resultListElem
-    ?.transform({ hidden: false })
+    .transform({ hidden: false })
     .styles({
       display: "block",
       width: "100%",
@@ -272,9 +274,9 @@ function applySearchGrid(): void {
       "box-sizing": "border-box",
       "padding-left": "0",
     }, "important");
-    source.selectionCell?.inplace()?.styles({ width: "auto", "margin-left": "6px" }, "important");
-    source.thumbnail?.inplace()?.styles({ width: "100%", height: "auto" }, "important");
-    source.image?.inplace()?.styles({ width: "100%", height: "auto" }, "important");
+    source.selectionCell?.inplace().styles({ width: "auto", "margin-left": "6px" }, "important");
+    source.thumbnail?.inplace().styles({ width: "100%", height: "auto" }, "important");
+    source.image?.inplace().styles({ width: "100%", height: "auto" }, "important");
     applySearchGridContent(source, contentCell, detail, metadata);
   }
   
@@ -314,9 +316,7 @@ function applySearchGrid(): void {
       "line-height": "1.35",
     }, "important");
   
-    detail
-      .attribute("data-ehpeek-merged", "true")
-      .styles({
+    detail.styles({
         display: "flex",
         "flex-direction": "column",
         "justify-content": "flex-start",
@@ -357,13 +357,13 @@ function applySearchGrid(): void {
       }, "important");
     }
     for (const table of source.tagTables) {
-      table.inplace()?.styles({ height: "auto", "min-height": "0", margin: "0" }, "important");
+      table.inplace().styles({ height: "auto", "min-height": "0", margin: "0" }, "important");
     }
     for (const cell of source.tagCells) {
-      cell.inplace()?.styles({ height: "auto", "min-height": "0", "vertical-align": "top" }, "important");
+      cell.inplace().styles({ height: "auto", "min-height": "0", "vertical-align": "top" }, "important");
     }
     for (const tag of source.tagElements) {
-      tag.inplace()?.styles({ "font-size": "var(--font-size-sm)", "line-height": "1.2" }, "important");
+      tag.inplace().styles({ "font-size": "var(--font-size-sm)", "line-height": "1.2" }, "important");
     }
     for (const itemSource of source.metadataItems) {
       const item = itemSource.inplace();
@@ -411,7 +411,6 @@ function applySearchGrid(): void {
       .attribute("aria-label", title || "Open gallery")
       .transform({ classes: { replace: "hidden coarse:block absolute inset-0 z-1" } });
     contentCell
-      .attribute("data-ehpeek-clickable", "true")
       .styles({ position: "relative", cursor: "pointer" }, "important")
       .append(overlay)
       .listen("click", (event) => {
@@ -432,11 +431,9 @@ export function extractSearchGridModeSelect(
   const selects = DomNode.from(document).all<HTMLSelectElement>(
     "select[onchange*='inline_set=dm_'], select[data-ehpeek-grid-mode-source='true']",
   );
-  const managedSelects: ManagedDomNode<HTMLSelectElement>[] = [];
 
   for (const source of selects) {
     const select = source.inplace();
-    managedSelects.push(select);
     let option = source.all<HTMLOptionElement>("option").find((item) => item.inputValue() === "ehpeek")?.inplace() ?? null;
 
     if (!option) {
@@ -466,16 +463,14 @@ export function extractSearchGridModeSelect(
       onEhPeekSelect();
     }, true);
   }
-
-  return { elems: { selects: managedSelects } };
 }
 
-function replaceSearchPageContent(doc: Document): void {
+function replaceSearchPageContent(doc: Document): boolean {
   const currentList = DomNode.from(document).one<HTMLElement>(".itg");
   const incomingList = DomNode.from(doc).one<HTMLElement>(".itg");
 
   if (!currentList || !incomingList) {
-    return;
+    return false;
   }
 
   replaceFirstElement("#rangebar", doc);
@@ -485,6 +480,7 @@ function replaceSearchPageContent(doc: Document): void {
   const current = currentList.inplace();
   const importedList = incomingList.clone();
   current.replaceWith(importedList);
+  return true;
 }
 
 function replaceSearchNavigationBars(doc: Document): void {
@@ -520,7 +516,7 @@ function favoritesPageTouch(): TouchFavoritesCategorySelectInfo | null {
   const page = DomNode.from(document);
   const pageContainer = page.one<HTMLElement>(".ido");
   pageContainer?.inplace()
-    ?.removeStyles("min-width")
+    .removeStyles("min-width")
     .transform({ classes: { add: TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" ") } });
 
   const categories = page.one<HTMLElement>(".ido > .nosel");
@@ -528,11 +524,11 @@ function favoritesPageTouch(): TouchFavoritesCategorySelectInfo | null {
   const searchContainer = page.one<HTMLInputElement>("input[name='f_search']")?.form()?.parent();
   searchContainer
     ?.inplace()
-    ?.removeStyles("width")
+    .removeStyles("width")
     .transform({ classes: { add: ["box-border", "!w-full", "!min-w-0", "!max-w-full"] } });
 
   for (const navigation of page.all<HTMLElement>(".searchnav")) {
-    navigation.inplace()?.transform({ classes: { add: TOUCH_FAVORITES_NAV_CLASS_NAME.split(" ") } });
+    navigation.inplace().transform({ classes: { add: TOUCH_FAVORITES_NAV_CLASS_NAME.split(" ") } });
   }
 
   const resultSource = page.one<HTMLElement>(".itg");
@@ -548,11 +544,11 @@ function favoritesPageTouch(): TouchFavoritesCategorySelectInfo | null {
   const allSelected = categorySelect?.categories[0]?.selected === true;
 
   contentSource?.inplace()
-    ?.transform({ classes: { add: TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" ") } });
+    .transform({ classes: { add: TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" ") } });
   const resultList = resultSource.inplace();
-  resultList?.transform({ classes: { add: TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME.split(" ") } });
+  resultList.transform({ classes: { add: TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME.split(" ") } });
 
-  if (!resultList || existingWrapper) {
+  if (existingWrapper) {
     return categorySelect;
   }
 
@@ -577,26 +573,26 @@ function compactFavoritesResultList(source: DomNode<HTMLElement>): void {
   }, "important");
 
   for (const content of source.all<HTMLElement>("tbody > tr > .gl2e")) {
-    content.inplace()?.styles({ width: "auto", "overflow-wrap": "anywhere" }, "important");
+    content.inplace().styles({ width: "auto", "overflow-wrap": "anywhere" }, "important");
   }
   for (const title of source.all<HTMLElement>(".glink")) {
-    title.inplace()?.styles({ "white-space": "normal", "overflow-wrap": "anywhere" }, "important");
+    title.inplace().styles({ "white-space": "normal", "overflow-wrap": "anywhere" }, "important");
   }
   for (const tags of source.all<HTMLElement>(".gl4e table")) {
-    tags.inplace()?.styles({
+    tags.inplace().styles({
       "table-layout": "fixed",
       width: "100%",
       "max-width": "100%",
     }, "important");
   }
   for (const cell of source.all<HTMLElement>(".gl4e td")) {
-    cell.inplace()?.styles({ "min-width": "0", "overflow-wrap": "anywhere" }, "important");
+    cell.inplace().styles({ "min-width": "0", "overflow-wrap": "anywhere" }, "important");
   }
   for (const namespace of source.all<HTMLElement>(".gl4e td.tc")) {
-    namespace.inplace()?.styles({ width: "4em", "white-space": "nowrap" }, "important");
+    namespace.inplace().styles({ width: "4em", "white-space": "nowrap" }, "important");
   }
   for (const selection of source.all<HTMLElement>("tbody > tr > .glfe")) {
-    selection.inplace()?.styles({ width: "1%", "white-space": "nowrap" }, "important");
+    selection.inplace().styles({ width: "1%", "white-space": "nowrap" }, "important");
   }
 }
 
@@ -634,7 +630,7 @@ function readFavoritesCategories(
   const all = parsed.find((category) => category.source.childElementCount() === 0);
   const favorites = parsed.filter((category) => category !== all);
   const total = favorites.reduce((sum, category) => sum + category.count, 0);
-  container.inplace()?.setHidden(true);
+  container.inplace().setHidden(true);
 
   return {
     categories: [
@@ -673,13 +669,13 @@ function searchResultsPageTouch(): void {
   const pageContent = resultSource.closest<HTMLElement>(".ido");
 
   pageContent?.inplace()
-    ?.transform({ classes: { add: TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ") } });
+    .transform({ classes: { add: TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ") } });
   contentSource?.inplace()
-    ?.transform({ classes: { add: TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ") } });
+    .transform({ classes: { add: TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ") } });
   const resultList = resultSource.inplace();
-  resultList?.transform({ classes: { add: TOUCH_SEARCH_RESULT_LIST_CLASS_NAME.split(" ") } });
+  resultList.transform({ classes: { add: TOUCH_SEARCH_RESULT_LIST_CLASS_NAME.split(" ") } });
 
-  if (!resultList || existingWrapper) {
+  if (existingWrapper) {
     return;
   }
 
@@ -701,7 +697,7 @@ export function extractTouchResultsPage(page: PageType) {
     return null;
   };
   const data = { favoritesCategory: apply() };
-  const actions = {
+  const handle = {
     refresh(): void {
       apply();
     },
@@ -714,5 +710,7 @@ export function extractTouchResultsPage(page: PageType) {
       documentBody().transform({ classes: { remove: classes } });
     },
   };
-  return { actions, data };
+  return { data, handle };
 }
+
+export type TouchResultsPageDom = ReturnType<typeof extractTouchResultsPage>;

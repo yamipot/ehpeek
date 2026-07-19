@@ -13,28 +13,20 @@ type AppHistoryState = {
   scrollY: number;
 };
 
-type SinglePageLoad = {
-  page: PageType;
-  source: eh.PageContentDom;
-  url: string;
-};
+export function SinglePage(props: {
+  onPageActivate: (page: PageType) => void | Promise<void>;
+  onPageDeactivate: () => void;
+}) {
+  const [loading, setLoading] = createSignal(false);
+  const [failedUrl, setFailedUrl] = createSignal<string | null>(null);
+  let routeHost!: HTMLDivElement;
+  let stagingHost!: HTMLDivElement;
+  let navigationController: AbortController | null = null;
+  let navigationSequence = 0;
+  let scrollFrame: number | null = null;
+  let disconnectPageNavigation: (() => void) | null = null;
 
-class PageContentProvider {
-  current(): SinglePageLoad | null {
-    const page = eh.singlePageRoute(window.location.href);
-    return page
-      ? {
-          page,
-          source: eh.extractPageContent(),
-          url: window.location.href,
-        }
-      : null;
-  }
-
-  async load(
-    request: eh.NavigationRequest,
-    signal: AbortSignal,
-  ): Promise<SinglePageLoad> {
+  const loadPage = async (request: eh.NavigationRequest, signal: AbortSignal) => {
     const response = await eh.requestPage(request.url, {
       method: request.method,
       body: request.body,
@@ -50,22 +42,7 @@ class PageContentProvider {
       source: eh.extractPageContent(response.document, response.url),
       url: response.url,
     };
-  }
-}
-
-export function SinglePage(props: {
-  onPageActivate: (page: PageType) => void | Promise<void>;
-  onPageDeactivate: () => void;
-}) {
-  const [loading, setLoading] = createSignal(false);
-  const [failedUrl, setFailedUrl] = createSignal<string | null>(null);
-  let routeHost!: HTMLDivElement;
-  let stagingHost!: HTMLDivElement;
-  let navigationController: AbortController | null = null;
-  let navigationSequence = 0;
-  let scrollFrame: number | null = null;
-  let pageSource: eh.PageContentDom | null = null;
-  const provider = new PageContentProvider();
+  };
 
   const updateHistoryScroll = () => {
     const current = historyState();
@@ -104,9 +81,9 @@ export function SinglePage(props: {
     routeHost.setAttribute("aria-busy", "true");
 
     try {
-      const next = await provider.load(request, controller.signal);
+      const next = await loadPage(request, controller.signal);
       const nextSource = next.source;
-      nextSource.actions.mount(stagingHost);
+      nextSource.handle.mount(stagingHost);
       await eh.EhSyringe.waitForRouteTranslation(stagingHost);
 
       if (sequence !== navigationSequence || controller.signal.aborted) {
@@ -130,8 +107,7 @@ export function SinglePage(props: {
         );
       }
 
-      nextSource.actions.mount(routeHost);
-      pageSource = nextSource;
+      nextSource.handle.mount(routeHost);
       document.title = nextSource.data.title || document.title;
       await props.onPageActivate(next.page);
 
@@ -161,46 +137,6 @@ export function SinglePage(props: {
     let disposed = false;
     const previousScrollRestoration = window.history.scrollRestoration;
     window.history.scrollRestoration = "manual";
-
-    const onClick = (event: MouseEvent) => {
-      if (
-        event.defaultPrevented ||
-        event.button !== 0 ||
-        event.altKey ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.shiftKey
-      ) {
-        return;
-      }
-
-      if (!(event.target instanceof Node) || !routeHost.contains(event.target)) {
-        return;
-      }
-      const request = pageSource?.actions.navigationRequest(event);
-
-      if (!request || !eh.isSameOriginUrl(request.url) || !eh.singlePageRoute(request.url)) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      void navigate(request, "push");
-    };
-
-    const onSubmit = (event: SubmitEvent) => {
-      if (!(event.target instanceof Node) || !routeHost.contains(event.target)) {
-        return;
-      }
-      const request = pageSource?.actions.navigationRequest(event);
-
-      if (!request || !eh.singlePageRoute(request.url)) {
-        return;
-      }
-
-      event.preventDefault();
-      void navigate(request, "push");
-    };
 
     const onPopState = (event: PopStateEvent) => {
       const page = eh.singlePageRoute(window.location.href);
@@ -234,20 +170,25 @@ export function SinglePage(props: {
         return;
       }
 
-      const initial = provider.current();
-      if (!initial) {
+      const page = eh.singlePageRoute(window.location.href);
+      if (!page) {
         return;
       }
-      pageSource = initial.source;
-      initial.source.actions.mount(routeHost);
+      const pageSource = eh.extractPageContent();
+      pageSource.handle.mount(routeHost);
+      const onPageNavigation = (request: eh.NavigationRequest) => {
+        void navigate(request, "push");
+      };
+      disconnectPageNavigation = pageSource.handle.connectNavigation(
+        routeHost,
+        onPageNavigation,
+      );
       updateHistoryScroll();
-      document.addEventListener("click", onClick, true);
-      document.addEventListener("submit", onSubmit, true);
       document.addEventListener(NAVIGATION_REQUEST_EVENT, onNavigationRequest);
       window.addEventListener("popstate", onPopState);
       window.addEventListener("scroll", scheduleHistoryScrollUpdate, { passive: true });
 
-      await props.onPageActivate(initial.page);
+      await props.onPageActivate(page);
     };
 
     void initialize();
@@ -255,10 +196,10 @@ export function SinglePage(props: {
     onCleanup(() => {
       disposed = true;
       navigationController?.abort();
+      disconnectPageNavigation?.();
+      disconnectPageNavigation = null;
       props.onPageDeactivate();
       window.history.scrollRestoration = previousScrollRestoration;
-      document.removeEventListener("click", onClick, true);
-      document.removeEventListener("submit", onSubmit, true);
       document.removeEventListener(NAVIGATION_REQUEST_EVENT, onNavigationRequest);
       window.removeEventListener("popstate", onPopState);
       window.removeEventListener("scroll", scheduleHistoryScrollUpdate);

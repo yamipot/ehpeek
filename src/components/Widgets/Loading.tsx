@@ -1,5 +1,4 @@
 import { Show } from "solid-js";
-import { render } from "solid-js/web";
 
 export function LoadingSpinner(props: { label: string; size?: "md" | "lg" }) {
   const sizeClass = () => props.size === "lg" ? "w-sm h-sm border-4" : "w-xs h-xs border-3";
@@ -23,10 +22,4 @@ export function LoadingOverlay(props: { label: string; visible: boolean }) {
       </div>
     </Show>
   );
-}
-
-export function loadingSpinnerElement(label: string, size?: "md" | "lg"): HTMLElement {
-  const host = document.createElement("span");
-  render(() => <LoadingSpinner label={label} size={size} />, host);
-  return host;
 }

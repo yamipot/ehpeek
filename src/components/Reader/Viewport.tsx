@@ -7,12 +7,12 @@ import { createPointerGestureElement, type PointerGestureCallbacks } from "../Po
 
 const FALLBACK_ASPECT_RATIO = 1.42;
 
-export type PageMeta = {
+type PageMeta = {
   aspectRatio: number;
 };
 
 type PageState = "idle" | "loading" | "ready" | "error";
-export type VerticalScrollBounds = { min?: number; max?: number };
+type VerticalScrollBounds = { min?: number; max?: number };
 
 export type PagesViewportWindowOptions = {
   currentPageNum: number;
@@ -31,7 +31,7 @@ export function pageWindowNumbers(currentPageNum: number, windowSize: number): n
   return numbers;
 }
 
-export type ViewportImage = {
+type ViewportImage = {
   imageUrl: string;
   highPriority: boolean;
   width: number | null;
@@ -485,7 +485,6 @@ function PageSlotView(props: {
     <section
       ref={node}
       class="ehpeek-page flex w-full h-[var(--reader-page-height)] items-start justify-center pb-sm [#ehpeek-reader[data-view-mode=paged]_&]:(flex-[0_0_100%] w-full h-full items-center p-0)"
-      data-ehpeek-index={String(props.visualIndex)}
       data-ehpeek-page-num={String(props.slot.pageNum)}
       style={slotStyle()}
     >

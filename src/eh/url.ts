@@ -30,7 +30,7 @@ export type PageType =
       url: string;
     };
 
-export type EhSiteTheme = "e-hentai" | "exhentai";
+type EhSiteTheme = "e-hentai" | "exhentai";
 
 const EXHENTAI_HOST = "exhentai.org";
 const EXHENTAI_ONION_HOST = "exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion";
@@ -105,7 +105,7 @@ export function supportsSinglePageRoute(url: string): boolean {
   return singlePageRoute(url) !== null;
 }
 
-export function urlPath(url: string): string {
+function urlPath(url: string): string {
   try {
     return new URL(url, window.location.href).pathname.toLowerCase();
   } catch {
