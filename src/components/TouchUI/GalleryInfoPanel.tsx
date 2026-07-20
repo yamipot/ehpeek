@@ -677,10 +677,6 @@ function TouchGalleryTagMenu(props: {
 }
 
 function TouchGalleryNewTag(props: { source: GalleryInfoDom }) {
-  onMount(() => {
-    props.source.handle.reuseNewTagAutocomplete();
-  });
-
   return <DomNode node={props.source.elems.newTag} />;
 }
 

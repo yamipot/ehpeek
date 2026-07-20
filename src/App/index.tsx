@@ -235,12 +235,6 @@ function injectEnhanceUI(
     });
   }
 
-  if (searchTextInput) {
-    allowFeatureFailure("Search autocomplete", () => {
-      eh.EhSyringe.reuseTagTipInput(searchTextInput.elems.input);
-    });
-  }
-
   if (resultsPage) {
     allowFeatureFailure("Search grid mode selector", () => {
       eh.mutateSearchGridModeSelect(
@@ -466,17 +460,10 @@ function injectTouchUI(
   return resultsDom;
 }
 
-async function injectPage(): Promise<void> {
-  const page = eh.extractPageType();
+async function injectPage(page: eh.PageType): Promise<void> {
   const galleryPage = page.type === "gallery";
   const resultsPage =
     page.type === "search" || page.type === "favorites";
-  if (gState.settings.touchUiEnabled) {
-    await eh.EhSyringe.waitForInitialUi();
-    if (page.type === "search") {
-      await eh.EhSyringe.waitForSearchUi();
-    }
-  }
 
   const galleryPreview = galleryPage
     ? allowFeatureFailure("Gallery Preview", () => eh.manageGalleryPreview())
@@ -568,15 +555,8 @@ async function injectPage(): Promise<void> {
   }
 }
 
-async function startApp(): Promise<void> {
-  if (document.readyState !== "complete") {
-    await new Promise<void>((resolve) => {
-      window.addEventListener("load", () => resolve(), { once: true });
-    });
-  }
-
+const page = eh.extractPageType();
+eh.EhSyringe.initialize(page.type === "search", () => {
   installSettingsMenu();
-  await injectPage();
-}
-
-void startApp().finally(removeWelcomeIcon);
+  void injectPage(page).finally(removeWelcomeIcon);
+});

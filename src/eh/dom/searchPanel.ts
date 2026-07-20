@@ -141,9 +141,11 @@ export function manageSearchPanel() {
     activateSearch() {
       elems.searchSubmit.click();
     },
-    /** Activates E-H's original Search clear control. */
-    activateClear() {
-      elems.clearButton?.click();
+    /** Clears only the Search text without invoking E-H's page-navigation reset. */
+    clearSearchText() {
+      elems.searchInput.setInputValue("");
+      elems.searchInput.dispatchInput();
+      elems.searchInput.focus();
     },
   };
 

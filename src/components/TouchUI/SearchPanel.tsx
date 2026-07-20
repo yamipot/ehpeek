@@ -75,7 +75,7 @@ export function TouchSearchAction(props: { action: "search" | "clear"; source: S
           if (search) {
             source.handle.activateSearch();
           } else {
-            source.handle.activateClear();
+            source.handle.clearSearchText();
           }
         }}
       >
