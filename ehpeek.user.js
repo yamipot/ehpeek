@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260720.1205
+// @version      260720.1259
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -21,7 +21,7 @@
 // @grant        GM_listValues
 // @grant        GM_registerMenuCommand
 // @grant        GM_download
-// @run-at       document-end
+// @run-at       document-start
 // @updateURL    https://github.com/yamipot/ehpeek/raw/build-master/ehpeek.user.js
 // @downloadURL  https://github.com/yamipot/ehpeek/raw/build-master/ehpeek.user.js
 // ==/UserScript==
@@ -1697,8 +1697,8 @@
       menuLabel: "Ehpeek",
       on: "On",
       off: "Off",
-      singlePageApp: "Single Page App",
-      singlePageAppHelp: "Reserved for future Single Page App support.",
+      welcomeIcon: "Welcome Icon",
+      welcomeIconHelp: "Shows a small status icon until Ehpeek finishes preparing the UI.",
       readerLabel: "Reader",
       readerHelp: "Opens gallery images in Ehpeek's reader",
       readerFullscreenLabel: "Reader in Fullscreen",
@@ -1759,7 +1759,7 @@
     if (!css || document.getElementById(id))
       return;
     let style2 = document.createElement("style");
-    style2.id = id, style2.textContent = css, document.head.append(style2);
+    style2.id = id, style2.textContent = css, (document.head ?? document.documentElement).append(style2);
   }
 
   // src/eh/dom/gallery.ts
@@ -2963,44 +2963,18 @@
     }), () => gesture?.isDragging() ?? !1;
   }
 
-  // src/components/Widgets/Loading.tsx
-  var _tmpl$ = /* @__PURE__ */ template('<span class="inline-flex items-center justify-center gap-md ehp-color-site-text"role=status aria-live=polite><span aria-hidden=true></span><span>'), _tmpl$2 = /* @__PURE__ */ template('<div class="fixed left-1/2 top-1/2 z-overlay flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md border ehp-color-site-border bg-[var(--color-loading)] px-lg py-md ehp-color-site-text shadow-[0_6px_20px_var(--color-shadow-floating)] pointer-events-none select-none">');
-  function LoadingSpinner(props) {
-    let sizeClass = () => props.size === "lg" ? "w-sm h-sm border-4" : "w-xs h-xs border-3";
-    return (() => {
-      var _el$ = _tmpl$(), _el$2 = _el$.firstChild, _el$3 = _el$2.nextSibling;
-      return insert(_el$3, () => props.label), createRenderEffect(() => className(_el$2, `${sizeClass()} inline-block box-border animate-spin rounded-full border-solid ehp-color-spinner`)), _el$;
-    })();
-  }
-  function LoadingOverlay(props) {
-    return createComponent(Show, {
-      get when() {
-        return props.visible;
-      },
-      get children() {
-        var _el$4 = _tmpl$2();
-        return insert(_el$4, createComponent(LoadingSpinner, {
-          get label() {
-            return props.label;
-          },
-          size: "lg"
-        })), _el$4;
-      }
-    });
-  }
-
   // src/components/Widgets/Icon.tsx
-  var _tmpl$3 = /* @__PURE__ */ template('<svg class="ehpeek-icon block flex-none"viewBox="0 0 24 24"stroke-linecap=round stroke-linejoin=round aria-hidden=true>'), _tmpl$22 = /* @__PURE__ */ template("<svg><path fill=currentColor stroke=none></svg>", !1, !0, !1), _tmpl$32 = /* @__PURE__ */ template("<svg><path></svg>", !1, !0, !1);
+  var _tmpl$ = /* @__PURE__ */ template('<svg class="ehpeek-icon block flex-none"viewBox="0 0 24 24"stroke-linecap=round stroke-linejoin=round aria-hidden=true>'), _tmpl$2 = /* @__PURE__ */ template("<svg><path fill=currentColor stroke=none></svg>", !1, !0, !1), _tmpl$3 = /* @__PURE__ */ template("<svg><path></svg>", !1, !0, !1);
   function Icon(props) {
     let definition = createMemo(() => ICON_DEFINITIONS[props.name]), filled = createMemo(() => definition().solid || definition().fillable && props.filled);
     return (() => {
-      var _el$ = _tmpl$3();
+      var _el$ = _tmpl$();
       return insert(_el$, createComponent(For, {
         get each() {
           return definition().filledPaths;
         },
         children: (path) => (() => {
-          var _el$2 = _tmpl$22();
+          var _el$2 = _tmpl$2();
           return setAttribute(_el$2, "d", path), _el$2;
         })()
       }), null), insert(_el$, createComponent(For, {
@@ -3008,7 +2982,7 @@
           return definition().paths;
         },
         children: (path) => (() => {
-          var _el$3 = _tmpl$32();
+          var _el$3 = _tmpl$3();
           return setAttribute(_el$3, "d", path), _el$3;
         })()
       }), null), createRenderEffect((_p$) => {
@@ -3091,12 +3065,51 @@
     }
   };
 
+  // src/components/WelcomeIcon.tsx
+  var _tmpl$4 = /* @__PURE__ */ template('<div role=status aria-live=polite><span class="inline-flex items-center justify-center gap-md ehp-color-site-text"><span class="inline-block box-border w-sm h-sm animate-spin rounded-full border-4 border-solid ehp-color-spinner"aria-hidden=true></span><span>');
+  function WelcomeIcon(props) {
+    let label = () => props.label ?? texts_default.reader.loading, placementClass = () => props.embedded ? "relative w-full border-0 bg-transparent px-lg py-md" : "fixed left-1/2 top-1/2 z-[1200] -translate-x-1/2 -translate-y-1/2 rounded-lg border ehp-color-site-border bg-[var(--color-loading)] px-xl py-lg shadow-[0_6px_20px_var(--color-shadow-floating)]";
+    return (() => {
+      var _el$ = _tmpl$4(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.nextSibling;
+      return insert(_el$, (() => {
+        var _c$ = memo(() => props.showIcon !== !1);
+        return () => _c$() ? createComponent(Icon, {
+          name: "panda-peek",
+          size: 80,
+          strokeWidth: 1.6
+        }) : null;
+      })(), _el$2), insert(_el$4, label), createRenderEffect((_p$) => {
+        var _v$ = `${placementClass()} flex select-none flex-col items-center gap-lg ehp-color-site-accent pointer-events-none`, _v$2 = label();
+        return _v$ !== _p$.e && className(_el$, _p$.e = _v$), _v$2 !== _p$.t && setAttribute(_el$, "aria-label", _p$.t = _v$2), _p$;
+      }, {
+        e: void 0,
+        t: void 0
+      }), _el$;
+    })();
+  }
+
+  // src/components/Widgets/Loading.tsx
+  function LoadingOverlay(props) {
+    return createComponent(Show, {
+      get when() {
+        return props.visible;
+      },
+      get children() {
+        return createComponent(WelcomeIcon, {
+          get label() {
+            return props.label;
+          }
+        });
+      }
+    });
+  }
+
   // src/components/Widgets/SwipeIndicator.tsx
-  var _tmpl$4 = /* @__PURE__ */ template('<div class="ehpeek-swipe-indicator fixed top-1/2 z-overlay flex w-42px h-108px items-center justify-center border border-[var(--color-site-swipe-border)] rounded-full bg-[var(--color-site-swipe-background)] text-[var(--color-site-text)] shadow-[0_6px_20px_var(--color-shadow-floating)] pointer-events-none select-none transition-opacity duration-120 ease-in-out"style=backdrop-filter:blur(8px)>'), HIDE_PROGRESS = 1e-3;
+  var _tmpl$5 = /* @__PURE__ */ template('<div class="ehpeek-swipe-indicator fixed top-1/2 z-overlay flex w-42px h-108px items-center justify-center border border-[var(--color-site-swipe-border)] rounded-full bg-[var(--color-site-swipe-background)] text-[var(--color-site-text)] shadow-[0_6px_20px_var(--color-shadow-floating)] pointer-events-none select-none transition-opacity duration-120 ease-in-out"style=backdrop-filter:blur(8px)>'), HIDE_PROGRESS = 1e-3;
   function SwipeIndicator(props) {
     let progress = createMemo(() => Math.min(1, Math.max(0, props.state.progress))), hidden = createMemo(() => progress() <= HIDE_PROGRESS), pull = createMemo(() => Math.round(48 * progress())), offset = createMemo(() => props.state.direction === "left" ? 42 - pull() : pull() - 42), iconName = createMemo(() => props.state.blocked ? "close" : props.state.direction === "left" ? "chevron-left" : "chevron-right");
     return (() => {
-      var _el$ = _tmpl$4();
+      var _el$ = _tmpl$5();
       return insert(_el$, createComponent(Icon, {
         get name() {
           return iconName();
@@ -3187,12 +3200,12 @@
   }
 
   // src/components/Enhance/ScrollPageBar.tsx
-  var _tmpl$5 = /* @__PURE__ */ template('<div class="w-full mb-xs text-center textsize-sm">'), _tmpl$23 = /* @__PURE__ */ template('<a class="flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)]">'), _tmpl$33 = /* @__PURE__ */ template('<td class="!w-sm !h-sm coarse:!w-md coarse:!h-md !p-0 rounded-sm coarse:rounded-md cursor-pointer text-center align-middle select-none">'), _tmpl$42 = /* @__PURE__ */ template("<span>"), _tmpl$52 = /* @__PURE__ */ template('<td class="!w-sm !h-sm coarse:!w-md coarse:!h-md !p-0 rounded-sm coarse:rounded-md cursor-pointer text-center align-middle select-none cursor-default"><span class="flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)] invisible">'), _tmpl$6 = /* @__PURE__ */ template('<div><table class="border-separate border-spacing-4px coarse:border-spacing-6px"><tbody><tr>'), _tmpl$7 = /* @__PURE__ */ template('<span class="flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)]"aria-current=page>'), DRAG_PIXEL_STEP = 18;
+  var _tmpl$6 = /* @__PURE__ */ template('<div class="w-full mb-xs text-center textsize-sm">'), _tmpl$22 = /* @__PURE__ */ template('<a class="flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)]">'), _tmpl$32 = /* @__PURE__ */ template('<td class="!w-sm !h-sm coarse:!w-md coarse:!h-md !p-0 rounded-sm coarse:rounded-md cursor-pointer text-center align-middle select-none">'), _tmpl$42 = /* @__PURE__ */ template("<span>"), _tmpl$52 = /* @__PURE__ */ template('<td class="!w-sm !h-sm coarse:!w-md coarse:!h-md !p-0 rounded-sm coarse:rounded-md cursor-pointer text-center align-middle select-none cursor-default"><span class="flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)] invisible">'), _tmpl$62 = /* @__PURE__ */ template('<div><table class="border-separate border-spacing-4px coarse:border-spacing-6px"><tbody><tr>'), _tmpl$7 = /* @__PURE__ */ template('<span class="flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)]"aria-current=page>'), DRAG_PIXEL_STEP = 18;
   var PAGE_BAR_LINK_CLASS = "flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
   var PAGE_BAR_CURRENT_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)]", PAGE_BAR_DISABLED_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)] opacity-40 cursor-default";
   function GalleryPageDescription(props) {
     return (() => {
-      var _el$ = _tmpl$5();
+      var _el$ = _tmpl$6();
       return insert(_el$, () => props.text), _el$;
     })();
   }
@@ -3204,7 +3217,7 @@
     let linkCell = (text, pageIndex, itemState = () => "link") => {
       let resolvedText = () => typeof text == "function" ? text() : text, resolvedPageIndex = () => typeof pageIndex == "function" ? pageIndex() : pageIndex;
       return (() => {
-        var _el$2 = _tmpl$33();
+        var _el$2 = _tmpl$32();
         return insert(_el$2, createComponent(Show, {
           get when() {
             return itemState() === "link";
@@ -3223,7 +3236,7 @@
             })();
           },
           get children() {
-            var _el$3 = _tmpl$23();
+            var _el$3 = _tmpl$22();
             return _el$3.$$click = (event) => {
               event.preventDefault(), event.stopPropagation(), props.onNavigate(resolvedPageIndex(), scrollTargetForIndex(resolvedPageIndex()));
             }, setAttribute(_el$3, "draggable", !1), insert(_el$3, resolvedText), createRenderEffect(() => setAttribute(_el$3, "href", props.urlForIndex(resolvedPageIndex()))), _el$3;
@@ -3247,7 +3260,7 @@
         nextIndex !== visibleCenterIndex() && setVisibleCenterIndex(nextIndex);
       }
     })), (() => {
-      var _el$7 = _tmpl$6(), _el$8 = _el$7.firstChild, _el$9 = _el$8.firstChild, _el$0 = _el$9.firstChild, _ref$ = gestureHost;
+      var _el$7 = _tmpl$62(), _el$8 = _el$7.firstChild, _el$9 = _el$8.firstChild, _el$0 = _el$9.firstChild, _ref$ = gestureHost;
       return typeof _ref$ == "function" ? use(_ref$, _el$7) : gestureHost = _el$7, insert(_el$0, () => linkCell("<<", 0, () => currentIndex() === 0 ? "disabled" : "link"), null), insert(_el$0, createComponent(Show, {
         get when() {
           return currentBeforeWindow();
@@ -3265,7 +3278,7 @@
         children: (pageIndex) => {
           let itemState = createMemo(() => pageIndex === currentIndex() ? "current" : "link");
           return pageIndex !== null ? (() => {
-            var _el$1 = _tmpl$33();
+            var _el$1 = _tmpl$32();
             return insert(_el$1, createComponent(Show, {
               get when() {
                 return itemState() === "link";
@@ -3277,7 +3290,7 @@
                 })();
               },
               get children() {
-                var _el$10 = _tmpl$23();
+                var _el$10 = _tmpl$22();
                 return _el$10.$$click = (event) => {
                   event.preventDefault(), event.stopPropagation(), props.onNavigate(pageIndex, scrollTargetForIndex(pageIndex));
                 }, setAttribute(_el$10, "draggable", !1), insert(_el$10, pageIndex + 1), createRenderEffect(() => setAttribute(_el$10, "href", props.urlForIndex(pageIndex))), _el$10;
@@ -3434,7 +3447,7 @@
   var touchUiDefault = window.matchMedia("(pointer: coarse)").matches, state = {
     app: {
       openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", !1),
-      singlePage: persisted("ehpeek:single-page-app:enabled", !1)
+      welcomeIcon: persisted("ehpeek:welcome-icon:enabled", !0)
     },
     reader: {
       enabled: persisted("ehpeek:reader:enabled", !0),
@@ -3601,7 +3614,7 @@
   }
 
   // src/components/Enhance/SearchHistory.tsx
-  var _tmpl$9 = /* @__PURE__ */ template('<section class="ehpeek-search-history fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-hidden overflow-y-auto overscroll-contain rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"role=list>'), _tmpl$24 = /* @__PURE__ */ template('<div class="flex min-w-0 flex-none items-stretch border-0 border-b ehp-color-site-border-subtle-b last:border-b-0"role=listitem><button type=button></button><button type=button class="appearance-none inline-flex w-60px min-h-lg flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text textsize-xl font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]">×');
+  var _tmpl$9 = /* @__PURE__ */ template('<section class="ehpeek-search-history fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-hidden overflow-y-auto overscroll-contain rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"role=list>'), _tmpl$23 = /* @__PURE__ */ template('<div class="flex min-w-0 flex-none items-stretch border-0 border-b ehp-color-site-border-subtle-b last:border-b-0"role=listitem><button type=button></button><button type=button class="appearance-none inline-flex w-60px min-h-lg flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text textsize-xl font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]">×');
   function SearchHistory(props) {
     let dropdown, [searchValue, setSearchValue] = createSignal(untrack(() => props.source.data.value)), [history, setHistory] = createSignal(loadSearchHistory()), [open, setOpen] = createSignal(!1), [activeIndex, setActiveIndex] = createSignal(-1), [position, setPosition] = createSignal(null), itemButtons = [], visiblePosition = () => open() && !searchValue().trim() && history().length > 0 ? position() : null, selectHistory = (item) => {
       props.source.handle.applySearchSelection(item), setOpen(!1);
@@ -3654,7 +3667,7 @@
             return history();
           },
           children: (item, index) => (() => {
-            var _el$2 = _tmpl$24(), _el$3 = _el$2.firstChild, _el$4 = _el$3.nextSibling;
+            var _el$2 = _tmpl$23(), _el$3 = _el$2.firstChild, _el$4 = _el$3.nextSibling;
             return _el$3.$$click = () => selectHistory(item), _el$3.addEventListener("pointerenter", () => setActiveIndex(index())), use((button) => {
               itemButtons[index()] = button;
             }, _el$3), setAttribute(_el$3, "title", item), insert(_el$3, item), _el$4.$$click = () => {
@@ -3864,12 +3877,12 @@
   }
 
   // src/components/SettingsMenu.tsx
-  var _tmpl$10 = /* @__PURE__ */ template('<p class="box-border w-full m-0 px-md pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] textsize-sm leading-[1.35] opacity-75">'), _tmpl$25 = /* @__PURE__ */ template('<div class="border-0 border-b ehp-color-site-border-subtle-b"><div class="flex items-stretch"><button type=button class="flex min-w-0 flex-1 min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg pl-md pr-sm rounded-xs border-0 !bg-transparent hover:!bg-transparent active:!bg-transparent ehp-color-site-text font-inherit text-left textsize-md cursor-pointer [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex flex-none items-center gap-sm"><span class="textsize-sm opacity-70"></span><span></span></span></button><button type=button class="flex flex-none w-32px coarse:w-48px min-h-md coarse:min-h-88px items-center justify-center p-0 rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span class="flex w-20px h-20px items-center justify-center rounded-full border border-[var(--color-site-border-subtle)] leading-none">?'), _tmpl$34 = /* @__PURE__ */ template('<div class="ml-md border-0 border-l border-l-[var(--color-site-border-subtle)]">'), _tmpl$43 = /* @__PURE__ */ template('<div class="ehpeek-settings-menu pointer-events-auto fixed top-24px right-24px coarse:top-8px coarse:right-8px z-overlay box-border w-320px coarse:w-[calc(100vw-16px)] max-w-[calc(100vw-48px)] coarse:max-w-480px max-h-[calc(100vh-48px)] coarse:max-h-[calc(100dvh-16px)] overflow-x-hidden overflow-y-auto p-sm coarse:p-md border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text textsize-md leading-[1.2]"><div class="border-0 border-b ehp-color-site-border-subtle-b"><button type=button class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex w-20px h-20px items-center justify-center leading-none"aria-hidden=true></span></button></div><div class="border-0 border-b ehp-color-site-border-subtle-b"><button type=button class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex w-20px h-20px items-center justify-center leading-none"aria-hidden=true></span></button></div><a class="flex w-full min-h-md coarse:min-h-88px items-center overflow-hidden text-ellipsis whitespace-nowrap px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline textsize-md font-700 hover:bg-[var(--color-site-item-hover)]"href=https://github.com/yamipot/ehpeek target=_blank rel="noopener noreferrer">v</a><div class="ehpeek-settings-actions grid grid-cols-3 gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="ehpeek-settings-apply block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108"></button><button type=button class="ehpeek-settings-default block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]"></button><button type=button class="ehpeek-settings-close block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">');
+  var _tmpl$10 = /* @__PURE__ */ template('<p class="box-border w-full m-0 px-md pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] textsize-sm leading-[1.35] opacity-75">'), _tmpl$24 = /* @__PURE__ */ template('<div class="border-0 border-b ehp-color-site-border-subtle-b"><div class="flex items-stretch"><button type=button class="flex min-w-0 flex-1 min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg pl-md pr-sm rounded-xs border-0 !bg-transparent hover:!bg-transparent active:!bg-transparent ehp-color-site-text font-inherit text-left textsize-md cursor-pointer [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex flex-none items-center gap-sm"><span class="textsize-sm opacity-70"></span><span></span></span></button><button type=button class="flex flex-none w-32px coarse:w-48px min-h-md coarse:min-h-88px items-center justify-center p-0 rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span class="flex w-20px h-20px items-center justify-center rounded-full border border-[var(--color-site-border-subtle)] leading-none">?'), _tmpl$33 = /* @__PURE__ */ template('<div class="ml-md border-0 border-l border-l-[var(--color-site-border-subtle)]">'), _tmpl$43 = /* @__PURE__ */ template('<div class="ehpeek-settings-menu pointer-events-auto fixed top-24px right-24px coarse:top-8px coarse:right-8px z-overlay box-border w-320px coarse:w-[calc(100vw-16px)] max-w-[calc(100vw-48px)] coarse:max-w-480px max-h-[calc(100vh-48px)] coarse:max-h-[calc(100dvh-16px)] overflow-x-hidden overflow-y-auto p-sm coarse:p-md border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text textsize-md leading-[1.2]"><div class="border-0 border-b ehp-color-site-border-subtle-b"><button type=button class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex w-20px h-20px items-center justify-center leading-none"aria-hidden=true></span></button></div><div class="border-0 border-b ehp-color-site-border-subtle-b"><button type=button class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex w-20px h-20px items-center justify-center leading-none"aria-hidden=true></span></button></div><a class="flex w-full min-h-md coarse:min-h-88px items-center overflow-hidden text-ellipsis whitespace-nowrap px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline textsize-md font-700 hover:bg-[var(--color-site-item-hover)]"href=https://github.com/yamipot/ehpeek target=_blank rel="noopener noreferrer">v</a><div class="ehpeek-settings-actions grid grid-cols-3 gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="ehpeek-settings-apply block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108"></button><button type=button class="ehpeek-settings-default block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]"></button><button type=button class="ehpeek-settings-close block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">');
   var SETTINGS_DOT_CLASS = "block flex-none w-10px h-10px coarse:w-18px coarse:h-18px rounded-full";
   function SwitchButton(props) {
     let [helpOpen, setHelpOpen] = createSignal(!1);
     return (() => {
-      var _el$ = _tmpl$25(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.nextSibling, _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$3.nextSibling;
+      var _el$ = _tmpl$24(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.nextSibling, _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$3.nextSibling;
       return _el$3.$$click = (event) => {
         event.stopPropagation(), props.onChange(!props.checked);
       }, insert(_el$4, () => props.label), insert(_el$6, (() => {
@@ -3942,7 +3955,7 @@
             return readerOptionsOpen();
           },
           get children() {
-            var _el$13 = _tmpl$34();
+            var _el$13 = _tmpl$33();
             return insert(_el$13, createComponent(SwitchButton, {
               get checked() {
                 return draft.readerFullscreenEnabled;
@@ -3965,6 +3978,17 @@
                 return texts_default.settings.openGalleryInNewTabLabel;
               },
               onChange: (value) => setDraft("openGalleryInNewTab", value)
+            }), null), insert(_el$13, createComponent(SwitchButton, {
+              get checked() {
+                return draft.welcomeIconEnabled;
+              },
+              get description() {
+                return texts_default.settings.welcomeIconHelp;
+              },
+              get label() {
+                return texts_default.settings.welcomeIcon;
+              },
+              onChange: (value) => setDraft("welcomeIconEnabled", value)
             }), null), _el$13;
           }
         }), null), _el$15.$$click = (event) => {
@@ -3974,19 +3998,8 @@
             return enhanceOpen();
           },
           get children() {
-            var _el$18 = _tmpl$34();
+            var _el$18 = _tmpl$33();
             return insert(_el$18, createComponent(SwitchButton, {
-              get checked() {
-                return draft.singlePageAppEnabled;
-              },
-              get description() {
-                return texts_default.settings.singlePageAppHelp;
-              },
-              get label() {
-                return texts_default.settings.singlePageApp;
-              },
-              onChange: (value) => setDraft("singlePageAppEnabled", value)
-            }), null), insert(_el$18, createComponent(SwitchButton, {
               get checked() {
                 return draft.enhanceSearchGridsEnabled;
               },
@@ -4043,7 +4056,7 @@
               onChange: (value) => setDraft("searchHistoryEnabled", value)
             }), null), _el$18;
           }
-        }), null), insert(_el$19, "260720.1205", null), _el$22.$$click = (event) => {
+        }), null), insert(_el$19, "260720.1259", null), _el$22.$$click = (event) => {
           event.stopPropagation(), props.onApply({
             ...draft
           });
@@ -4165,7 +4178,7 @@
   }
 
   // src/components/TouchUI/GalleryInfoPanel.tsx
-  var _tmpl$12 = /* @__PURE__ */ template("<div>"), _tmpl$26 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-rating-dialog fixed inset-0 z-overlay flex items-center justify-center p-md bg-black/65"role=dialog aria-modal=true aria-label="Rate gallery"><div class="box-border flex w-[min(92vw,420px)] flex-col gap-lg rounded-lg border ehp-color-site-border p-lg ehp-color-site-elevated ehp-color-site-text shadow-xl"><div class="textsize-md font-700">Rate gallery</div><button type=button class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"><span class="flex gap-1px pointer-events-none text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></button><div class="grid grid-cols-2 gap-sm pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108">Submit</button><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">'), _tmpl$35 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans"><div class="ehpeek-touch-gallery-hero relative grid min-h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text"><div><div class="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 flex-col items-start gap-8px pt-2px"><div class="ehpeek-touch-gallery-heading flex min-w-0 w-full flex-none flex-col gap-sm items-start pb-xs"><div class="ehpeek-touch-gallery-title-main line-clamp-4 flex-none overflow-hidden textsize-lg font-400 leading-[1.16] text-left break-anywhere"></div><div class="ehpeek-touch-gallery-title-sub line-clamp-3 flex-none overflow-hidden opacity-82 textsize-md leading-[1.2] text-left break-anywhere"></div></div><div class="ehpeek-touch-gallery-category-row grid grid-cols-[minmax(0,35fr)_minmax(0,65fr)] w-full flex-none items-center gap-lg mt-auto pt-md"><div class="ehpeek-touch-gallery-category box-border w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xs border border-solid py-6px px-10px text-center textsize-md font-700 leading-[1.1] uppercase"></div></div></div></div></div><div class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"><div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]"></div></div><div class="ehpeek-touch-gallery-content flex flex-col gap-lg pt-xl pr-[max(16px,env(safe-area-inset-right,0px))] pb-lg pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text"><div class="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-md gap-x-lg items-center textsize-md leading-[1.2] text-center">'), _tmpl$44 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">'), _tmpl$53 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-rating flex w-full min-w-0 flex-col items-center gap-4px p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-center cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"aria-label="Rate gallery"><div class="ehpeek-touch-gallery-rating-stars relative inline-flex max-w-full overflow-hidden"><span class="ehpeek-touch-gallery-rating-stars-empty flex gap-1px text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></div><div class="ehpeek-touch-gallery-rating-meta flex max-w-full min-w-0 items-center justify-center gap-6px text-[var(--color-muted)] textsize-md leading-[1.15] whitespace-nowrap"><span class="ehpeek-touch-gallery-rating-label min-w-0 overflow-hidden text-ellipsis"aria-live=polite>'), _tmpl$62 = /* @__PURE__ */ template('<span class="ehpeek-touch-gallery-rating-count flex-none pl-6px border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">'), _tmpl$72 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-meta-value line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">'), _tmpl$82 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-groups flex flex-col gap-md pt-2px">'), _tmpl$92 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu-panel absolute top-48px right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$0 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu relative flex min-w-0 items-center justify-center"><button type=button class="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text"aria-haspopup=menu>'), _tmpl$1 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-sm items-start"><div class="ehpeek-touch-gallery-tag-group-name min-h-sm overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-sm px-md text-center lowercase ehp-color-site-accent textsize-md font-600"></div><div class="ehpeek-touch-gallery-tags flex flex-wrap gap-sm">'), _tmpl$102 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-none transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"aria-haspopup=menu>'), _tmpl$112 = /* @__PURE__ */ template('<div role=dialog aria-modal=true><div class="ehpeek-touch-gallery-tag-menu-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-x-hidden overflow-y-auto whitespace-nowrap border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl"role=menu>'), _tmpl$122 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"role=dialog aria-modal=true><div class="box-border flex w-full max-w-420px flex-col gap-lg rounded-md border ehp-color-site-border ehp-color-site-elevated p-lg shadow-xl"><div class="ehp-color-site-text textsize-lg font-700"></div><label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"></select></label><label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"><option value=marked></option><option value=watched></option><option value=hidden></option></select></label><div class="grid grid-cols-2 gap-md"><button type=button class="min-h-md rounded-xs border-0 ehp-color-site-surface ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer"></button><button type=button class="flex min-h-md items-center justify-center gap-md rounded-xs border-0 bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit font-700 textsize-md cursor-pointer"><span>'), _tmpl$13 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex box-border w-full min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer"role=menuitem><span>'), _tmpl$14 = /* @__PURE__ */ template("<option>"), _tmpl$15 = /* @__PURE__ */ template('<span class="contents [&amp;_*]:!bg-transparent [&amp;_*]:!text-inherit"translate=no>'), _tmpl$16 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-panel absolute top-[calc(100%+8px)] left-0 z-overlay flex w-[min(86vw,360px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$17 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0"><button type=button aria-haspopup=menu><span class="block leading-[1.15]"></span><span class="ehpeek-touch-gallery-favorite-icon block mt-2px opacity-78 normal-case"aria-hidden=true>'), _tmpl$18 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-loading flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left">'), _tmpl$19 = /* @__PURE__ */ template('<button type=button><span class="ehpeek-touch-gallery-favorite-option-icon flex-none ehp-color-site-text"aria-hidden=true></span><span></span><span aria-hidden=true>'), TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]", TOUCH_GALLERY_TAG_MENU_ITEM_CLASS = "ehpeek-touch-gallery-tag-menu-item flex box-border w-full min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer", TOUCH_GALLERY_TAG_MENU_CLASS = "!box-border flex !h-auto !w-full !float-none !m-0 !p-0 flex-col !textsize-md", TOUCH_GALLERY_INFO_CLASSES = {
+  var _tmpl$12 = /* @__PURE__ */ template("<div>"), _tmpl$25 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-rating-dialog fixed inset-0 z-overlay flex items-center justify-center p-md bg-black/65"role=dialog aria-modal=true aria-label="Rate gallery"><div class="box-border flex w-[min(92vw,420px)] flex-col gap-lg rounded-lg border ehp-color-site-border p-lg ehp-color-site-elevated ehp-color-site-text shadow-xl"><div class="textsize-md font-700">Rate gallery</div><button type=button class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"><span class="flex gap-1px pointer-events-none text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></button><div class="grid grid-cols-2 gap-sm pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108">Submit</button><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">'), _tmpl$34 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans"><div class="ehpeek-touch-gallery-hero relative grid min-h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text"><div><div class="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 flex-col items-start gap-8px pt-2px"><div class="ehpeek-touch-gallery-heading flex min-w-0 w-full flex-none flex-col gap-sm items-start pb-xs"><div class="ehpeek-touch-gallery-title-main line-clamp-4 flex-none overflow-hidden textsize-lg font-400 leading-[1.16] text-left break-anywhere"></div><div class="ehpeek-touch-gallery-title-sub line-clamp-3 flex-none overflow-hidden opacity-82 textsize-md leading-[1.2] text-left break-anywhere"></div></div><div class="ehpeek-touch-gallery-category-row grid grid-cols-[minmax(0,35fr)_minmax(0,65fr)] w-full flex-none items-center gap-lg mt-auto pt-md"><div class="ehpeek-touch-gallery-category box-border w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xs border border-solid py-6px px-10px text-center textsize-md font-700 leading-[1.1] uppercase"></div></div></div></div></div><div class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"><div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]"></div></div><div class="ehpeek-touch-gallery-content flex flex-col gap-lg pt-xl pr-[max(16px,env(safe-area-inset-right,0px))] pb-lg pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text"><div class="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-md gap-x-lg items-center textsize-md leading-[1.2] text-center">'), _tmpl$44 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">'), _tmpl$53 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-rating flex w-full min-w-0 flex-col items-center gap-4px p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-center cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"aria-label="Rate gallery"><div class="ehpeek-touch-gallery-rating-stars relative inline-flex max-w-full overflow-hidden"><span class="ehpeek-touch-gallery-rating-stars-empty flex gap-1px text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></div><div class="ehpeek-touch-gallery-rating-meta flex max-w-full min-w-0 items-center justify-center gap-6px text-[var(--color-muted)] textsize-md leading-[1.15] whitespace-nowrap"><span class="ehpeek-touch-gallery-rating-label min-w-0 overflow-hidden text-ellipsis"aria-live=polite>'), _tmpl$63 = /* @__PURE__ */ template('<span class="ehpeek-touch-gallery-rating-count flex-none pl-6px border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">'), _tmpl$72 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-meta-value line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">'), _tmpl$82 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-groups flex flex-col gap-md pt-2px">'), _tmpl$92 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu-panel absolute top-48px right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$0 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu relative flex min-w-0 items-center justify-center"><button type=button class="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text"aria-haspopup=menu>'), _tmpl$1 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-sm items-start"><div class="ehpeek-touch-gallery-tag-group-name min-h-sm overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-sm px-md text-center lowercase ehp-color-site-accent textsize-md font-600"></div><div class="ehpeek-touch-gallery-tags flex flex-wrap gap-sm">'), _tmpl$102 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-none transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"aria-haspopup=menu>'), _tmpl$112 = /* @__PURE__ */ template('<div role=dialog aria-modal=true><div class="ehpeek-touch-gallery-tag-menu-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-x-hidden overflow-y-auto whitespace-nowrap border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl"role=menu>'), _tmpl$122 = /* @__PURE__ */ template('<label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md">'), _tmpl$13 = /* @__PURE__ */ template('<label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"><option value=marked></option><option value=watched></option><option value=hidden>'), _tmpl$14 = /* @__PURE__ */ template('<div class="grid grid-cols-2 gap-md"><button type=button class="min-h-md rounded-xs border-0 ehp-color-site-surface ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer"></button><button type=button class="flex min-h-md items-center justify-center gap-md rounded-xs border-0 bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit font-700 textsize-md cursor-pointer"><span>'), _tmpl$15 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"role=dialog aria-modal=true><div class="box-border flex w-full max-w-420px flex-col gap-lg rounded-md border ehp-color-site-border ehp-color-site-elevated p-lg shadow-xl"><div class="ehp-color-site-text textsize-lg font-700">'), _tmpl$16 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex box-border w-full min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer"role=menuitem><span>'), _tmpl$17 = /* @__PURE__ */ template("<option>"), _tmpl$18 = /* @__PURE__ */ template('<span class="contents [&amp;_*]:!bg-transparent [&amp;_*]:!text-inherit"translate=no>'), _tmpl$19 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-panel absolute top-[calc(100%+8px)] left-0 z-overlay flex w-[min(86vw,360px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$20 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0"><button type=button aria-haspopup=menu><span class="block leading-[1.15]"></span><span class="ehpeek-touch-gallery-favorite-icon block mt-2px opacity-78 normal-case"aria-hidden=true>'), _tmpl$21 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-loading flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left">'), _tmpl$222 = /* @__PURE__ */ template('<button type=button><span class="ehpeek-touch-gallery-favorite-option-icon flex-none ehp-color-site-text"aria-hidden=true></span><span></span><span aria-hidden=true>'), TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]", TOUCH_GALLERY_TAG_MENU_ITEM_CLASS = "ehpeek-touch-gallery-tag-menu-item flex box-border w-full min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer", TOUCH_GALLERY_TAG_MENU_CLASS = "!box-border flex !h-auto !w-full !float-none !m-0 !p-0 flex-col !textsize-md", TOUCH_GALLERY_INFO_CLASSES = {
     actionItems: TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS,
     cover: "block w-full max-w-full h-full max-h-full mx-auto object-contain object-center",
     host: "ehpeek-touch-gallery-host",
@@ -4221,7 +4234,7 @@
       selectedTag() && (source.handle.closeGalleryTagMenu(), setSelectedTag(null));
     };
     return (() => {
-      var _el$ = _tmpl$35(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.firstChild, _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$5.nextSibling, _el$9 = _el$8.firstChild, _el$0 = _el$2.nextSibling, _el$1 = _el$0.firstChild, _el$10 = _el$0.nextSibling, _el$11 = _el$10.firstChild;
+      var _el$ = _tmpl$34(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.firstChild, _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$5.nextSibling, _el$9 = _el$8.firstChild, _el$0 = _el$2.nextSibling, _el$1 = _el$0.firstChild, _el$10 = _el$0.nextSibling, _el$11 = _el$10.firstChild;
       return className(_el$3, `ehpeek-touch-gallery-summary grid gap-18px items-stretch ${hasCover ? "grid-cols-[minmax(120px,38%)_minmax(0,1fr)]" : "grid-cols-1"}`), insert(_el$3, hasCover && (() => {
         var _el$22 = _tmpl$44();
         return insert(_el$22, createComponent(DomNode2, {
@@ -4253,7 +4266,7 @@
         })), insert(_el$28, ratingLabel), insert(_el$27, (() => {
           var _c$2 = memo(() => !!ratingCount());
           return () => _c$2() && (() => {
-            var _el$29 = _tmpl$62();
+            var _el$29 = _tmpl$63();
             return insert(_el$29, ratingCount), _el$29;
           })();
         })(), null), createRenderEffect((_p$) => {
@@ -4312,7 +4325,7 @@
           return ratingPickerOpen();
         },
         get children() {
-          var _el$13 = _tmpl$26(), _el$14 = _el$13.firstChild, _el$15 = _el$14.firstChild, _el$16 = _el$15.nextSibling, _el$17 = _el$16.firstChild, _el$18 = _el$17.nextSibling, _el$19 = _el$16.nextSibling, _el$20 = _el$19.firstChild, _el$21 = _el$20.nextSibling;
+          var _el$13 = _tmpl$25(), _el$14 = _el$13.firstChild, _el$15 = _el$14.firstChild, _el$16 = _el$15.nextSibling, _el$17 = _el$16.firstChild, _el$18 = _el$17.nextSibling, _el$19 = _el$16.nextSibling, _el$20 = _el$19.firstChild, _el$21 = _el$20.nextSibling;
           return _el$13.$$click = (event) => {
             event.target === event.currentTarget && (setRatingPreview(null), setRatingPickerOpen(!1));
           }, _el$16.$$click = (event) => {
@@ -4419,52 +4432,72 @@
       });
     });
     let updateFavoriteTag = async (tag) => {
-      setUpdating(!0);
-      try {
-        tag.myTag ? await props.source.handle.removeFavoriteTag(tag) : await props.source.handle.submitFavoriteTag(tag, selectedTagSet(), tagMode()), state.gallery.myTagAppearances.clear(), window.location.reload();
-      } catch (error) {
-        console.error("[ehpeek]", error), window.alert(error instanceof Error ? error.message : texts_default.errors.loadFailed);
-      } finally {
-        setUpdating(!1);
+      if (!updating()) {
+        setUpdating(!0);
+        try {
+          tag.myTag ? await props.source.handle.removeFavoriteTag(tag) : await props.source.handle.submitFavoriteTag(tag, selectedTagSet(), tagMode()), state.gallery.myTagAppearances.clear(), window.location.reload();
+        } catch (error) {
+          console.error("[ehpeek]", error), window.alert(error instanceof Error ? error.message : texts_default.errors.loadFailed);
+        } finally {
+          setUpdating(!1);
+        }
       }
     };
     return [(() => {
       var _el$39 = _tmpl$112(), _el$40 = _el$39.firstChild;
       return _el$39.$$click = (event) => {
         event.target === event.currentTarget && props.onClose();
-      }, _el$40.$$click = () => props.onClose(), insert(_el$40, createComponent(DomNode2, {
-        get node() {
-          return props.source.elems.tagMenuAction;
-        }
-      }), null), insert(_el$40, createComponent(Show, {
+      }, _el$40.$$click = () => {
+        updating() || props.onClose();
+      }, insert(_el$40, createComponent(Show, {
         get when() {
-          return props.tag;
+          return !updating();
         },
-        children: (tag) => createComponent(Show, {
-          get when() {
-            return !tag().myTag;
-          },
-          get fallback() {
-            return (() => {
-              var _el$59 = _tmpl$13(), _el$60 = _el$59.firstChild;
-              return _el$59.$$click = () => {
-                updateFavoriteTag(tag());
-              }, insert(_el$59, createComponent(Icon, {
-                name: "heart",
-                filled: !0
-              }), _el$60), insert(_el$60, () => texts_default.gallery.removeFavoriteTag), createRenderEffect(() => _el$59.disabled = updating()), _el$59;
-            })();
-          },
-          get children() {
-            var _el$57 = _tmpl$13(), _el$58 = _el$57.firstChild;
-            return _el$57.$$click = () => {
-              setFavoriteTag(tag()), setFavoriteDialogOpen(!0);
-            }, insert(_el$57, createComponent(Icon, {
-              name: "heart"
-            }), _el$58), insert(_el$58, () => texts_default.gallery.favoriteTag), createRenderEffect(() => _el$57.disabled = updating()), _el$57;
-          }
-        })
-      }), null), createRenderEffect((_p$) => {
+        get fallback() {
+          return createComponent(WelcomeIcon, {
+            embedded: !0,
+            get label() {
+              return texts_default.reader.loading;
+            },
+            showIcon: !1
+          });
+        },
+        get children() {
+          return [createComponent(DomNode2, {
+            get node() {
+              return props.source.elems.tagMenuAction;
+            }
+          }), createComponent(Show, {
+            get when() {
+              return props.tag;
+            },
+            children: (tag) => createComponent(Show, {
+              get when() {
+                return !tag().myTag;
+              },
+              get fallback() {
+                return (() => {
+                  var _el$59 = _tmpl$16(), _el$60 = _el$59.firstChild;
+                  return _el$59.$$click = (event) => {
+                    event.stopPropagation(), updateFavoriteTag(tag());
+                  }, insert(_el$59, createComponent(Icon, {
+                    name: "heart",
+                    filled: !0
+                  }), _el$60), insert(_el$60, () => texts_default.gallery.removeFavoriteTag), _el$59;
+                })();
+              },
+              get children() {
+                var _el$57 = _tmpl$16(), _el$58 = _el$57.firstChild;
+                return _el$57.$$click = () => {
+                  setFavoriteTag(tag()), setFavoriteDialogOpen(!0);
+                }, insert(_el$57, createComponent(Icon, {
+                  name: "heart"
+                }), _el$58), insert(_el$58, () => texts_default.gallery.favoriteTag), _el$57;
+              }
+            })
+          })];
+        }
+      })), createRenderEffect((_p$) => {
         var _v$0 = `ehpeek-touch-gallery-tag-menu-dialog fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 transition-opacity duration-120 ${props.tag ? "visible opacity-100" : "invisible opacity-0 pointer-events-none"}`, _v$1 = !props.tag, _v$10 = props.tag?.label ?? "";
         return _v$0 !== _p$.e && className(_el$39, _p$.e = _v$0), _v$1 !== _p$.t && setAttribute(_el$39, "aria-hidden", _p$.t = _v$1), _v$10 !== _p$.a && setAttribute(_el$39, "aria-label", _p$.a = _v$10), _p$;
       }, {
@@ -4477,27 +4510,46 @@
         return favoriteDialogOpen();
       },
       get children() {
-        var _el$41 = _tmpl$122(), _el$42 = _el$41.firstChild, _el$43 = _el$42.firstChild, _el$44 = _el$43.nextSibling, _el$45 = _el$44.firstChild, _el$46 = _el$45.nextSibling, _el$47 = _el$44.nextSibling, _el$48 = _el$47.firstChild, _el$49 = _el$48.nextSibling, _el$50 = _el$49.firstChild, _el$51 = _el$50.nextSibling, _el$52 = _el$51.nextSibling, _el$53 = _el$47.nextSibling, _el$54 = _el$53.firstChild, _el$55 = _el$54.nextSibling, _el$56 = _el$55.firstChild;
+        var _el$41 = _tmpl$15(), _el$42 = _el$41.firstChild, _el$43 = _el$42.firstChild;
         return _el$41.$$click = (event) => {
           event.target === event.currentTarget && setFavoriteDialogOpen(!1);
-        }, insert(_el$43, () => texts_default.gallery.favoriteTag), insert(_el$45, () => texts_default.gallery.tagCollection), _el$46.addEventListener("change", (event) => setSelectedTagSet(event.currentTarget.value)), insert(_el$46, createComponent(For, {
-          each: tagSets,
-          children: (option) => (() => {
-            var _el$61 = _tmpl$14();
-            return insert(_el$61, () => option.label), createRenderEffect(() => _el$61.value = option.value), _el$61;
-          })()
-        })), insert(_el$48, () => texts_default.gallery.tagBehavior), _el$49.addEventListener("change", (event) => setTagMode(event.currentTarget.value)), insert(_el$50, () => texts_default.gallery.markTag), insert(_el$51, () => texts_default.gallery.watchTag), insert(_el$52, () => texts_default.gallery.hideTag), _el$54.$$click = () => setFavoriteDialogOpen(!1), insert(_el$54, () => texts_default.button.close), _el$55.$$click = () => {
-          let tag = favoriteTag();
-          tag && updateFavoriteTag(tag);
-        }, insert(_el$55, createComponent(Icon, {
-          name: "heart"
-        }), _el$56), insert(_el$56, () => texts_default.button.confirm), createRenderEffect((_p$) => {
-          var _v$11 = texts_default.gallery.favoriteTag, _v$12 = updating();
-          return _v$11 !== _p$.e && setAttribute(_el$41, "aria-label", _p$.e = _v$11), _v$12 !== _p$.t && (_el$55.disabled = _p$.t = _v$12), _p$;
-        }, {
-          e: void 0,
-          t: void 0
-        }), createRenderEffect(() => _el$46.value = selectedTagSet()), createRenderEffect(() => _el$49.value = tagMode()), _el$41;
+        }, insert(_el$43, () => texts_default.gallery.favoriteTag), insert(_el$42, createComponent(Show, {
+          get when() {
+            return !updating();
+          },
+          get fallback() {
+            return createComponent(WelcomeIcon, {
+              embedded: !0,
+              get label() {
+                return texts_default.reader.loading;
+              },
+              showIcon: !1
+            });
+          },
+          get children() {
+            return [(() => {
+              var _el$44 = _tmpl$122(), _el$45 = _el$44.firstChild, _el$46 = _el$45.nextSibling;
+              return insert(_el$45, () => texts_default.gallery.tagCollection), _el$46.addEventListener("change", (event) => setSelectedTagSet(event.currentTarget.value)), insert(_el$46, createComponent(For, {
+                each: tagSets,
+                children: (option) => (() => {
+                  var _el$61 = _tmpl$17();
+                  return insert(_el$61, () => option.label), createRenderEffect(() => _el$61.value = option.value), _el$61;
+                })()
+              })), createRenderEffect(() => _el$46.value = selectedTagSet()), _el$44;
+            })(), (() => {
+              var _el$47 = _tmpl$13(), _el$48 = _el$47.firstChild, _el$49 = _el$48.nextSibling, _el$50 = _el$49.firstChild, _el$51 = _el$50.nextSibling, _el$52 = _el$51.nextSibling;
+              return insert(_el$48, () => texts_default.gallery.tagBehavior), _el$49.addEventListener("change", (event) => setTagMode(event.currentTarget.value)), insert(_el$50, () => texts_default.gallery.markTag), insert(_el$51, () => texts_default.gallery.watchTag), insert(_el$52, () => texts_default.gallery.hideTag), createRenderEffect(() => _el$49.value = tagMode()), _el$47;
+            })(), (() => {
+              var _el$53 = _tmpl$14(), _el$54 = _el$53.firstChild, _el$55 = _el$54.nextSibling, _el$56 = _el$55.firstChild;
+              return _el$54.$$click = () => setFavoriteDialogOpen(!1), insert(_el$54, () => texts_default.button.close), _el$55.$$click = () => {
+                let tag = favoriteTag();
+                tag && updateFavoriteTag(tag);
+              }, insert(_el$55, createComponent(Icon, {
+                name: "heart"
+              }), _el$56), insert(_el$56, () => texts_default.button.confirm), _el$53;
+            })()];
+          }
+        }), null), createRenderEffect(() => setAttribute(_el$41, "aria-label", texts_default.gallery.favoriteTag)), _el$41;
       }
     })];
   }
@@ -4515,7 +4567,7 @@
     return onMount(() => {
       onCleanup(props.tag.contentSource.mirrorContentTo(host));
     }), (() => {
-      var _el$62 = _tmpl$15(), _ref$2 = host;
+      var _el$62 = _tmpl$18(), _ref$2 = host;
       return typeof _ref$2 == "function" ? use(_ref$2, _el$62) : host = _el$62, _el$62;
     })();
   }
@@ -4541,9 +4593,24 @@
           console.error("[ehpeek]", error), setLoadingState("failed");
         }
       }
+    }, updateFavorite = async (option) => {
+      let actionUrl = favorite().actionUrl;
+      if (!(!actionUrl || loadingState() === "loading")) {
+        setLoadingState("loading");
+        try {
+          await props.source.handle.updateGalleryFavorite(actionUrl, option.value), setFavorite({
+            ...favorite(),
+            color: option.color,
+            favorited: option.value !== "favdel",
+            label: option.value === "favdel" ? "Not Favorited" : option.label
+          }), setLoadingState("idle"), setOpen(!1);
+        } catch (error) {
+          console.error("[ehpeek]", error), setLoadingState("failed");
+        }
+      }
     };
     return (() => {
-      var _el$63 = _tmpl$17(), _el$64 = _el$63.firstChild, _el$65 = _el$64.firstChild, _el$66 = _el$65.nextSibling, _ref$3 = root;
+      var _el$63 = _tmpl$20(), _el$64 = _el$63.firstChild, _el$65 = _el$64.firstChild, _el$66 = _el$65.nextSibling, _ref$3 = root;
       return typeof _ref$3 == "function" ? use(_ref$3, _el$63) : root = _el$63, _el$64.$$click = (event) => {
         event.stopPropagation(), open() ? setOpen(!1) : openMenu();
       }, insert(_el$65, () => favorite().label), insert(_el$66, createComponent(Icon, {
@@ -4556,14 +4623,18 @@
           return open();
         },
         get children() {
-          var _el$67 = _tmpl$16();
+          var _el$67 = _tmpl$19();
           return insert(_el$67, createComponent(Show, {
             get when() {
               return loadingState() === "loading";
             },
             get children() {
-              return createComponent(TouchGalleryFavoriteStatus, {
-                text: "Loading..."
+              return createComponent(WelcomeIcon, {
+                embedded: !0,
+                get label() {
+                  return texts_default.reader.loading;
+                },
+                showIcon: !1
               });
             }
           }), null), insert(_el$67, createComponent(Show, {
@@ -4585,20 +4656,9 @@
                   return options();
                 },
                 children: (option) => createComponent(TouchGalleryFavoriteOption, {
-                  get actionUrl() {
-                    return favorite().actionUrl;
-                  },
                   option,
-                  get source() {
-                    return props.source;
-                  },
-                  onApplied: () => {
-                    setFavorite({
-                      ...favorite(),
-                      color: option.color,
-                      favorited: option.value !== "favdel",
-                      label: option.value === "favdel" ? "Not Favorited" : option.label
-                    }), setOpen(!1);
+                  onSelect: () => {
+                    updateFavorite(option);
                   }
                 })
               });
@@ -4606,8 +4666,8 @@
           }), null), _el$67;
         }
       }), null), createRenderEffect((_p$) => {
-        var _v$13 = `ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] textsize-md font-700 normal-case ${favorited() ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`, _v$14 = favorite().color ?? void 0, _v$15 = open();
-        return _v$13 !== _p$.e && className(_el$64, _p$.e = _v$13), _v$14 !== _p$.t && setStyleProperty(_el$64, "color", _p$.t = _v$14), _v$15 !== _p$.a && setAttribute(_el$64, "aria-expanded", _p$.a = _v$15), _p$;
+        var _v$11 = `ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] textsize-md font-700 normal-case ${favorited() ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`, _v$12 = favorite().color ?? void 0, _v$13 = open();
+        return _v$11 !== _p$.e && className(_el$64, _p$.e = _v$11), _v$12 !== _p$.t && setStyleProperty(_el$64, "color", _p$.t = _v$12), _v$13 !== _p$.a && setAttribute(_el$64, "aria-expanded", _p$.a = _v$13), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -4617,17 +4677,15 @@
   }
   function TouchGalleryFavoriteStatus(props) {
     return (() => {
-      var _el$68 = _tmpl$18();
+      var _el$68 = _tmpl$21();
       return insert(_el$68, () => props.text), _el$68;
     })();
   }
   function TouchGalleryFavoriteOption(props) {
     return (() => {
-      var _el$69 = _tmpl$19(), _el$70 = _el$69.firstChild, _el$71 = _el$70.nextSibling, _el$72 = _el$71.nextSibling;
+      var _el$69 = _tmpl$222(), _el$70 = _el$69.firstChild, _el$71 = _el$70.nextSibling, _el$72 = _el$71.nextSibling;
       return _el$69.$$click = (event) => {
-        event.stopPropagation(), props.source.handle.updateGalleryFavorite(props.actionUrl, props.option.value).then(props.onApplied).catch((error) => {
-          console.error("[ehpeek]", error);
-        });
+        event.stopPropagation(), props.onSelect();
       }, insert(_el$70, createComponent(Icon, {
         name: "heart",
         get filled() {
@@ -4636,8 +4694,8 @@
       })), insert(_el$71, () => props.option.label), insert(_el$72, createComponent(Icon, {
         name: "check"
       })), createRenderEffect((_p$) => {
-        var _v$16 = `ehpeek-touch-gallery-favorite-option flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left ${props.option.value === "favdel" ? "ehpeek-touch-gallery-favorite-option-remove" : ""}`, _v$17 = props.option.selected, _v$18 = props.option.color ?? void 0, _v$19 = `ml-auto flex-none ehp-color-site-text ${props.option.selected ? "visible" : "invisible"}`, _v$20 = props.option.color ?? void 0;
-        return _v$16 !== _p$.e && className(_el$69, _p$.e = _v$16), _v$17 !== _p$.t && setAttribute(_el$69, "aria-pressed", _p$.t = _v$17), _v$18 !== _p$.a && setStyleProperty(_el$70, "color", _p$.a = _v$18), _v$19 !== _p$.o && className(_el$72, _p$.o = _v$19), _v$20 !== _p$.i && setStyleProperty(_el$72, "color", _p$.i = _v$20), _p$;
+        var _v$14 = `ehpeek-touch-gallery-favorite-option flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left ${props.option.value === "favdel" ? "ehpeek-touch-gallery-favorite-option-remove" : ""}`, _v$15 = props.option.selected, _v$16 = props.option.color ?? void 0, _v$17 = `ml-auto flex-none ehp-color-site-text ${props.option.selected ? "visible" : "invisible"}`, _v$18 = props.option.color ?? void 0;
+        return _v$14 !== _p$.e && className(_el$69, _p$.e = _v$14), _v$15 !== _p$.t && setAttribute(_el$69, "aria-pressed", _p$.t = _v$15), _v$16 !== _p$.a && setStyleProperty(_el$70, "color", _p$.a = _v$16), _v$17 !== _p$.o && className(_el$72, _p$.o = _v$17), _v$18 !== _p$.i && setStyleProperty(_el$72, "color", _p$.i = _v$18), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -4654,7 +4712,7 @@
   delegateEvents(["click", "pointermove"]);
 
   // src/components/TouchUI/FavoritesPanel.tsx
-  var _tmpl$20 = /* @__PURE__ */ template('<div class="border-0 border-t border-t-[var(--color-site-border-subtle)]">'), _tmpl$27 = /* @__PURE__ */ template('<div class="box-border w-full min-w-0 overflow-hidden rounded-md border ehp-color-site-border bg-[var(--color-site-elevated)]"><button type=button class="flex box-border w-full min-h-md items-center justify-between gap-md px-md py-sm rounded-xs border-0 !bg-transparent ehp-color-site-text text-left textsize-md font-700 font-inherit cursor-pointer hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)]"><span class="flex min-w-0 items-center gap-sm overflow-hidden"><span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"> [<!>]</span></span><span class="flex h-20px w-20px flex-none items-center justify-center leading-none"aria-hidden=true>'), _tmpl$36 = /* @__PURE__ */ template('<button type=button><span class="flex min-w-0 items-center gap-sm"><span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"> [<!>]'), _tmpl$45 = /* @__PURE__ */ template('<span class="block h-15px w-15px flex-none bg-no-repeat"aria-hidden=true>');
+  var _tmpl$26 = /* @__PURE__ */ template('<div class="border-0 border-t border-t-[var(--color-site-border-subtle)]">'), _tmpl$27 = /* @__PURE__ */ template('<div class="box-border w-full min-w-0 overflow-hidden rounded-md border ehp-color-site-border bg-[var(--color-site-elevated)]"><button type=button class="flex box-border w-full min-h-md items-center justify-between gap-md px-md py-sm rounded-xs border-0 !bg-transparent ehp-color-site-text text-left textsize-md font-700 font-inherit cursor-pointer hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)]"><span class="flex min-w-0 items-center gap-sm overflow-hidden"><span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"> [<!>]</span></span><span class="flex h-20px w-20px flex-none items-center justify-center leading-none"aria-hidden=true>'), _tmpl$35 = /* @__PURE__ */ template('<button type=button><span class="flex min-w-0 items-center gap-sm"><span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"> [<!>]'), _tmpl$45 = /* @__PURE__ */ template('<span class="block h-15px w-15px flex-none bg-no-repeat"aria-hidden=true>');
   function FavoritesCategorySelect(props) {
     let container, [open, setOpen] = createSignal(!1), selected = () => props.source.data.favoritesCategory?.categories.find((category) => category.selected) ?? props.source.data.favoritesCategory?.categories[0] ?? null;
     return onMount(() => {
@@ -4669,13 +4727,13 @@
           return open();
         },
         get children() {
-          var _el$9 = _tmpl$20();
+          var _el$9 = _tmpl$26();
           return insert(_el$9, createComponent(For, {
             get each() {
               return props.source.data.favoritesCategory?.categories;
             },
             children: (category, index) => (() => {
-              var _el$0 = _tmpl$36(), _el$1 = _el$0.firstChild, _el$10 = _el$1.firstChild, _el$11 = _el$10.firstChild, _el$13 = _el$11.nextSibling, _el$12 = _el$13.nextSibling;
+              var _el$0 = _tmpl$35(), _el$1 = _el$0.firstChild, _el$10 = _el$1.firstChild, _el$11 = _el$10.firstChild, _el$13 = _el$11.nextSibling, _el$12 = _el$13.nextSibling;
               return _el$0.$$click = () => props.source.handle.activateFavoriteCategory(index()), insert(_el$1, () => categoryIndicator(category.appearance), _el$10), insert(_el$10, () => category.label, _el$11), insert(_el$10, () => category.count, _el$13), createRenderEffect(() => className(_el$0, `flex box-border w-full min-h-md items-center px-md py-sm border-0 border-b ehp-color-site-border-subtle-b last:border-b-0 text-left textsize-md font-inherit no-underline cursor-pointer ${category.selected ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent font-700" : "!bg-transparent ehp-color-site-text hover:!bg-[var(--color-site-item-hover)]"}`)), _el$0;
             })()
           })), _el$9;
@@ -4696,7 +4754,7 @@
   delegateEvents(["click"]);
 
   // src/components/TouchUI/SearchPanel.tsx
-  var _tmpl$21 = /* @__PURE__ */ template('<section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_32px)] max-w-960px flex-col gap-md mx-auto mb-lg p-lg border ehp-color-site-border rounded-lg ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans">'), _tmpl$28 = /* @__PURE__ */ template('<button type=button class="appearance-none inline-flex min-h-md items-center px-md border-0 rounded-md bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]">'), _tmpl$37 = /* @__PURE__ */ template("<button>"), _tmpl$46 = /* @__PURE__ */ template('<span class="contents [&amp;>*:not([hidden])]:col-span-full">'), TOUCH_SEARCH_OPTION_CLASS = "appearance-none inline-flex min-h-md items-center px-md border-0 rounded-md bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]", TOUCH_SEARCH_ACTION_CLASS = "appearance-none inline-flex box-border w-60px h-60px items-center justify-center p-0 rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-120 [touch-action:manipulation] active:scale-96 active:bg-[var(--color-site-item-hover)]";
+  var _tmpl$28 = /* @__PURE__ */ template('<section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_32px)] max-w-960px flex-col gap-md mx-auto mb-lg p-lg border ehp-color-site-border rounded-lg ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans">'), _tmpl$29 = /* @__PURE__ */ template('<button type=button class="appearance-none inline-flex min-h-md items-center px-md border-0 rounded-md bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]">'), _tmpl$36 = /* @__PURE__ */ template("<button>"), _tmpl$46 = /* @__PURE__ */ template('<span class="contents [&amp;>*:not([hidden])]:col-span-full">'), TOUCH_SEARCH_OPTION_CLASS = "appearance-none inline-flex min-h-md items-center px-md border-0 rounded-md bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]", TOUCH_SEARCH_ACTION_CLASS = "appearance-none inline-flex box-border w-60px h-60px items-center justify-center p-0 rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-120 [touch-action:manipulation] active:scale-96 active:bg-[var(--color-site-item-hover)]";
   function touchSearchPanelClasses(hasClear) {
     return {
       actionMount: "contents",
@@ -4716,7 +4774,7 @@
   }
   function TouchSearchPanel(props) {
     return (() => {
-      var _el$ = _tmpl$21();
+      var _el$ = _tmpl$28();
       return insert(_el$, createComponent(DomNode2, {
         get node() {
           return props.source.elems.searchBox;
@@ -4742,14 +4800,14 @@
   }
   function ToggleButton(props) {
     return (() => {
-      var _el$2 = _tmpl$28();
+      var _el$2 = _tmpl$29();
       return _el$2.$$click = () => props.onClick(), insert(_el$2, () => props.label), createRenderEffect(() => setAttribute(_el$2, "aria-expanded", props.expanded)), _el$2;
     })();
   }
   function TouchSearchAction(props) {
     let source = untrack(() => props.source), search = untrack(() => props.action === "search"), label = search ? source.data.searchLabel : source.data.clearLabel ?? "", original = search ? source.elems.searchSubmit : source.elems.clearButton;
     return [(() => {
-      var _el$3 = _tmpl$37();
+      var _el$3 = _tmpl$36();
       return _el$3.$$click = (event) => {
         event.preventDefault(), search ? source.handle.activateSearch() : source.handle.activateClear();
       }, setAttribute(_el$3, "type", search ? "submit" : "button"), setAttribute(_el$3, "aria-label", label), setAttribute(_el$3, "title", label), insert(_el$3, createComponent(Icon, {
@@ -4766,7 +4824,7 @@
   delegateEvents(["click"]);
 
   // src/components/TouchUI/TopBar.tsx
-  var _tmpl$29 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+8px)] right-0 z-overlay flex w-240px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-24px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$210 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu relative"><button type=button class="ehpeek-touch-top-bar-menu-button inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"aria-haspopup=menu>'), _tmpl$38 = /* @__PURE__ */ template('<nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-xl items-center justify-between py-lg pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans"><a class="ehpeek-touch-top-bar-project inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"></a><div class="flex items-center gap-sm"><a class="ehpeek-touch-top-bar-home inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"></a><a class="ehpeek-touch-top-bar-favorites inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"></a><button type=button class="ehpeek-touch-top-bar-settings inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]">'), TOUCH_TOP_BAR_ICON_SIZE = 41;
+  var _tmpl$30 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+8px)] right-0 z-overlay flex w-240px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-24px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$210 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu relative"><button type=button class="ehpeek-touch-top-bar-menu-button inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"aria-haspopup=menu>'), _tmpl$37 = /* @__PURE__ */ template('<nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-xl items-center justify-between py-lg pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans"><a class="ehpeek-touch-top-bar-project inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"></a><div class="flex items-center gap-sm"><a class="ehpeek-touch-top-bar-home inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"></a><a class="ehpeek-touch-top-bar-favorites inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"></a><button type=button class="ehpeek-touch-top-bar-settings inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]">'), TOUCH_TOP_BAR_ICON_SIZE = 41;
   var TOUCH_TOP_BAR_MENU_ITEM_CLASS = "ehpeek-touch-top-bar-menu-item block box-border w-full min-h-lg coarse:min-h-88px py-md coarse:py-xl px-lg coarse:px-xl border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]", TOUCH_TOP_BAR_NAV_ITEM_CLASS = TOUCH_TOP_BAR_MENU_ITEM_CLASS;
   function TouchTopBarMenu(props) {
     let [open, setOpen] = createSignal(!1), root;
@@ -4789,7 +4847,7 @@
           return open();
         },
         get children() {
-          var _el$3 = _tmpl$29();
+          var _el$3 = _tmpl$30();
           return insert(_el$3, createComponent(For, {
             get each() {
               return props.navItems;
@@ -4805,7 +4863,7 @@
   }
   function TouchTopBar(props) {
     return (() => {
-      var _el$4 = _tmpl$38(), _el$5 = _el$4.firstChild, _el$6 = _el$5.nextSibling, _el$7 = _el$6.firstChild, _el$8 = _el$7.nextSibling, _el$9 = _el$8.nextSibling;
+      var _el$4 = _tmpl$37(), _el$5 = _el$4.firstChild, _el$6 = _el$5.nextSibling, _el$7 = _el$6.firstChild, _el$8 = _el$7.nextSibling, _el$9 = _el$8.nextSibling;
       return insert(_el$5, createComponent(Icon, {
         name: "panda-peek",
         size: 58,
@@ -5021,7 +5079,6 @@ body #gdt[class],
 .h-md{height:40px;}
 .\\!h-sm{height:32px !important;}
 .h-sm{height:32px;}
-.h-xs{height:24px;}
 .\\[\\&_\\.auto-complete-item\\]\\:min-h-lg .auto-complete-item,
 .min-h-lg{min-height:52px;}
 .min-h-md{min-height:40px;}
@@ -5031,7 +5088,6 @@ body #gdt[class],
 .w-md{width:40px;}
 .\\!w-sm{width:32px !important;}
 .w-sm{width:32px;}
-.w-xs{width:24px;}
 .gap-lg{gap:16px;}
 .gap-md{gap:12px;}
 .\\[\\&_\\.searchadv\\>div\\]\\:\\!gap-sm .searchadv>div{gap:8px !important;}
@@ -5066,6 +5122,7 @@ body #gdt[class],
 .px-lg{padding-left:16px;padding-right:16px;}
 .px-md{padding-left:12px;padding-right:12px;}
 .px-sm{padding-left:8px;padding-right:8px;}
+.px-xl{padding-left:24px;padding-right:24px;}
 .py-lg{padding-top:16px;padding-bottom:16px;}
 .py-md{padding-top:12px;padding-bottom:12px;}
 .\\!py-sm,
@@ -5179,6 +5236,7 @@ body #gdt[class],
 .line-clamp-3{overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;}
 .line-clamp-4{overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;line-clamp:4;}
 .z-\\[1150\\]{z-index:1150;}
+.z-\\[1200\\]{z-index:1200;}
 .z-1{z-index:1;}
 .z-2{z-index:2;}
 .z-3{z-index:3;}
@@ -5372,7 +5430,6 @@ body #gdt[class],
 .\\!border-0{border-width:0px !important;}
 .border{border-width:1px;}
 .border-0{border-width:0px;}
-.border-3{border-width:3px;}
 .border-4,
 .border-4px{border-width:4px;}
 .border-b{border-bottom-width:1px;}
@@ -5737,7 +5794,7 @@ body #gdt[class],
   };
 
   // src/components/Reader/Viewport.tsx
-  var _tmpl$30 = /* @__PURE__ */ template('<div class="w-full h-full overflow-auto overscroll-contain scroll-auto touch-pan-y cursor-grab scrollbar-hidden [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [#ehpeek-reader[data-view-mode=paged]_&amp;]:overflow-hidden [#ehpeek-reader[data-view-mode=paged]_&amp;]:touch-none [#ehpeek-reader[data-view-mode=paged]_&amp;]:select-none"tabindex=-1><main class="ehpeek-reader-page-strip flex flex-col w-full min-h-full py-56px px-0 pb-72px [#ehpeek-reader[data-view-mode=paged]_&amp;]:flex-row [#ehpeek-reader[data-view-mode=paged]_&amp;]:w-auto [#ehpeek-reader[data-view-mode=paged]_&amp;]:h-full [#ehpeek-reader[data-view-mode=paged]_&amp;]:min-h-0 [#ehpeek-reader[data-view-mode=paged]_&amp;]:p-0">'), _tmpl$211 = /* @__PURE__ */ template('<section class="ehpeek-page flex w-full h-[var(--reader-page-height)] items-start justify-center pb-sm [#ehpeek-reader[data-view-mode=paged]_&amp;]:flex-[0_0_100%] [#ehpeek-reader[data-view-mode=paged]_&amp;]:w-full [#ehpeek-reader[data-view-mode=paged]_&amp;]:h-full [#ehpeek-reader[data-view-mode=paged]_&amp;]:items-center [#ehpeek-reader[data-view-mode=paged]_&amp;]:p-0"><div class="flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [#ehpeek-reader[data-view-mode=paged]_&amp;]:w-full [#ehpeek-reader[data-view-mode=paged]_&amp;]:h-full">'), _tmpl$39 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$47 = /* @__PURE__ */ template('<button type=button class="ehpeek-reader-page-reload inline-flex w-64px h-64px items-center justify-center border border-[var(--color-danger-border)] rounded-full bg-[var(--color-danger-soft)] text-[var(--color-danger)] cursor-pointer font-sans textsize-lg font-700 leading-1 active:scale-96 [touch-action:manipulation]"><span aria-hidden=true>↻'), _tmpl$54 = /* @__PURE__ */ template("<div>"), _tmpl$63 = /* @__PURE__ */ template('<span class="flex w-full h-full flex-col items-center justify-center gap-xl overflow-hidden"aria-hidden=true><span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]"></span><span class="block w-md h-md flex-none box-border animate-spin rounded-full border-4px border-solid ehp-color-spinner">'), FALLBACK_ASPECT_RATIO = 1.42;
+  var _tmpl$31 = /* @__PURE__ */ template('<div class="w-full h-full overflow-auto overscroll-contain scroll-auto touch-pan-y cursor-grab scrollbar-hidden [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [#ehpeek-reader[data-view-mode=paged]_&amp;]:overflow-hidden [#ehpeek-reader[data-view-mode=paged]_&amp;]:touch-none [#ehpeek-reader[data-view-mode=paged]_&amp;]:select-none"tabindex=-1><main class="ehpeek-reader-page-strip flex flex-col w-full min-h-full py-56px px-0 pb-72px [#ehpeek-reader[data-view-mode=paged]_&amp;]:flex-row [#ehpeek-reader[data-view-mode=paged]_&amp;]:w-auto [#ehpeek-reader[data-view-mode=paged]_&amp;]:h-full [#ehpeek-reader[data-view-mode=paged]_&amp;]:min-h-0 [#ehpeek-reader[data-view-mode=paged]_&amp;]:p-0">'), _tmpl$211 = /* @__PURE__ */ template('<section class="ehpeek-page flex w-full h-[var(--reader-page-height)] items-start justify-center pb-sm [#ehpeek-reader[data-view-mode=paged]_&amp;]:flex-[0_0_100%] [#ehpeek-reader[data-view-mode=paged]_&amp;]:w-full [#ehpeek-reader[data-view-mode=paged]_&amp;]:h-full [#ehpeek-reader[data-view-mode=paged]_&amp;]:items-center [#ehpeek-reader[data-view-mode=paged]_&amp;]:p-0"><div class="flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [#ehpeek-reader[data-view-mode=paged]_&amp;]:w-full [#ehpeek-reader[data-view-mode=paged]_&amp;]:h-full">'), _tmpl$38 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$47 = /* @__PURE__ */ template('<button type=button class="ehpeek-reader-page-reload inline-flex w-64px h-64px items-center justify-center border border-[var(--color-danger-border)] rounded-full bg-[var(--color-danger-soft)] text-[var(--color-danger)] cursor-pointer font-sans textsize-lg font-700 leading-1 active:scale-96 [touch-action:manipulation]"><span aria-hidden=true>↻'), _tmpl$54 = /* @__PURE__ */ template("<div>"), _tmpl$64 = /* @__PURE__ */ template('<span class="flex w-full h-full flex-col items-center justify-center gap-xl overflow-hidden"aria-hidden=true><span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]"></span><span class="block w-md h-md flex-none box-border animate-spin rounded-full border-4px border-solid ehp-color-spinner">'), FALLBACK_ASPECT_RATIO = 1.42;
   function pageWindowNumbers(currentPageNum, windowSize) {
     let numbers = [];
     for (let offset = -windowSize; offset <= windowSize; offset += 1)
@@ -5875,7 +5932,7 @@ body #gdt[class],
     }), onCleanup(() => {
       disposed = !0, stopMotion(), resizeFrame !== null && (window.cancelAnimationFrame(resizeFrame), resizeFrame = null);
     }), (() => {
-      var _el$ = _tmpl$30(), _el$2 = _el$.firstChild;
+      var _el$ = _tmpl$31(), _el$2 = _el$.firstChild;
       return _el$.addEventListener("wheel", (event) => {
         let delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
         props.callbacks.onWheel(delta, event);
@@ -5966,14 +6023,14 @@ body #gdt[class],
               return props.text;
             },
             get children() {
-              var _el$8 = _tmpl$63(), _el$9 = _el$8.firstChild;
+              var _el$8 = _tmpl$64(), _el$9 = _el$8.firstChild;
               return insert(_el$9, () => props.text), _el$8;
             }
           });
         },
         get children() {
           return [(() => {
-            var _el$6 = _tmpl$39();
+            var _el$6 = _tmpl$38();
             return insert(_el$6, () => props.text), _el$6;
           })(), (() => {
             var _el$7 = _tmpl$47();
@@ -6137,7 +6194,7 @@ body #gdt[class],
 `;
 
   // src/components/Widgets/ProgressBar.tsx
-  var _tmpl$31 = /* @__PURE__ */ template("<input type=range>"), PROGRESS_BAR_CLASS = "ehpeek-progress-bar", PROGRESS_BAR_CLASS_NAME = [PROGRESS_BAR_CLASS, "w-full h-[2.4em] px-[0.6em] py-0 m-0", "bg-transparent", "cursor-grab active:cursor-grabbing touch-none select-none", "[-webkit-appearance:none] [appearance:none]", "[--progress-bar-fill:0%] [--progress-bar-track-direction:to_right]", "[accent-color:var(--color-text)]"].join(" ");
+  var _tmpl$39 = /* @__PURE__ */ template("<input type=range>"), PROGRESS_BAR_CLASS = "ehpeek-progress-bar", PROGRESS_BAR_CLASS_NAME = [PROGRESS_BAR_CLASS, "w-full h-[2.4em] px-[0.6em] py-0 m-0", "bg-transparent", "cursor-grab active:cursor-grabbing touch-none select-none", "[-webkit-appearance:none] [appearance:none]", "[--progress-bar-fill:0%] [--progress-bar-track-direction:to_right]", "[accent-color:var(--color-text)]"].join(" ");
   registerGlobalStyle(PROGRESS_BAR_CLASS, ProgressBar_default);
   function ProgressBar(props) {
     let input;
@@ -6147,7 +6204,7 @@ body #gdt[class],
     });
     let currentValue = (event) => Number(event.currentTarget.value || "");
     return (() => {
-      var _el$ = _tmpl$31();
+      var _el$ = _tmpl$39();
       return _el$.addEventListener("pointercancel", (event) => {
         props.onCommit?.(currentValue(event));
       }), _el$.$$pointerup = (event) => {
@@ -7234,9 +7291,9 @@ body #gdt[class],
   }
 
   // src/App/host.ts
-  function createAppMount(className2 = "") {
+  function createAppMount(className2 = "", host = document.body ?? document.documentElement) {
     let mount = createManagedElement("div");
-    return className2 && mount.replaceClasses(className2), document.body.append(mount.Component()), mount;
+    return className2 && mount.replaceClasses(className2), host.append(mount.Component()), mount;
   }
 
   // src/App/viewport.ts
@@ -7291,7 +7348,7 @@ body #gdt[class],
         }
       },
       exit: async () => {
-        document.fullscreenElement === target && await document.exitFullscreen(), target.style.removeProperty(FULLSCREEN_UI_SCALE_PROPERTY), target.style.removeProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY);
+        document.fullscreenElement === target && await document.exitFullscreen(), snapshot && await waitForViewportSettled(), target.style.removeProperty(FULLSCREEN_UI_SCALE_PROPERTY), target.style.removeProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY);
       },
       restore,
       subscribe: (callback) => {
@@ -7321,14 +7378,25 @@ body #gdt[class],
       window.requestAnimationFrame(() => resolve());
     });
   }
+  async function waitForViewportSettled() {
+    await nextAnimationFrame(), await new Promise((resolve) => {
+      let viewport = window.visualViewport, quietTimer = window.setTimeout(finish, 80), timeoutTimer = window.setTimeout(finish, 500), onResize = () => {
+        window.clearTimeout(quietTimer), quietTimer = window.setTimeout(finish, 80);
+      };
+      function finish() {
+        viewport?.removeEventListener("resize", onResize), window.clearTimeout(quietTimer), window.clearTimeout(timeoutTimer), resolve();
+      }
+      viewport?.addEventListener("resize", onResize);
+    }), await nextAnimationFrame();
+  }
 
   // src/App/index.tsx
-  var _tmpl$49 = /* @__PURE__ */ template("<a href=#>");
+  var _tmpl$49 = /* @__PURE__ */ template("<a href=#>"), WELCOME_ICON_TIMEOUT_MS = 3e3;
   function settingsMenuState(defaults = !1) {
     let read = (setting) => defaults ? setting.defaultValue : setting.value;
     return {
       openGalleryInNewTab: read(state.app.openGalleryInNewTab),
-      singlePageAppEnabled: read(state.app.singlePage),
+      welcomeIconEnabled: read(state.app.welcomeIcon),
       readerEnabled: read(state.reader.enabled),
       readerFullscreenEnabled: read(state.reader.fullscreen),
       enhanceThumbsGridsEnabled: read(state.gallery.enhanceThumbs),
@@ -7340,7 +7408,7 @@ body #gdt[class],
     };
   }
   function applySettingsMenuState(next) {
-    state.app.openGalleryInNewTab.set(next.openGalleryInNewTab), state.app.singlePage.set(next.singlePageAppEnabled), state.reader.enabled.set(next.readerEnabled), state.reader.fullscreen.set(next.readerFullscreenEnabled), state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled), state.search.enhance.set(next.enhanceSearchGridsEnabled), state.gallery.myTags.set(next.myTagsEnabled), state.gallery.readHistory.set(next.readHistoryEnabled), state.search.history.set(next.searchHistoryEnabled), state.touch.enabled.set(next.touchUiEnabled), window.location.reload();
+    state.app.openGalleryInNewTab.set(next.openGalleryInNewTab), state.app.welcomeIcon.set(next.welcomeIconEnabled), state.reader.enabled.set(next.readerEnabled), state.reader.fullscreen.set(next.readerFullscreenEnabled), state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled), state.search.enhance.set(next.enhanceSearchGridsEnabled), state.gallery.myTags.set(next.myTagsEnabled), state.gallery.readHistory.set(next.readHistoryEnabled), state.search.history.set(next.searchHistoryEnabled), state.touch.enabled.set(next.touchUiEnabled), window.location.reload();
   }
   var gState = (() => {
     let [settingsMenuOpen, setSettingsMenuOpen] = createSignal(!1), [readProgress, setReadProgress] = createSignal({
@@ -7360,7 +7428,13 @@ body #gdt[class],
   document.documentElement.setAttribute("data-ehpeek-site", ehSiteTheme());
   registerGlobalStyle("ehpeek-uno-style", ehpeek_uno_default);
   registerGlobalStyle("ehpeek-theme-style", theme_default);
-  var settingsMenuMount = createAppMount("fixed inset-0 z-[1150] pointer-events-none"), readerCallbacks = {
+  var welcomeIconMount = gState.settings.welcomeIconEnabled ? createAppMount() : null;
+  welcomeIconMount?.mount(() => createComponent(WelcomeIcon, {}));
+  var welcomeIconTimeout = null, removeWelcomeIcon = () => {
+    welcomeIconTimeout !== null && (window.clearTimeout(welcomeIconTimeout), welcomeIconTimeout = null), welcomeIconMount?.remove();
+  };
+  welcomeIconMount && (welcomeIconTimeout = window.setTimeout(removeWelcomeIcon, WELCOME_ICON_TIMEOUT_MS));
+  var readerCallbacks = {
     enhanceThumbsGridsEnabled: gState.settings.enhanceThumbsGridsEnabled,
     readHistoryEnabled: gState.settings.readHistoryEnabled,
     onGotoPreviewIndex: (previewIndex) => {
@@ -7412,26 +7486,27 @@ body #gdt[class],
       }
     });
   }
-  typeof GM_registerMenuCommand == "function" && GM_registerMenuCommand(texts_default.settings.openSettings, () => {
-    gState.setSettingsMenuOpen(!0);
-  });
-  settingsMenuMount.mount(() => createComponent(SettingsMenu, {
-    get open() {
-      return gState.settingsMenuOpen();
-    },
-    get defaultState() {
-      return settingsMenuState(!0);
-    },
-    get initState() {
-      return gState.settings;
-    },
-    onApply: (next) => {
-      applySettingsMenuState(next);
-    },
-    get onOpenChange() {
-      return gState.setSettingsMenuOpen;
-    }
-  }));
+  function installSettingsMenu() {
+    typeof GM_registerMenuCommand == "function" && GM_registerMenuCommand(texts_default.settings.openSettings, () => {
+      gState.setSettingsMenuOpen(!0);
+    }), createAppMount("fixed inset-0 z-[1150] pointer-events-none").mount(() => createComponent(SettingsMenu, {
+      get open() {
+        return gState.settingsMenuOpen();
+      },
+      get defaultState() {
+        return settingsMenuState(!0);
+      },
+      get initState() {
+        return gState.settings;
+      },
+      onApply: (next) => {
+        applySettingsMenuState(next);
+      },
+      get onOpenChange() {
+        return gState.setSettingsMenuOpen;
+      }
+    }));
+  }
   function injectEnhanceUI(page, previewCache, searchTextInput, searchResultsDom, touchResultsDom) {
     let galleryPage = page.type === "gallery", resultsPage = page.type === "search" || page.type === "favorites", preview = previewCache?.current() ?? null, previewMount = preview?.elems.mount ?? null;
     galleryPage && preview && previewCache && gState.settings.readerEnabled && allowFeatureFailure("Reader thumbnail links", () => {
@@ -7566,6 +7641,13 @@ body #gdt[class],
     let touchResultsDom = gState.settings.touchUiEnabled ? injectTouchUI(page, galleryPreviewCache) : null;
     injectEnhanceUI(page, galleryPreviewCache, searchTextInput, searchResultsSource, touchResultsDom), page.type === "gallery" && state.reader.enabled.value && page.peekPage !== null && galleryPreviewCache && allowAsyncFeatureFailure("Reader deep link", () => openReaderFromHash(readerCallbacks, galleryPreviewCache, readerViewport));
   }
-  injectPage();
+  async function startApp() {
+    document.readyState !== "complete" && await new Promise((resolve) => {
+      window.addEventListener("load", () => resolve(), {
+        once: !0
+      });
+    }), installSettingsMenu(), await injectPage();
+  }
+  startApp().finally(removeWelcomeIcon);
   delegateEvents(["click"]);
 })();
