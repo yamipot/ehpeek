@@ -13,7 +13,7 @@ import {
   targetSummary,
 } from "../../utils";
 import type { ScrollMotion } from "../animation";
-import type { PointerDragEnd, PointerGestureCallbacks } from "../PointerGesture";
+import type { PointerGestureCallbacks } from "../PointerGesture";
 import {
   PagesViewport,
   pageWindowNumbers,
@@ -317,15 +317,11 @@ function pagesPointerGestureCallbacks(callbacks: PagesGestureCallbacks): Pointer
   const shouldObserveTap = (event: PointerEvent | MouseEvent): boolean => {
     return event instanceof PointerEvent && event.pointerType !== "mouse" && !callbacks.shouldStartDrag(event);
   };
-  const onDragEnd = (info: PointerDragEnd, event: PointerEvent | MouseEvent): void => {
-    callbacks.onDragEnd(info, event);
-  };
-
   return {
     shouldCaptureDrag: shouldStartDrag,
     onStart: callbacks.onDragStart,
     onMove: callbacks.onDragMove,
-    onEnd: onDragEnd,
+    onEnd: callbacks.onDragEnd,
     onTap: callbacks.onTap,
     dragStartThreshold: TAP_CANCEL_DISTANCE,
     tapMoveThreshold: TAP_CANCEL_DISTANCE,
@@ -1083,7 +1079,8 @@ class ReaderSession {
       return;
     }
 
-    if (this.handleViewportTap(info)) {
+    if (this.viewport.isHitEndPage(info)) {
+      this.close();
       return;
     }
 
@@ -1100,15 +1097,6 @@ class ReaderSession {
     } else {
       this.turnPageBy(zone < 1 / 3 ? this.leftTapDelta() : this.rightTapDelta());
     }
-  }
-
-  private handleViewportTap(point: { clientX: number; clientY: number }): boolean {
-    if (this.viewport.isHitEndPage(point)) {
-      this.close();
-      return true;
-    }
-
-    return false;
   }
 
   handleKeyboardClose(): boolean {
@@ -1424,8 +1412,6 @@ class ReaderSession {
   private leftDragDelta(): number {
     return -this.rightDragDelta();
   }
-
-
 }
 
 function displayedImageFileName(galleryId: number, pageNum: number, imageUrl: string): string {

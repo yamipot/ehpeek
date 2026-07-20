@@ -6,14 +6,18 @@ import texts from "../texts.json";
 const HISTORY_STATE_KEY = "ehpeekSinglePageApp";
 
 type NavigationMode = "push" | "pop";
-const NAVIGATION_REQUEST_EVENT = "ehpeek:navigation-request";
 
 type AppHistoryState = {
   scrollX: number;
   scrollY: number;
 };
 
+export type SinglePageActions = {
+  navigate: (url: string) => boolean;
+};
+
 export function SinglePage(props: {
+  actionsRef: (actions: SinglePageActions) => void;
   onPageActivate: (page: PageType) => void | Promise<void>;
   onPageDeactivate: () => void;
 }) {
@@ -40,7 +44,6 @@ export function SinglePage(props: {
     return {
       page,
       source: eh.managePageContent(response.document, response.url),
-      url: response.url,
     };
   };
 
@@ -103,7 +106,7 @@ export function SinglePage(props: {
             } satisfies AppHistoryState,
           },
           "",
-          next.url,
+          next.page.url,
         );
       }
 
@@ -133,35 +136,28 @@ export function SinglePage(props: {
     }
   };
 
+  const navigateUrl = (value: string): boolean => {
+    const url = new URL(value, window.location.href);
+    if (!eh.isSameOriginUrl(url.href) || !eh.singlePageRoute(url.href)) {
+      return false;
+    }
+
+    void navigate({ method: "GET", url: url.href }, "push");
+    return true;
+  };
+
   onMount(() => {
     let disposed = false;
     const previousScrollRestoration = window.history.scrollRestoration;
     window.history.scrollRestoration = "manual";
 
     const onPopState = (event: PopStateEvent) => {
-      const page = eh.singlePageRoute(window.location.href);
-
-      if (!page) {
+      if (!eh.singlePageRoute(window.location.href)) {
         window.location.assign(window.location.href);
         return;
       }
 
       void navigate({ method: "GET", url: window.location.href }, "pop", event.state);
-    };
-
-    const onNavigationRequest = (event: Event) => {
-      const request = event as CustomEvent<{ url?: unknown }>;
-      if (typeof request.detail?.url !== "string") {
-        return;
-      }
-
-      const url = new URL(request.detail.url, window.location.href);
-      if (!eh.isSameOriginUrl(url.href) || !eh.singlePageRoute(url.href)) {
-        return;
-      }
-
-      event.preventDefault();
-      void navigate({ method: "GET", url: url.href }, "push");
     };
 
     const initialize = async () => {
@@ -184,23 +180,21 @@ export function SinglePage(props: {
         onPageNavigation,
       );
       updateHistoryScroll();
-      document.addEventListener(NAVIGATION_REQUEST_EVENT, onNavigationRequest);
       window.addEventListener("popstate", onPopState);
       window.addEventListener("scroll", scheduleHistoryScrollUpdate, { passive: true });
 
       await props.onPageActivate(page);
     };
 
+    props.actionsRef({ navigate: navigateUrl });
     void initialize();
 
     onCleanup(() => {
       disposed = true;
       navigationController?.abort();
       disconnectPageNavigation?.();
-      disconnectPageNavigation = null;
       props.onPageDeactivate();
       window.history.scrollRestoration = previousScrollRestoration;
-      document.removeEventListener(NAVIGATION_REQUEST_EVENT, onNavigationRequest);
       window.removeEventListener("popstate", onPopState);
       window.removeEventListener("scroll", scheduleHistoryScrollUpdate);
 

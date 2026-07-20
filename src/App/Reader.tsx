@@ -84,8 +84,7 @@ export async function openOriginalReader(
   pageNum: number,
   previewCache: GalleryPreviewCache,
 ): Promise<void> {
-  const source = previewCache.current();
-  const preview = source.data;
+  const preview = previewCache.current().data;
   if (preview.pageSize === null) {
     throw new Error(texts.errors.previewPageSizeUnknown);
   }
@@ -110,13 +109,12 @@ async function openReader(
     return;
   }
 
-  const source = previewCache.current();
-  const gallery = eh.galleryIdentityFromUrl(source.data.currentUrl);
+  const preview = previewCache.current().data;
+  const gallery = eh.galleryIdentityFromUrl(preview.currentUrl);
   if (!gallery) {
     return;
   }
 
-  const preview = source.data;
   const currentPreviewIndex = preview.currentIndex;
   if (preview.pageSize === null) {
     throw new Error(texts.errors.previewPageSizeUnknown);
@@ -134,15 +132,9 @@ async function openReader(
     ? new ReadHistorySession({
       galleryId: gallery.galleryId,
       token: gallery.token,
-      galleryUrl: preview.currentUrl,
       totalPages,
     })
     : null;
-
-  if (!state.reader.enabled.value) {
-    historySession?.dispose();
-    return;
-  }
 
   const automaticFullscreen = fullscreenLaunch ? await fullscreenLaunch.result : undefined;
 

@@ -58,8 +58,9 @@ export function galleryIdentityFromUrl(url = window.location.href): { galleryId:
   try {
     const match = new URL(url, window.location.href).pathname.match(/^\/g\/(\d+)\/([^/]+)/i);
     const galleryId = Number(match?.[1]);
-    return match && Number.isSafeInteger(galleryId) && galleryId > 0
-      ? { galleryId, token: match[2] }
+    const token = match?.[2];
+    return token && Number.isSafeInteger(galleryId) && galleryId > 0
+      ? { galleryId, token }
       : null;
   } catch {
     return null;
@@ -101,10 +102,6 @@ export function singlePageRoute(url: string): PageType | null {
   return supportedSearch && supportedHash ? page : null;
 }
 
-export function supportsSinglePageRoute(url: string): boolean {
-  return singlePageRoute(url) !== null;
-}
-
 function urlPath(url: string): string {
   try {
     return new URL(url, window.location.href).pathname.toLowerCase();
@@ -134,13 +131,14 @@ export function extractPageType(url = window.location.href): PageType {
 
     if (galleryMatch) {
       const galleryId = Number(galleryMatch[1]);
+      const token = galleryMatch[2];
 
-      if (Number.isFinite(galleryId) && galleryId > 0) {
+      if (token && Number.isFinite(galleryId) && galleryId > 0) {
         return {
           type: "gallery",
           url: parsed.href,
           galleryId,
-          token: galleryMatch[2],
+          token,
           previewIndex: previewPageIndex(parsed.href),
           peekPage: peekPageFromHash(parsed.hash),
         };
@@ -204,22 +202,6 @@ export function extractPageType(url = window.location.href): PageType {
 export function galleryPageNumber(url: string): number | undefined {
   const page = extractPageType(url);
   return page.type === "image" ? page.pageNum : undefined;
-}
-
-export function previewPageIndexFromUrl(url: string, pageUrl = window.location.href): number | null {
-  try {
-    const parsed = new URL(url, pageUrl);
-    const current = new URL(pageUrl);
-
-    if (parsed.origin !== current.origin || parsed.pathname !== current.pathname) {
-      return null;
-    }
-
-    const value = Number(parsed.searchParams.get("p") || "0");
-    return Number.isFinite(value) && value >= 0 ? value : null;
-  } catch {
-    return null;
-  }
 }
 
 export function previewPageIndex(url = window.location.href): number {

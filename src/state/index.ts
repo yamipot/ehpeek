@@ -1,5 +1,3 @@
-export * from "./readHistory";
-
 export type ViewMode = "scroll" | "paged";
 export type ReadDirection = "ltr" | "rtl";
 export type RightTapAction = "previous" | "next";

@@ -41,37 +41,25 @@ import {
   createGalleryPreviewCache,
   type GalleryPreviewCache,
 } from "./GalleryPreviewCache";
-import { SinglePage } from "./SinglePage";
+import { SinglePage, type SinglePageActions } from "./SinglePage";
 import { createAppMount } from "./host";
 import { readerViewport } from "./viewport";
 
-function settingsMenuState() {
-  return {
-    openGalleryInNewTab: state.app.openGalleryInNewTab.value,
-    singlePageAppEnabled: state.app.singlePage.value,
-    readerEnabled: state.reader.enabled.value,
-    readerFullscreenEnabled: state.reader.fullscreen.value,
-    enhanceThumbsGridsEnabled: state.gallery.enhanceThumbs.value,
-    enhanceSearchGridsEnabled: state.search.enhance.value,
-    myTagsEnabled: state.gallery.myTags.value,
-    readHistoryEnabled: state.gallery.readHistory.value,
-    searchHistoryEnabled: state.search.history.value,
-    touchUiEnabled: state.touch.enabled.value,
-  };
-}
+function settingsMenuState(defaults = false) {
+  const read = <T,>(setting: { defaultValue: T; value: T }): T =>
+    defaults ? setting.defaultValue : setting.value;
 
-function defaultSettingsMenuState(): ReturnType<typeof settingsMenuState> {
   return {
-    openGalleryInNewTab: state.app.openGalleryInNewTab.defaultValue,
-    singlePageAppEnabled: state.app.singlePage.defaultValue,
-    readerEnabled: state.reader.enabled.defaultValue,
-    readerFullscreenEnabled: state.reader.fullscreen.defaultValue,
-    enhanceThumbsGridsEnabled: state.gallery.enhanceThumbs.defaultValue,
-    enhanceSearchGridsEnabled: state.search.enhance.defaultValue,
-    myTagsEnabled: state.gallery.myTags.defaultValue,
-    readHistoryEnabled: state.gallery.readHistory.defaultValue,
-    searchHistoryEnabled: state.search.history.defaultValue,
-    touchUiEnabled: state.touch.enabled.defaultValue,
+    openGalleryInNewTab: read(state.app.openGalleryInNewTab),
+    singlePageAppEnabled: read(state.app.singlePage),
+    readerEnabled: read(state.reader.enabled),
+    readerFullscreenEnabled: read(state.reader.fullscreen),
+    enhanceThumbsGridsEnabled: read(state.gallery.enhanceThumbs),
+    enhanceSearchGridsEnabled: read(state.search.enhance),
+    myTagsEnabled: read(state.gallery.myTags),
+    readHistoryEnabled: read(state.gallery.readHistory),
+    searchHistoryEnabled: read(state.search.history),
+    touchUiEnabled: read(state.touch.enabled),
   };
 }
 
@@ -105,6 +93,7 @@ const [readProgress, setReadProgress] = createSignal({
   totalPages: null as number | null,
 });
 let thumbsGridsActions: ThumbsGridsActions | undefined;
+let singlePageActions: SinglePageActions | undefined;
 const readerCallbacks: ReaderCallbacks = {
   enhanceThumbsGridsEnabled: settingsState.enhanceThumbsGridsEnabled,
   readHistoryEnabled: settingsState.readHistoryEnabled,
@@ -154,8 +143,7 @@ function openGalleryPage(
 
 function openFromReadButton(previewCache: GalleryPreviewCache): void {
   const pageNum = readProgress().currentPage;
-  const source = previewCache.current();
-  const firstPage = source.data.pages[0];
+  const firstPage = previewCache.current().data.pages[0];
   if (firstPage) {
     openGalleryPage(previewCache, firstPage.url, pageNum);
   }
@@ -184,7 +172,7 @@ if (typeof GM_registerMenuCommand === "function") {
 settingsMenuMount.mount(() => (
   <SettingsMenu
     open={settingsMenuOpen()}
-    defaultState={defaultSettingsMenuState()}
+    defaultState={settingsMenuState(true)}
     initState={settingsState}
     onApply={(next) => {
       applySettingsMenuState(next);
@@ -302,6 +290,7 @@ function injectEnhanceUI(
     host.mount(() => (
       <EnhanceSearchGrids
         source={searchResultsDom}
+        onNavigateRequest={(url) => singlePageActions?.navigate(url) ?? false}
         onPageChange={(source) => {
           if (settingsState.openGalleryInNewTab) {
             source.handle.transformGalleryLinksToNewTab();
@@ -329,7 +318,7 @@ function injectTouchUI(
   const resultsPage = page.type === "search" || page.type === "favorites";
   const preview = previewCache?.current() ?? null;
   const resultsDom = resultsPage
-    ? eh.manageTouchResultsPage(page, singlePageInitialRoute)
+    ? eh.manageTouchResultsPage(page, singlePageActive)
     : null;
   if (resultsDom) {
     pageCleanups.add(resultsDom.handle.reset);
@@ -439,11 +428,21 @@ function injectTouchUI(
 }
 
 async function injectPage(nextPage: eh.PageType): Promise<void> {
-  const pageType = nextPage;
-  const galleryPage = pageType.type === "gallery";
+  const galleryPage = nextPage.type === "gallery";
   const resultsPage =
-    pageType.type === "search" || pageType.type === "favorites";
+    nextPage.type === "search" || nextPage.type === "favorites";
   const generation = ++pageGeneration;
+
+  if (settingsState.touchUiEnabled) {
+    await eh.EhSyringe.waitForInitialUi();
+    if (nextPage.type === "search") {
+      await eh.EhSyringe.waitForSearchUi();
+    }
+    if (generation !== pageGeneration) {
+      return;
+    }
+  }
+
   if (galleryPage) {
     eh.manageGalleryApiSession();
   }
@@ -451,8 +450,8 @@ async function injectPage(nextPage: eh.PageType): Promise<void> {
   const galleryPreviewCache = galleryPreview
     ? createGalleryPreviewCache(galleryPreview)
     : null;
-  if (pageType.type === "gallery" && galleryPreview) {
-    const record = loadReadHistory(pageType.galleryId, pageType.token);
+  if (nextPage.type === "gallery" && galleryPreview) {
+    const record = loadReadHistory(nextPage.galleryId, nextPage.token);
     setReadProgress({
       currentPage: record?.pageNum && record.pageNum > 0 ? record.pageNum : 1,
       totalPages: record?.totalPages ?? galleryPreview.data.totalImages,
@@ -468,7 +467,7 @@ async function injectPage(nextPage: eh.PageType): Promise<void> {
   let myTagAppearances: Awaited<ReturnType<typeof loadMyTagAppearances>> = null;
 
   if (settingsState.myTagsEnabled) {
-    if (pageType.type === "myTags") {
+    if (nextPage.type === "myTags") {
       const currentMyTags = eh.extractMyTagsPageData();
       if (currentMyTags) {
         await refreshMyTags(currentMyTags);
@@ -486,36 +485,25 @@ async function injectPage(nextPage: eh.PageType): Promise<void> {
     pageCleanups.add(eh.mutateGalleryMyTags(myTagAppearances));
   }
 
-  if (settingsState.readHistoryEnabled && pageType.type === "image") {
+  if (settingsState.readHistoryEnabled && nextPage.type === "image") {
     const gallery = eh.extractImageGalleryPage();
-    if (gallery?.galleryId === pageType.galleryId) {
+    if (gallery?.galleryId === nextPage.galleryId) {
       const previous = loadReadHistory(gallery.galleryId, gallery.token);
       const historySession = new ReadHistorySession({
         galleryId: gallery.galleryId,
         token: gallery.token,
-        galleryUrl: gallery.url,
         totalPages: previous?.totalPages,
       });
-      historySession.update(pageType.pageNum, previous?.totalPages);
+      historySession.update(nextPage.pageNum, previous?.totalPages);
       pageCleanups.add(() => historySession.dispose());
     }
   }
 
-  if (settingsState.touchUiEnabled) {
-    await eh.EhSyringe.waitForInitialUi();
-    if (pageType.type === "search") {
-      await eh.EhSyringe.waitForSearchUi();
-    }
-    if (generation !== pageGeneration) {
-      return;
-    }
-  }
-
   const touchResultsDom = settingsState.touchUiEnabled
-    ? injectTouchUI(pageType, galleryPreviewCache)
+    ? injectTouchUI(nextPage, galleryPreviewCache)
     : null;
   injectEnhanceUI(
-    pageType,
+    nextPage,
     galleryPreviewCache,
     searchTextInput,
     searchResultsSource,
@@ -523,9 +511,9 @@ async function injectPage(nextPage: eh.PageType): Promise<void> {
   );
 
   if (
-    pageType.type === "gallery" &&
+    nextPage.type === "gallery" &&
     state.reader.enabled.value &&
-    pageType.peekPage !== null
+    nextPage.peekPage !== null
   ) {
     if (galleryPreviewCache) {
       void openReaderFromHash(
@@ -537,20 +525,22 @@ async function injectPage(nextPage: eh.PageType): Promise<void> {
   }
 }
 
-const initialPage = eh.extractPageType();
-const singlePageInitialRoute =
+const singlePageActive =
   settingsState.touchUiEnabled &&
   settingsState.singlePageAppEnabled &&
-  eh.supportsSinglePageRoute(window.location.href);
+  eh.singlePageRoute(window.location.href) !== null;
 
-if (singlePageInitialRoute) {
+if (singlePageActive) {
   const host = createAppMount("isolate", true);
   host.mount(() => (
     <SinglePage
+      actionsRef={(actions) => {
+        singlePageActions = actions;
+      }}
       onPageActivate={(page) => injectPage(page)}
       onPageDeactivate={deactivatePage}
     />
   ));
 } else {
-  void injectPage(initialPage);
+  void injectPage(eh.extractPageType());
 }

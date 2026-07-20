@@ -15,9 +15,12 @@ const ROUTE_TRANSLATION_TIMEOUT_MS = 450;
 const ROUTE_TRANSLATION_QUIET_MS = 48;
 let initialUiReady: Promise<void> | null = null;
 let tagTipInput: ManagedDomNode<HTMLInputElement> | null = null;
+let injectionWatcherStarted = false;
+let tagTipWatcherStarted = false;
 
 /** Waits for EhSyringe's initial translation pass before EhPeek transforms the page. */
 export function waitForInitialUi(): Promise<void> {
+  watchForSuccessfulInjection();
   initialUiReady ??= waitForExpectedInitialUi();
   return initialUiReady;
 }
@@ -72,7 +75,7 @@ export async function waitForRouteTranslation(
 export function reuseTagTipInput(
   target: ManagedDomNode<HTMLInputElement>,
 ): ManagedDomNode<HTMLInputElement> {
-  captureTagTipInput();
+  watchForTagTipInput();
 
   if (!tagTipInput || tagTipInput.Component().isConnected) {
     return target;
@@ -186,6 +189,11 @@ function translationProbe(): HTMLSpanElement {
 }
 
 function watchForSuccessfulInjection(): void {
+  if (injectionWatcherStarted) {
+    return;
+  }
+  injectionWatcherStarted = true;
+
   if (initialUiLoaded()) {
     setDetected(true);
     return;
@@ -254,6 +262,11 @@ function captureTagTipInput(): boolean {
 }
 
 function watchForTagTipInput(): void {
+  if (tagTipWatcherStarted) {
+    return;
+  }
+  tagTipWatcherStarted = true;
+
   if (captureTagTipInput()) {
     return;
   }
@@ -271,6 +284,3 @@ function watchForTagTipInput(): void {
     subtree: true,
   });
 }
-
-watchForSuccessfulInjection();
-watchForTagTipInput();

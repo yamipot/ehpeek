@@ -19,6 +19,7 @@ import type {
 import { galleryTagNameFromUrl } from "../url";
 import {
   createAnchor,
+  createManagedElement,
   DomNode,
   type ManagedDomElements,
   type ManagedDomNode,
@@ -245,9 +246,10 @@ export function manageGalleryInfo(
 
   const manageTagGroups = (): GalleryInfoTagGroup[] => readTagGroups().map((group) => ({
     namespace: group.namespace,
-    tags: group.tags.flatMap(({ data: tag, source }) => {
-      return [{ ...tag, contentSource: source.inplace() }];
-    }),
+    tags: group.tags.map(({ data: tag, source }) => ({
+      ...tag,
+      contentSource: source.inplace(),
+    })),
   }));
 
   const meta = readMeta();
@@ -273,7 +275,6 @@ export function manageGalleryInfo(
       return { ...tag, contentSourceIndex };
     }),
   }));
-  const totalPages = preview?.totalImages ?? null;
   const data = {
     category: category?.text() ?? "",
     categoryAppearance: readCategory(categoryStyle),
@@ -286,8 +287,8 @@ export function manageGalleryInfo(
     ),
     summary: [
       meta.get("language"),
-      totalPages
-        ? `${totalPages} ${texts.reader.pages.toLowerCase()}`
+      preview?.totalImages
+        ? `${preview.totalImages} ${texts.reader.pages.toLowerCase()}`
         : undefined,
       meta.get("file size") ?? meta.get("size"),
       meta.get("favorited"),
@@ -305,27 +306,8 @@ export function manageGalleryInfo(
   const hostChildSources = host
     .all<HTMLElement>(":scope > *")
     .filter((child) => !newTag?.sameNode(child));
-  const sources = [
-    host,
-    ...hostChildSources,
-    ...actionSources.map(({ node }) => node),
-    ...tagContentSources,
-    ...(coverUrl && coverSource ? [coverSource] : []),
-    ...(newTag && newTagButton && newTagField && newTagForm
-      ? [newTag, newTagButton, newTagField, newTagForm]
-      : []),
-  ];
-  if (
-    sources.some(
-      (source, index) =>
-        sources.slice(0, index).some((previous) => source.sameNode(previous)),
-    )
-  ) {
-    return null;
-  }
-
   const coverElem = coverUrl
-    ? (coverSource ?? DomNode.from(document.createElement("img"))).clone()
+    ? (coverSource?.clone() ?? createManagedElement("img"))
     : null;
   const actionElems = actionSources.map(({ node }) => node.clone(false));
   const newTagButtonElem = newTagButton?.inplace() ?? null;
@@ -473,9 +455,7 @@ export function manageGalleryInfo(
       template.innerHTML = tagPane;
       tagList.replaceChildren(...Array.from(template.content.childNodes));
     },
-    async updateFavorite(actionUrl: string, value: string): Promise<void> {
-      await updateGalleryFavorite(actionUrl, value);
-    },
+    updateFavorite: updateGalleryFavorite,
   };
 
   return { data, elems, handle };

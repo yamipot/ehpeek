@@ -1,5 +1,11 @@
 import { normalizeUrl } from "../../utils";
-import { createAnchor, DomNode, type ManagedDomElements, type ManagedDomNode } from "./core";
+import {
+  createAnchor,
+  createManagedElement,
+  DomNode,
+  type ManagedDomElements,
+  type ManagedDomNode,
+} from "./core";
 
 export type SearchPanelClasses = {
   actionMount: string;
@@ -73,7 +79,7 @@ export function manageSearchPanel() {
   const categoryItemElems = categoryItems.map((item) => item.inplace());
   const categoryMaskElem = categoryMask?.inplace() ?? null;
   const optionLinkElems = optionLinkItems.map((link) => link.inplace());
-  const searchControlsElem = DomNode.from(document.createElement("div")).inplace();
+  const searchControlsElem = createManagedElement("div");
   const searchBoxElem = sourceSearchBoxElem ?? searchControlsElem;
 
   const targetElem = sourceSearchBoxElem ?? formElem;
@@ -82,28 +88,22 @@ export function manageSearchPanel() {
     searchBoxElem.remove();
   }
   searchInputElem.before(searchControlsElem);
-  searchInputElem.remove();
   searchControlsElem.append(searchInputElem);
-  searchSubmitElem.replaceWith(searchActionMount);
   searchSubmitElem.remove();
   if (clearButtonElem && clearActionMount) {
-    clearButtonElem.replaceWith(clearActionMount);
     clearButtonElem.remove();
     searchControlsElem.append(clearActionMount);
   }
   searchControlsElem.append(searchActionMount);
   if (categoriesElem && optionLinksElem && categoryToggleMount) {
-    categoriesElem.remove();
     optionLinksElem.after(categoriesElem);
     optionLinksElem.prepend(categoryToggleMount);
   }
   if (advancedToggleElem && advancedToggleMount) {
     advancedToggleElem.replaceWith(advancedToggleMount);
-    advancedToggleElem.remove();
   }
   if (fileSearchToggleElem && fileSearchToggleMount) {
     fileSearchToggleElem.replaceWith(fileSearchToggleMount);
-    fileSearchToggleElem.remove();
   }
   fileSearchElem?.remove();
 
@@ -244,7 +244,7 @@ function attachCategoryActions(
 ): void {
   categories.forEach((category, index) => {
     const categoryBit = bits[index];
-    if (!mask || !Number.isInteger(categoryBit) || categoryBit <= 0) {
+    if (!mask || categoryBit === undefined || !Number.isInteger(categoryBit) || categoryBit <= 0) {
       return;
     }
     const update = () => category.transform({

@@ -1,7 +1,7 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, untrack } from "solid-js";
 import type { ReadDirection, ViewMode } from "../../state";
 import texts from "../../texts.json";
-import { clamp, normalizedAspectRatio } from "../../utils";
+import { clamp, normalizedAspectRatio, positiveNumber } from "../../utils";
 import { ScrollAnimator, ScrollFlingAnimator, type ScrollMotion } from "../animation";
 import { createPointerGestureElement, type PointerGestureCallbacks } from "../PointerGesture";
 
@@ -326,8 +326,8 @@ export function PagesViewport(props: {
       slot.state = "ready";
       slot.image = image;
       slot.errorMessage = null;
-      slot.width = positiveDimension(image.naturalWidth) ?? slotImage.width;
-      slot.height = positiveDimension(image.naturalHeight) ?? slotImage.height;
+      slot.width = positiveNumber(image.naturalWidth) ?? slotImage.width;
+      slot.height = positiveNumber(image.naturalHeight) ?? slotImage.height;
       refreshSlot(slot);
       return true;
     },
@@ -664,10 +664,6 @@ function slotPlaceholderText(content: SlotContent): string {
   }
 
   return String(content.pageNum);
-}
-
-function positiveDimension(value: number): number | null {
-  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 function pageSlotKind(pageNum: number, totalPages: number | undefined): PageSlotKind {

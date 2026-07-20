@@ -19,17 +19,14 @@ export function managePageContent(
 ) {
   const documentSource = DomNode.from(root);
   const container = root instanceof Document ? DomNode.from(root.body) : DomNode.from(root);
-  const page = container;
   const persistent = (node: DomNode<HTMLElement>) =>
     node.matches(PERSISTENT_SELECTOR) || node.closest(PERSISTENT_SELECTOR) !== null;
-  const scriptSources = page.all<HTMLScriptElement>("script").filter((script) => !persistent(script));
+  const scriptSources = container.all<HTMLScriptElement>("script").filter((script) => !persistent(script));
   const scriptTexts = scriptSources.map((script) => script.text());
-  const sources = page.all<HTMLElement>("*").filter((node) => !persistent(node));
+  const sources = container.all<HTMLElement>("*").filter((node) => !persistent(node));
   const contentSources = container.children().filter((node) => !persistent(node));
 
   manageGalleryApiSession(root, baseUrl);
-
-  const own = <T extends HTMLElement>(source: DomNode<T>) => source.inplace();
 
   const absoluteAttributes: Array<[string, string]> = [
     ["a[href]", "href"],
@@ -40,31 +37,31 @@ export function managePageContent(
     ["source[src]", "src"],
   ];
   for (const [selector, attribute] of absoluteAttributes) {
-    for (const source of page.all<HTMLElement>(selector).filter((node) => !persistent(node))) {
+    for (const source of container.all<HTMLElement>(selector).filter((node) => !persistent(node))) {
       const value = source.attribute(attribute);
       if (!value || value.startsWith("#") || /^(?:data|javascript|mailto):/i.test(value)) {
         continue;
       }
-      own(source).attribute(attribute, normalizeUrl(value, baseUrl));
+      source.inplace().attribute(attribute, normalizeUrl(value, baseUrl));
     }
   }
 
-  const fileSearch = page.one<HTMLElement>("#fsdiv");
+  const fileSearch = container.one<HTMLElement>("#fsdiv");
   const uploadScript = scriptTexts.find((text) => text.includes("ulhost")) ?? "";
   const uploadBase = uploadScript.match(/\bulhost\s*=\s*["']([^"']+)["']/)?.[1];
   if (fileSearch && uploadBase) {
-    own(fileSearch).attribute(
+    fileSearch.inplace().attribute(
       "data-ehpeek-file-search-action",
       new URL("image_lookup.php", normalizeUrl(uploadBase, baseUrl)).href,
     );
   }
 
-  for (const source of page.all<HTMLAnchorElement>("#gd5 a[onclick]")) {
+  for (const source of container.all<HTMLAnchorElement>("#gd5 a[onclick]")) {
     const popupUrl = (source.attribute("onclick") ?? "").match(/\bpopUp\(['"]([^'"]+)['"]/)?.[1];
     if (!popupUrl) {
       continue;
     }
-    own(source).transform({
+    source.inplace().transform({
       attributes: {
         set: {
           href: new URL(popupUrl, baseUrl).href,
@@ -77,9 +74,9 @@ export function managePageContent(
 
   const ratingScript = scriptTexts.find((text) => text.includes("display_rating"));
   const rating = ratingScript ? scriptNumberValue(ratingScript, "display_rating") : null;
-  const ratingImage = page.one<HTMLElement>("#rating_image");
+  const ratingImage = container.one<HTMLElement>("#rating_image");
   if (ratingImage && rating !== null) {
-    own(ratingImage).attribute("data-ehpeek-rating", String(rating));
+    ratingImage.inplace().attribute("data-ehpeek-rating", String(rating));
   }
 
   const gallery = galleryIdentityFromUrl(baseUrl);
@@ -87,21 +84,21 @@ export function managePageContent(
   const favoriteMatch = favoriteScript?.match(
     /popbase\s*=\s*base_url\s*\+\s*"gallerypopups\.php\?gid=(\d+)&t=([^"&]+)&act="/,
   );
-  const favorite = page.one<HTMLElement>("#fav");
+  const favorite = container.one<HTMLElement>("#fav");
   if (
     favorite &&
     gallery &&
     Number(favoriteMatch?.[1]) === gallery.galleryId &&
     favoriteMatch?.[2] === gallery.token
   ) {
-    own(favorite).attribute(
+    favorite.inplace().attribute(
       "data-ehpeek-action-url",
       `/gallerypopups.php?gid=${favoriteMatch[1]}&t=${favoriteMatch[2]}&act=addfav`,
     );
   }
 
   for (const source of sources) {
-    const managedSource = own(source);
+    const managedSource = source.inplace();
     const inlineAttributes = source.attributeNames().filter((name) => /^on/i.test(name));
     const handlers = inlineAttributes.map((name) => source.attribute(name) ?? "");
     const attributes: Record<string, string> = {};
@@ -122,9 +119,9 @@ export function managePageContent(
     });
   }
 
-  scriptSources.forEach((script) => own(script).remove());
+  scriptSources.forEach((script) => script.inplace().remove());
   const content = contentSources.map((source) => {
-    const node = own(source);
+    const node = source.inplace();
     node.remove();
     return node;
   });
@@ -223,8 +220,6 @@ export function managePageContent(
 
   return { data, elems, handle };
 }
-
-export type PageContentDom = ReturnType<typeof managePageContent>;
 
 function scriptNumberValue(script: string, name: string): number | null {
   const match = script.match(new RegExp(`\\b(?:var\\s+)?${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`));

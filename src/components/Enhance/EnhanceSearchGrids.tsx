@@ -9,9 +9,9 @@ const SWIPE_MIN_DISTANCE = 96;
 const SWIPE_INTENT_DISTANCE = 28;
 const HORIZONTAL_INTENT_RATIO = 2.2;
 const SWIPE_MAX_VERTICAL_RATIO = 0.38;
-const NAVIGATION_REQUEST_EVENT = "ehpeek:navigation-request";
 
 export function EnhanceSearchGrids(props: {
+  onNavigateRequest?: (url: string) => boolean;
   onPageChange: (source: eh.SearchResultsDom) => void;
   source: eh.SearchResultsDom;
 }) {
@@ -41,12 +41,7 @@ export function EnhanceSearchGrids(props: {
   };
 
   const navigate = async (url: string): Promise<void> => {
-    const navigationRequest = new CustomEvent(NAVIGATION_REQUEST_EVENT, {
-      cancelable: true,
-      detail: { url },
-    });
-    document.dispatchEvent(navigationRequest);
-    if (navigationRequest.defaultPrevented || navigationLoading) {
+    if (props.onNavigateRequest?.(url) || navigationLoading) {
       return;
     }
 

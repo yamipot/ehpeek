@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 
-export function LoadingSpinner(props: { label: string; size?: "md" | "lg" }) {
+function LoadingSpinner(props: { label: string; size?: "md" | "lg" }) {
   const sizeClass = () => props.size === "lg" ? "w-sm h-sm border-4" : "w-xs h-xs border-3";
 
   return (

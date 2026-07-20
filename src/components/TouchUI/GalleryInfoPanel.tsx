@@ -61,10 +61,10 @@ export function GalleryInfoPanel(props: {
   );
   const initialTagGroups = source.data.tagGroups.map((group) => ({
     ...group,
-    tags: group.tags.map(({ contentSourceIndex, ...tag }) => ({
-      ...tag,
-      contentSource: source.elems.tagContents[contentSourceIndex],
-    })),
+    tags: group.tags.flatMap(({ contentSourceIndex, ...tag }) => {
+      const contentSource = source.elems.tagContents[contentSourceIndex];
+      return contentSource ? [{ ...tag, contentSource }] : [];
+    }),
   }));
   const [tagGroups, setTagGroups] =
     createSignal<GalleryPanelTagGroup[]>(initialTagGroups);
@@ -77,11 +77,12 @@ export function GalleryInfoPanel(props: {
         source.elems.newTagForm,
     );
   const displayedRating = createMemo(() => ratingPreview() ?? ratingValue());
-  const ratingLabel = createMemo(() =>
-    ratingPreview()
-      ? `Rate as ${ratingPreview()!.toFixed(1)} stars`
-      : ratingValueLabel(),
-  );
+  const ratingLabel = createMemo(() => {
+    const preview = ratingPreview();
+    return preview !== null
+      ? `Rate as ${preview.toFixed(1)} stars`
+      : ratingValueLabel();
+  });
 
   onMount(() => {
     const stopObservingTags = source.handle.observeTagGroups(setTagGroups);

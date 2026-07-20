@@ -31,9 +31,7 @@ export function manageSearchResults() {
     return null;
   }
   const resultList = resultSource.inplace();
-  const navigationBars = page.all<HTMLElement>(".searchnav").flatMap((source) => {
-    return [source.inplace()];
-  });
+  const navigationBars = page.all<HTMLElement>(".searchnav").map((source) => source.inplace());
   const data = {
     nextUrl: page.one<HTMLAnchorElement>(".searchnav a[id$='next'][href]")?.attribute("href") ?? null,
     previousUrl: page.one<HTMLAnchorElement>(".searchnav a[id$='prev'][href]")?.attribute("href") ?? null,
@@ -141,23 +139,19 @@ export function manageSearchTextInput() {
         }
         callbacks.onOutsidePointer();
       };
-      input.listen("input", update);
-      input.listen("focus", callbacks.onFocus);
-      input.listen("pointerdown", callbacks.onFocus);
-      input.listen("keydown", callbacks.onKeyDown);
-      form?.listen("submit", submitValue);
-      submit.listen("click", submitValue);
+      const disconnect = [
+        input.listen("input", update),
+        input.listen("focus", callbacks.onFocus),
+        input.listen("pointerdown", callbacks.onFocus),
+        input.listen("keydown", callbacks.onKeyDown),
+        submit.listen("click", submitValue),
+        ...(form ? [form.listen("submit", submitValue)] : []),
+      ];
       document.addEventListener("pointerdown", outsidePointer, true);
       document.addEventListener("scroll", callbacks.onPositionChange, true);
       window.addEventListener("resize", callbacks.onPositionChange);
       return () => {
-        const inputNode = input.Component();
-        inputNode.removeEventListener("input", update);
-        inputNode.removeEventListener("focus", callbacks.onFocus);
-        inputNode.removeEventListener("pointerdown", callbacks.onFocus);
-        inputNode.removeEventListener("keydown", callbacks.onKeyDown);
-        form?.Component().removeEventListener("submit", submitValue);
-        submit.Component().removeEventListener("click", submitValue);
+        disconnect.forEach((cleanup) => cleanup());
         document.removeEventListener("pointerdown", outsidePointer, true);
         document.removeEventListener("scroll", callbacks.onPositionChange, true);
         window.removeEventListener("resize", callbacks.onPositionChange);
@@ -194,10 +188,12 @@ function applySearchGrid(): void {
     return;
   }
 
-  const body = resultList.one<HTMLElement>("tbody");
-  const rows = resultList.all<HTMLTableRowElement>("tbody > tr").map(resolveSearchGridRow).filter(isSearchGridRow);
+  const rows = resultList
+    .all<HTMLTableRowElement>("tbody > tr")
+    .map(resolveSearchGridRow)
+    .filter((row): row is SearchGridRow => row !== null);
   const resultListElem = resultList.inplace();
-  const bodyElem = body?.inplace() ?? null;
+  const bodyElem = resultList.one<HTMLElement>("tbody")?.inplace() ?? null;
 
   resultListElem
     .transform({ hidden: false })
@@ -213,17 +209,17 @@ function applySearchGrid(): void {
   }
 
   type SearchGridRow = NonNullable<ReturnType<typeof resolveSearchGridRow>>;
-  
+
   function resolveSearchGridRow(row: DomNode<HTMLTableRowElement>) {
     const thumbnailCell = row.one<HTMLElement>(":scope > .gl1e");
     const contentCell = row.one<HTMLElement>(":scope > .gl2e");
     const detail = contentCell?.one<HTMLElement>(".gl4e");
     const metadata = contentCell?.one<HTMLElement>(".gl3e");
-  
+
     if (!thumbnailCell || !contentCell || !detail || !metadata) {
       return null;
     }
-  
+
     const title = detail.one<HTMLElement>(":scope > .glink");
     const parent = detail.parent();
     const galleryLink = parent?.matches("a[href]") ? parent : null;
@@ -251,17 +247,13 @@ function applySearchGrid(): void {
     };
   }
   
-  function isSearchGridRow(row: ReturnType<typeof resolveSearchGridRow>): row is SearchGridRow {
-    return row !== null;
-  }
-  
   function applySearchGridRow(source: SearchGridRow): void {
     const row = source.row.inplace();
     const thumbnailCell = source.thumbnailCell.inplace();
     const contentCell = source.contentCell.inplace();
     const detail = source.detail.inplace();
     const metadata = source.metadata.inplace();
-  
+
     row.styles({
       display: "grid",
       "grid-template-columns": source.selectionCell
@@ -285,7 +277,7 @@ function applySearchGrid(): void {
     source.image?.inplace().styles({ width: "100%", height: "auto" }, "important");
     applySearchGridContent(source, contentCell, detail, metadata);
   }
-  
+
   function applySearchGridContent(
     source: SearchGridRow,
     contentCell: ManagedDomNode,
@@ -295,7 +287,7 @@ function applySearchGrid(): void {
     const tags = source.tags.map((node) => node.inplace());
     const title = source.title?.inplace() ?? null;
     const galleryLink = source.galleryLink?.inplace() ?? null;
-  
+
     if (galleryLink && title && source.galleryHref) {
       const titleLink = createManagedElement("a")
         .attribute("href", source.galleryHref)
@@ -308,7 +300,7 @@ function applySearchGrid(): void {
     } else if (title) {
       title.after(metadata);
     }
-  
+
     title?.styles({
       height: "auto",
       "min-height": "0",
@@ -373,9 +365,6 @@ function applySearchGrid(): void {
     }
     for (const itemSource of source.metadataItems) {
       const item = itemSource.inplace();
-      if (!item) {
-        continue;
-      }
       item.styles({
         float: "none",
         position: "static",
@@ -385,7 +374,7 @@ function applySearchGrid(): void {
         "font-size": "var(--font-size-sm)",
         "font-weight": "600",
       }, "important");
-  
+
       if (itemSource.matches(".ir, .gldown")) {
         item.removeStyles("width", "height");
         continue;
@@ -550,8 +539,13 @@ function replaceSearchNavigationBars(doc: Document): void {
   const count = Math.min(currentBars.length, incomingBars.length);
 
   for (let index = 0; index < count; index += 1) {
-    const current = currentBars[index].inplace();
-    const incoming = incomingBars[index].clone();
+    const currentSource = currentBars[index];
+    const incomingSource = incomingBars[index];
+    if (!currentSource || !incomingSource) {
+      continue;
+    }
+    const current = currentSource.inplace();
+    const incoming = incomingSource.clone();
     current.replaceWith(incoming);
   }
 }

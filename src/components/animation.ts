@@ -1,10 +1,8 @@
 import { clamp } from "../utils";
 
-type ScrollAnimationMode = "none" | "native" | "raf";
 type ScrollAxis = "x" | "y";
 export type ScrollMotion = "instant" | "animated";
 
-const SCROLL_ANIMATION_MODE: ScrollAnimationMode = "raf";
 const SCROLL_ANIMATION_MS = 180;
 const SCROLL_EASING_POWER = 3;
 const ANIMATION_FRAME_MIN_DELTA_MS = 1;
@@ -21,15 +19,9 @@ export class ScrollAnimator {
   scrollTo(scroller: HTMLElement, target: number, motion: ScrollMotion = "instant", onComplete?: () => void): void {
     this.cancel();
 
-    if (motion !== "animated" || SCROLL_ANIMATION_MODE === "none") {
+    if (motion !== "animated") {
       this.setScrollPosition(scroller, target);
       onComplete?.();
-      return;
-    }
-
-    if (SCROLL_ANIMATION_MODE === "native") {
-      scroller.scrollTo(this.axis === "x" ? { left: target, behavior: "smooth" } : { top: target, behavior: "smooth" });
-      window.setTimeout(() => onComplete?.(), SCROLL_ANIMATION_MS);
       return;
     }
 

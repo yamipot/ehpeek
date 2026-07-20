@@ -14,6 +14,12 @@ export function BackToTop() {
   let dragged = false;
   const [visible, setVisible] = createSignal(false);
   const [position, setPosition] = createSignal<ButtonPosition | null>(null);
+  const positionStyle = () => {
+    const current = position();
+    return current
+      ? { bottom: `${current.bottom}px`, right: `${current.right}px` }
+      : undefined;
+  };
 
   onMount(() => {
     const updateVisibility = () => {
@@ -36,7 +42,7 @@ export function BackToTop() {
         ref={button}
         type="button"
         class="ehpeek-back-to-top fixed right-[max(16px,env(safe-area-inset-right,0px))] bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_64px)] z-ui inline-flex w-lg h-lg items-center justify-center rounded-full border ehp-color-site-border bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96"
-        style={position() ? { bottom: `${position()!.bottom}px`, right: `${position()!.right}px` } : undefined}
+        style={positionStyle()}
         onPointerDown={(event) => {
           const rect = button.getBoundingClientRect();
           dragged = false;
@@ -66,8 +72,9 @@ export function BackToTop() {
 
           button.releasePointerCapture(event.pointerId);
           drag = null;
-          if (dragged && position()) {
-            GM_setValue(BACK_TO_TOP_POSITION_KEY, position());
+          const current = position();
+          if (dragged && current) {
+            GM_setValue(BACK_TO_TOP_POSITION_KEY, current);
           }
         }}
         onClick={(event) => {

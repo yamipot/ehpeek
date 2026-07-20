@@ -4,7 +4,7 @@ import type { TouchFavoritesCategorySelectInfo } from "../../eh";
 export function FavoritesCategorySelect(props: { info: TouchFavoritesCategorySelectInfo }) {
   let container!: HTMLDivElement;
   const [open, setOpen] = createSignal(false);
-  const selected = () => props.info.categories.find((category) => category.selected) ?? props.info.categories[0];
+  const selected = () => props.info.categories.find((category) => category.selected) ?? props.info.categories[0] ?? null;
 
   onMount(() => {
     const closeOnOutsidePointer = (event: PointerEvent) => {
@@ -56,7 +56,9 @@ export function FavoritesCategorySelect(props: { info: TouchFavoritesCategorySel
   );
 }
 
-function categoryIndicator(appearance: TouchFavoritesCategorySelectInfo["categories"][number]["appearance"]) {
+function categoryIndicator(
+  appearance: TouchFavoritesCategorySelectInfo["categories"][number]["appearance"] | undefined,
+) {
   return (
     <span
       class="block h-15px w-15px flex-none bg-no-repeat"

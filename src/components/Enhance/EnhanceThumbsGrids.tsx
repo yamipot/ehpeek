@@ -153,10 +153,14 @@ export function ThumbsGrids(props: {
     { element: pageBarSource.elems.pageBarBottom, top: false },
   ];
   for (const mount of mounts) {
-    mount.element?.mount(() => (
+    if (!mount.element) {
+      continue;
+    }
+    const element = mount.element;
+    element.mount(() => (
       <ScrollPageBar
         currentIndex={pageBarCurrentIndex()}
-        element={mount.element!}
+        element={element}
         maxIndex={pageBarMaxIndex()}
         onNavigate={requestPreviewPage}
         onWindowIndexChange={setPageBarWindowIndex}

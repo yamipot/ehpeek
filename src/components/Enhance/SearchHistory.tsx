@@ -50,7 +50,10 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
         moveSelection(event.key === "ArrowDown" ? 1 : -1);
       } else if (event.key === "Enter" && activeIndex() >= 0) {
         event.preventDefault();
-        selectHistory(history()[activeIndex()]);
+        const item = history()[activeIndex()];
+        if (item !== undefined) {
+          selectHistory(item);
+        }
       } else if (event.key === "Escape") {
         event.preventDefault();
         setOpen(false);
@@ -81,9 +84,7 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
     }, () => dropdown ?? null);
     updateSearchValue(props.source.data.value, false);
 
-    onCleanup(() => {
-      disconnect();
-    });
+    onCleanup(disconnect);
   });
 
   return (

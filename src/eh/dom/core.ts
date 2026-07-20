@@ -47,7 +47,7 @@ export function createAnchor(
 export function createManagedElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
 ): ManagedDomNode<HTMLElementTagNameMap[K]> {
-  return ManagedDomNode.from(manageElem(document.createElement(tagName)));
+  return ManagedDomNode.from(document.createElement(tagName));
 }
 
 /** Acquires the document element for page-level feature transforms. */
@@ -148,10 +148,6 @@ export class DomNode<T extends ParentNode = ParentNode> {
     return window.getComputedStyle(this.#node);
   }
 
-  inlineStyle(this: DomNode<HTMLElement>, property: string): string {
-    return this.#node.style.getPropertyValue(property);
-  }
-
   rect(this: DomNode<Element>): DOMRect {
     return this.#node.getBoundingClientRect();
   }
@@ -215,7 +211,7 @@ export class DomNode<T extends ParentNode = ParentNode> {
   inplace(
     this: DomNode<T & HTMLElement>,
   ): ManagedDomNode<T & HTMLElement> {
-    return ManagedDomNode.from(manageElem(this.#node));
+    return ManagedDomNode.from(this.#node);
   }
 
   move(this: DomNode<T & HTMLElement>): ManagedDomNode<T & HTMLElement> {
@@ -228,9 +224,7 @@ export class DomNode<T extends ParentNode = ParentNode> {
     this: DomNode<T & HTMLElement>,
     deep = true,
   ): ManagedDomNode<T & HTMLElement> {
-    return ManagedDomNode.from(
-      manageElem(this.#node.cloneNode(deep) as T & HTMLElement),
-    );
+    return ManagedDomNode.from(this.#node.cloneNode(deep) as T & HTMLElement);
   }
 }
 
@@ -247,6 +241,9 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
   static from<TElement extends HTMLElement>(
     element: TElement,
   ): ManagedDomNode<TElement> {
+    if (__EHPEEK_DEBUG__) {
+      element.classList.add(MANAGED_DOM_NODE_CLASS);
+    }
     return new ManagedDomNode(element);
   }
 
@@ -311,11 +308,6 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
 
   prepend(child: ManagedDomNode | Node): void {
     this.#node.prepend(child instanceof ManagedDomNode ? child.#node : child);
-  }
-
-  appendContent(...children: Array<Node | string>): this {
-    this.#node.append(...children);
-    return this;
   }
 
   setTextUnlessInput(text: string): void {
@@ -421,17 +413,10 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
   }
 }
 
-function manageElem<T extends HTMLElement>(element: T): T {
-  if (__EHPEEK_DEBUG__) {
-    element.classList.add(MANAGED_DOM_NODE_CLASS);
-  }
-  return element;
-}
-
-function changeElem<T extends HTMLElement>(
-  element: T,
+function changeElem(
+  element: HTMLElement,
   changes: ElemChanges,
-): T {
+): void {
   for (const name of changes.attributes?.remove ?? []) {
     element.removeAttribute(name);
   }
@@ -462,5 +447,7 @@ function changeElem<T extends HTMLElement>(
   if (changes.hidden !== undefined) {
     element.hidden = changes.hidden;
   }
-  return manageElem(element);
+  if (__EHPEEK_DEBUG__) {
+    element.classList.add(MANAGED_DOM_NODE_CLASS);
+  }
 }

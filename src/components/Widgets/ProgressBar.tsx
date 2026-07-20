@@ -10,7 +10,7 @@ const PROGRESS_BAR_CLASS_NAME = [
   "cursor-grab active:cursor-grabbing touch-none select-none",
   "[-webkit-appearance:none] [appearance:none]",
   "[--progress-bar-fill:0%] [--progress-bar-track-direction:to_right]",
-    "[accent-color:var(--color-text)]",
+  "[accent-color:var(--color-text)]",
 ].join(" ");
 
 registerGlobalStyle(PROGRESS_BAR_CLASS, progressBarCss);

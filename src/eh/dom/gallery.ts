@@ -33,12 +33,6 @@ type GalleryApiSession = {
 
 let galleryApiSession: GalleryApiSession | null = null;
 
-function scriptNumberValue(script: string, name: string): number | null {
-  const match = script.match(new RegExp(`\\b${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`));
-  const value = Number(match?.[1]);
-  return match && Number.isFinite(value) ? value : null;
-}
-
 export type MyTagsPageData = {
   appearances: MyTagAppearance[];
   enabled: boolean;
@@ -98,34 +92,6 @@ export function extractMyTagsPageData(
   };
 }
 
-function applyMyTagAppearances(appearances: MyTagAppearance[], root: ParentNode = document): void {
-  const byName = new Map(appearances.map((appearance) => [appearance.name, appearance]));
-
-  for (const tag of DomNode.from(root).all<HTMLAnchorElement>("#taglist a")) {
-    const name = galleryTagNameFromUrl(tag.attribute("href") ?? "");
-    const appearance = name ? byName.get(normalizeTagName(name)) : undefined;
-    const container = tag.closest<HTMLElement>("div.gt, div.gtl, div.gtw") ?? tag;
-
-    if (!appearance) {
-      continue;
-    }
-
-    if (appearance.backgroundColor) {
-      container.inplace().styles({ "background-color": appearance.backgroundColor }, "important");
-      tag.inplace()
-        .styles({ color: appearance.color }, "important")
-        .transform({
-          attributes: {
-            set: {
-              "data-ehpeek-my-tag-id": appearance.id,
-              "data-ehpeek-my-tag-set": appearance.tagSet,
-            },
-          },
-        });
-    }
-  }
-}
-
 function normalizeTagName(value: string): string {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
@@ -146,23 +112,35 @@ function readableTagColor(backgroundColor: string): "#000000" | "#ffffff" {
   return luminance > 0.179 ? "#000000" : "#ffffff";
 }
 
-function observeGalleryTagChanges(onChange: () => void): () => void {
-  const tagListSource = DomNode.from(document).one<HTMLElement>("#taglist");
-  const tagList = tagListSource?.inplace();
-
-  if (!tagList) {
-    return () => undefined;
-  }
-
-  return tagList.observe(onChange);
-}
-
 /** Applies and maintains stored My Tags appearances for the GalleryInfo enhancer lifecycle. */
 export function mutateGalleryMyTags(appearances: MyTagAppearance[]) {
-  applyMyTagAppearances(appearances);
-  return observeGalleryTagChanges(() =>
-    applyMyTagAppearances(appearances),
-  );
+  const byName = new Map(appearances.map((appearance) => [appearance.name, appearance]));
+  const apply = () => {
+    for (const tag of DomNode.from(document).all<HTMLAnchorElement>("#taglist a")) {
+      const name = galleryTagNameFromUrl(tag.attribute("href") ?? "");
+      const appearance = name ? byName.get(normalizeTagName(name)) : undefined;
+      if (!appearance?.backgroundColor) {
+        continue;
+      }
+
+      const container = tag.closest<HTMLElement>("div.gt, div.gtl, div.gtw") ?? tag;
+      container.inplace().styles({ "background-color": appearance.backgroundColor }, "important");
+      tag.inplace()
+        .styles({ color: appearance.color }, "important")
+        .transform({
+          attributes: {
+            set: {
+              "data-ehpeek-my-tag-id": appearance.id,
+              "data-ehpeek-my-tag-set": appearance.tagSet,
+            },
+          },
+        });
+    }
+  };
+
+  apply();
+  return DomNode.from(document).one<HTMLElement>("#taglist")?.inplace().observe(apply)
+    ?? (() => undefined);
 }
 
 /** Captures GalleryInfo API credentials before SinglePage removes original scripts. */
@@ -183,9 +161,16 @@ export function manageGalleryApiSession(root: ParentNode = document, baseUrl = w
     return false;
   }
 
-  const apiUrlValue = scriptStringValue(script, "api_url");
-  const apiKey = scriptStringValue(script, "apikey");
-  const apiUid = scriptNumberValue(script, "apiuid");
+  const stringValue = (name: string) =>
+    script.match(new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`))?.[2] ?? null;
+  const numberValue = (name: string) => {
+    const match = script.match(new RegExp(`\\b${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`));
+    const value = Number(match?.[1]);
+    return match && Number.isFinite(value) ? value : null;
+  };
+  const apiUrlValue = stringValue("api_url");
+  const apiKey = stringValue("apikey");
+  const apiUid = numberValue("apiuid");
 
   if (!apiUrlValue || !apiKey || apiUid === null) {
     console.warn("[ehpeek] Gallery API session capture failed", {
@@ -246,36 +231,28 @@ export function extractGalleryTagApiInfo(): GalleryTagApiInfo | null {
   }
 
   const { galleryId, token } = gallery;
-  const session = galleryApiSession;
 
-  if (!session || !Number.isSafeInteger(galleryId) || galleryId <= 0 || !/^[A-Za-z0-9]+$/.test(token)) {
+  if (!Number.isSafeInteger(galleryId) || galleryId <= 0 || !/^[A-Za-z0-9]+$/.test(token)) {
     console.warn("[ehpeek] Gallery API context unavailable", {
       reason: "gallery-identity-invalid",
       galleryId,
-      hasSession: Boolean(session),
     });
     return null;
   }
 
   return {
-    apiKey: session.apiKey,
-    apiUid: session.apiUid,
-    apiUrl: session.apiUrl,
+    apiKey: galleryApiSession.apiKey,
+    apiUid: galleryApiSession.apiUid,
+    apiUrl: galleryApiSession.apiUrl,
     galleryId,
     token,
   };
 }
 
-function scriptStringValue(script: string, name: string): string | null {
-  const match = script.match(new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`));
-  return match?.[2] ?? null;
-}
-
 /** Returns the original GalleryInfo control used to mount the Continue/Read button. */
 export function manageGalleryContinueReadingButtonMount() {
   const managedHost = createManagedElement("div");
-  const viewerOptionsSource = DomNode.from(document).one<HTMLElement>("#gd5");
-  const viewerOptions = viewerOptionsSource?.inplace();
+  const viewerOptions = DomNode.from(document).one<HTMLElement>("#gd5")?.inplace();
 
   if (viewerOptions) {
     viewerOptions
@@ -465,59 +442,41 @@ export async function loadGalleryPreviewPage(
 
 /** Resolves Reader's gallery identity from the current original image page. */
 export function extractImageGalleryPage(root: ParentNode = document): Extract<PageType, { type: "gallery" }> | null {
-  const url = imageGalleryUrl(root);
-  if (!url) {
-    return null;
-  }
-  const page = extractPageType(url);
-  return page.type === "gallery" ? page : null;
-}
-
-/** Fetches and extracts one original image page for Reader Provider. */
-export async function loadEhImagePage(page: ReaderPage): Promise<LoadedReaderPage> {
-  const response = await requestPage(page.url);
-  const info = readImagePageInfo(response.document, page.url);
-
-  if (!info.imageUrl) {
-    throw new Error(texts.errors.imageNotFound);
-  }
-
-  return info;
-}
-
-function readImagePageInfo(root: ParentNode, baseUrl: string): ImagePageInfo {
-  const page = DomNode.from(root);
-  const image = page.one<HTMLImageElement>("img#img");
-  const imageUrl = normalizeUrl(
-    image?.attribute("src") || image?.attribute("data-src") || "",
-    baseUrl,
-  );
-  const originalImageUrl = page
-    .all<HTMLAnchorElement>("a[href]")
-    .map((link) => normalizeUrl(link.attribute("href") || "", baseUrl))
-    .find(isFullImageUrl) ?? null;
-  return {
-    height: numberAttribute(image, "height"),
-    imageUrl,
-    originalImageUrl,
-    width: numberAttribute(image, "width"),
-  };
-}
-
-function imageGalleryUrl(
-  root: ParentNode = document,
-  baseUrl = window.location.href,
-): string | null {
   for (const link of DomNode.from(root).all<HTMLAnchorElement>("a[href]")) {
-    const url = normalizeUrl(link.attribute("href") || "", baseUrl);
-    if (extractPageType(url).type === "gallery") {
-      return url;
+    const page = extractPageType(normalizeUrl(link.attribute("href") || ""));
+    if (page.type === "gallery") {
+      return page;
     }
   }
   return null;
 }
 
-function numberAttribute(node: DomNode<Element> | null, name: string): number | null {
-  const value = Number(node?.attribute(name));
-  return Number.isFinite(value) && value > 0 ? value : null;
+/** Fetches and extracts one original image page for Reader Provider. */
+export async function loadEhImagePage(page: ReaderPage): Promise<LoadedReaderPage> {
+  const response = await requestPage(page.url);
+  const source = DomNode.from(response.document);
+  const image = source.one<HTMLImageElement>("img#img");
+  const imageUrl = normalizeUrl(
+    image?.attribute("src") || image?.attribute("data-src") || "",
+    page.url,
+  );
+
+  if (!imageUrl) {
+    throw new Error(texts.errors.imageNotFound);
+  }
+
+  const numberAttribute = (name: string): number | null => {
+    const value = Number(image?.attribute(name));
+    return Number.isFinite(value) && value > 0 ? value : null;
+  };
+  const info: ImagePageInfo = {
+    height: numberAttribute("height"),
+    imageUrl,
+    originalImageUrl: source
+      .all<HTMLAnchorElement>("a[href]")
+      .map((link) => normalizeUrl(link.attribute("href") || "", page.url))
+      .find(isFullImageUrl) ?? null,
+    width: numberAttribute("width"),
+  };
+  return info;
 }

@@ -8,7 +8,6 @@ const SAVE_DELAY_MS = 10_000;
 type ReadHistoryRecord = {
   galleryId: number;
   token: string;
-  galleryUrl: string;
   pageNum: number;
   totalPages?: number;
   updatedAt: number;

@@ -12,9 +12,9 @@ export function manageSettingsMenuMount() {
   const titleContainer = page.one<HTMLElement>("#gd2, h1");
   const topNav = page.one<HTMLElement>("#nb");
   const anchor = thumbnailContainer ?? titleContainer;
-  const item = createManagedElement("div");
 
   if (topNav) {
+    const item = createManagedElement("div");
     topNav.inplace().append(item);
     return item;
   }
@@ -23,6 +23,7 @@ export function manageSettingsMenuMount() {
     return null;
   }
 
+  const item = createManagedElement("div");
   item.styles({ "text-align": "right" });
   const managedAnchor = anchor.inplace();
 

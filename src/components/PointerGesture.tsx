@@ -31,6 +31,7 @@ type PointerPinchMove = PointerPinchStart & {
 const DEFAULT_TAP_MOVE_THRESHOLD_PX = 8;
 const DEFAULT_DRAG_START_THRESHOLD_PX = 8;
 const DEFAULT_DRAG_INTENT_RATIO = 1;
+const MOUSE_POINTER_ID = -1;
 
 export type PointerGestureCallbacks = {
   dragAxis?: PointerDragAxis;
@@ -49,7 +50,6 @@ export type PointerGestureCallbacks = {
 };
 
 class PointerGesture {
-  private mousePointerId = -1;
   private readonly pinchPointers = new Map<number, { clientX: number; clientY: number }>();
   private drag: GesturePointer | null = null;
   private suppressClick = false;
@@ -175,7 +175,7 @@ class PointerGesture {
       return;
     }
 
-    this.start(this.mousePointerId, "mouse", event.clientX, event.clientY, event, true);
+    this.start(MOUSE_POINTER_ID, "mouse", event.clientX, event.clientY, event, true);
     this.addMouseListeners();
   };
 
@@ -265,7 +265,8 @@ class PointerGesture {
     const dx = clientX - drag.startClientX;
     const dy = clientY - drag.startClientY;
 
-    if (Math.abs(dx) >= this.tapMoveThreshold() || Math.abs(dy) >= this.tapMoveThreshold()) {
+    const tapMoveThreshold = this.tapMoveThreshold();
+    if (Math.abs(dx) >= tapMoveThreshold || Math.abs(dy) >= tapMoveThreshold) {
       drag.tapCancelled = true;
     }
 
@@ -333,7 +334,10 @@ class PointerGesture {
       velocityY: drag.velocityY,
     };
 
-    const isTap = !drag.tapCancelled && Math.abs(info.dx) < this.tapMoveThreshold() && Math.abs(info.dy) < this.tapMoveThreshold();
+    const tapMoveThreshold = this.tapMoveThreshold();
+    const isTap = !drag.tapCancelled &&
+      Math.abs(info.dx) < tapMoveThreshold &&
+      Math.abs(info.dy) < tapMoveThreshold;
 
     if (!cancelled && !drag.active && isTap) {
       this.callbacks().onTap?.({ ...info, startTarget: drag.startTarget }, event);
@@ -479,11 +483,12 @@ class PointerGesture {
   private pinchSnapshot(): PointerPinchStart | null {
     const points = Array.from(this.pinchPointers.values());
 
-    if (points.length < 2) {
+    const first = points[0];
+    const second = points[1];
+    if (!first || !second) {
       return null;
     }
 
-    const [first, second] = points;
     const dx = second.clientX - first.clientX;
     const dy = second.clientY - first.clientY;
 
