@@ -23,7 +23,7 @@ import {
   DomNode,
 } from "./core";
 
-const GALLERY_PAGE_DESCRIPTION_SELECTOR = ".gpc:not(.eh-syringe-ignore)";
+const GALLERY_PAGE_DESCRIPTION_SELECTOR = ".gpc";
 
 type GalleryApiSession = {
   apiKey: string;

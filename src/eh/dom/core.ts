@@ -3,9 +3,24 @@ import { render } from "solid-js/web";
 
 const MANAGED_DOM_NODE_CLASS = "ehpeek-managed";
 const EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor";
+const EH_SYRINGE_IGNORE_SELECTOR = ".eh-syringe-ignore";
 const mountedNodes = new WeakMap<HTMLElement, () => void>();
 let managedDocumentElement: ManagedDomNode<HTMLElement> | null = null;
 let managedBody: ManagedDomNode<HTMLElement> | null = null;
+
+export type DomNodeFilter<TElement extends Element = Element> = (
+  node: DomNode<TElement>,
+) => boolean;
+
+export function originalPageNode<TElement extends Element>(
+  node: DomNode<TElement>,
+): boolean {
+  return node.closest(EH_SYRINGE_IGNORE_SELECTOR) === null;
+}
+
+export function anyDomNode(): boolean {
+  return true;
+}
 
 export type ManagedDomElements = Record<
   string,
@@ -45,7 +60,10 @@ export function documentBody(): ManagedDomNode<HTMLElement> {
   return managedBody;
 }
 
-/** Read-only access to an original-page node before ownership is decided. */
+/**
+ * Read-only access to original-page DOM before ownership is decided.
+ * Selector queries exclude EhSyringe's retained copies unless the caller explicitly requests them for data extraction.
+ */
 export class DomNode<T extends ParentNode = ParentNode> {
   readonly #node: T;
 
@@ -59,18 +77,21 @@ export class DomNode<T extends ParentNode = ParentNode> {
 
   one<TElement extends Element = HTMLElement>(
     selector: string,
+    filter: DomNodeFilter<TElement> = originalPageNode,
   ): DomNode<TElement> | null {
-    const element = this.#node.querySelector<TElement>(selector);
-    return element ? DomNode.from(element) : null;
+    return Array.from(
+      this.#node.querySelectorAll<TElement>(selector),
+      DomNode.from,
+    ).find(filter) ?? null;
   }
 
   all<TElement extends Element = HTMLElement>(
     selector: string,
+    filter: DomNodeFilter<TElement> = originalPageNode,
   ): DomNode<TElement>[] {
-    return Array.from(
-      this.#node.querySelectorAll<TElement>(selector),
-      DomNode.from,
-    );
+    return Array.from(this.#node.querySelectorAll<TElement>(selector))
+      .map(DomNode.from)
+      .filter(filter);
   }
 
   parent(this: DomNode<Element>): DomNode<HTMLElement> | null {
