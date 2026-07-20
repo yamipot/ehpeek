@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260720.0115
+// @version      260720.0715
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -1906,12 +1906,6 @@
     let style2 = document.createElement("style");
     style2.id = id, style2.textContent = css, document.head.append(style2);
   }
-  function targetSummary(target) {
-    if (!(target instanceof Element))
-      return String(target);
-    let id = target.id ? `#${target.id}` : "", className2 = typeof target.className == "string" && target.className ? `.${target.className.replace(/\s+/g, ".")}` : "";
-    return `${target.tagName.toLowerCase()}${id}${className2}`;
-  }
 
   // src/eh/dom/gallery.ts
   var GALLERY_PAGE_DESCRIPTION_SELECTOR = ".gpc:not(.eh-syringe-ignore)", galleryApiSession = null;
@@ -2039,14 +2033,16 @@
       pages,
       startImage,
       totalImages
-    }, thumbsSource = page.one("#gdt"), pageBarTopSource = page.one(".ptt"), pageBarBottomSource = page.one(".ptb"), elems = {
+    }, thumbsSource = page.one("#gdt"), pageBarTopSource = page.one(".ptt"), pageBarBottomSource = page.one(".ptb"), createPageBarMount = (position) => createManagedElement("div").replaceClasses(
+      `w-max max-w-full mx-auto overflow-x-auto touch-pan-y [-webkit-overflow-scrolling:touch] [&[data-dragging=true]]:select-none ${position === "top" ? "mt-2px mb-0" : "mt-0 mb-10px"}`
+    ), elems = {
       mount: root === document && thumbsSource ? createManagedElement("div").replaceClasses("contents") : null,
       originalPageBarBottom: pageBarBottomSource?.inplace() ?? null,
       originalPageBarTop: pageBarTopSource?.inplace() ?? null,
       originalPageDescription: pageDescriptionSource?.inplace() ?? null,
-      pageBarBottom: pageBarBottomSource ? createManagedElement("div") : null,
+      pageBarBottom: pageBarBottomSource ? createPageBarMount("bottom") : null,
       pageBarDescription: pageDescriptionSource && pageBarTopSource ? createManagedElement("div") : null,
-      pageBarTop: pageBarTopSource ? createManagedElement("div") : null,
+      pageBarTop: pageBarTopSource ? createPageBarMount("top") : null,
       thumbImages: thumbsSource?.all("img").map((image) => image.inplace()) ?? [],
       thumbItems: thumbsSource?.children().map(
         (item) => root === document ? item.inplace() : item.move()
@@ -3505,64 +3501,122 @@
   }
 
   // src/components/Enhance/ScrollPageBar.tsx
-  var _tmpl$5 = /* @__PURE__ */ template('<div class="w-full mb-xs text-center textsize-sm">'), _tmpl$23 = /* @__PURE__ */ template('<td class="!w-sm !h-sm coarse:!w-md coarse:!h-md !p-0 rounded-sm coarse:rounded-md cursor-pointer text-center align-middle select-none"><span>'), _tmpl$33 = /* @__PURE__ */ template('<td class="!w-sm !h-sm coarse:!w-md coarse:!h-md !p-0 rounded-sm coarse:rounded-md cursor-pointer text-center align-middle select-none"><a class="flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)]"data-ehpeek-single-page-bypass>'), _tmpl$42 = /* @__PURE__ */ template('<td class="!w-sm !h-sm coarse:!w-md coarse:!h-md !p-0 rounded-sm coarse:rounded-md cursor-pointer text-center align-middle select-none cursor-default"><span class="flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)] invisible">'), _tmpl$52 = /* @__PURE__ */ template('<table class="border-separate border-spacing-4px coarse:border-spacing-6px"><tbody><tr>'), SCROLL_PAGE_BAR_CLASS = "ehpeek-scroll-page-bar", SCROLL_PAGE_BAR_TOP_CLASS = "ehpeek-scroll-page-bar-top", SCROLL_PAGE_BAR_BOTTOM_CLASS = "ehpeek-scroll-page-bar-bottom", DRAG_PIXEL_STEP = 18, PAGE_BAR_BOTTOM_CLASS = "mt-0 mb-10px";
-  var PAGE_BAR_CLASS = "w-max mx-auto touch-pan-y [&[data-dragging=true]]:select-none", PAGE_BAR_LINK_CLASS = "flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
+  var _tmpl$5 = /* @__PURE__ */ template('<div class="w-full mb-xs text-center textsize-sm">'), _tmpl$23 = /* @__PURE__ */ template('<a class="flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)]"data-ehpeek-single-page-bypass>'), _tmpl$33 = /* @__PURE__ */ template('<td class="!w-sm !h-sm coarse:!w-md coarse:!h-md !p-0 rounded-sm coarse:rounded-md cursor-pointer text-center align-middle select-none">'), _tmpl$42 = /* @__PURE__ */ template("<span>"), _tmpl$52 = /* @__PURE__ */ template('<td class="!w-sm !h-sm coarse:!w-md coarse:!h-md !p-0 rounded-sm coarse:rounded-md cursor-pointer text-center align-middle select-none cursor-default"><span class="flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)] invisible">'), _tmpl$6 = /* @__PURE__ */ template('<div><table class="border-separate border-spacing-4px coarse:border-spacing-6px"><tbody><tr>'), _tmpl$7 = /* @__PURE__ */ template('<span class="flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)]"aria-current=page>'), DRAG_PIXEL_STEP = 18;
+  var PAGE_BAR_LINK_CLASS = "flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
   var PAGE_BAR_CURRENT_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)]", PAGE_BAR_DISABLED_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)] opacity-40 cursor-default";
-  var PAGE_BAR_TOP_CLASS = "mt-2px mb-0";
   function GalleryPageDescription(props) {
     return (() => {
       var _el$ = _tmpl$5();
       return insert(_el$, () => props.text), _el$;
     })();
   }
-  function ScrollPageBar(options) {
-    let maxIndex = createMemo(() => Math.max(0, options.maxIndex)), currentIndex = createMemo(() => clamp(options.currentIndex, 0, maxIndex())), windowIndex = createMemo(() => clamp(options.windowIndex() ?? currentIndex(), 0, maxIndex())), dragStartWindowIndex = untrack(windowIndex), draggable = () => maxIndex() + 1 > 7, slots = createMemo(() => pageSlots(windowIndex(), currentIndex(), maxIndex())), firstSlotIndex = createMemo(() => slots()[0] ?? currentIndex()), lastSlotIndex = createMemo(() => slots()[slots().length - 1] ?? currentIndex()), currentBeforeWindow = () => currentIndex() < firstSlotIndex(), currentAfterWindow = () => currentIndex() > lastSlotIndex(), scrollTargetForIndex = (pageIndex) => pageIndex === currentIndex() - 1 || pageIndex === maxIndex() ? "bottom" : "top", linkCell = (text, pageIndex, itemState = "link") => itemState !== "link" ? (() => {
-      var _el$2 = _tmpl$23(), _el$3 = _el$2.firstChild;
-      return className(_el$3, `${PAGE_BAR_LINK_CLASS} ${itemState === "current" ? PAGE_BAR_CURRENT_COLOR_CLASS : PAGE_BAR_DISABLED_COLOR_CLASS}`), setAttribute(_el$3, "aria-current", itemState === "current" ? "page" : void 0), setAttribute(_el$3, "aria-disabled", itemState === "disabled" ? "true" : void 0), insert(_el$3, text), _el$2;
-    })() : (() => {
-      var _el$4 = _tmpl$33(), _el$5 = _el$4.firstChild;
-      return _el$5.$$click = (event) => {
-        event.preventDefault(), event.stopPropagation(), options.onNavigate(pageIndex, scrollTargetForIndex(pageIndex));
-      }, setAttribute(_el$5, "draggable", !1), insert(_el$5, text), createRenderEffect(() => setAttribute(_el$5, "href", options.urlForIndex(pageIndex))), _el$4;
-    })(), emptyCell = () => (() => {
-      var _el$6 = _tmpl$42(), _el$7 = _el$6.firstChild;
-      return _el$6;
+  function ScrollPageBar(props) {
+    let maxIndex = createMemo(() => Math.max(0, props.maxIndex)), currentIndex = createMemo(() => clamp(props.currentIndex, 0, maxIndex())), [visibleCenterIndex, setVisibleCenterIndex] = createSignal(untrack(currentIndex)), gestureHost, dragStartVisibleCenterIndex = untrack(visibleCenterIndex), draggable = () => maxIndex() + 1 > 7, slots = createMemo(() => pageSlots(visibleCenterIndex(), maxIndex())), firstSlotIndex = createMemo(() => slots()[0] ?? currentIndex()), lastSlotIndex = createMemo(() => slots()[slots().length - 1] ?? currentIndex()), currentBeforeWindow = () => currentIndex() < firstSlotIndex(), currentAfterWindow = () => currentIndex() > lastSlotIndex(), scrollTargetForIndex = (pageIndex) => pageIndex === currentIndex() - 1 || pageIndex === maxIndex() ? "bottom" : "top";
+    createEffect(() => {
+      setVisibleCenterIndex(currentIndex());
+    });
+    let linkCell = (text, pageIndex, itemState = () => "link") => {
+      let resolvedText = () => typeof text == "function" ? text() : text, resolvedPageIndex = () => typeof pageIndex == "function" ? pageIndex() : pageIndex;
+      return (() => {
+        var _el$2 = _tmpl$33();
+        return insert(_el$2, createComponent(Show, {
+          get when() {
+            return itemState() === "link";
+          },
+          get fallback() {
+            return (() => {
+              var _el$4 = _tmpl$42();
+              return insert(_el$4, resolvedText), createRenderEffect((_p$) => {
+                var _v$ = `${PAGE_BAR_LINK_CLASS} ${itemState() === "current" ? PAGE_BAR_CURRENT_COLOR_CLASS : PAGE_BAR_DISABLED_COLOR_CLASS}`, _v$2 = itemState() === "current" ? "page" : void 0, _v$3 = itemState() === "disabled" ? "true" : void 0;
+                return _v$ !== _p$.e && className(_el$4, _p$.e = _v$), _v$2 !== _p$.t && setAttribute(_el$4, "aria-current", _p$.t = _v$2), _v$3 !== _p$.a && setAttribute(_el$4, "aria-disabled", _p$.a = _v$3), _p$;
+              }, {
+                e: void 0,
+                t: void 0,
+                a: void 0
+              }), _el$4;
+            })();
+          },
+          get children() {
+            var _el$3 = _tmpl$23();
+            return _el$3.$$click = (event) => {
+              event.preventDefault(), event.stopPropagation(), props.onNavigate(resolvedPageIndex(), scrollTargetForIndex(resolvedPageIndex()));
+            }, setAttribute(_el$3, "draggable", !1), insert(_el$3, resolvedText), createRenderEffect(() => setAttribute(_el$3, "href", props.urlForIndex(resolvedPageIndex()))), _el$3;
+          }
+        })), _el$2;
+      })();
+    }, emptyCell = () => (() => {
+      var _el$5 = _tmpl$52(), _el$6 = _el$5.firstChild;
+      return _el$5;
     })();
-    return untrack(() => {
-      options.element.replaceClasses(`${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${options.top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}`);
-    }), createPointerGestureElement(() => options.element.Component(), () => ({
+    return createPointerGestureElement(() => gestureHost, () => ({
       shouldCaptureDrag: draggable,
       dragAxis: "x",
       onStart: () => {
-        dragStartWindowIndex = windowIndex();
+        dragStartVisibleCenterIndex = visibleCenterIndex();
       },
       onMove: (info) => {
         if (Math.abs(info.dx) < Math.abs(info.dy))
           return;
-        let nextIndex = clamp(dragStartWindowIndex - acceleratedPageOffset(info.dx), 0, maxIndex());
-        nextIndex !== windowIndex() && options.onWindowIndexChange(nextIndex);
+        let nextIndex = clamp(dragStartVisibleCenterIndex - acceleratedPageOffset(info.dx), 0, maxIndex());
+        nextIndex !== visibleCenterIndex() && setVisibleCenterIndex(nextIndex);
       }
     })), (() => {
-      var _el$8 = _tmpl$52(), _el$9 = _el$8.firstChild, _el$0 = _el$9.firstChild;
-      return insert(_el$0, () => linkCell("<<", 0, currentIndex() === 0 ? "disabled" : "link"), null), insert(_el$0, (() => {
-        var _c$ = memo(() => !!currentBeforeWindow());
-        return () => _c$() ? linkCell(String(currentIndex() + 1), currentIndex(), "current") : emptyCell();
-      })(), null), insert(_el$0, () => linkCell("<", Math.max(0, currentIndex() - 1), currentIndex() === 0 ? "disabled" : "link"), null), insert(_el$0, createComponent(For, {
+      var _el$7 = _tmpl$6(), _el$8 = _el$7.firstChild, _el$9 = _el$8.firstChild, _el$0 = _el$9.firstChild, _ref$ = gestureHost;
+      return typeof _ref$ == "function" ? use(_ref$, _el$7) : gestureHost = _el$7, insert(_el$0, () => linkCell("<<", 0, () => currentIndex() === 0 ? "disabled" : "link"), null), insert(_el$0, createComponent(Show, {
+        get when() {
+          return currentBeforeWindow();
+        },
+        get fallback() {
+          return emptyCell();
+        },
+        get children() {
+          return linkCell(() => String(currentIndex() + 1), currentIndex, () => "current");
+        }
+      }), null), insert(_el$0, () => linkCell("<", () => Math.max(0, currentIndex() - 1), () => currentIndex() === 0 ? "disabled" : "link"), null), insert(_el$0, createComponent(For, {
         get each() {
           return slots();
         },
-        children: (pageIndex) => pageIndex !== null ? linkCell(String(pageIndex + 1), pageIndex, pageIndex === currentIndex() ? "current" : "link") : emptyCell()
-      }), null), insert(_el$0, () => linkCell(">", Math.min(maxIndex(), currentIndex() + 1), currentIndex() === maxIndex() ? "disabled" : "link"), null), insert(_el$0, (() => {
-        var _c$2 = memo(() => !!currentAfterWindow());
-        return () => _c$2() ? linkCell(String(currentIndex() + 1), currentIndex(), "current") : emptyCell();
-      })(), null), insert(_el$0, () => linkCell(">>", maxIndex(), currentIndex() === maxIndex() ? "disabled" : "link"), null), _el$8;
+        children: (pageIndex) => {
+          let itemState = createMemo(() => pageIndex === currentIndex() ? "current" : "link");
+          return pageIndex !== null ? (() => {
+            var _el$1 = _tmpl$33();
+            return insert(_el$1, createComponent(Show, {
+              get when() {
+                return itemState() === "link";
+              },
+              get fallback() {
+                return (() => {
+                  var _el$11 = _tmpl$7();
+                  return insert(_el$11, pageIndex + 1), _el$11;
+                })();
+              },
+              get children() {
+                var _el$10 = _tmpl$23();
+                return _el$10.$$click = (event) => {
+                  event.preventDefault(), event.stopPropagation(), props.onNavigate(pageIndex, scrollTargetForIndex(pageIndex));
+                }, setAttribute(_el$10, "draggable", !1), insert(_el$10, pageIndex + 1), createRenderEffect(() => setAttribute(_el$10, "href", props.urlForIndex(pageIndex))), _el$10;
+              }
+            })), _el$1;
+          })() : emptyCell();
+        }
+      }), null), insert(_el$0, () => linkCell(">", () => Math.min(maxIndex(), currentIndex() + 1), () => currentIndex() === maxIndex() ? "disabled" : "link"), null), insert(_el$0, createComponent(Show, {
+        get when() {
+          return currentAfterWindow();
+        },
+        get fallback() {
+          return emptyCell();
+        },
+        get children() {
+          return linkCell(() => String(currentIndex() + 1), currentIndex, () => "current");
+        }
+      }), null), insert(_el$0, () => linkCell(">>", maxIndex, () => currentIndex() === maxIndex() ? "disabled" : "link"), null), _el$7;
     })();
   }
-  function pageSlots(windowIndex, currentIndex, maxIndex) {
+  function pageSlots(visibleCenterIndex, maxIndex) {
     if (maxIndex + 1 <= 7)
       return range(0, maxIndex);
-    let windowStart = clamp(windowIndex - 3, -1, maxIndex - 5);
-    return range(windowStart, windowStart + 6).map((pageIndex) => pageIndex >= 0 && pageIndex <= maxIndex ? pageIndex : null);
+    let visibleStartIndex = clamp(visibleCenterIndex - 3, -1, maxIndex - 5);
+    return range(visibleStartIndex, visibleStartIndex + 6).map((pageIndex) => pageIndex >= 0 && pageIndex <= maxIndex ? pageIndex : null);
   }
   function range(start, end) {
     let output = [];
@@ -3579,16 +3633,17 @@
   // src/components/Enhance/EnhanceThumbsGrids.tsx
   var SWIPE_MIN_DISTANCE2 = 96, SWIPE_INTENT_DISTANCE2 = 28, HORIZONTAL_INTENT_RATIO2 = 2.2, SWIPE_MAX_VERTICAL_RATIO2 = 0.38;
   function ThumbsGrids(props) {
-    let pageBarSource = untrack(() => props.previewCache.current()), [gotoPreviewIndex, setGotoPreviewIndex] = createSignal(), [pageBarWindowIndex, setPageBarWindowIndex] = createSignal(null), [swipeIndicatorState, setSwipeIndicatorState] = createSignal({
+    let pageBarSource = untrack(() => props.previewCache.current()), [pageBarCurrentIndex, setPageBarCurrentIndex] = createSignal(pageBarSource.data.currentIndex), [swipeIndicatorState, setSwipeIndicatorState] = createSignal({
       blocked: !1,
       direction: "left",
       progress: 0
-    }), pageBarCurrentIndex = () => gotoPreviewIndex() ?? props.previewCache.current().data.currentIndex, pageBarMaxIndex = () => props.previewCache.current().data.maxIndex, requestPreviewPage = (previewIndex, scrollToPageBar) => {
+    }), pageBarMaxIndex = () => props.previewCache.current().data.maxIndex, requestPreviewPage = (previewIndex, scrollToPageBar) => {
       let current = props.previewCache.current(), onLoadError = props.onLoadError;
-      pageBarSource.handle.scrollPreviewPageBarIntoView(scrollToPageBar), previewIndex !== current.data.currentIndex && (setGotoPreviewIndex(previewIndex), props.previewCache.select(previewIndex).then((next) => {
+      pageBarSource.handle.scrollPreviewPageBarIntoView(scrollToPageBar), previewIndex !== current.data.currentIndex && (setPageBarCurrentIndex(previewIndex), props.previewCache.select(previewIndex).then((next) => {
         untrack(() => props.previewCache.current()) === next && pageBarSource.handle.scrollPreviewPageBarIntoView(scrollToPageBar);
       }, (error) => {
-        setGotoPreviewIndex((pending) => pending === previewIndex ? void 0 : pending), onLoadError(error);
+        let cacheIndex = untrack(() => props.previewCache.current().data.currentIndex);
+        setPageBarCurrentIndex((currentIndex) => currentIndex === previewIndex ? cacheIndex : currentIndex), onLoadError(error);
       }));
     }, swipeIndexForDelta = (dx) => {
       let current = props.previewCache.current().data, nextIndex = dx < 0 ? current.currentIndex + 1 : current.currentIndex - 1;
@@ -3612,16 +3667,14 @@
       let previewIndex = swipeIndexForDelta(info.dx);
       previewIndex !== null && (event.preventDefault(), requestPreviewPage(previewIndex, info.dx < 0 ? "top" : "bottom"));
     }, actions = {
-      gotoPreview: setGotoPreviewIndex
+      gotoPreview: setPageBarCurrentIndex
     };
     createEffect(() => {
       props.actionsRef(actions);
     }), createEffect((previous) => {
       let current = props.previewCache.current();
-      return setGotoPreviewIndex(void 0), current.handle.ensurePreviewSwipeInput(), current !== previous && pageBarSource.handle.replacePreviewThumbs(current.elems.thumbItems), current;
+      return setPageBarCurrentIndex(current.data.currentIndex), current.handle.ensurePreviewSwipeInput(), current !== previous && pageBarSource.handle.replacePreviewThumbs(current.elems.thumbItems), current;
     }, pageBarSource), createEffect(() => {
-      setPageBarWindowIndex(pageBarCurrentIndex());
-    }), createEffect(() => {
       pageBarSource.handle.updatePreviewLoading(props.previewCache.loading());
     }), onCleanup(() => {
       pageBarSource.handle.updatePreviewLoading(!1);
@@ -3639,34 +3692,17 @@
         return props.previewCache.current().data.descriptionText;
       }
     }));
-    let mounts = [{
-      element: pageBarSource.elems.pageBarTop,
-      top: !0
-    }, {
-      element: pageBarSource.elems.pageBarBottom,
-      top: !1
-    }];
-    for (let mount of mounts) {
-      if (!mount.element)
-        continue;
-      let element = mount.element;
-      element.mount(() => createComponent(ScrollPageBar, {
+    for (let element of [pageBarSource.elems.pageBarTop, pageBarSource.elems.pageBarBottom])
+      element && element.mount(() => createComponent(ScrollPageBar, {
         get currentIndex() {
           return pageBarCurrentIndex();
         },
-        element,
         get maxIndex() {
           return pageBarMaxIndex();
         },
         onNavigate: requestPreviewPage,
-        onWindowIndexChange: setPageBarWindowIndex,
-        get top() {
-          return mount.top;
-        },
-        urlForIndex: (index) => previewUrlForIndex(index, props.previewCache.current().data.currentUrl),
-        windowIndex: pageBarWindowIndex
+        urlForIndex: (index) => previewUrlForIndex(index, props.previewCache.current().data.currentUrl)
       }));
-    }
     return onCleanup(() => {
       pageBarSource.elems.pageBarDescription?.remove(), pageBarSource.elems.pageBarTop?.remove(), pageBarSource.elems.pageBarBottom?.remove();
     }), [createComponent(LoadingOverlay, {
@@ -3684,11 +3720,11 @@
   }
 
   // src/components/Enhance/ReadHistory.tsx
-  var _tmpl$6 = /* @__PURE__ */ template("<button type=button><span>");
+  var _tmpl$8 = /* @__PURE__ */ template("<button type=button><span>");
   function ReadButton(props) {
     let buttonClassName = () => props.variant === "touchGallery" ? "ehpeek-continue-reading ehpeek-touch-gallery-primary-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] textsize-md font-700" : "ehpeek-continue-reading block box-border w-full max-w-full mt-xs min-h-sm py-xs px-sm rounded-sm border ehp-color-site-border bg-transparent ehp-color-site-accent hover:bg-[var(--color-site-accent-hover)] shadow-none cursor-pointer text-center font-sans textsize-md font-700 leading-[1.15]", detailClassName = () => props.variant === "touchGallery" ? "ehpeek-continue-reading-page block mt-2px ehp-color-site-accent textsize-md font-600 opacity-78 normal-case" : "ehpeek-continue-reading-page block mt-1px opacity-72 textsize-sm font-600";
     return (() => {
-      var _el$ = _tmpl$6(), _el$2 = _el$.firstChild;
+      var _el$ = _tmpl$8(), _el$2 = _el$.firstChild;
       return _el$.$$click = (event) => {
         event.preventDefault(), event.stopPropagation(), props.onClick();
       }, insert(_el$, (() => {
@@ -3879,7 +3915,7 @@
   }
 
   // src/components/Enhance/SearchHistory.tsx
-  var _tmpl$7 = /* @__PURE__ */ template('<section class="ehpeek-search-history fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-hidden overflow-y-auto overscroll-contain rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"role=list>'), _tmpl$24 = /* @__PURE__ */ template('<div class="flex min-w-0 flex-none items-stretch border-0 border-b ehp-color-site-border-subtle-b last:border-b-0"role=listitem><button type=button></button><button type=button class="appearance-none inline-flex w-60px min-h-lg flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text textsize-xl font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]">×');
+  var _tmpl$9 = /* @__PURE__ */ template('<section class="ehpeek-search-history fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-hidden overflow-y-auto overscroll-contain rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"role=list>'), _tmpl$24 = /* @__PURE__ */ template('<div class="flex min-w-0 flex-none items-stretch border-0 border-b ehp-color-site-border-subtle-b last:border-b-0"role=listitem><button type=button></button><button type=button class="appearance-none inline-flex w-60px min-h-lg flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text textsize-xl font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]">×');
   function SearchHistory(props) {
     let dropdown, [searchValue, setSearchValue] = createSignal(untrack(() => props.source.data.value)), [history, setHistory] = createSignal(loadSearchHistory()), [open, setOpen] = createSignal(!1), [activeIndex, setActiveIndex] = createSignal(-1), [position, setPosition] = createSignal(null), itemButtons = [], visiblePosition = () => open() && !searchValue().trim() && history().length > 0 ? position() : null, selectHistory = (item) => {
       props.source.handle.applySearchSelection(item), setOpen(!1);
@@ -3926,7 +3962,7 @@
       },
       keyed: !0,
       children: (currentPosition) => (() => {
-        var _el$ = _tmpl$7(), _ref$ = dropdown;
+        var _el$ = _tmpl$9(), _ref$ = dropdown;
         return typeof _ref$ == "function" ? use(_ref$, _el$) : dropdown = _el$, insert(_el$, createComponent(For, {
           get each() {
             return history();
@@ -4142,7 +4178,7 @@
   }
 
   // src/components/SettingsMenu.tsx
-  var _tmpl$8 = /* @__PURE__ */ template('<p class="box-border w-full m-0 px-md pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] textsize-sm leading-[1.35] opacity-75">'), _tmpl$25 = /* @__PURE__ */ template('<div class="border-0 border-b ehp-color-site-border-subtle-b"><div class="flex items-stretch"><button type=button><span></span><span class="flex flex-none items-center gap-sm"><span class="textsize-sm opacity-70"></span><span></span></span></button><button type=button class="flex flex-none w-32px coarse:w-48px min-h-md coarse:min-h-88px items-center justify-center p-0 rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span class="flex w-20px h-20px items-center justify-center rounded-full border border-[var(--color-site-border-subtle)] leading-none">?'), _tmpl$34 = /* @__PURE__ */ template('<div class="ml-md border-0 border-l border-l-[var(--color-site-border-subtle)]">'), _tmpl$43 = /* @__PURE__ */ template('<div class="ehpeek-settings-menu pointer-events-auto fixed top-24px right-24px coarse:top-8px coarse:right-8px z-overlay box-border w-320px coarse:w-[calc(100vw-16px)] max-w-[calc(100vw-48px)] coarse:max-w-480px max-h-[calc(100vh-48px)] coarse:max-h-[calc(100dvh-16px)] overflow-x-hidden overflow-y-auto p-sm coarse:p-md border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text textsize-md leading-[1.2]"><div class="border-0 border-b ehp-color-site-border-subtle-b"><button type=button class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex w-20px h-20px items-center justify-center leading-none"aria-hidden=true></span></button></div><div class="border-0 border-b ehp-color-site-border-subtle-b"><button type=button class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex w-20px h-20px items-center justify-center leading-none"aria-hidden=true></span></button></div><a class="flex w-full min-h-md coarse:min-h-88px items-center overflow-hidden text-ellipsis whitespace-nowrap px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline textsize-md font-700 hover:bg-[var(--color-site-item-hover)]"href=https://github.com/yamipot/ehpeek target=_blank rel="noopener noreferrer">v</a><div class="ehpeek-settings-actions grid grid-cols-3 gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="ehpeek-settings-apply block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108"></button><button type=button class="ehpeek-settings-default block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]"></button><button type=button class="ehpeek-settings-close block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">');
+  var _tmpl$10 = /* @__PURE__ */ template('<p class="box-border w-full m-0 px-md pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] textsize-sm leading-[1.35] opacity-75">'), _tmpl$25 = /* @__PURE__ */ template('<div class="border-0 border-b ehp-color-site-border-subtle-b"><div class="flex items-stretch"><button type=button><span></span><span class="flex flex-none items-center gap-sm"><span class="textsize-sm opacity-70"></span><span></span></span></button><button type=button class="flex flex-none w-32px coarse:w-48px min-h-md coarse:min-h-88px items-center justify-center p-0 rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span class="flex w-20px h-20px items-center justify-center rounded-full border border-[var(--color-site-border-subtle)] leading-none">?'), _tmpl$34 = /* @__PURE__ */ template('<div class="ml-md border-0 border-l border-l-[var(--color-site-border-subtle)]">'), _tmpl$43 = /* @__PURE__ */ template('<div class="ehpeek-settings-menu pointer-events-auto fixed top-24px right-24px coarse:top-8px coarse:right-8px z-overlay box-border w-320px coarse:w-[calc(100vw-16px)] max-w-[calc(100vw-48px)] coarse:max-w-480px max-h-[calc(100vh-48px)] coarse:max-h-[calc(100dvh-16px)] overflow-x-hidden overflow-y-auto p-sm coarse:p-md border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text textsize-md leading-[1.2]"><div class="border-0 border-b ehp-color-site-border-subtle-b"><button type=button class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex w-20px h-20px items-center justify-center leading-none"aria-hidden=true></span></button></div><div class="border-0 border-b ehp-color-site-border-subtle-b"><button type=button class="flex w-full min-h-md coarse:min-h-88px items-center justify-between gap-md coarse:gap-xl py-sm coarse:py-lg px-md rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit text-left textsize-md font-700 [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex w-20px h-20px items-center justify-center leading-none"aria-hidden=true></span></button></div><a class="flex w-full min-h-md coarse:min-h-88px items-center overflow-hidden text-ellipsis whitespace-nowrap px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline textsize-md font-700 hover:bg-[var(--color-site-item-hover)]"href=https://github.com/yamipot/ehpeek target=_blank rel="noopener noreferrer">v</a><div class="ehpeek-settings-actions grid grid-cols-3 gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="ehpeek-settings-apply block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108"></button><button type=button class="ehpeek-settings-default block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]"></button><button type=button class="ehpeek-settings-close block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">');
   var SETTINGS_DOT_CLASS = "block flex-none w-10px h-10px coarse:w-18px coarse:h-18px rounded-full";
   function SwitchButton(props) {
     let [helpOpen, setHelpOpen] = createSignal(!1);
@@ -4160,7 +4196,7 @@
           return helpOpen();
         },
         get children() {
-          var _el$9 = _tmpl$8();
+          var _el$9 = _tmpl$10();
           return insert(_el$9, () => props.description), _el$9;
         }
       }), null), createRenderEffect((_p$) => {
@@ -4331,7 +4367,7 @@
               onChange: (value) => setDraft("searchHistoryEnabled", value)
             }), null), _el$18;
           }
-        }), null), insert(_el$19, "260720.0115", null), _el$22.$$click = (event) => {
+        }), null), insert(_el$19, "260720.0715", null), _el$22.$$click = (event) => {
           event.stopPropagation(), props.onApply({
             ...draft
           });
@@ -4354,7 +4390,7 @@
   delegateEvents(["click"]);
 
   // src/components/Widgets/BackToTop.tsx
-  var _tmpl$9 = /* @__PURE__ */ template('<button type=button class="ehpeek-back-to-top fixed right-[max(16px,env(safe-area-inset-right,0px))] bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_64px)] z-ui inline-flex w-lg h-lg items-center justify-center rounded-full border ehp-color-site-border bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96">'), BACK_TO_TOP_POSITION_KEY = "ehpeek:back-to-top:position";
+  var _tmpl$11 = /* @__PURE__ */ template('<button type=button class="ehpeek-back-to-top fixed right-[max(16px,env(safe-area-inset-right,0px))] bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_64px)] z-ui inline-flex w-lg h-lg items-center justify-center rounded-full border ehp-color-site-border bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96">'), BACK_TO_TOP_POSITION_KEY = "ehpeek:back-to-top:position";
   function BackToTop() {
     let button, drag = null, dragged = !1, [visible, setVisible] = createSignal(!1), [position, setPosition] = createSignal(null), positionStyle = () => {
       let current = position();
@@ -4377,7 +4413,7 @@
         return visible();
       },
       get children() {
-        var _el$ = _tmpl$9();
+        var _el$ = _tmpl$11();
         _el$.$$click = (event) => {
           if (dragged) {
             event.preventDefault(), dragged = !1;
@@ -4453,7 +4489,7 @@
   }
 
   // src/components/TouchUI/GalleryInfoPanel.tsx
-  var _tmpl$10 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-rating-dialog fixed inset-0 z-overlay flex items-center justify-center p-md bg-black/65"role=dialog aria-modal=true aria-label="Rate gallery"><div class="box-border flex w-[min(92vw,420px)] flex-col gap-lg rounded-lg border ehp-color-site-border p-lg ehp-color-site-elevated ehp-color-site-text shadow-xl"><div class="textsize-md font-700">Rate gallery</div><button type=button class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"><span class="flex gap-1px pointer-events-none text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></button><div class="grid grid-cols-2 gap-sm pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108">Submit</button><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">'), _tmpl$26 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans"><div class="ehpeek-touch-gallery-hero relative grid min-h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text"><div><div class="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 flex-col items-start gap-8px pt-2px"><div class="ehpeek-touch-gallery-heading flex min-w-0 w-full flex-none flex-col gap-sm items-start pb-xs"><div class="ehpeek-touch-gallery-title-main line-clamp-4 flex-none overflow-hidden textsize-lg font-400 leading-[1.16] text-left break-anywhere"></div><div class="ehpeek-touch-gallery-title-sub line-clamp-3 flex-none overflow-hidden opacity-82 textsize-md leading-[1.2] text-left break-anywhere"></div></div><div class="ehpeek-touch-gallery-category-row grid grid-cols-[minmax(0,35fr)_minmax(0,65fr)] w-full flex-none items-center gap-lg mt-auto pt-md"><div class="ehpeek-touch-gallery-category box-border w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xs border border-solid py-6px px-10px text-center textsize-md font-700 leading-[1.1] uppercase"></div></div></div></div></div><div class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"><div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]"></div></div><div class="ehpeek-touch-gallery-content flex flex-col gap-lg pt-xl pr-[max(16px,env(safe-area-inset-right,0px))] pb-lg pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text"><div class="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-md gap-x-lg items-center textsize-md leading-[1.2] text-center">'), _tmpl$35 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">'), _tmpl$44 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-rating flex w-full min-w-0 flex-col items-center gap-4px p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-center cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"aria-label="Rate gallery"><div class="ehpeek-touch-gallery-rating-stars relative inline-flex max-w-full overflow-hidden"><span class="ehpeek-touch-gallery-rating-stars-empty flex gap-1px text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></div><div class="ehpeek-touch-gallery-rating-meta flex max-w-full min-w-0 items-center justify-center gap-6px text-[var(--color-muted)] textsize-md leading-[1.15] whitespace-nowrap"><span class="ehpeek-touch-gallery-rating-label min-w-0 overflow-hidden text-ellipsis"aria-live=polite>'), _tmpl$53 = /* @__PURE__ */ template('<span class="ehpeek-touch-gallery-rating-count flex-none pl-6px border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">'), _tmpl$62 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-meta-value line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">'), _tmpl$72 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-groups flex flex-col gap-md pt-2px">'), _tmpl$82 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu-panel absolute top-48px right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$92 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu relative flex min-w-0 items-center justify-center"><button type=button class="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text"aria-haspopup=menu>'), _tmpl$0 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-sm items-start"><div class="ehpeek-touch-gallery-tag-group-name min-h-sm overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-sm px-md text-center lowercase ehp-color-site-accent textsize-md font-600"></div><div class="ehpeek-touch-gallery-tags flex flex-wrap gap-sm">'), _tmpl$1 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent"aria-hidden=true>↺</span><span>'), _tmpl$102 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span>'), _tmpl$11 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-menu-dialog fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"role=dialog aria-modal=true><div class="ehpeek-touch-gallery-tag-menu-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-x-hidden overflow-y-auto whitespace-nowrap border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl"role=menu><a class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left"role=menuitem><span></span></a><a class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer"target=_blank rel="noopener noreferrer"role=menuitem><span></span></a><button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent textsize-lg leading-none"aria-hidden=true>+</span><span>'), _tmpl$12 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"role=dialog aria-modal=true><div class="box-border flex w-full max-w-420px flex-col gap-lg rounded-md border ehp-color-site-border ehp-color-site-elevated p-lg shadow-xl"><div class="ehp-color-site-text textsize-lg font-700"></div><label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"></select></label><label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"><option value=marked></option><option value=watched></option><option value=hidden></option></select></label><div class="grid grid-cols-2 gap-md"><button type=button class="min-h-md rounded-xs border-0 ehp-color-site-surface ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer"></button><button type=button class="flex min-h-md items-center justify-center gap-md rounded-xs border-0 bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit font-700 textsize-md cursor-pointer"><span>'), _tmpl$13 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-menu relative inline-flex max-w-full"><button type=button class="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-none transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"aria-haspopup=menu>'), _tmpl$14 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent"aria-hidden=true>↑</span><span>'), _tmpl$15 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent"aria-hidden=true>↓</span><span>'), _tmpl$16 = /* @__PURE__ */ template("<option>"), _tmpl$17 = /* @__PURE__ */ template('<span class="contents [&amp;_*]:!bg-transparent [&amp;_*]:!text-inherit"translate=no>'), _tmpl$18 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-panel absolute top-[calc(100%+8px)] left-0 z-overlay flex w-[min(86vw,360px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$19 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0"><button type=button aria-haspopup=menu><span class="block leading-[1.15]"></span><span class="ehpeek-touch-gallery-favorite-icon block mt-2px opacity-78 normal-case"aria-hidden=true>'), _tmpl$20 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-loading flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left">'), _tmpl$21 = /* @__PURE__ */ template('<button type=button><span class="ehpeek-touch-gallery-favorite-option-icon flex-none ehp-color-site-text"aria-hidden=true></span><span></span><span aria-hidden=true>'), TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]", TOUCH_GALLERY_INFO_CLASSES = {
+  var _tmpl$12 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-rating-dialog fixed inset-0 z-overlay flex items-center justify-center p-md bg-black/65"role=dialog aria-modal=true aria-label="Rate gallery"><div class="box-border flex w-[min(92vw,420px)] flex-col gap-lg rounded-lg border ehp-color-site-border p-lg ehp-color-site-elevated ehp-color-site-text shadow-xl"><div class="textsize-md font-700">Rate gallery</div><button type=button class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"><span class="flex gap-1px pointer-events-none text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></button><div class="grid grid-cols-2 gap-sm pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108">Submit</button><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">'), _tmpl$26 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans"><div class="ehpeek-touch-gallery-hero relative grid min-h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text"><div><div class="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 flex-col items-start gap-8px pt-2px"><div class="ehpeek-touch-gallery-heading flex min-w-0 w-full flex-none flex-col gap-sm items-start pb-xs"><div class="ehpeek-touch-gallery-title-main line-clamp-4 flex-none overflow-hidden textsize-lg font-400 leading-[1.16] text-left break-anywhere"></div><div class="ehpeek-touch-gallery-title-sub line-clamp-3 flex-none overflow-hidden opacity-82 textsize-md leading-[1.2] text-left break-anywhere"></div></div><div class="ehpeek-touch-gallery-category-row grid grid-cols-[minmax(0,35fr)_minmax(0,65fr)] w-full flex-none items-center gap-lg mt-auto pt-md"><div class="ehpeek-touch-gallery-category box-border w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xs border border-solid py-6px px-10px text-center textsize-md font-700 leading-[1.1] uppercase"></div></div></div></div></div><div class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"><div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]"></div></div><div class="ehpeek-touch-gallery-content flex flex-col gap-lg pt-xl pr-[max(16px,env(safe-area-inset-right,0px))] pb-lg pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text"><div class="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-md gap-x-lg items-center textsize-md leading-[1.2] text-center">'), _tmpl$35 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">'), _tmpl$44 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-rating flex w-full min-w-0 flex-col items-center gap-4px p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-center cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"aria-label="Rate gallery"><div class="ehpeek-touch-gallery-rating-stars relative inline-flex max-w-full overflow-hidden"><span class="ehpeek-touch-gallery-rating-stars-empty flex gap-1px text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></div><div class="ehpeek-touch-gallery-rating-meta flex max-w-full min-w-0 items-center justify-center gap-6px text-[var(--color-muted)] textsize-md leading-[1.15] whitespace-nowrap"><span class="ehpeek-touch-gallery-rating-label min-w-0 overflow-hidden text-ellipsis"aria-live=polite>'), _tmpl$53 = /* @__PURE__ */ template('<span class="ehpeek-touch-gallery-rating-count flex-none pl-6px border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">'), _tmpl$62 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-meta-value line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">'), _tmpl$72 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-groups flex flex-col gap-md pt-2px">'), _tmpl$82 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu-panel absolute top-48px right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$92 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu relative flex min-w-0 items-center justify-center"><button type=button class="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text"aria-haspopup=menu>'), _tmpl$0 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-sm items-start"><div class="ehpeek-touch-gallery-tag-group-name min-h-sm overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-sm px-md text-center lowercase ehp-color-site-accent textsize-md font-600"></div><div class="ehpeek-touch-gallery-tags flex flex-wrap gap-sm">'), _tmpl$1 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent"aria-hidden=true>↺</span><span>'), _tmpl$102 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span>'), _tmpl$112 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-menu-dialog fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"role=dialog aria-modal=true><div class="ehpeek-touch-gallery-tag-menu-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-x-hidden overflow-y-auto whitespace-nowrap border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl"role=menu><a class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left"role=menuitem><span></span></a><a class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer"target=_blank rel="noopener noreferrer"role=menuitem><span></span></a><button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent textsize-lg leading-none"aria-hidden=true>+</span><span>'), _tmpl$122 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"role=dialog aria-modal=true><div class="box-border flex w-full max-w-420px flex-col gap-lg rounded-md border ehp-color-site-border ehp-color-site-elevated p-lg shadow-xl"><div class="ehp-color-site-text textsize-lg font-700"></div><label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"></select></label><label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"><option value=marked></option><option value=watched></option><option value=hidden></option></select></label><div class="grid grid-cols-2 gap-md"><button type=button class="min-h-md rounded-xs border-0 ehp-color-site-surface ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer"></button><button type=button class="flex min-h-md items-center justify-center gap-md rounded-xs border-0 bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit font-700 textsize-md cursor-pointer"><span>'), _tmpl$13 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-menu relative inline-flex max-w-full"><button type=button class="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-none transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"aria-haspopup=menu>'), _tmpl$14 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent"aria-hidden=true>↑</span><span>'), _tmpl$15 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent"aria-hidden=true>↓</span><span>'), _tmpl$16 = /* @__PURE__ */ template("<option>"), _tmpl$17 = /* @__PURE__ */ template('<span class="contents [&amp;_*]:!bg-transparent [&amp;_*]:!text-inherit"translate=no>'), _tmpl$18 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-panel absolute top-[calc(100%+8px)] left-0 z-overlay flex w-[min(86vw,360px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$19 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0"><button type=button aria-haspopup=menu><span class="block leading-[1.15]"></span><span class="ehpeek-touch-gallery-favorite-icon block mt-2px opacity-78 normal-case"aria-hidden=true>'), _tmpl$20 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-loading flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left">'), _tmpl$21 = /* @__PURE__ */ template('<button type=button><span class="ehpeek-touch-gallery-favorite-option-icon flex-none ehp-color-site-text"aria-hidden=true></span><span></span><span aria-hidden=true>'), TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]", TOUCH_GALLERY_INFO_CLASSES = {
     actionItems: TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS,
     cover: "block w-full max-w-full h-full max-h-full mx-auto object-contain object-center",
     host: "ehpeek-touch-gallery-host",
@@ -4593,7 +4629,7 @@
           return ratingPickerOpen();
         },
         get children() {
-          var _el$12 = _tmpl$10(), _el$13 = _el$12.firstChild, _el$14 = _el$13.firstChild, _el$15 = _el$14.nextSibling, _el$16 = _el$15.firstChild, _el$17 = _el$16.nextSibling, _el$18 = _el$15.nextSibling, _el$19 = _el$18.firstChild, _el$20 = _el$19.nextSibling;
+          var _el$12 = _tmpl$12(), _el$13 = _el$12.firstChild, _el$14 = _el$13.firstChild, _el$15 = _el$14.nextSibling, _el$16 = _el$15.firstChild, _el$17 = _el$16.nextSibling, _el$18 = _el$15.nextSibling, _el$19 = _el$18.firstChild, _el$20 = _el$19.nextSibling;
           return _el$12.$$click = (event) => {
             event.target === event.currentTarget && (setRatingPreview(null), setRatingPickerOpen(!1));
           }, _el$15.$$click = (event) => {
@@ -4724,7 +4760,7 @@
           return open();
         },
         get children() {
-          var _el$39 = _tmpl$11(), _el$40 = _el$39.firstChild, _el$44 = _el$40.firstChild, _el$45 = _el$44.firstChild, _el$46 = _el$44.nextSibling, _el$47 = _el$46.firstChild, _el$50 = _el$46.nextSibling, _el$51 = _el$50.firstChild, _el$52 = _el$51.nextSibling;
+          var _el$39 = _tmpl$112(), _el$40 = _el$39.firstChild, _el$44 = _el$40.firstChild, _el$45 = _el$44.firstChild, _el$46 = _el$44.nextSibling, _el$47 = _el$46.firstChild, _el$50 = _el$46.nextSibling, _el$51 = _el$50.firstChild, _el$52 = _el$51.nextSibling;
           return _el$39.$$click = (event) => {
             event.target === event.currentTarget && closeMenu();
           }, _el$40.$$click = closeMenu, insert(_el$40, createComponent(Show, {
@@ -4794,7 +4830,7 @@
           return favoriteDialogOpen();
         },
         get children() {
-          var _el$53 = _tmpl$12(), _el$54 = _el$53.firstChild, _el$55 = _el$54.firstChild, _el$56 = _el$55.nextSibling, _el$57 = _el$56.firstChild, _el$58 = _el$57.nextSibling, _el$59 = _el$56.nextSibling, _el$60 = _el$59.firstChild, _el$61 = _el$60.nextSibling, _el$62 = _el$61.firstChild, _el$63 = _el$62.nextSibling, _el$64 = _el$63.nextSibling, _el$65 = _el$59.nextSibling, _el$66 = _el$65.firstChild, _el$67 = _el$66.nextSibling, _el$68 = _el$67.firstChild;
+          var _el$53 = _tmpl$122(), _el$54 = _el$53.firstChild, _el$55 = _el$54.firstChild, _el$56 = _el$55.nextSibling, _el$57 = _el$56.firstChild, _el$58 = _el$57.nextSibling, _el$59 = _el$56.nextSibling, _el$60 = _el$59.firstChild, _el$61 = _el$60.nextSibling, _el$62 = _el$61.firstChild, _el$63 = _el$62.nextSibling, _el$64 = _el$63.nextSibling, _el$65 = _el$59.nextSibling, _el$66 = _el$65.firstChild, _el$67 = _el$66.nextSibling, _el$68 = _el$67.firstChild;
           return _el$53.$$click = (event) => {
             event.target === event.currentTarget && setFavoriteDialogOpen(!1);
           }, insert(_el$55, () => texts_default.gallery.favoriteTag), insert(_el$57, () => texts_default.gallery.tagCollection), _el$58.addEventListener("change", (event) => setSelectedTagSet(event.currentTarget.value)), insert(_el$58, createComponent(For, {
@@ -5241,8 +5277,7 @@ body #gdt[class],
 /* Keep wide thumbnail and pagination rows scrollable inside the viewport. */
 body #gdt[class],
 .ptt,
-.ptb,
-.ehpeek-scroll-page-bar {
+.ptb {
   overflow-x: auto !important;
   -webkit-overflow-scrolling: touch;
 }
@@ -5492,6 +5527,7 @@ body #gdt[class],
 .\\[--progress-bar-fill\\:0\\%\\]{--progress-bar-fill:0%;}
 .\\[--progress-bar-track-direction\\:to_right\\]{--progress-bar-track-direction:to right;}
 .\\[-webkit-appearance\\:none\\]{-webkit-appearance:none;}
+.\\[-webkit-overflow-scrolling\\:touch\\]{-webkit-overflow-scrolling:touch;}
 .\\[-webkit-tap-highlight-color\\:transparent\\]{-webkit-tap-highlight-color:transparent;}
 .\\[-webkit-user-drag\\:none\\]{-webkit-user-drag:none;}
 .\\[accent-color\\:var\\(--color-text\\)\\]{accent-color:var(--color-text);}
@@ -5627,6 +5663,7 @@ body #gdt[class],
 .max-w-\\[min\\(78vw\\,320px\\)\\]{max-width:min(78vw,320px);}
 .max-w-\\[min\\(86vw\\,760px\\)\\]{max-width:min(86vw,760px);}
 .max-w-420px{max-width:420px;}
+.max-w-480px{max-width:480px;}
 .max-w-960px{max-width:960px;}
 .max-w-full{max-width:100%;}
 .max-w-none{max-width:none;}
@@ -6531,38 +6568,43 @@ body #gdt[class],
   delegateEvents(["pointerdown", "input", "pointerup"]);
 
   // src/components/Reader/Toolbar.tsx
-  var _tmpl$41 = /* @__PURE__ */ template('<div class="ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap"role=status><span>'), _tmpl$213 = /* @__PURE__ */ template('<div class=contents><div class="ehpeek-reader-toolbar fixed z-3 flex justify-end pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] right-10px coarse:top-[calc(8px+env(safe-area-inset-top,0px))] coarse:right-8px"><div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button></button></div></div><div class="ehpeek-reader-page-number fixed z-3 pointer-events-none top-[calc(70px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 coarse:top-[calc(80px+env(safe-area-inset-top,0px))] landscape:top-[calc(62px+env(safe-area-inset-top,0px))] landscape:left-auto landscape:right-10px landscape:translate-x-0 coarse-landscape:top-[calc(74px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px min-w-64px landscape:min-w-0 max-w-none landscape:max-w-[calc(100vw-20px)] coarse-landscape:max-w-[calc(100vw-16px)] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap text-center landscape:text-right"></div><div class="fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] [&amp;[data-open=false]]:opacity-0 [&amp;[data-open=false]]:translate-y-[calc(100%+16px)] [&amp;[data-open=false]]:pointer-events-none">'), _tmpl$310 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 pointer-events-auto"role=dialog aria-modal=true><div class="ehpeek-reader-download-dialog-panel w-full max-w-420px p-lg rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] shadow-xl"><div class="flex items-center justify-between gap-md mb-lg"><div class="font-sans textsize-lg font-700"></div><button type=button></button></div><div class="grid gap-md font-sans textsize-md"><button type=button><span class=font-700></span><span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75"></span></button><button type=button><span class=font-700></span><span class="textsize-sm opacity-75">'), READER_BUTTON_CLASS = ["inline-flex min-w-48px h-48px items-center justify-center px-md py-0 rounded-md coarse:min-w-64px coarse:h-64px coarse:px-lg coarse:rounded-lg", "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:opacity-40 disabled:cursor-default"].join(" "), READER_ICON_SIZE = "1.4em", TIME_FORMATTER = new Intl.DateTimeFormat(void 0, {
+  var _tmpl$41 = /* @__PURE__ */ template('<div class="ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap"role=status><span>'), _tmpl$213 = /* @__PURE__ */ template('<div class=contents><div class="ehpeek-reader-toolbar fixed z-3 flex justify-end pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] right-10px coarse:top-[calc(8px+env(safe-area-inset-top,0px))] coarse:right-8px"><div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button></button></div></div><div class="ehpeek-reader-page-number fixed z-3 pointer-events-none top-[calc(70px+env(safe-area-inset-top,0px))] left-1/2 right-auto -translate-x-1/2 coarse:top-[calc(80px+env(safe-area-inset-top,0px))] landscape:top-[calc(62px+env(safe-area-inset-top,0px))] landscape:left-auto landscape:right-10px landscape:translate-x-0 coarse-landscape:top-[calc(74px+env(safe-area-inset-top,0px))] coarse-landscape:right-8px min-w-64px landscape:min-w-0 max-w-none landscape:max-w-[calc(100vw-20px)] coarse-landscape:max-w-[calc(100vw-16px)] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap text-center landscape:text-right"></div><div class="fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] [&amp;[data-open=false]]:opacity-0 [&amp;[data-open=false]]:translate-y-[calc(100%+16px)] [&amp;[data-open=false]]:pointer-events-none">'), _tmpl$310 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 pointer-events-auto"role=dialog aria-modal=true><div class="ehpeek-reader-download-dialog-panel w-full max-w-480px p-lg rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] shadow-xl"><div class="flex items-center justify-between gap-md mb-lg"><div class="font-sans textsize-md font-700"></div><button type=button></button></div><div class="grid gap-md font-sans textsize-md"><button type=button><span class="textsize-md font-700"></span><span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75"></span></button><button type=button><span class="textsize-md font-700"></span><span class="textsize-sm opacity-75">'), READER_BUTTON_CLASS = ["inline-flex min-w-48px h-48px items-center justify-center px-md py-0 rounded-md coarse:min-w-64px coarse:h-64px coarse:px-lg coarse:rounded-lg", "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:opacity-40 disabled:cursor-default"].join(" "), READER_ICON_SIZE = "1.4em", TIME_FORMATTER = new Intl.DateTimeFormat(void 0, {
     hour: "2-digit",
     minute: "2-digit"
   }), DOWNLOAD_OPTION_CLASS = ["flex w-full min-h-lg flex-col items-start justify-center gap-xs px-lg py-md rounded-md", "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer text-left", "hover:bg-[var(--color-badge)] disabled:opacity-40 disabled:cursor-default"].join(" ");
-  function initialToolbarState(controls) {
-    return {
-      controls,
-      downloadAvailable: !1,
-      downloadDialog: null,
-      fullscreenActive: !1,
-      open: !1,
-      progress: {
-        pageNum: 1,
-        maxProgressPageNum: 1
-      }
-    };
-  }
   function Toolbar(props) {
-    let controls = () => props.state.controls, progress = () => props.state.progress, open = () => props.state.open, modeIcon = () => controls().mode === "paged" ? "arrows-horizontal" : "arrows-vertical", readDirectionIcon = () => controls().readDirection === "rtl" ? "arrow-left" : "arrow-right", rightTapText = () => controls().rightTapAction === "previous" ? "R-" : "R+", fullscreenTime = createFullscreenTime(() => props.state.fullscreenActive);
-    return (() => {
+    let [dialogDownloadInfo, setDialogDownloadInfo] = createSignal(null), fullscreenTime = createFullscreenTime(() => props.fullscreenActive);
+    return createEffect(() => {
+      dialogDownloadInfo()?.pageNum !== props.progress.pageNum && setDialogDownloadInfo(null);
+    }), createEffect(() => {
+      if (!dialogDownloadInfo())
+        return;
+      let closeOnEscape = (event) => {
+        event.key === "Escape" && (event.preventDefault(), event.stopPropagation(), setDialogDownloadInfo(null));
+      };
+      window.addEventListener("keydown", closeOnEscape, !0), onCleanup(() => window.removeEventListener("keydown", closeOnEscape, !0));
+    }), (() => {
       var _el$ = _tmpl$213(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.nextSibling, _el$6 = _el$5.nextSibling, _el$7 = _el$6.nextSibling, _el$8 = _el$7.nextSibling, _el$9 = _el$8.nextSibling, _el$0 = _el$9.nextSibling, _el$1 = _el$2.nextSibling, _el$12 = _el$1.nextSibling;
-      return addEventListener(_el$2, "wheel", stopEvent), addEventListener(_el$2, "pointerdown", stopEvent, !0), addEventListener(_el$2, "click", stopEvent, !0), _el$4.$$click = () => props.callbacks.onRightTapClick(), className(_el$4, READER_BUTTON_CLASS), insert(_el$4, rightTapText), _el$5.$$click = () => props.callbacks.onReadDirectionClick(), className(_el$5, READER_BUTTON_CLASS), insert(_el$5, createComponent(Icon, {
+      return addEventListener(_el$2, "wheel", stopEvent), addEventListener(_el$2, "pointerdown", stopEvent, !0), addEventListener(_el$2, "click", stopEvent, !0), _el$4.$$click = () => props.callbacks.onControlsChange({
+        ...props.controls,
+        rightTapAction: props.controls.rightTapAction === "previous" ? "next" : "previous"
+      }), className(_el$4, READER_BUTTON_CLASS), insert(_el$4, () => props.controls.rightTapAction === "previous" ? "R-" : "R+"), _el$5.$$click = () => props.callbacks.onControlsChange({
+        ...props.controls,
+        readDirection: props.controls.readDirection === "rtl" ? "ltr" : "rtl"
+      }), className(_el$5, READER_BUTTON_CLASS), insert(_el$5, createComponent(Icon, {
         get name() {
-          return readDirectionIcon();
+          return props.controls.readDirection === "rtl" ? "arrow-left" : "arrow-right";
         },
         size: READER_ICON_SIZE
-      })), _el$6.$$click = () => props.callbacks.onModeClick(), className(_el$6, READER_BUTTON_CLASS), insert(_el$6, createComponent(Icon, {
+      })), _el$6.$$click = () => props.callbacks.onControlsChange({
+        ...props.controls,
+        mode: props.controls.mode === "paged" ? "scroll" : "paged"
+      }), className(_el$6, READER_BUTTON_CLASS), insert(_el$6, createComponent(Icon, {
         get name() {
-          return modeIcon();
+          return props.controls.mode === "paged" ? "arrows-horizontal" : "arrows-vertical";
         },
         size: READER_ICON_SIZE
-      })), _el$7.$$click = () => props.callbacks.onDownloadClick(), className(_el$7, READER_BUTTON_CLASS), insert(_el$7, createComponent(Icon, {
+      })), _el$7.$$click = () => setDialogDownloadInfo(props.downloadInfo), className(_el$7, READER_BUTTON_CLASS), insert(_el$7, createComponent(Icon, {
         name: "download",
         size: READER_ICON_SIZE
       })), _el$8.$$click = () => props.callbacks.onOpenOriginalPageClick(), className(_el$8, READER_BUTTON_CLASS), insert(_el$8, createComponent(Icon, {
@@ -6570,15 +6612,15 @@ body #gdt[class],
         size: READER_ICON_SIZE
       })), _el$9.$$click = () => props.callbacks.onFullscreenClick(), className(_el$9, READER_BUTTON_CLASS), insert(_el$9, createComponent(Icon, {
         get name() {
-          return props.state.fullscreenActive ? "fullscreen-exit" : "fullscreen";
+          return props.fullscreenActive ? "fullscreen-exit" : "fullscreen";
         },
         size: READER_ICON_SIZE
       })), _el$0.$$click = () => props.callbacks.onCloseClick(), className(_el$0, READER_BUTTON_CLASS), insert(_el$0, createComponent(Icon, {
         name: "close",
         size: READER_ICON_SIZE
-      })), insert(_el$1, () => pageNumberText(progress().pageNum, progress().totalPages)), insert(_el$, createComponent(Show, {
+      })), insert(_el$1, () => pageNumberText(props.progress.pageNum, props.progress.totalPages)), insert(_el$, createComponent(Show, {
         get when() {
-          return props.state.fullscreenActive;
+          return props.fullscreenActive;
         },
         get children() {
           var _el$10 = _tmpl$41(), _el$11 = _el$10.firstChild;
@@ -6587,21 +6629,21 @@ body #gdt[class],
       }), _el$12), addEventListener(_el$12, "wheel", stopEvent), addEventListener(_el$12, "pointerdown", stopEvent, !0), addEventListener(_el$12, "click", stopEvent, !0), insert(_el$12, createComponent(ProgressBar, {
         class: "ehpeek-reader-progress textsize-lg",
         get direction() {
-          return controls().readDirection === "rtl" ? "rtl" : "ltr";
+          return props.controls.readDirection === "rtl" ? "rtl" : "ltr";
         },
         get fillPercent() {
-          return progressFillPercent(progress());
+          return progressFillPercent(props.progress);
         },
         get keepInputValue() {
-          return progress().keepInputValue;
+          return props.progress.keepInputValue;
         },
         get max() {
-          return Math.max(1, progress().maxProgressPageNum);
+          return Math.max(1, props.progress.maxProgressPageNum);
         },
         min: 1,
         step: 1,
         get value() {
-          return progress().pageNum;
+          return props.progress.pageNum;
         },
         get onPointerDown() {
           return props.callbacks.onProgressPointerDown;
@@ -6614,21 +6656,25 @@ body #gdt[class],
         }
       })), insert(_el$, createComponent(Show, {
         get when() {
-          return props.state.downloadDialog;
+          return dialogDownloadInfo();
         },
         keyed: !0,
-        children: (downloadDialog) => (() => {
+        children: (downloadInfo) => (() => {
           var _el$13 = _tmpl$310(), _el$14 = _el$13.firstChild, _el$15 = _el$14.firstChild, _el$16 = _el$15.firstChild, _el$17 = _el$16.nextSibling, _el$18 = _el$15.nextSibling, _el$19 = _el$18.firstChild, _el$20 = _el$19.firstChild, _el$21 = _el$20.nextSibling, _el$22 = _el$19.nextSibling, _el$23 = _el$22.firstChild, _el$24 = _el$23.nextSibling;
           return addEventListener(_el$13, "wheel", stopEvent), addEventListener(_el$13, "pointerdown", stopEvent, !0), _el$13.$$click = (event) => {
-            event.stopPropagation(), event.target === event.currentTarget && props.callbacks.onDownloadDialogClose();
-          }, insert(_el$16, () => `${texts_default.reader.download} · ${downloadDialog.pageNum}`), addEventListener(_el$17, "click", props.callbacks.onDownloadDialogClose, !0), className(_el$17, READER_BUTTON_CLASS), insert(_el$17, createComponent(Icon, {
+            event.stopPropagation(), event.target === event.currentTarget && setDialogDownloadInfo(null);
+          }, insert(_el$16, () => `${texts_default.reader.download} · ${downloadInfo.pageNum}`), _el$17.$$click = () => setDialogDownloadInfo(null), className(_el$17, READER_BUTTON_CLASS), insert(_el$17, createComponent(Icon, {
             name: "close",
             size: READER_ICON_SIZE
-          })), addEventListener(_el$19, "click", props.callbacks.onDownloadCurrentClick, !0), className(_el$19, DOWNLOAD_OPTION_CLASS), insert(_el$20, () => texts_default.reader.downloadDisplayedImage), insert(_el$21, () => downloadDialog.currentFileName), addEventListener(_el$22, "click", props.callbacks.onDownloadOriginalClick, !0), className(_el$22, DOWNLOAD_OPTION_CLASS), insert(_el$23, () => texts_default.reader.downloadOriginalImage), insert(_el$24, (() => {
-            var _c$ = memo(() => !!downloadDialog.originalImageUrl);
+          })), _el$19.$$click = () => {
+            startImageDownload(downloadInfo.currentImageUrl, downloadInfo.currentFileName) && setDialogDownloadInfo(null);
+          }, className(_el$19, DOWNLOAD_OPTION_CLASS), insert(_el$20, () => texts_default.reader.downloadDisplayedImage), insert(_el$21, () => downloadInfo.currentFileName), _el$22.$$click = () => {
+            downloadInfo.originalImageUrl && startImageDownload(downloadInfo.originalImageUrl) && setDialogDownloadInfo(null);
+          }, className(_el$22, DOWNLOAD_OPTION_CLASS), insert(_el$23, () => texts_default.reader.downloadOriginalImage), insert(_el$24, (() => {
+            var _c$ = memo(() => !!downloadInfo.originalImageUrl);
             return () => _c$() ? texts_default.reader.originalImageSource : texts_default.reader.originalImageUnavailable;
           })()), createRenderEffect((_p$) => {
-            var _v$5 = texts_default.reader.download, _v$6 = texts_default.button.close, _v$7 = texts_default.button.close, _v$8 = !downloadDialog.originalImageUrl;
+            var _v$5 = texts_default.reader.download, _v$6 = texts_default.button.close, _v$7 = texts_default.button.close, _v$8 = !downloadInfo.originalImageUrl;
             return _v$5 !== _p$.e && setAttribute(_el$13, "aria-label", _p$.e = _v$5), _v$6 !== _p$.t && setAttribute(_el$17, "title", _p$.t = _v$6), _v$7 !== _p$.a && setAttribute(_el$17, "aria-label", _p$.a = _v$7), _v$8 !== _p$.o && (_el$22.disabled = _p$.o = _v$8), _p$;
           }, {
             e: void 0,
@@ -6638,7 +6684,7 @@ body #gdt[class],
           }), _el$13;
         })()
       }), null), createRenderEffect((_p$) => {
-        var _v$ = `ehpeek-reader-toolbar-buttons flex flex-row gap-md coarse:gap-lg pointer-events-auto${open() ? "" : " !hidden"}`, _v$2 = !props.state.downloadAvailable, _v$3 = controls().mode === "scroll" && !open() && !props.state.fullscreenActive, _v$4 = String(open());
+        var _v$ = `ehpeek-reader-toolbar-buttons flex flex-row gap-md coarse:gap-lg pointer-events-auto${props.open ? "" : " !hidden"}`, _v$2 = !props.downloadInfo, _v$3 = props.controls.mode === "scroll" && !props.open && !props.fullscreenActive, _v$4 = String(props.open);
         return _v$ !== _p$.e && className(_el$3, _p$.e = _v$), _v$2 !== _p$.t && (_el$7.disabled = _p$.t = _v$2), _v$3 !== _p$.a && (_el$1.hidden = _p$.a = _v$3), _v$4 !== _p$.o && setAttribute(_el$12, "data-open", _p$.o = _v$4), _p$;
       }, {
         e: void 0,
@@ -6647,6 +6693,21 @@ body #gdt[class],
         o: void 0
       }), _el$;
     })();
+  }
+  function startImageDownload(url, name) {
+    try {
+      return GM_download({
+        url,
+        ...name ? {
+          name
+        } : {},
+        onerror: (error) => {
+          console.error("[ehpeek]", error), window.alert(texts_default.errors.downloadFailed);
+        }
+      }), !0;
+    } catch (error) {
+      return console.error("[ehpeek]", error), window.alert(texts_default.errors.downloadFailed), !1;
+    }
   }
   function createFullscreenTime(enabled) {
     let [time, setTime] = createSignal(TIME_FORMATTER.format(/* @__PURE__ */ new Date()));
@@ -6722,6 +6783,164 @@ body #gdt[class],
     })();
   }
 
+  // src/components/Reader/session.ts
+  var DEFAULT_WINDOW_SIZE = 10, DEFAULT_NEAR_CONCURRENT_LOADS = 3, DEFAULT_FAR_CONCURRENT_LOADS = 6, DEFAULT_NEAR_LOAD_AHEAD = 3, ReaderSession = class {
+    constructor(options) {
+      this.animationFrames = /* @__PURE__ */ new Set();
+      this.timers = /* @__PURE__ */ new Set();
+      this.disposed = !1;
+      this.imageQueue = new TwoTierImageQueue(
+        options.nearConcurrentLoads,
+        options.farConcurrentLoads
+      );
+      let [controls, setControls] = createSignal({
+        mode: state.reader.viewMode.value,
+        readDirection: state.reader.readDirection.value,
+        rightTapAction: state.reader.rightTapAction.value
+      }), [toolbarOpen, setToolbarOpen] = createSignal(!1), [viewportWindow, setViewportWindow] = createSignal(initialViewportWindow(options)), [zoomImage, setZoomImage] = createSignal(null), [currentPageNum, setCurrentPageNum] = createSignal(initialPageNumber(options)), [direction, setDirection] = createSignal(1), [downloadInfo, setDownloadInfo] = createSignal(null), [maxProgressPageNum, setMaxProgressPageNum] = createSignal(1), [progressInputActive, setProgressInputActive] = createSignal(!1);
+      this.state = {
+        navi: {
+          currentPageNum,
+          direction,
+          setCurrentPageNum,
+          setDirection,
+          setViewportWindow,
+          viewportWindow,
+          leftDragDelta: () => state.reader.readDirection.value === "rtl" ? -1 : 1,
+          leftTapDelta: () => state.reader.rightTapAction.value === "previous" ? 1 : -1,
+          rightDragDelta: () => state.reader.readDirection.value === "rtl" ? 1 : -1,
+          rightTapDelta: () => state.reader.rightTapAction.value === "previous" ? -1 : 1,
+          downloadInfo,
+          maxProgressPageNum,
+          progressInputActive,
+          setDownloadInfo,
+          setMaxProgressPageNum,
+          setProgressInputActive
+        },
+        ctrls: { update: setControls, value: controls },
+        toolbar: {
+          open: toolbarOpen,
+          toggle: () => setToolbarOpen((open) => !open)
+        },
+        overlay: { image: zoomImage, update: setZoomImage }
+      };
+    }
+    setTimeout(callback, delay) {
+      let timer = window.setTimeout(() => {
+        this.timers.delete(timer), callback();
+      }, delay);
+      return this.timers.add(timer), timer;
+    }
+    clearTimeout(timer) {
+      timer !== null && (window.clearTimeout(timer), this.timers.delete(timer));
+    }
+    requestAnimationFrame(callback) {
+      let frame = window.requestAnimationFrame((time) => {
+        this.animationFrames.delete(frame), callback(time);
+      });
+      return this.animationFrames.add(frame), frame;
+    }
+    cancelAnimationFrame(frame) {
+      frame !== null && (window.cancelAnimationFrame(frame), this.animationFrames.delete(frame));
+    }
+    dispose() {
+      if (!this.disposed) {
+        this.disposed = !0;
+        for (let timer of this.timers)
+          window.clearTimeout(timer);
+        for (let frame of this.animationFrames)
+          window.cancelAnimationFrame(frame);
+        this.imageQueue.dispose(), this.timers.clear(), this.animationFrames.clear();
+      }
+    }
+  };
+  function initialViewportWindow(options) {
+    return {
+      currentPageNum: initialPageNumber(options),
+      windowSize: options.renderWindowSize ?? DEFAULT_WINDOW_SIZE,
+      totalPages: options.totalPages && options.totalPages > 0 ? options.totalPages : void 0,
+      pages: /* @__PURE__ */ new Map()
+    };
+  }
+  function initialPageNumber(options) {
+    let totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : Number.MAX_SAFE_INTEGER;
+    return clamp(Math.round(options.initialPageNum), 1, totalPages);
+  }
+  var TwoTierImageQueue = class {
+    constructor(nearConcurrentLoads = DEFAULT_NEAR_CONCURRENT_LOADS, farConcurrentLoads = DEFAULT_FAR_CONCURRENT_LOADS, nearLoadAhead = DEFAULT_NEAR_LOAD_AHEAD) {
+      this.nearConcurrentLoads = nearConcurrentLoads;
+      this.farConcurrentLoads = farConcurrentLoads;
+      this.nearLoadAhead = nearLoadAhead;
+      this.nearQueue = /* @__PURE__ */ new Map();
+      this.farQueue = /* @__PURE__ */ new Map();
+      this.activeNearLoads = 0;
+      this.activeTotalLoads = 0;
+      this.timer = null;
+      this.disposed = !1;
+      this.callbacks = {};
+    }
+    updateCallbacks(callbacks) {
+      this.callbacks = callbacks, this.schedule();
+    }
+    dispose() {
+      this.disposed = !0, this.nearQueue.clear(), this.farQueue.clear(), this.timer !== null && (window.clearTimeout(this.timer), this.timer = null);
+    }
+    sync(targets, currentPageNum, direction, windowNumbers, preloadWindowSize) {
+      for (let queue of [this.nearQueue, this.farQueue])
+        for (let pageNum of queue.keys())
+          windowNumbers.has(pageNum) || queue.delete(pageNum);
+      this.enqueue(targets.find((target) => target.pageNum === currentPageNum), "near");
+      for (let offset = 1; offset <= preloadWindowSize; offset += 1) {
+        let pageNum = currentPageNum + offset * direction, target = targets.find((candidate) => candidate.pageNum === pageNum);
+        target && this.enqueue(target, offset <= this.nearLoadAhead ? "near" : "far");
+      }
+      this.schedule();
+    }
+    enqueue(target, tier) {
+      if (!target)
+        return;
+      let pageNum = target.pageNum;
+      if (tier === "near") {
+        this.farQueue.delete(pageNum), this.nearQueue.set(pageNum, target);
+        return;
+      }
+      this.nearQueue.has(pageNum) || this.farQueue.set(pageNum, target);
+    }
+    schedule() {
+      this.timer !== null || this.disposed || !this.callbacks.loadTarget || (this.timer = window.setTimeout(() => {
+        this.timer = null, this.process();
+      }, 0));
+    }
+    process() {
+      if (!this.disposed)
+        for (; this.activeTotalLoads < this.currentConcurrency(); ) {
+          let tier = this.nearQueue.size > 0 ? "near" : this.activeNearLoads > 0 ? null : "far";
+          if (tier === null)
+            return;
+          let queue = tier === "near" ? this.nearQueue : this.farQueue, target = queue.values().next().value;
+          if (!target)
+            return;
+          queue.delete(target.pageNum), this.start(target, tier);
+        }
+    }
+    currentConcurrency() {
+      return this.nearQueue.size > 0 || this.activeNearLoads > 0 ? Math.min(this.nearConcurrentLoads, this.farConcurrentLoads) : this.farConcurrentLoads;
+    }
+    start(target, tier) {
+      let { loadTarget, markLoading, onLoaded, onError } = this.callbacks;
+      if (!loadTarget || !markLoading || !onLoaded || !onError)
+        return;
+      let token = markLoading(target.pageNum);
+      token !== null && (this.activeTotalLoads += 1, tier === "near" && (this.activeNearLoads += 1), loadTarget(target).then((loaded) => {
+        this.disposed || onLoaded(target, loaded, token);
+      }).catch((error) => {
+        this.disposed || onError(target, error, token);
+      }).finally(() => {
+        this.activeTotalLoads -= 1, tier === "near" && (this.activeNearLoads -= 1), this.process();
+      }));
+    }
+  };
+
   // src/components/Reader/index.css
   var Reader_default = `#ehpeek-reader {
   --color-background: #070707;
@@ -6791,682 +7010,376 @@ body #gdt[class],
 
   // src/components/Reader/index.tsx
   var _tmpl$49 = /* @__PURE__ */ template('<div id=ehpeek-reader class="fixed inset-0 z-reader ehp-color-reader font-sans textsize-sm leading-[1.4]"><header class=contents>');
-  var STYLE_ID = "ehpeek-reader-style", DEFAULT_WINDOW_SIZE = 10, DEFAULT_NEAR_CONCURRENT_LOADS = 3, DEFAULT_FAR_CONCURRENT_LOADS = 6, NEAR_LOAD_AHEAD = 3, PAGED_SWIPE_THRESHOLD = 24, PAGED_WHEEL_THRESHOLD = 8, PROGRESS_IDLE_COMMIT_MS = 1e3, DOUBLE_TAP_MS = 340, DOUBLE_TAP_DISTANCE = 36, TAP_CANCEL_DISTANCE = 8, FALLBACK_ASPECT_RATIO2 = 1.42, FULLSCREEN_UI_SCALE_PROPERTY = "--ehpeek-reader-fullscreen-ui-scale", FULLSCREEN_PROGRESS_SIZE_PROPERTY = "--ehpeek-reader-fullscreen-progress-size";
-  async function enterReaderFullscreen(target) {
-    let scaleBefore = window.visualViewport?.scale ?? 1;
-    await target.requestFullscreen(), await new Promise((resolve) => {
-      window.requestAnimationFrame(() => resolve());
-    });
-    let scaleAfter = window.visualViewport?.scale ?? 1, uiScale = clamp(scaleBefore / Math.max(scaleAfter, 0.01), 0.25, 1), progressSize = Number.parseFloat(getComputedStyle(target).getPropertyValue("--font-size-lg")) || 24;
-    target.style.setProperty(FULLSCREEN_UI_SCALE_PROPERTY, String(uiScale)), target.style.setProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY, `${progressSize * uiScale}px`);
-  }
-  function clearReaderFullscreenScale(target) {
-    target.style.removeProperty(FULLSCREEN_UI_SCALE_PROPERTY), target.style.removeProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY);
-  }
-  var TwoTierImageQueue = class {
-    constructor(loadTarget, markLoading, onLoaded, onError, nearConcurrentLoads, farConcurrentLoads) {
-      __publicField(this, "nearQueue", /* @__PURE__ */ new Map());
-      __publicField(this, "farQueue", /* @__PURE__ */ new Map());
-      __publicField(this, "activeNearLoads", 0);
-      __publicField(this, "activeTotalLoads", 0);
-      __publicField(this, "timer", null);
-      __publicField(this, "disposed", !1);
-      this.loadTarget = loadTarget, this.markLoading = markLoading, this.onLoaded = onLoaded, this.onError = onError, this.nearConcurrentLoads = nearConcurrentLoads, this.farConcurrentLoads = farConcurrentLoads;
-    }
-    dispose() {
-      this.disposed = !0, this.nearQueue.clear(), this.farQueue.clear(), this.timer !== null && (window.clearTimeout(this.timer), this.timer = null);
-    }
-    sync(targets, currentPageNum, direction, windowNumbers, preloadWindowSize) {
-      for (let queue of [this.nearQueue, this.farQueue])
-        for (let pageNum of queue.keys())
-          windowNumbers.has(pageNum) || queue.delete(pageNum);
-      this.enqueue(targets.find((target) => target.pageNum === currentPageNum), "near");
-      for (let offset = 1; offset <= preloadWindowSize; offset += 1) {
-        let pageNum = currentPageNum + offset * direction, target = targets.find((candidate) => candidate.pageNum === pageNum);
-        target && this.enqueue(target, offset <= NEAR_LOAD_AHEAD ? "near" : "far");
-      }
-      this.schedule();
-    }
-    enqueue(target, tier) {
-      if (!target)
-        return;
-      let pageNum = target.pageNum;
-      if (tier === "near") {
-        this.farQueue.delete(pageNum), this.nearQueue.set(pageNum, target);
-        return;
-      }
-      this.nearQueue.has(pageNum) || this.farQueue.set(pageNum, target);
-    }
-    schedule() {
-      this.timer !== null || this.disposed || (this.timer = window.setTimeout(() => {
-        this.timer = null, this.process();
-      }, 0));
-    }
-    process() {
-      if (!this.disposed)
-        for (; this.activeTotalLoads < this.currentConcurrency(); ) {
-          let tier = this.nearQueue.size > 0 ? "near" : this.activeNearLoads > 0 ? null : "far";
-          if (tier === null)
-            return;
-          let queue = tier === "near" ? this.nearQueue : this.farQueue, target = queue.values().next().value;
-          if (!target)
-            return;
-          queue.delete(target.pageNum), this.start(target, tier);
-        }
-    }
-    currentConcurrency() {
-      return this.nearQueue.size > 0 || this.activeNearLoads > 0 ? Math.min(this.nearConcurrentLoads, this.farConcurrentLoads) : this.farConcurrentLoads;
-    }
-    start(target, tier) {
-      let token = this.markLoading(target.pageNum);
-      token !== null && (this.activeTotalLoads += 1, tier === "near" && (this.activeNearLoads += 1), this.loadTarget(target).then((loaded) => {
-        this.disposed || this.onLoaded(target, loaded, token);
-      }).catch((error) => {
-        this.disposed || this.onError(target, error, token);
-      }).finally(() => {
-        this.activeTotalLoads -= 1, tier === "near" && (this.activeNearLoads -= 1), this.process();
-      }));
-    }
-  };
-  function pagesPointerGestureCallbacks(callbacks) {
-    let shouldStartDrag = (event) => event instanceof PointerEvent ? (event.pointerType, event.button, event.buttons, targetSummary(event.target), event.pointerType === "mouse" && event.button !== 0 ? (event.button, event.buttons, !1) : callbacks.shouldStartDrag(event)) : !1, shouldObserveTap = (event) => event instanceof PointerEvent && event.pointerType !== "mouse" && !callbacks.shouldStartDrag(event);
-    return {
-      shouldCaptureDrag: shouldStartDrag,
-      onStart: callbacks.onDragStart,
-      onMove: callbacks.onDragMove,
-      onEnd: callbacks.onDragEnd,
-      onTap: callbacks.onTap,
-      dragStartThreshold: TAP_CANCEL_DISTANCE,
-      tapMoveThreshold: TAP_CANCEL_DISTANCE,
-      shouldObserveTap,
-      onPinchStart: callbacks.onPinchStart,
-      onPinchMove: callbacks.onPinchMove,
-      onPinchEnd: callbacks.onPinchEnd
-    };
-  }
-  function handlePagesKeydown(event, callbacks) {
-    if (!shouldIgnoreKeyboardEvent(event)) {
-      if (event.key === "Escape") {
-        callbacks.onKeyboardClose() && event.preventDefault();
-        return;
-      }
-      if (event.key === "ArrowLeft") {
-        event.preventDefault(), callbacks.onKeyboardArrow("left");
-        return;
-      }
-      event.key === "ArrowRight" && (event.preventDefault(), callbacks.onKeyboardArrow("right"));
-    }
-  }
-  function initialViewportWindow(options) {
-    return {
-      currentPageNum: initialPageNumber(options),
-      windowSize: options.renderWindowSize ?? DEFAULT_WINDOW_SIZE,
-      totalPages: options.totalPages && options.totalPages > 0 ? options.totalPages : void 0,
-      pages: /* @__PURE__ */ new Map()
-    };
-  }
-  function initialPageNumber(options) {
-    let totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : Number.MAX_SAFE_INTEGER;
-    return clamp(Math.round(options.initialPageNum), 1, totalPages);
-  }
-  function FullscreenReader(props) {
-    let [toolbarState, setToolbarState] = createStore(initialToolbarState({
-      mode: state.reader.viewMode.value,
-      readDirection: state.reader.readDirection.value,
-      rightTapAction: state.reader.rightTapAction.value
-    })), [viewportWindow, setViewportWindow] = createSignal(untrack(() => initialViewportWindow(props.options))), [zoomImage, setZoomImage] = createSignal(null), viewportActions, zoomOverlayActions, readerSession, closeDownloadDialog = () => setToolbarState({
-      downloadDialog: null
-    }), toolbarCallbacks = {
-      onReadDirectionClick: () => readerSession.toggleReadDirection(),
-      onRightTapClick: () => readerSession.toggleRightTapAction(),
-      onModeClick: () => readerSession.setMode(state.reader.viewMode.value === "paged" ? "scroll" : "paged"),
-      onCloseClick: () => readerSession.close(),
-      onDownloadClick: () => {
-        let downloadDialog = readerSession.downloadDialog();
-        downloadDialog && setToolbarState({
-          downloadDialog
-        });
-      },
-      onDownloadCurrentClick: () => {
-        let downloadDialog = toolbarState.downloadDialog;
-        downloadDialog && readerSession.downloadDisplayedImage(downloadDialog) && closeDownloadDialog();
-      },
-      onDownloadDialogClose: closeDownloadDialog,
-      onDownloadOriginalClick: () => {
-        let downloadDialog = toolbarState.downloadDialog;
-        downloadDialog && readerSession.downloadOriginalImage(downloadDialog) && closeDownloadDialog();
-      },
-      onFullscreenClick: () => {
-        readerSession.toggleFullscreen();
-      },
-      onOpenOriginalPageClick: () => readerSession.openOriginalPage(),
-      onProgressPointerDown: (event) => readerSession.handleProgressPointerDown(event),
-      onProgressInput: (pageNum) => readerSession.handleProgressInput(pageNum),
-      onProgressCommit: (pageNum) => readerSession.handleProgressCommit(pageNum)
-    }, gestureCallbacks = {
-      onTap: (info, event) => readerSession.handleTap(info, event),
-      onKeyboardClose: () => toolbarState.downloadDialog ? (closeDownloadDialog(), !0) : readerSession.handleKeyboardClose(),
-      onKeyboardArrow: (direction) => readerSession.handleKeyboardArrow(direction),
-      onWheel: (delta, event) => readerSession.handleWheel(delta, event),
-      shouldStartDrag: (event) => readerSession.shouldStartDrag(event),
-      onDragStart: (info, event) => readerSession.handleDragStart(info, event),
-      onDragMove: (info, event) => readerSession.handleDragMove(info, event),
-      onDragEnd: (info, event) => readerSession.handleDragEnd(info, event),
-      onPinchStart: (info) => readerSession.handlePinchStart(info),
-      onPinchMove: (info) => zoomOverlayActions.movePinch({
-        centerX: info.clientX,
-        centerY: info.clientY,
-        scale: info.scale
-      }),
-      onPinchEnd: () => zoomOverlayActions.endPinch(),
-      onNativeScroll: () => readerSession.handleNativeScroll()
-    }, viewportCallbacks = {
-      onNativeScroll: gestureCallbacks.onNativeScroll,
-      onReloadPage: (pageNum) => readerSession.reloadPage(pageNum),
-      onWheel: gestureCallbacks.onWheel,
-      pointer: pagesPointerGestureCallbacks(gestureCallbacks)
-    }, sessionCallbacks = {
-      isZoomActive: () => zoomImage() !== null,
-      onControlsChange: (controls) => {
-        setToolbarState({
-          controls
-        });
-      },
-      onFullscreenChange: (active) => setToolbarState({
-        fullscreenActive: active
-      }),
-      onPageChange: (progress, downloadAvailable) => {
-        setToolbarState({
-          downloadAvailable,
-          downloadDialog: toolbarState.downloadDialog?.pageNum === progress.pageNum ? toolbarState.downloadDialog : null,
-          progress
-        });
-      },
-      onToolbarToggle: () => {
-        setToolbarState({
-          open: !toolbarState.open
-        });
-      },
-      onViewportWindowChange: (window2) => setViewportWindow(window2),
-      onZoomClose: () => setZoomImage(null),
-      onZoomOpen: (image, pinch) => {
-        setZoomImage(image), zoomOverlayActions.reset(pinch);
-      }
-    };
+  registerGlobalStyle("ehpeek-reader-style", Reader_default);
+  var DEFAULT_WINDOW_SIZE2 = 10, PAGED_SWIPE_THRESHOLD = 24, PAGED_WHEEL_THRESHOLD = 8, PROGRESS_IDLE_COMMIT_MS = 1e3, DOUBLE_TAP_MS = 340, DOUBLE_TAP_DISTANCE = 36, TAP_CANCEL_DISTANCE = 8, FALLBACK_ASPECT_RATIO2 = 1.42;
+  function Reader(props) {
+    let options = untrack(() => props.options), previewCache = untrack(() => props.previewCache), callbacks = untrack(() => props.callbacks), session = new ReaderSession(options), readerState = session.state, readerCallbacks2 = wireReaderCallbacks(session, options, previewCache, callbacks);
     return onMount(() => {
-      let unlockPageScroll = props.options.lockPageScroll();
-      readerSession = new ReaderSession(props.options, sessionCallbacks, props.onClosed, viewportActions, zoomOverlayActions), registerGlobalStyle(STYLE_ID, Reader_default), props.actionsRef({
-        close: () => readerSession.close()
-      });
-      let onKeydown = (event) => {
-        handlePagesKeydown(event, gestureCallbacks);
-      };
-      document.addEventListener("keydown", onKeydown, !0), readerSession.open(), onCleanup(() => {
-        readerSession.dispose(), document.removeEventListener("keydown", onKeydown, !0), unlockPageScroll();
+      readerCallbacks2.init(), onCleanup(() => {
+        readerCallbacks2.cleanup(), session.dispose();
       });
     }), (() => {
       var _el$ = _tmpl$49(), _el$2 = _el$.firstChild;
       return insert(_el$2, createComponent(Toolbar, {
-        callbacks: toolbarCallbacks,
-        state: toolbarState
-      })), insert(_el$, createComponent(PagesViewport, {
-        actionsRef: (actions) => {
-          viewportActions = actions;
+        get callbacks() {
+          return readerCallbacks2.toolbar;
         },
-        callbacks: viewportCallbacks,
+        get controls() {
+          return readerState.ctrls.value();
+        },
+        get downloadInfo() {
+          return readerState.navi.downloadInfo();
+        },
+        get fullscreenActive() {
+          return props.fullscreenActive;
+        },
+        get open() {
+          return readerState.toolbar.open();
+        },
+        get progress() {
+          return {
+            pageNum: readerState.navi.currentPageNum(),
+            totalPages: options.totalPages,
+            maxProgressPageNum: readerState.navi.maxProgressPageNum(),
+            keepInputValue: readerState.navi.progressInputActive()
+          };
+        }
+      })), insert(_el$, createComponent(PagesViewport, {
+        get actionsRef() {
+          return readerCallbacks2.viewportActionsRef;
+        },
+        get callbacks() {
+          return readerCallbacks2.viewport;
+        },
         get mode() {
-          return toolbarState.controls.mode;
+          return readerState.ctrls.value().mode;
         },
         get readDirection() {
-          return toolbarState.controls.readDirection;
+          return readerState.ctrls.value().readDirection;
         },
         get window() {
-          return viewportWindow();
+          return readerState.navi.viewportWindow();
         }
       }), null), insert(_el$, createComponent(ZoomOverlay, {
-        actionsRef: (actions) => {
-          zoomOverlayActions = actions;
+        get actionsRef() {
+          return readerCallbacks2.zoomOverlayActionsRef;
         },
         get image() {
-          return zoomImage();
+          return readerState.overlay.image();
         },
-        onClose: () => setZoomImage(null)
+        onClose: () => readerState.overlay.update(null)
       }), null), createRenderEffect((_p$) => {
-        var _v$ = toolbarState.controls.readDirection, _v$2 = String(toolbarState.open), _v$3 = toolbarState.controls.mode;
-        return _v$ !== _p$.e && setAttribute(_el$, "data-read-direction", _p$.e = _v$), _v$2 !== _p$.t && setAttribute(_el$, "data-toolbar-open", _p$.t = _v$2), _v$3 !== _p$.a && setAttribute(_el$, "data-view-mode", _p$.a = _v$3), _p$;
+        var _v$ = readerState.ctrls.value().readDirection, _v$2 = readerState.ctrls.value().mode;
+        return _v$ !== _p$.e && setAttribute(_el$, "data-read-direction", _p$.e = _v$), _v$2 !== _p$.t && setAttribute(_el$, "data-view-mode", _p$.t = _v$2), _p$;
       }, {
         e: void 0,
-        t: void 0,
-        a: void 0
+        t: void 0
       }), _el$;
     })();
   }
-  var ReaderSession = class {
-    constructor(options, callbacks, closeComponent, viewport, zoomOverlay) {
-      __publicField(this, "pages", /* @__PURE__ */ new Map());
-      __publicField(this, "loadedImages", /* @__PURE__ */ new Map());
-      __publicField(this, "direction", 1);
-      __publicField(this, "scrollFrame", null);
-      __publicField(this, "progressNavigationTimer", null);
-      __publicField(this, "tapTimer", null);
-      __publicField(this, "pendingTap", null);
-      __publicField(this, "pendingProgressNavigationPageNum", null);
-      __publicField(this, "progressNavigating", !1);
-      __publicField(this, "pagedTargetPageNumber", null);
-      __publicField(this, "syncToken", 0);
-      __publicField(this, "historyEntry", !1);
-      __publicField(this, "closing", !1);
-      __publicField(this, "closed", !1);
-      __publicField(this, "fullscreenExitPromise", null);
-      __publicField(this, "keepReaderAfterFullscreenExit", !1);
-      __publicField(this, "onPopState", () => {
-        this.historyEntry && (this.historyEntry = !1, this.finishClose(), this.finishReaderExit());
-      });
-      __publicField(this, "onImageLoaded", (target, loaded, token) => {
-        pageWindowNumbers(this.currentPageNum, this.renderWindowSize).includes(target.pageNum) && this.installImage(target, loaded, token);
-      });
-      __publicField(this, "onImageError", (target, error, token) => {
-        let message = error instanceof Error ? error.message : texts_default.errors.loadFailed;
-        this.viewport.setPageError(target.pageNum, token, message);
-      });
-      __publicField(this, "handleProgressPointerDown", (event) => {
-        this.progressNavigating = !0, this.cancelProgressNavigation(), event.stopPropagation();
-      });
-      __publicField(this, "handleProgressInput", (pageNum) => {
-        if (!Number.isFinite(pageNum) || pageNum <= 0)
-          return;
-        this.progressNavigating = !0;
-        let target = clamp(Math.round(pageNum), 1, this.maxProgressPageNum());
-        this.pendingProgressNavigationPageNum = target, this.navigateProgressPage(target), this.cancelProgressNavigation(), this.progressNavigationTimer = window.setTimeout(() => this.handleProgressCommit(this.pendingProgressNavigationPageNum ?? this.currentPageNum), PROGRESS_IDLE_COMMIT_MS);
-      });
-      __publicField(this, "handleProgressCommit", (value) => {
-        if (!this.progressNavigating && this.pendingProgressNavigationPageNum === null)
-          return;
-        let pageNum = this.pendingProgressNavigationPageNum ?? value;
-        this.progressNavigating = !1, this.pendingProgressNavigationPageNum = null, this.cancelProgressNavigation(), Number.isFinite(pageNum) && pageNum > 0 && this.setCurrentPageNumber(pageNum, !0);
-      });
-      __publicField(this, "onFullscreenChange", () => {
-        let fullscreenActive = document.fullscreenElement === this.fullscreenTarget, fullscreenExited = this.fullscreenWasActive && !fullscreenActive, keepReaderOpen = this.keepReaderAfterFullscreenExit;
-        this.fullscreenWasActive = fullscreenActive, this.keepReaderAfterFullscreenExit = !1, fullscreenActive || clearReaderFullscreenScale(this.fullscreenTarget), this.callbacks.onFullscreenChange(fullscreenActive), fullscreenExited && this.finishFullscreenExit(keepReaderOpen);
-      });
-      this.fullscreenTarget = options.fullscreenTarget, this.fullscreenWasActive = document.fullscreenElement === this.fullscreenTarget, this.galleryId = options.galleryId, this.totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : void 0, this.renderWindowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE, this.currentPageNum = initialPageNumber(options), this.preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE, this.previewCache = options.previewCache, this.onExit = options.onExit, this.onActivePageChange = options.onActivePageChange, this.onOpenOriginalPage = options.onOpenOriginalPage, this.onBeforeEnterFullscreen = options.onBeforeEnterFullscreen, this.restorePageViewport = options.restorePageViewport, this.callbacks = callbacks, this.closeComponent = closeComponent, this.viewport = viewport, this.zoomOverlay = zoomOverlay, this.imageQueue = new TwoTierImageQueue((target) => this.previewCache.loadImage(target.page), (pageNum) => this.viewport.markPageLoading(pageNum), this.onImageLoaded, this.onImageError, options.nearConcurrentLoads ?? DEFAULT_NEAR_CONCURRENT_LOADS, options.farConcurrentLoads ?? DEFAULT_FAR_CONCURRENT_LOADS);
+  function wireReaderCallbacks(session, options, previewCache, callbacks) {
+    let state2 = session.state, viewportActions, zoomOverlay, totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : void 0, renderWindowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE2, preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE2, pages = /* @__PURE__ */ new Map(), loadedImages = /* @__PURE__ */ new Map(), pagedTargetPageNumber = null, syncToken = 0, closed = !1;
+    function requestReaderClose() {
+      closed || (closed = !0, callbacks.onClosed());
     }
-    open() {
-      this.viewport.focus(), window.history.pushState({
-        ehpeekReader: !0
-      }, "", window.location.href), this.historyEntry = !0, window.addEventListener("popstate", this.onPopState), document.addEventListener("fullscreenchange", this.onFullscreenChange), this.callbacks.onFullscreenChange(document.fullscreenElement === this.fullscreenTarget), this.syncReaderControls(), this.updatePageNumber(), this.syncAfterPageChange({
-        scrollIntoView: !0
-      });
-    }
-    dispose() {
-      this.cleanup();
-    }
-    close() {
-      if (!(this.closed || this.closing)) {
-        if (this.historyEntry) {
-          this.closing = !0, window.history.back();
-          return;
-        }
-        this.finishClose(), this.finishReaderExit();
-      }
-    }
-    async finishReaderExit() {
-      await this.fullscreenExitPromise;
-      try {
-        await this.restorePageViewport();
-      } catch (error) {
-        console.warn("[ehpeek] Failed to restore page viewport", error);
-      }
-      this.onExit();
-    }
-    finishClose() {
-      this.cleanup() && this.closeComponent();
-    }
-    cleanup() {
-      return this.closed ? !1 : (this.closed = !0, this.cancelProgressNavigation(), this.cancelPendingTap(), this.imageQueue.dispose(), window.removeEventListener("popstate", this.onPopState), document.removeEventListener("fullscreenchange", this.onFullscreenChange), document.fullscreenElement === this.fullscreenTarget && (this.fullscreenExitPromise = document.exitFullscreen().catch((error) => {
-        console.warn("[ehpeek] Failed to exit fullscreen", error);
-      })), clearReaderFullscreenScale(this.fullscreenTarget), this.scrollFrame !== null && (window.cancelAnimationFrame(this.scrollFrame), this.scrollFrame = null), this.viewport.stopMotion(), !0);
-    }
-    setCurrentPageNumber(pageNumber, scrollIntoView, scrollMotion = "instant") {
-      this.pagedTargetPageNumber = null;
-      let target = clamp(Math.round(pageNumber), 1, this.maxProgressPageNum());
-      target !== this.currentPageNum && (this.direction = target > this.currentPageNum ? 1 : -1, this.currentPageNum = target), this.syncAfterPageChange({
+    function setCurrentPageNumber(pageNumber, scrollIntoView, scrollMotion = "instant") {
+      pagedTargetPageNumber = null;
+      let target = clamp(Math.round(pageNumber), 1, maxProgressPageNum());
+      target !== state2.navi.currentPageNum() && (state2.navi.setDirection(target > state2.navi.currentPageNum() ? 1 : -1), state2.navi.setCurrentPageNum(target)), syncAfterPageChange({
         scrollIntoView,
         scrollMotion
       });
     }
-    syncAfterPageChange(options) {
-      let token = ++this.syncToken, missing = pageWindowNumbers(this.currentPageNum, this.renderWindowSize).filter((number) => this.isRealPageNum(number) && !this.pages.has(number));
-      this.syncViewportWindow(), this.maintainLoadQueue(), this.notifyActivePageChange(), options.scrollIntoView && this.scrollToCurrentPage(options.scrollMotion), missing.length > 0 && this.loadMissingPages(missing, token);
+    function syncAfterPageChange(options2) {
+      let token = ++syncToken, missing = pageWindowNumbers(state2.navi.currentPageNum(), renderWindowSize).filter((number) => isRealPageNum(number) && !pages.has(number));
+      syncViewportWindow(), maintainLoadQueue(), notifyActivePageChange(), options2.scrollIntoView && scrollToCurrentPage(options2.scrollMotion), missing.length > 0 && loadMissingPages(missing, token);
     }
-    rebuildForCurrentMode() {
-      this.viewport.stopMotion(), this.viewport.resetPosition(), this.syncAfterPageChange({
-        scrollIntoView: !0
-      });
-    }
-    async loadMissingPages(pageNums, token) {
+    async function loadMissingPages(pageNums, token) {
       let incoming;
       try {
-        incoming = await this.previewCache.getPages(pageNums);
+        incoming = await previewCache.getPages(pageNums);
       } catch (error) {
         console.error("[ehpeek]", error);
         return;
       }
-      this.closed || token !== this.syncToken || (this.addPages(incoming), this.syncViewportWindow(), this.maintainLoadQueue(), this.notifyActivePageChange());
+      closed || token !== syncToken || (addPages(incoming), syncViewportWindow(), maintainLoadQueue(), notifyActivePageChange());
     }
-    addPages(pages) {
-      for (let [index, page] of pages.entries()) {
+    function addPages(incomingPages) {
+      for (let [index, page] of incomingPages.entries()) {
         let pageNum = pageNumForPage(page, index);
-        pageNum > 0 && this.pages.set(pageNum, {
+        pageNum > 0 && pages.set(pageNum, {
           ...page,
           aspectRatio: normalizedAspectRatio(page.aspectRatio, FALLBACK_ASPECT_RATIO2),
           pageNum
         });
       }
     }
-    syncViewportWindow() {
-      this.callbacks.onViewportWindowChange({
-        currentPageNum: this.currentPageNum,
-        windowSize: this.renderWindowSize,
-        totalPages: this.totalPages,
-        pages: this.pageMetaForViewport()
-      }), this.updatePageNumber();
+    function syncViewportWindow() {
+      state2.navi.setViewportWindow({
+        currentPageNum: state2.navi.currentPageNum(),
+        windowSize: renderWindowSize,
+        totalPages,
+        pages: pageMetaForViewport()
+      }), updatePageNumber();
     }
-    maintainLoadQueue() {
-      let targets = pageWindowNumbers(this.currentPageNum, this.renderWindowSize).map((pageNum) => this.loadTargetFor(pageNum)).filter((target) => !!target), windowSet = new Set(targets.map((target) => target.pageNum));
-      this.imageQueue.sync(targets, this.currentPageNum, this.direction, windowSet, this.preloadWindowSize);
+    function maintainLoadQueue() {
+      let targets = pageWindowNumbers(state2.navi.currentPageNum(), renderWindowSize).map((pageNum) => loadTargetFor(pageNum)).filter((target) => !!target), windowSet = new Set(targets.map((target) => target.pageNum));
+      session.imageQueue.sync(targets, state2.navi.currentPageNum(), state2.navi.direction(), windowSet, preloadWindowSize);
     }
-    pageMetaForViewport() {
-      return new Map(Array.from(this.pages, ([pageNum, page]) => [pageNum, {
+    function pageMetaForViewport() {
+      return new Map(Array.from(pages, ([pageNum, page]) => [pageNum, {
         aspectRatio: page.aspectRatio
       }]));
     }
-    loadTargetFor(pageNum) {
-      let page = this.pages.get(pageNum);
+    function loadTargetFor(pageNum) {
+      let page = pages.get(pageNum);
       return page ? {
         pageNum,
         page
       } : null;
     }
-    maxProgressPageNum() {
-      return this.totalPages ? this.totalPages + 1 : Number.MAX_SAFE_INTEGER;
+    function maxProgressPageNum() {
+      return totalPages ? totalPages + 1 : Number.MAX_SAFE_INTEGER;
     }
-    isRealPageNum(pageNum) {
-      return pageNum >= 1 && (!this.totalPages || pageNum <= this.totalPages);
+    function isRealPageNum(pageNum) {
+      return pageNum >= 1 && (!totalPages || pageNum <= totalPages);
     }
-    turnPageBy(delta) {
+    function turnPageBy(delta) {
       if (state.reader.viewMode.value === "paged") {
-        this.animatePagedStep(delta);
+        animatePagedStep(delta);
         return;
       }
-      this.setCurrentPageNumber(this.currentPageNum + delta, !0);
+      setCurrentPageNumber(state2.navi.currentPageNum() + delta, !0);
     }
-    animatePagedStep(delta) {
-      let base = this.pagedTargetPageNumber ?? this.currentPageNum, target = clamp(Math.round(base + delta), 1, this.maxProgressPageNum());
+    function animatePagedStep(delta) {
+      let base = pagedTargetPageNumber ?? state2.navi.currentPageNum(), target = clamp(Math.round(base + delta), 1, maxProgressPageNum());
       if (target === base) {
-        this.scrollToCurrentPage("animated");
+        scrollToCurrentPage("animated");
         return;
       }
-      if (this.viewport.pageOffset(target) === null) {
-        this.pagedTargetPageNumber = null, this.setCurrentPageNumber(target, !0, "animated");
+      if (viewportActions.pageOffset(target) === null) {
+        pagedTargetPageNumber = null, setCurrentPageNumber(target, !0, "animated");
         return;
       }
-      this.direction = target > base ? 1 : -1, this.pagedTargetPageNumber = target, this.viewport.moveToPage(target, "animated", () => {
-        this.pagedTargetPageNumber === target && (this.pagedTargetPageNumber = null, this.setCurrentPageNumber(target, !0));
+      state2.navi.setDirection(target > base ? 1 : -1), pagedTargetPageNumber = target, viewportActions.moveToPage(target, "animated", () => {
+        pagedTargetPageNumber === target && (pagedTargetPageNumber = null, setCurrentPageNumber(target, !0));
       });
     }
-    scrollToCurrentPage(motion = "instant") {
-      this.viewport.moveToPage(this.currentPageNum, motion);
+    function scrollToCurrentPage(motion = "instant") {
+      viewportActions.moveToPage(state2.navi.currentPageNum(), motion);
     }
-    reloadPage(pageNum) {
-      this.viewport.resetPageError(pageNum) && this.maintainLoadQueue();
+    function updatePageNumber() {
+      let pageNum = state2.navi.currentPageNum(), image = loadedImages.get(pageNum);
+      state2.navi.setDownloadInfo(image && isRealPageNum(pageNum) ? {
+        currentFileName: displayedImageFileName(options.galleryId, pageNum, image.imageUrl),
+        currentImageUrl: image.imageUrl,
+        originalImageUrl: image.originalImageUrl,
+        pageNum
+      } : null), state2.navi.setMaxProgressPageNum(Math.max(1, maxProgressPageNum()));
     }
-    async installImage(target, loaded, token) {
-      let imageUrl = loaded.imageUrl, width = positiveNumber(loaded.width), height = positiveNumber(loaded.height), slotImage = {
-        imageUrl,
-        highPriority: target.pageNum === this.currentPageNum,
-        width,
-        height
-      };
-      try {
-        await this.viewport.loadPageImage(target.pageNum, token, slotImage);
-      } catch (error) {
-        let message = error instanceof Error ? error.message : texts_default.errors.imageLoadFailed;
-        this.viewport.setPageError(target.pageNum, token, message);
-        return;
-      }
-      this.closed || (this.loadedImages.set(target.pageNum, {
-        pageNum: target.pageNum,
-        imageUrl,
-        originalImageUrl: loaded.originalImageUrl ?? null,
-        width,
-        height
-      }), target.pageNum === this.currentPageNum && this.updatePageNumber());
+    function notifyActivePageChange() {
+      let page = pages.get(state2.navi.currentPageNum());
+      page && callbacks.onActivePageChange(page);
     }
-    updatePageNumber() {
-      this.callbacks.onPageChange({
-        pageNum: this.currentPageNum,
-        totalPages: this.totalPages,
-        maxProgressPageNum: Math.max(1, this.maxProgressPageNum()),
-        keepInputValue: this.progressNavigating
-      }, this.loadedImages.has(this.currentPageNum));
-    }
-    notifyActivePageChange() {
-      let page = this.pages.get(this.currentPageNum);
-      page && this.onActivePageChange(page);
-    }
-    handleKeyboardArrow(direction) {
-      this.callbacks.isZoomActive() || this.turnPageBy(direction === "left" ? this.leftTapDelta() : this.rightTapDelta());
-    }
-    handleWheel(delta, event) {
-      if (this.callbacks.isZoomActive()) {
-        event.preventDefault();
-        return;
-      }
-      state.reader.viewMode.value === "paged" && (event.preventDefault(), !this.viewport.isDragging() && Math.abs(delta) >= PAGED_WHEEL_THRESHOLD && this.turnPageBy(delta > 0 ? 1 : -1));
-    }
-    shouldStartDrag(event) {
-      return this.callbacks.isZoomActive() ? !0 : state.reader.viewMode.value === "paged" || event.pointerType === "mouse";
-    }
-    handleDragStart(_info, _event) {
-      if (this.callbacks.isZoomActive()) {
-        this.zoomOverlay.startDrag();
-        return;
-      }
-      this.viewport.beginDrag();
-    }
-    handleDragMove(info, event) {
-      if (this.callbacks.isZoomActive()) {
-        this.zoomOverlay.moveDrag(info);
-        return;
-      }
-      let before = this.viewport.scrollTop();
-      this.viewport.moveDrag({
-        dx: info.dx,
-        dy: info.dy
-      }) && ((Math.abs(info.dx) >= TAP_CANCEL_DISTANCE || Math.abs(info.dy) >= TAP_CANCEL_DISTANCE) && this.cancelPendingTap(), pointerTypeForEvent(event), info.clientY, void 0);
-    }
-    handleDragEnd(info, event) {
-      if (!this.callbacks.isZoomActive()) {
-        if (pointerTypeForEvent(event), this.viewport.scrollTop(), info.dx, info.dy, this.viewport.cancelDrag(), state.reader.viewMode.value !== "paged") {
-          this.viewport.moveToTop(this.viewport.scrollTop()), this.viewport.startVerticalFlingFromDragVelocity(info.velocityY, () => this.updateCurrentFromScroll()), this.updateCurrentFromScroll();
-          return;
-        }
-        info.dx >= PAGED_SWIPE_THRESHOLD ? this.turnPageBy(this.rightDragDelta()) : info.dx <= -PAGED_SWIPE_THRESHOLD ? this.turnPageBy(this.leftDragDelta()) : this.scrollToCurrentPage("animated");
-      }
-    }
-    handleNativeScroll() {
-      if (this.callbacks.isZoomActive() || this.viewport.isDragging() || state.reader.viewMode.value === "paged")
-        return;
-      let previousScrollTop = this.viewport.scrollTop();
-      this.viewport.moveToTop(previousScrollTop), this.viewport.scrollTop() === previousScrollTop && this.scrollFrame === null && (this.scrollFrame = window.requestAnimationFrame(() => {
-        this.scrollFrame = null, this.updateCurrentFromScroll();
-      }));
-    }
-    updateCurrentFromScroll() {
-      let next = this.viewport.centerPageNum();
-      next !== null && next !== this.currentPageNum && (this.direction = next > this.currentPageNum ? 1 : -1, this.currentPageNum = next, this.syncAfterPageChange({
+    function updateCurrentFromScroll() {
+      let next = viewportActions.centerPageNum();
+      next !== null && next !== state2.navi.currentPageNum() && (state2.navi.setDirection(next > state2.navi.currentPageNum() ? 1 : -1), state2.navi.setCurrentPageNum(next), syncAfterPageChange({
         scrollIntoView: !1
       }));
     }
-    handleTap(info, event) {
-      this.viewport.cancelDrag(), !this.consumeDoubleTap(info, event) && this.queueSingleTap(info, event);
-    }
-    runSingleTap(info, event) {
-      if (this.callbacks.isZoomActive()) {
-        event.preventDefault();
-        return;
-      }
-      if (this.viewport.isHitEndPage(info)) {
-        this.close();
-        return;
-      }
-      if (state.reader.viewMode.value === "scroll") {
-        this.callbacks.onToolbarToggle();
-        return;
-      }
-      let width = this.viewport.viewportWidth(), zone = info.clientX / width;
-      zone >= 1 / 3 && zone <= 2 / 3 ? this.callbacks.onToolbarToggle() : this.turnPageBy(zone < 1 / 3 ? this.leftTapDelta() : this.rightTapDelta());
-    }
-    handleKeyboardClose() {
-      return this.callbacks.isZoomActive() ? (this.callbacks.onZoomClose(), !0) : document.fullscreenElement === this.fullscreenTarget ? !1 : (this.close(), !0);
-    }
-    handlePinchStart(info) {
-      if (this.cancelPendingTap(), this.viewport.stopMotion(), this.viewport.cancelDrag(), this.callbacks.isZoomActive())
-        return this.zoomOverlay.startPinch({
-          centerX: info.clientX,
-          centerY: info.clientY
-        }), !0;
-      let image = this.imageAtPoint(info);
-      return image ? (this.callbacks.onZoomOpen(image, {
-        centerX: info.clientX,
-        centerY: info.clientY
-      }), !0) : !1;
-    }
-    toggleZoomAtPoint(point) {
-      if (this.callbacks.isZoomActive())
-        return this.callbacks.onZoomClose(), !0;
-      let image = this.imageAtPoint(point);
-      return image ? (this.viewport.stopMotion(), this.viewport.cancelDrag(), this.callbacks.onZoomOpen(image, {
-        centerX: point.clientX,
-        centerY: point.clientY
-      }), this.zoomOverlay.movePinch({
-        centerX: point.clientX,
-        centerY: point.clientY,
-        scale: 2
-      }), this.zoomOverlay.endPinch(), !0) : !1;
-    }
-    imageAtPoint(point) {
-      let pageNum = this.viewport.pageNumAtPoint(point);
-      return pageNum === null ? null : this.loadedImages.get(pageNum) ?? null;
-    }
-    consumeDoubleTap(info, event) {
-      let now = event.timeStamp || performance.now(), pending = this.pendingTap, nativeDoubleClick = (event instanceof MouseEvent ? event.detail : 0) >= 2, nearPendingTap = pending ? now - pending.time <= DOUBLE_TAP_MS && Math.hypot(info.clientX - pending.info.clientX, info.clientY - pending.info.clientY) <= DOUBLE_TAP_DISTANCE : !1;
-      return !nativeDoubleClick && !nearPendingTap ? !1 : (this.cancelPendingTap(), this.toggleZoomAtPoint(info) ? (event.preventDefault(), !0) : !1);
-    }
-    queueSingleTap(info, event) {
-      this.cancelPendingTap(), this.pendingTap = {
-        info,
-        event,
-        time: event.timeStamp || performance.now()
-      }, this.tapTimer = window.setTimeout(() => {
-        let pending = this.pendingTap;
-        this.pendingTap = null, this.tapTimer = null, pending && this.runSingleTap(pending.info, pending.event);
-      }, DOUBLE_TAP_MS);
-    }
-    cancelPendingTap() {
-      this.tapTimer !== null && (window.clearTimeout(this.tapTimer), this.tapTimer = null), this.pendingTap = null;
-    }
-    navigateProgressPage(pageNum) {
-      let target = clamp(Math.round(pageNum), 1, this.maxProgressPageNum());
-      target !== this.currentPageNum && (this.direction = target > this.currentPageNum ? 1 : -1, this.currentPageNum = target), ++this.syncToken, this.syncViewportWindow(), this.scrollToCurrentPage(), this.callbacks.onPageChange({
-        pageNum: target,
-        totalPages: this.totalPages,
-        maxProgressPageNum: Math.max(1, this.maxProgressPageNum()),
-        keepInputValue: !0
-      }, this.loadedImages.has(target));
-    }
-    cancelProgressNavigation() {
-      this.progressNavigationTimer !== null && (window.clearTimeout(this.progressNavigationTimer), this.progressNavigationTimer = null);
-    }
-    downloadDialog() {
-      let image = this.loadedImages.get(this.currentPageNum);
-      return !image || !this.isRealPageNum(this.currentPageNum) ? null : {
-        currentFileName: displayedImageFileName(this.galleryId, this.currentPageNum, image.imageUrl),
-        currentImageUrl: image.imageUrl,
-        originalImageUrl: image.originalImageUrl,
-        pageNum: this.currentPageNum
+    let onKeydown = (event) => {
+      shouldIgnoreKeyboardEvent(event) || (event.key === "Escape" ? (state2.overlay.image() !== null ? state2.overlay.update(null) : requestReaderClose(), event.preventDefault()) : (event.key === "ArrowLeft" || event.key === "ArrowRight") && (event.preventDefault(), state2.overlay.image() === null && turnPageBy(event.key === "ArrowLeft" ? state2.navi.leftTapDelta() : state2.navi.rightTapDelta())));
+    }, gesture = wireGesture(), viewport = wireViewport();
+    wireImageQueue();
+    let toolbar = wireToolbar();
+    return {
+      viewportActionsRef: (actions) => {
+        viewportActions = actions;
+      },
+      zoomOverlayActionsRef: (actions) => {
+        zoomOverlay = actions;
+      },
+      init: () => {
+        document.addEventListener("keydown", onKeydown, !0), viewportActions.focus(), updatePageNumber(), syncAfterPageChange({
+          scrollIntoView: !0
+        });
+      },
+      cleanup: () => {
+        document.removeEventListener("keydown", onKeydown, !0);
+      },
+      toolbar,
+      viewport
+    };
+    function wireViewport() {
+      let scrollFrame = null;
+      return {
+        onNativeScroll: () => {
+          if (state2.overlay.image() !== null || viewportActions.isDragging() || state.reader.viewMode.value === "paged")
+            return;
+          let previousScrollTop = viewportActions.scrollTop();
+          viewportActions.moveToTop(previousScrollTop), !(viewportActions.scrollTop() !== previousScrollTop || scrollFrame !== null) && (scrollFrame = session.requestAnimationFrame(() => {
+            scrollFrame = null, updateCurrentFromScroll();
+          }));
+        },
+        onReloadPage: (pageNum) => {
+          viewportActions.resetPageError(pageNum) && maintainLoadQueue();
+        },
+        onWheel: (delta, event) => {
+          if (state2.overlay.image() !== null) {
+            event.preventDefault();
+            return;
+          }
+          state.reader.viewMode.value === "paged" && (event.preventDefault(), !viewportActions.isDragging() && Math.abs(delta) >= PAGED_WHEEL_THRESHOLD && turnPageBy(delta > 0 ? 1 : -1));
+        },
+        pointer: gesture
       };
     }
-    downloadDisplayedImage(download) {
-      return startImageDownload(download.currentImageUrl, download.currentFileName);
-    }
-    downloadOriginalImage(download) {
-      return !!(download.originalImageUrl && startImageDownload(download.originalImageUrl));
-    }
-    openOriginalPage() {
-      let page = this.pages.get(this.currentPageNum);
-      !page || !this.isRealPageNum(this.currentPageNum) || this.onOpenOriginalPage(page);
-    }
-    async toggleFullscreen() {
-      if (document.fullscreenElement === this.fullscreenTarget) {
-        this.keepReaderAfterFullscreenExit = !0;
+    function wireImageQueue() {
+      let installImage = async (target, loaded, token) => {
+        let imageUrl = loaded.imageUrl, width = positiveNumber(loaded.width), height = positiveNumber(loaded.height);
         try {
-          await document.exitFullscreen();
+          await viewportActions.loadPageImage(target.pageNum, token, {
+            imageUrl,
+            highPriority: target.pageNum === state2.navi.currentPageNum(),
+            width,
+            height
+          });
         } catch (error) {
-          this.keepReaderAfterFullscreenExit = !1, console.warn("[ehpeek] Failed to exit fullscreen", error);
+          let message = error instanceof Error ? error.message : texts_default.errors.imageLoadFailed;
+          viewportActions.setPageError(target.pageNum, token, message);
+          return;
         }
-        return;
-      }
-      if (!(document.fullscreenElement || !document.fullscreenEnabled || typeof this.fullscreenTarget.requestFullscreen != "function"))
-        try {
-          this.onBeforeEnterFullscreen(), await enterReaderFullscreen(this.fullscreenTarget);
-        } catch (error) {
-          await this.restorePageViewport(), console.warn("[ehpeek] Fullscreen request failed", error);
+        closed || (loadedImages.set(target.pageNum, {
+          pageNum: target.pageNum,
+          imageUrl,
+          originalImageUrl: loaded.originalImageUrl ?? null,
+          width,
+          height
+        }), target.pageNum === state2.navi.currentPageNum() && updatePageNumber());
+      };
+      session.imageQueue.updateCallbacks({
+        loadTarget: (target) => previewCache.loadImage(target.page),
+        markLoading: (pageNum) => viewportActions.markPageLoading(pageNum),
+        onLoaded: async (target, loaded, token) => {
+          pageWindowNumbers(state2.navi.currentPageNum(), renderWindowSize).includes(target.pageNum) && await installImage(target, loaded, token);
+        },
+        onError: (target, error, token) => {
+          let message = error instanceof Error ? error.message : texts_default.errors.loadFailed;
+          viewportActions.setPageError(target.pageNum, token, message);
         }
-    }
-    async finishFullscreenExit(keepReaderOpen) {
-      if (!keepReaderOpen) {
-        this.close();
-        return;
-      }
-      try {
-        await this.restorePageViewport();
-      } catch (error) {
-        console.warn("[ehpeek] Failed to restore page viewport", error);
-      }
-    }
-    setMode(mode) {
-      mode !== state.reader.viewMode.value && (state.reader.viewMode.set(mode), this.syncReaderControls(), this.rebuildForCurrentMode());
-    }
-    toggleReadDirection() {
-      let readDirection = state.reader.readDirection.value === "rtl" ? "ltr" : "rtl";
-      state.reader.readDirection.set(readDirection), this.syncReaderControls(), this.syncViewportWindow(), this.scrollToCurrentPage();
-    }
-    toggleRightTapAction() {
-      let rightTapAction = state.reader.rightTapAction.value === "previous" ? "next" : "previous";
-      state.reader.rightTapAction.set(rightTapAction), this.syncReaderControls();
-    }
-    syncReaderControls() {
-      this.callbacks.onControlsChange({
-        mode: state.reader.viewMode.value,
-        readDirection: state.reader.readDirection.value,
-        rightTapAction: state.reader.rightTapAction.value
       });
     }
-    rightTapDelta() {
-      return state.reader.rightTapAction.value === "previous" ? -1 : 1;
+    function wireToolbar() {
+      let toolbar2 = {}, progressNavigationTimer = null, pendingProgressPageNum = null, updateControls = (controls) => {
+        let previous = state2.ctrls.value();
+        state.reader.viewMode.set(controls.mode), state.reader.readDirection.set(controls.readDirection), state.reader.rightTapAction.set(controls.rightTapAction), state2.ctrls.update(controls), controls.mode !== previous.mode ? (viewportActions.stopMotion(), viewportActions.resetPosition(), syncAfterPageChange({
+          scrollIntoView: !0
+        })) : controls.readDirection !== previous.readDirection && (syncViewportWindow(), scrollToCurrentPage());
+      }, cancelProgressNavigation = () => {
+        progressNavigationTimer !== null && (session.clearTimeout(progressNavigationTimer), progressNavigationTimer = null);
+      }, previewProgress = (pageNum) => {
+        let target = clamp(Math.round(pageNum), 1, maxProgressPageNum());
+        target !== state2.navi.currentPageNum() && (state2.navi.setDirection(target > state2.navi.currentPageNum() ? 1 : -1), state2.navi.setCurrentPageNum(target)), ++syncToken, syncViewportWindow(), scrollToCurrentPage(), updatePageNumber();
+      };
+      return onCleanup(cancelProgressNavigation), toolbar2.onCloseClick = requestReaderClose, toolbar2.onControlsChange = updateControls, toolbar2.onFullscreenClick = callbacks.onFullscreenToggle, toolbar2.onOpenOriginalPageClick = () => {
+        let page = pages.get(state2.navi.currentPageNum());
+        page && isRealPageNum(state2.navi.currentPageNum()) && callbacks.onOpenOriginalPage(page);
+      }, toolbar2.onProgressPointerDown = (event) => {
+        state2.navi.setProgressInputActive(!0), cancelProgressNavigation(), event.stopPropagation();
+      }, toolbar2.onProgressInput = (pageNum) => {
+        !Number.isFinite(pageNum) || pageNum <= 0 || (state2.navi.setProgressInputActive(!0), pendingProgressPageNum = clamp(Math.round(pageNum), 1, maxProgressPageNum()), previewProgress(pendingProgressPageNum), cancelProgressNavigation(), progressNavigationTimer = session.setTimeout(() => toolbar2.onProgressCommit(pendingProgressPageNum ?? state2.navi.currentPageNum()), PROGRESS_IDLE_COMMIT_MS));
+      }, toolbar2.onProgressCommit = (value) => {
+        if (!state2.navi.progressInputActive() && pendingProgressPageNum === null)
+          return;
+        let pageNum = pendingProgressPageNum ?? value;
+        state2.navi.setProgressInputActive(!1), pendingProgressPageNum = null, cancelProgressNavigation(), Number.isFinite(pageNum) && pageNum > 0 && setCurrentPageNumber(pageNum, !0);
+      }, toolbar2;
     }
-    leftTapDelta() {
-      return -this.rightTapDelta();
+    function wireGesture() {
+      let gesture2 = {}, tapTimer = null, pendingTap = null, shouldStartDrag = (event) => state2.overlay.image() !== null || state.reader.viewMode.value === "paged" || event.pointerType === "mouse", imageAtPoint = (point) => {
+        let pageNum = viewportActions.pageNumAtPoint(point);
+        return pageNum === null ? null : loadedImages.get(pageNum) ?? null;
+      }, cancelPendingTap = () => {
+        tapTimer !== null && (session.clearTimeout(tapTimer), tapTimer = null), pendingTap = null;
+      }, toggleZoomAtPoint = (point) => {
+        if (state2.overlay.image() !== null)
+          return state2.overlay.update(null), !0;
+        let image = imageAtPoint(point);
+        return image ? (viewportActions.stopMotion(), viewportActions.cancelDrag(), state2.overlay.update(image), zoomOverlay.reset({
+          centerX: point.clientX,
+          centerY: point.clientY
+        }), zoomOverlay.movePinch({
+          centerX: point.clientX,
+          centerY: point.clientY,
+          scale: 2
+        }), zoomOverlay.endPinch(), !0) : !1;
+      }, consumeDoubleTap = (info, event) => {
+        let now = event.timeStamp || performance.now(), nativeDoubleClick = event instanceof MouseEvent && event.detail >= 2, nearPendingTap = pendingTap ? now - pendingTap.time <= DOUBLE_TAP_MS && Math.hypot(info.clientX - pendingTap.info.clientX, info.clientY - pendingTap.info.clientY) <= DOUBLE_TAP_DISTANCE : !1;
+        return !nativeDoubleClick && !nearPendingTap || (cancelPendingTap(), !toggleZoomAtPoint(info)) ? !1 : (event.preventDefault(), !0);
+      }, runSingleTap = (info, event) => {
+        if (state2.overlay.image() !== null)
+          event.preventDefault();
+        else if (viewportActions.isHitEndPage(info))
+          requestReaderClose();
+        else if (state.reader.viewMode.value === "scroll")
+          state2.toolbar.toggle();
+        else {
+          let zone = info.clientX / viewportActions.viewportWidth();
+          zone >= 1 / 3 && zone <= 2 / 3 ? state2.toolbar.toggle() : turnPageBy(zone < 1 / 3 ? state2.navi.leftTapDelta() : state2.navi.rightTapDelta());
+        }
+      }, queueSingleTap = (info, event) => {
+        cancelPendingTap(), pendingTap = {
+          info,
+          event,
+          time: event.timeStamp || performance.now()
+        }, tapTimer = session.setTimeout(() => {
+          let pending = pendingTap;
+          pendingTap = null, tapTimer = null, pending && runSingleTap(pending.info, pending.event);
+        }, DOUBLE_TAP_MS);
+      };
+      return gesture2.onTap = (info, event) => {
+        viewportActions.cancelDrag(), !consumeDoubleTap(info, event) && queueSingleTap(info, event);
+      }, gesture2.onStart = () => {
+        if (state2.overlay.image() !== null) {
+          zoomOverlay.startDrag();
+          return;
+        }
+        viewportActions.beginDrag();
+      }, gesture2.onMove = (info) => {
+        if (state2.overlay.image() !== null) {
+          zoomOverlay.moveDrag(info);
+          return;
+        }
+        viewportActions.moveDrag({
+          dx: info.dx,
+          dy: info.dy
+        }) && (Math.abs(info.dx) >= TAP_CANCEL_DISTANCE || Math.abs(info.dy) >= TAP_CANCEL_DISTANCE) && cancelPendingTap();
+      }, gesture2.onEnd = (info) => {
+        if (state2.overlay.image() === null) {
+          if (viewportActions.cancelDrag(), state.reader.viewMode.value !== "paged") {
+            viewportActions.moveToTop(viewportActions.scrollTop()), viewportActions.startVerticalFlingFromDragVelocity(info.velocityY, () => updateCurrentFromScroll()), updateCurrentFromScroll();
+            return;
+          }
+          info.dx >= PAGED_SWIPE_THRESHOLD ? turnPageBy(state2.navi.rightDragDelta()) : info.dx <= -PAGED_SWIPE_THRESHOLD ? turnPageBy(state2.navi.leftDragDelta()) : scrollToCurrentPage("animated");
+        }
+      }, gesture2.onPinchStart = (info) => {
+        if (cancelPendingTap(), viewportActions.stopMotion(), viewportActions.cancelDrag(), state2.overlay.image() !== null)
+          return zoomOverlay.startPinch({
+            centerX: info.clientX,
+            centerY: info.clientY
+          }), !0;
+        let image = imageAtPoint(info);
+        return image ? (state2.overlay.update(image), zoomOverlay.reset({
+          centerX: info.clientX,
+          centerY: info.clientY
+        }), !0) : !1;
+      }, gesture2.onPinchMove = (info) => zoomOverlay.movePinch({
+        centerX: info.clientX,
+        centerY: info.clientY,
+        scale: info.scale
+      }), gesture2.onPinchEnd = () => zoomOverlay.endPinch(), gesture2.shouldCaptureDrag = (event) => !(event instanceof PointerEvent) || event.pointerType === "mouse" && event.button !== 0 ? !1 : shouldStartDrag(event), gesture2.shouldObserveTap = (event) => event instanceof PointerEvent && event.pointerType !== "mouse" && !shouldStartDrag(event), gesture2.dragStartThreshold = TAP_CANCEL_DISTANCE, gesture2.tapMoveThreshold = TAP_CANCEL_DISTANCE, gesture2;
     }
-    rightDragDelta() {
-      return state.reader.readDirection.value === "rtl" ? 1 : -1;
-    }
-    leftDragDelta() {
-      return -this.rightDragDelta();
-    }
-  };
+  }
   function displayedImageFileName(galleryId, pageNum, imageUrl) {
     return `${galleryId}-p${String(pageNum).padStart(2, "0")}.${imageFileExtension(imageUrl)}`;
   }
@@ -7476,24 +7389,9 @@ body #gdt[class],
       if (extension && ["avif", "bmp", "gif", "jpeg", "jpg", "png", "webp"].includes(extension))
         return extension;
     } catch {
-      return "jpg";
+      return "";
     }
-    return "jpg";
-  }
-  function startImageDownload(url, name) {
-    try {
-      return GM_download({
-        url,
-        ...name ? {
-          name
-        } : {},
-        onerror: (error) => {
-          console.error("[ehpeek]", error), window.alert(texts_default.errors.downloadFailed);
-        }
-      }), !0;
-    } catch (error) {
-      return console.error("[ehpeek]", error), window.alert(texts_default.errors.downloadFailed), !1;
-    }
+    return "";
   }
   function pageNumForPage(page, index) {
     let pageNum = page?.pageNum;
@@ -7505,9 +7403,6 @@ body #gdt[class],
     let eventTarget = event.target;
     return eventTarget instanceof Element ? !!eventTarget.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']") : !1;
   }
-  function pointerTypeForEvent(event) {
-    return "pointerType" in event ? event.pointerType : "mouse";
-  }
 
   // src/App/Reader.tsx
   var activeReaderClose;
@@ -7518,7 +7413,7 @@ body #gdt[class],
         let fullscreenEntered = await fullscreenLaunch.result;
         document.fullscreenElement === fullscreenLaunch.host && await document.exitFullscreen().catch((fullscreenError) => {
           console.warn("[ehpeek] Failed to exit fullscreen", fullscreenError);
-        }), fullscreenEntered && fullscreenLaunch.viewport && await viewport.restore(fullscreenLaunch.viewport), fullscreenLaunch.host.remove();
+        }), fullscreenEntered && await fullscreenLaunch.fullscreen.exit(), fullscreenLaunch.host.remove(), await fullscreenLaunch.fullscreen.restore();
       }
       reportReaderOpenError(error);
     });
@@ -7549,80 +7444,110 @@ body #gdt[class],
       galleryId: gallery.galleryId,
       token: gallery.token,
       totalPages
-    }) : null, automaticFullscreen = fullscreenLaunch ? await fullscreenLaunch.result : void 0;
-    if (automaticFullscreen && document.fullscreenElement !== fullscreenLaunch?.host) {
-      historySession?.dispose(), fullscreenLaunch?.viewport && await viewport.restore(fullscreenLaunch.viewport), fullscreenLaunch?.host.remove();
+    }) : null;
+    if ((fullscreenLaunch ? await fullscreenLaunch.result : void 0) && document.fullscreenElement !== fullscreenLaunch?.host) {
+      historySession?.dispose(), await fullscreenLaunch?.fullscreen.exit(), fullscreenLaunch?.host.remove(), await fullscreenLaunch?.fullscreen.restore();
       return;
     }
-    let lastPageNum = startPageNum, fullscreenViewport = automaticFullscreen ? fullscreenLaunch?.viewport ?? null : null, restorePageViewport2 = async () => {
-      let snapshot = fullscreenViewport;
-      fullscreenViewport = null, snapshot && await viewport.restore(snapshot);
-    };
-    openFullscreenReader({
+    let lastPageNum = startPageNum, onExit = () => {
+      if (historySession?.dispose(), callbacks.onReaderClosed(lastPageNum, totalPages ?? null), lastPageNum === startPageNum)
+        return;
+      let exitIndex = previewCache.previewIndexForPage(lastPageNum), galleryUrl = previewUrlForIndex(exitIndex);
+      if (callbacks.enhanceThumbsGridsEnabled) {
+        callbacks.onGotoPreviewIndex(exitIndex), previewCache.select(exitIndex).catch(() => {
+          window.location.replace(galleryUrl);
+        });
+        return;
+      }
+      exitIndex === currentPreviewIndex ? window.history.replaceState(window.history.state, "", galleryUrl) : window.location.replace(galleryUrl);
+    }, host = fullscreenLaunch?.host ?? createReaderHost(), fullscreen = fullscreenLaunch?.fullscreen ?? viewport.createFullscreen(host);
+    mountReader({
       galleryId: gallery.galleryId,
       initialPageNum: startPageNum,
-      lockPageScroll: viewport.lockScroll,
-      previewCache,
-      totalPages,
-      onBeforeEnterFullscreen: () => {
-        fullscreenViewport = viewport.prepareFullscreen();
-      },
-      restorePageViewport: restorePageViewport2,
+      totalPages
+    }, previewCache, {
       onActivePageChange: (page) => {
         page.pageNum && (lastPageNum = page.pageNum, callbacks.enhanceThumbsGridsEnabled && callbacks.onGotoPreviewIndex(previewCache.previewIndexForPage(page.pageNum))), historySession?.update(page.pageNum, totalPages), updatePeekLocation(page.pageNum, pageSize, maxPreviewIndex);
-      },
-      onExit: () => {
-        historySession?.dispose(), callbacks.onReaderClosed(lastPageNum, totalPages ?? null);
-        let exitIndex = previewCache.previewIndexForPage(lastPageNum), galleryUrl = previewUrlForIndex(exitIndex);
-        if (callbacks.enhanceThumbsGridsEnabled) {
-          callbacks.onGotoPreviewIndex(exitIndex), previewCache.select(exitIndex).catch(() => {
-            window.location.replace(galleryUrl);
-          });
-          return;
-        }
-        exitIndex === currentPreviewIndex ? window.history.replaceState(window.history.state, "", galleryUrl) : window.location.replace(galleryUrl);
       },
       onOpenOriginalPage: (page) => {
         historySession?.dispose(), window.location.assign(page.url);
       }
-    }, fullscreenLaunch?.host);
+    }, viewport.lockScroll, fullscreen, onExit, host);
   }
-  function openFullscreenReader(options, existingHost) {
+  function mountReader(options, previewCache, callbacks, lockPageScroll2, fullscreen, onExit, host) {
     activeReaderClose?.();
-    let host = existingHost ?? createReaderHost(), closeReader = onClosed, disposeRoot = () => {
-    }, close = () => closeReader();
-    function onClosed() {
-      disposeRoot(), disposeRoot = () => {
-      }, host.remove(), activeReaderClose === close && (activeReaderClose = void 0);
+    let disposeRoot = () => {
+    }, unlockPageScroll = lockPageScroll2(), setFullscreenActive = (_active) => {
+    }, keepReaderOpen = !1, historyEntry = !0, closeRequested = !1, closing = !1, close = () => requestClose();
+    function requestClose() {
+      if (!(closing || closeRequested)) {
+        if (historyEntry) {
+          closeRequested = !0, window.history.back();
+          return;
+        }
+        onClosed();
+      }
     }
-    host.isConnected || document.body.append(host), activeReaderClose = close, disposeRoot = render(() => createComponent(FullscreenReader, {
-      get options() {
-        return {
-          ...options,
-          fullscreenTarget: host
-        };
-      },
-      actionsRef: (actions) => {
-        closeReader = actions.close;
-      },
-      onClosed
-    }), host);
+    let onPopState = () => {
+      historyEntry = !1, onClosed();
+    };
+    async function onClosed() {
+      closing || (closing = !0, await fullscreen.exit().catch((error) => {
+        console.warn("[ehpeek] Failed to exit fullscreen", error);
+      }), disposeRoot(), disposeRoot = () => {
+      }, unlockPageScroll(), unlockPageScroll = () => {
+      }, host.remove(), await fullscreen.restore().catch((error) => {
+        console.warn("[ehpeek] Failed to restore page viewport", error);
+      }), activeReaderClose === close && (activeReaderClose = void 0), onExit());
+    }
+    host.isConnected || document.body.append(host), window.addEventListener("popstate", onPopState), window.history.pushState({
+      ehpeekReader: !0
+    }, "", window.location.href), activeReaderClose = close;
+    let unsubscribeFullscreen = fullscreen.subscribe((active) => {
+      setFullscreenActive(active), !active && !keepReaderOpen && requestClose(), keepReaderOpen = !1;
+    });
+    disposeRoot = render(() => {
+      let [fullscreenActive, updateFullscreenActive] = createSignal(fullscreen.active());
+      return setFullscreenActive = updateFullscreenActive, createComponent(Reader, {
+        get callbacks() {
+          return {
+            ...callbacks,
+            onClosed: requestClose,
+            onFullscreenToggle: () => {
+              fullscreen.active() ? (keepReaderOpen = !0, fullscreen.exit().catch((error) => {
+                keepReaderOpen = !1, console.warn("[ehpeek] Failed to exit fullscreen", error);
+              })) : fullscreen.enter().catch((error) => {
+                console.warn("[ehpeek] Fullscreen request failed", error);
+              });
+            }
+          };
+        },
+        options,
+        previewCache,
+        get fullscreenActive() {
+          return fullscreenActive();
+        }
+      });
+    }, host);
+    let previousDispose = disposeRoot;
+    disposeRoot = () => {
+      window.removeEventListener("popstate", onPopState), unsubscribeFullscreen(), previousDispose();
+    };
   }
   function requestConfiguredFullscreen(viewportSource) {
     if (!state.reader.enabled.value || !state.reader.fullscreen.value || document.fullscreenElement)
       return;
     let host = createReaderHost();
-    if (document.body.append(host), !document.fullscreenEnabled || typeof host.requestFullscreen != "function")
-      return {
-        host,
-        result: Promise.resolve(!1),
-        viewport: null
-      };
-    let viewport = viewportSource.prepareFullscreen();
-    return {
+    document.body.append(host);
+    let fullscreen = viewportSource.createFullscreen(host);
+    return !document.fullscreenEnabled || typeof host.requestFullscreen != "function" ? {
+      fullscreen,
       host,
-      viewport,
-      result: enterReaderFullscreen(host).then(() => !0, async (error) => (await viewportSource.restore(viewport), console.warn("[ehpeek] Fullscreen request failed", error), !1))
+      result: Promise.resolve(!1)
+    } : {
+      fullscreen,
+      host,
+      result: fullscreen.enter().then(() => !0, (error) => (console.warn("[ehpeek] Fullscreen request failed", error), !1))
     };
   }
   function createReaderHost() {
@@ -7666,13 +7591,14 @@ body #gdt[class],
       let existing = pending.get(previewIndex);
       if (existing)
         return existing;
+      setLoading(!0);
       let request = loadGalleryPreviewPage(
         previewIndex,
         initialPreview.data.currentUrl
       ).then(
-        (preview) => (pending.delete(previewIndex), remember(preview), preview),
+        (preview) => (pending.delete(previewIndex), setLoading(pending.size > 0), remember(preview), preview),
         (error) => {
-          throw pending.delete(previewIndex), error;
+          throw pending.delete(previewIndex), setLoading(pending.size > 0), error;
         }
       );
       return pending.set(previewIndex, request), request;
@@ -7682,18 +7608,12 @@ body #gdt[class],
     }, select = async (previewIndex) => {
       if (previewIndex === current().data.currentIndex)
         return current();
-      let activeSelection = ++selectionId;
-      setLoading(!0);
-      try {
-        let preview = await load(previewIndex);
-        return activeSelection === selectionId && (currentPreviewIndex = preview.data.currentIndex, setCurrent(preview), window.history.replaceState(
-          window.history.state,
-          "",
-          preview.data.currentUrl
-        )), preview;
-      } finally {
-        activeSelection === selectionId && setLoading(!1);
-      }
+      let activeSelection = ++selectionId, preview = await load(previewIndex);
+      return activeSelection === selectionId && (currentPreviewIndex = preview.data.currentIndex, setCurrent(preview), window.history.replaceState(
+        window.history.state,
+        "",
+        preview.data.currentUrl
+      )), preview;
     };
     return remember(initialPreview), {
       current,
@@ -7709,7 +7629,7 @@ body #gdt[class],
   // src/App/SinglePage.tsx
   var _tmpl$50 = /* @__PURE__ */ template('<div class="ehpeek-single-page-app contents"><div class="ehpeek-single-page-route contents"></div><div class=hidden aria-hidden=true inert>'), _tmpl$214 = /* @__PURE__ */ template('<aside class="fixed right-md bottom-md z-overlay flex max-w-[min(420px,calc(100vw-24px))] flex-col gap-md rounded-md border ehp-color-site-border p-lg ehp-color-site-elevated ehp-color-site-text font-sans"role=alert><div class="textsize-md font-700"></div><div class="flex flex-wrap justify-end gap-sm"><button type=button class="min-h-md rounded-md border ehp-color-site-border bg-transparent px-md ehp-color-site-text textsize-md font-inherit"></button><a data-ehpeek-single-page-bypass class="inline-flex min-h-md items-center rounded-md border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] px-md text-[var(--color-background)] no-underline textsize-md font-700">'), HISTORY_STATE_KEY = "ehpeekSinglePageApp";
   function SinglePage(props) {
-    let [loading, setLoading] = createSignal(!1), [failedUrl, setFailedUrl] = createSignal(null), routeHost, stagingHost, navigationController = null, navigationSequence = 0, scrollFrame = null, disconnectPageNavigation = null, loadPage = async (request, signal) => {
+    let [loading, setLoading] = createSignal(!1), [failedUrl, setFailedUrl] = createSignal(null), routeHost, stagingHost, navigationController = null, navigationSequence = 0, scrollFrame = null, disconnectPageNavigation = null, activeUrl = window.location.href, loadPage = async (request, signal) => {
       let response = await requestPage(request.url, {
         method: request.method,
         body: request.body,
@@ -7750,7 +7670,7 @@ body #gdt[class],
             scrollX: 0,
             scrollY: 0
           }
-        }, "", next.page.url)), nextSource.handle.mountPageContent(routeHost), document.title = nextSource.data.title || document.title, await props.onPageActivate(next.page);
+        }, "", next.page.url)), nextSource.handle.mountPageContent(routeHost), document.title = nextSource.data.title || document.title, activeUrl = window.location.href, await props.onPageActivate(next.page);
         let targetScroll = mode === "pop" ? appHistoryState(popState) : null;
         window.requestAnimationFrame(() => {
           window.scrollTo(targetScroll?.scrollX ?? 0, targetScroll?.scrollY ?? 0);
@@ -7773,14 +7693,16 @@ body #gdt[class],
       let disposed = !1, previousScrollRestoration = window.history.scrollRestoration;
       window.history.scrollRestoration = "manual";
       let onPopState = (event) => {
-        if (!singlePageRoute(window.location.href)) {
-          window.location.assign(window.location.href);
-          return;
+        if (window.location.href !== activeUrl) {
+          if (!singlePageRoute(window.location.href)) {
+            window.location.assign(window.location.href);
+            return;
+          }
+          navigate({
+            method: "GET",
+            url: window.location.href
+          }, "pop", event.state);
         }
-        navigate({
-          method: "GET",
-          url: window.location.href
-        }, "pop", event.state);
       }, initialize = async () => {
         if (await ehSyringe_exports.waitForInitialUi(), disposed)
           return;
@@ -7788,7 +7710,7 @@ body #gdt[class],
         if (!page)
           return;
         let pageSource = managePageContent();
-        pageSource.handle.mountPageContent(routeHost);
+        pageSource.handle.mountPageContent(routeHost), activeUrl = window.location.href;
         let onPageNavigation = (request) => {
           navigate(request, "push");
         };
@@ -7849,6 +7771,7 @@ body #gdt[class],
   }
 
   // src/App/viewport.ts
+  var FULLSCREEN_UI_SCALE_PROPERTY = "--ehpeek-reader-fullscreen-ui-scale", FULLSCREEN_PROGRESS_SIZE_PROPERTY = "--ehpeek-reader-fullscreen-progress-size";
   function lockPageScroll() {
     let documentElement2 = document.documentElement, body = document.body, documentOverflow = documentElement2.style.overflow, bodyOverflow = body.style.overflow;
     return documentElement2.style.overflow = "hidden", body.style.overflow = "hidden", () => {
@@ -7872,10 +7795,45 @@ body #gdt[class],
     await nextAnimationFrame(), snapshot.created ? snapshot.meta.remove() : snapshot.content === null ? snapshot.meta.removeAttribute("content") : snapshot.meta.content = snapshot.content, await nextAnimationFrame(), await nextAnimationFrame(), window.scrollTo(snapshot.scrollX, snapshot.scrollY);
   }
   var readerViewport = {
+    createFullscreen: createReaderFullscreen,
     lockScroll: lockPageScroll,
     prepareFullscreen: pageViewportForFullscreen,
     restore: restorePageViewport
   };
+  function createReaderFullscreen(target, initialSnapshot = null) {
+    let snapshot = initialSnapshot, restorePromise = null, restore = async () => {
+      target.style.removeProperty(FULLSCREEN_UI_SCALE_PROPERTY), target.style.removeProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY), snapshot && (restorePromise ?? (restorePromise = restorePageViewport(snapshot).finally(() => {
+        restorePromise = null;
+      })), await restorePromise);
+    };
+    return {
+      active: () => document.fullscreenElement === target,
+      enter: async () => {
+        if (document.fullscreenElement || !document.fullscreenEnabled)
+          return;
+        snapshot = pageViewportForFullscreen();
+        let scaleBefore = window.visualViewport?.scale ?? 1;
+        try {
+          await target.requestFullscreen(), await nextAnimationFrame();
+          let scaleAfter = window.visualViewport?.scale ?? 1, uiScale = Math.min(1, Math.max(0.25, scaleBefore / Math.max(scaleAfter, 0.01))), progressSize = Number.parseFloat(getComputedStyle(target).getPropertyValue("--font-size-lg")) || 24;
+          target.style.setProperty(FULLSCREEN_UI_SCALE_PROPERTY, String(uiScale)), target.style.setProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY, `${progressSize * uiScale}px`);
+        } catch (error) {
+          throw await restore(), error;
+        }
+      },
+      exit: async () => {
+        document.fullscreenElement === target && await document.exitFullscreen(), target.style.removeProperty(FULLSCREEN_UI_SCALE_PROPERTY), target.style.removeProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY);
+      },
+      restore,
+      subscribe: (callback) => {
+        let onChange = () => {
+          let active = document.fullscreenElement === target;
+          active || (target.style.removeProperty(FULLSCREEN_UI_SCALE_PROPERTY), target.style.removeProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY)), callback(active);
+        };
+        return document.addEventListener("fullscreenchange", onChange), () => document.removeEventListener("fullscreenchange", onChange);
+      }
+    };
+  }
   function lockedViewportContent(content, scale) {
     let preserved = (content ?? "").split(",").map((item) => item.trim()).filter(
       (item) => item && !/^(?:initial-scale|minimum-scale|maximum-scale|user-scalable|viewport-fit)\s*=/i.test(item)
