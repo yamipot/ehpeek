@@ -363,6 +363,7 @@ export function manageGalleryPreview(
     thumbs,
   };
   const handle = {
+    /** Opens thumbnail image links in EhPeek Reader instead of original navigation. */
     connectImageOpen(onOpen: (url: string) => void): () => void {
       const handleClick = (event: MouseEvent) => {
         const link = event.target instanceof Element
@@ -384,6 +385,7 @@ export function manageGalleryPreview(
 
       return thumbs?.listen("click", handleClick) ?? (() => undefined);
     },
+    /** Makes thumbnail dragging available to the horizontal preview-page gesture. */
     transformSwipeInput(): void {
       if (!thumbsSource) {
         return;
@@ -396,12 +398,15 @@ export function manageGalleryPreview(
         });
       }
     },
+    /** Installs a fetched preview page into the currently visible thumbnail host. */
     replaceThumbs(items: typeof thumbItems): void {
       thumbs?.replaceChildren(...items);
     },
+    /** Marks preview loading while retaining the currently visible thumbnails. */
     setThumbsLoading(loading: boolean): void {
       thumbs?.attribute("aria-busy", String(loading));
     },
+    /** Replaces both original page bars with mounts owned by EhPeek pagination. */
     transformPageBars(): void {
       if (originalPageBarTop && pageBarTop) {
         originalPageBarTop.after(pageBarTop);
@@ -416,6 +421,7 @@ export function manageGalleryPreview(
         pageBarTop.before(pageBarDescription);
       }
     },
+    /** Brings the requested EhPeek page bar into view after preview navigation. */
     scrollPageBar(position: "bottom" | "top"): void {
       const pageBar = position === "top" ? pageBarTop : pageBarBottom;
       pageBar?.scrollIntoView({

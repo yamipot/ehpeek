@@ -172,6 +172,7 @@ export function managePageContent(
     return { body: formData, method, url: url.href };
   };
   const handle = {
+    /** Intercepts only same-origin routes supported by EhPeek Single Page App. */
     connectNavigation(
       host: HTMLElement,
       onNavigate: (request: NavigationRequest) => void,
@@ -213,6 +214,7 @@ export function managePageContent(
         host.removeEventListener("submit", onSubmit, true);
       };
     },
+    /** Installs the detached response content into Single Page App's active host. */
     mount(host: HTMLElement): void {
       host.replaceChildren(...content.map((node) => node.Component()));
     },

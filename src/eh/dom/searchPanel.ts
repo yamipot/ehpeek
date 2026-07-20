@@ -149,6 +149,7 @@ export function manageSearchPanel() {
   } satisfies ManagedDomElements;
 
   const handle = {
+    /** Reflows original Search controls into EhPeek's shared SearchPanel structure. */
     transformPresentation(classes: SearchPanelClasses) {
       searchActionMount.transform({ classes: { replace: classes.actionMount } });
       clearActionMount?.transform({ classes: { replace: classes.actionMount } });
@@ -178,19 +179,24 @@ export function manageSearchPanel() {
       searchSubmitElem.setHidden(true);
       clearButtonElem?.setHidden(true);
     },
+    /** Controls the original category table from EhPeek's category toggle. */
     transformCategories(open: boolean) {
       categoriesElem?.setHidden(!open);
       categoriesElem?.transform({ attributes: { set: { "aria-hidden": String(!open) } } });
     },
+    /** Controls the original advanced-search fields from EhPeek's toggle. */
     transformAdvanced(open: boolean) {
       advancedPanelElem?.setHidden(!open);
     },
+    /** Controls the original file-search fields from EhPeek's toggle. */
     transformFileSearch(open: boolean) {
       fileSearchElem?.setHidden(!open);
     },
+    /** Submits through the original Search form and its preserved parameters. */
     submit() {
       formElem.requestSubmit(searchSubmitElem);
     },
+    /** Clears the original input and emits the event consumed by Search history. */
     clear() {
       searchInputElem.setInputValue("");
       searchInputElem.dispatchInput();

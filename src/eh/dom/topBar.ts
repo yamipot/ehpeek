@@ -60,6 +60,7 @@ export function manageTopBar() {
   originalElem.replaceWith(mount);
 
   const handle = {
+    /** Normalizes cloned original links for EhPeek's icon-based TopBar. */
     transformNavItems(className: string) {
       navItems.forEach((item) =>
         item.transform({

@@ -219,9 +219,10 @@ function injectEnhanceUI(
       },
     );
   }
-  const refreshSearchGrid = resultsPage && state.search.grid.value
-    ? eh.mutateSearchGrid()
-    : null;
+  const searchGridEnabled = Boolean(resultsPage && state.search.grid.value);
+  if (searchGridEnabled) {
+    eh.mutateSearchGrid();
+  }
 
   if (settingsState.openGalleryInNewTab && searchResultsDom) {
     searchResultsDom.handle.transformGalleryLinksToNewTab();
@@ -296,7 +297,9 @@ function injectEnhanceUI(
             source.handle.transformGalleryLinksToNewTab();
           }
           touchResultsDom?.handle.refresh();
-          refreshSearchGrid?.();
+          if (searchGridEnabled) {
+            eh.mutateSearchGrid();
+          }
         }}
       />
     ));

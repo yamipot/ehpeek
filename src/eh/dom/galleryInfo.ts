@@ -334,6 +334,7 @@ export function manageGalleryInfo(
   } satisfies ManagedDomElements;
 
   const handle = {
+    /** Normalizes the original cover for GalleryInfoPanel's responsive layout. */
     transformCover(className: string) {
       coverElem?.transform({
         attributes: {
@@ -348,6 +349,7 @@ export function manageGalleryInfo(
         classes: { replace: className },
       });
     },
+    /** Converts original Gallery actions into consistently styled component items. */
     transformActionItems(className: string) {
       actionElems.forEach((action, index) => {
         action.transform({
@@ -358,6 +360,7 @@ export function manageGalleryInfo(
         action.setTextUnlessInput(actionSources[index]?.label ?? "");
       });
     },
+    /** Fits the original New Tag form into GalleryInfoPanel's tag controls. */
     transformNewTag(classes: {
       button: string;
       container: string;
@@ -380,6 +383,7 @@ export function manageGalleryInfo(
         classes: { add: classes.form.split(" ") },
       });
     },
+    /** Hides original GalleryInfo children and installs the component mount. */
     transformHost(className: string) {
       hostElem.transform({ classes: { add: [className] } });
       hostChildElems.forEach((child) => {
@@ -388,10 +392,12 @@ export function manageGalleryInfo(
       });
       hostElem.prepend(mount);
     },
+    /** Loads the original favorite dialog choices for EhPeek's favorite modal. */
     async favoriteOptions(actionUrl: string, favorited: boolean) {
       const response = await requestPage(actionUrl);
       return readFavoriteOptions(response.document, favorited);
     },
+    /** Submits a tag to the chosen My Tags collection and validates the response. */
     async favoriteTag(
       tag: GalleryTagData,
       tagSet: string,
@@ -402,16 +408,19 @@ export function manageGalleryInfo(
         throw new Error("The tag was submitted, but the returned My Tags page could not be read.");
       }
     },
+    /** Keeps component tag groups synchronized with original-page tag updates. */
     observeTagGroups(onChange: (groups: GalleryInfoTagGroup[]) => void) {
       const tagList = page.one<HTMLElement>("#taglist");
       const managedTagList = tagList?.inplace();
       return managedTagList?.observe(() => onChange(manageTagGroups())) ?? (() => undefined);
     },
+    /** Lets EhSyringe continue owning autocomplete behavior on the moved tag input. */
     reuseNewTagInput(): void {
       if (elems.newTagField) {
         elems.newTagField = EhSyringe.reuseTagTipInput(elems.newTagField);
       }
     },
+    /** Sends a Gallery rating through the captured original Gallery API session. */
     async rate(value: number) {
       const rating = Math.round(value * 2);
       if (rating < 1 || rating > 10) {
@@ -423,6 +432,7 @@ export function manageGalleryInfo(
       }
       return updateGalleryRating(api, value);
     },
+    /** Removes the selected tag from its stored My Tags collection. */
     async removeFavoriteTag(tag: GalleryTagData): Promise<void> {
       if (!tag.myTag) {
         return;
@@ -432,6 +442,7 @@ export function manageGalleryInfo(
         throw new Error("The tag removal was submitted, but the returned My Tags page could not be read.");
       }
     },
+    /** Applies an upvote, downvote, or vote removal and refreshes the tag pane. */
     async tagAction(tag: GalleryTagData, action: GalleryTagAction): Promise<void> {
       const api = extractGalleryTagApiInfo();
       if (!api) {
@@ -455,6 +466,7 @@ export function manageGalleryInfo(
       template.innerHTML = tagPane;
       tagList.replaceChildren(...Array.from(template.content.childNodes));
     },
+    /** Updates the Gallery favorite state through the original site endpoint. */
     updateFavorite: updateGalleryFavorite,
   };
 

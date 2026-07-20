@@ -38,6 +38,7 @@ export function manageSearchResults() {
   };
   const elems = { navigationBars, resultList };
   const handle = {
+    /** Routes the original pagination controls through the active page owner. */
     connectNavigation(onNavigate: (url: string) => void): () => void {
       const handleClick = (event: MouseEvent) => {
         const link = event.target instanceof Element
@@ -58,6 +59,7 @@ export function manageSearchResults() {
       document.addEventListener("click", handleClick, true);
       return () => document.removeEventListener("click", handleClick, true);
     },
+    /** Replaces the current result page without activating Single Page App. */
     async navigate(url: string): Promise<void> {
       const response = await requestPage(url);
       if (!replaceSearchPageContent(response.document)) {
@@ -65,12 +67,15 @@ export function manageSearchResults() {
       }
       window.history.pushState(window.history.state, "", url);
     },
+    /** Returns the viewport to the result page's upper navigation bar. */
     scrollToTop(): void {
       navigationBars[0]?.scrollIntoView({ block: "start", behavior: "auto" });
     },
+    /** Exposes result loading state without removing the current result list. */
     setBusy(busy: boolean): void {
       resultList.transform({ attributes: busy ? { set: { "aria-busy": "true" } } : { remove: ["aria-busy"] } });
     },
+    /** Prevents result content from stealing a horizontal swipe gesture. */
     transformSwipeInput(): void {
       resultList.transform({
         classes: {
@@ -82,6 +87,7 @@ export function manageSearchResults() {
         },
       });
     },
+    /** Applies the user setting to gallery links already owned by the result list. */
     transformGalleryLinksToNewTab(): void {
       for (const link of resultSource.all<HTMLAnchorElement>("a[href]")) {
         if (extractPageType(link.attribute("href") ?? "").type !== "gallery") {
@@ -119,6 +125,7 @@ export function manageSearchTextInput() {
   const data = { value: input.inputValue() };
   const elems = { form, input, submit };
   const handle = {
+    /** Connects the original input to EhPeek's history and suggestion overlay. */
     connect(callbacks: {
       onFocus: () => void;
       onInput: (value: string, focused: boolean) => void;
@@ -157,10 +164,12 @@ export function manageSearchTextInput() {
         window.removeEventListener("resize", callbacks.onPositionChange);
       };
     },
+    /** Locates the overlay directly below the original search input. */
     position(): { left: number; top: number; width: number } {
       const rect = inputSource?.rect() ?? new DOMRect();
       return { left: rect.left, top: rect.bottom, width: rect.width };
     },
+    /** Commits a history or suggestion choice through the original input events. */
     select(value: string): void {
       input.setInputValue(value);
       input.dispatchInput();
@@ -173,13 +182,8 @@ export function manageSearchTextInput() {
 
 export type SearchTextInputDom = NonNullable<ReturnType<typeof manageSearchTextInput>>;
 
-/** Transforms Search's extended result table into the EhPeek grid presentation. */
-export function mutateSearchGrid() {
-  applySearchGrid();
-  return applySearchGrid;
-}
-
-function applySearchGrid(): void {
+/** Rebuilds Search's extended table layout as the touch-readable EhPeek grid. */
+export function mutateSearchGrid(): void {
   const page = DomNode.from(document);
   page.one<HTMLElement>(".ehpeek-search-grid-host")?.inplace().remove();
   const resultList = page.one<HTMLElement>(".itg");
@@ -755,9 +759,11 @@ export function manageTouchResultsPage(page: PageType, hideRangeBar = false) {
   };
   const data = { favoritesCategory: apply() };
   const handle = {
+    /** Reapplies TouchUI layout after the result list is replaced in place. */
     refresh(): void {
       apply();
     },
+    /** Removes page-wide TouchUI constraints before the active page is released. */
     reset(): void {
       const classes = [
         ...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "),
