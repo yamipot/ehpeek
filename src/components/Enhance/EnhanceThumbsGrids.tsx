@@ -2,7 +2,6 @@ import {
   createEffect,
   createSignal,
   onCleanup,
-  Show,
   untrack,
 } from "solid-js";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
@@ -38,7 +37,7 @@ export function ThumbsGrids(props: {
   const pageBarCurrentIndex = (): number =>
     gotoPreviewIndex() ??
     props.previewCache.current().data.currentIndex;
-  const pageBarMaxIndex = (): number | null =>
+  const pageBarMaxIndex = (): number =>
     props.previewCache.current().data.maxIndex;
 
   const requestPreviewPage = (
@@ -47,7 +46,7 @@ export function ThumbsGrids(props: {
   ): void => {
     const current = props.previewCache.current();
     const onLoadError = props.onLoadError;
-    pageBarSource.handle.scrollPageBar(scrollToPageBar);
+    pageBarSource.handle.scrollPreviewPageBarIntoView(scrollToPageBar);
     if (previewIndex === current.data.currentIndex) {
       return;
     }
@@ -55,7 +54,7 @@ export function ThumbsGrids(props: {
     void props.previewCache.select(previewIndex).then(
       (next) => {
         if (untrack(() => props.previewCache.current()) === next) {
-          pageBarSource.handle.scrollPageBar(scrollToPageBar);
+          pageBarSource.handle.scrollPreviewPageBarIntoView(scrollToPageBar);
         }
       },
       (error: unknown) => {
@@ -67,7 +66,7 @@ export function ThumbsGrids(props: {
   const swipeIndexForDelta = (dx: number): number | null => {
     const current = props.previewCache.current().data;
     const nextIndex = dx < 0 ? current.currentIndex + 1 : current.currentIndex - 1;
-    if (nextIndex < 0 || (current.maxIndex !== null && nextIndex > current.maxIndex)) {
+    if (nextIndex < 0 || nextIndex > current.maxIndex) {
       return null;
     }
     return nextIndex;
@@ -108,9 +107,9 @@ export function ThumbsGrids(props: {
   createEffect<eh.GalleryPreviewDom>((previous) => {
     const current = props.previewCache.current();
     setGotoPreviewIndex(undefined);
-    current.handle.transformSwipeInput();
+    current.handle.ensurePreviewSwipeInput();
     if (current !== previous) {
-      pageBarSource.handle.replaceThumbs(current.elems.thumbItems);
+      pageBarSource.handle.replacePreviewThumbs(current.elems.thumbItems);
     }
     return current;
   }, pageBarSource);
@@ -120,11 +119,11 @@ export function ThumbsGrids(props: {
   });
 
   createEffect(() => {
-    pageBarSource.handle.setThumbsLoading(props.previewCache.loading());
+    pageBarSource.handle.updatePreviewLoading(props.previewCache.loading());
   });
 
   onCleanup(() => {
-    pageBarSource.handle.setThumbsLoading(false);
+    pageBarSource.handle.updatePreviewLoading(false);
   });
 
   createPointerGestureElement(
@@ -142,11 +141,9 @@ export function ThumbsGrids(props: {
     }),
   );
 
-  pageBarSource.handle.transformPageBars();
+  pageBarSource.handle.installPreviewPageBars();
   pageBarSource.elems.pageBarDescription?.mount(() => (
-    <Show when={props.previewCache.current().data.descriptionText}>
-      {(description) => <GalleryPageDescription text={description()} />}
-    </Show>
+    <GalleryPageDescription text={props.previewCache.current().data.descriptionText} />
   ));
   const mounts = [
     { element: pageBarSource.elems.pageBarTop, top: true },

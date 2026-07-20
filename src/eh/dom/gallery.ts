@@ -43,12 +43,12 @@ export type MyTagsPageData = {
 export function extractMyTagsPageData(
   root: ParentNode = document,
   tagSet?: string,
-): MyTagsPageData | null {
+): MyTagsPageData {
   const page = DomNode.from(root);
   const tags = page.one<HTMLElement>("#usertags_outer");
 
   if (!tags) {
-    return null;
+    throw new Error("The My Tags page could not be read.");
   }
 
   const options = page.all<HTMLOptionElement>("#tagset_outer select option").map((option) => ({
@@ -127,13 +127,9 @@ export function mutateGalleryMyTags(appearances: MyTagAppearance[]) {
       container.inplace().styles({ "background-color": appearance.backgroundColor }, "important");
       tag.inplace()
         .styles({ color: appearance.color }, "important")
-        .transform({
-          attributes: {
-            set: {
-              "data-ehpeek-my-tag-id": appearance.id,
-              "data-ehpeek-my-tag-set": appearance.tagSet,
-            },
-          },
+        .setAttributes({
+          "data-ehpeek-my-tag-id": appearance.id,
+          "data-ehpeek-my-tag-set": appearance.tagSet,
         });
     }
   };
@@ -144,9 +140,12 @@ export function mutateGalleryMyTags(appearances: MyTagAppearance[]) {
 }
 
 /** Captures GalleryInfo API credentials before SinglePage removes original scripts. */
-export function manageGalleryApiSession(root: ParentNode = document, baseUrl = window.location.href): boolean {
+export function manageGalleryApiSession(root: ParentNode = document, baseUrl = window.location.href): void {
   if (galleryApiSession) {
-    return true;
+    return;
+  }
+  if (!galleryIdentityFromUrl(baseUrl)) {
+    return;
   }
 
   const script = DomNode.from(root).all<HTMLScriptElement>("script")
@@ -154,11 +153,7 @@ export function manageGalleryApiSession(root: ParentNode = document, baseUrl = w
     .find((text) => text.includes("var api_url") && text.includes("var apikey"));
 
   if (!script) {
-    console.warn("[ehpeek] Gallery API session capture failed", {
-      reason: "api-script-not-found",
-      pathname: new URL(baseUrl).pathname,
-    });
-    return false;
+    throw new Error("The Gallery API session script could not be found.");
   }
 
   const stringValue = (name: string) =>
@@ -173,13 +168,7 @@ export function manageGalleryApiSession(root: ParentNode = document, baseUrl = w
   const apiUid = numberValue("apiuid");
 
   if (!apiUrlValue || !apiKey || apiUid === null) {
-    console.warn("[ehpeek] Gallery API session capture failed", {
-      reason: "api-values-missing",
-      hasApiKey: Boolean(apiKey),
-      hasApiUid: apiUid !== null,
-      hasApiUrl: Boolean(apiUrlValue),
-    });
-    return false;
+    throw new Error("The Gallery API session values could not be read.");
   }
 
   const apiUrl = new URL(apiUrlValue, baseUrl);
@@ -192,14 +181,7 @@ export function manageGalleryApiSession(root: ParentNode = document, baseUrl = w
     apiUid <= 0 ||
     !/^[A-Za-z0-9_-]{8,128}$/.test(apiKey)
   ) {
-    console.warn("[ehpeek] Gallery API session capture failed", {
-      reason: "api-values-invalid",
-      apiOrigin: apiUrl.origin,
-      apiPathname: apiUrl.pathname,
-      apiUidValid: Number.isSafeInteger(apiUid) && apiUid > 0,
-      apiKeyLength: apiKey.length,
-    });
-    return false;
+    throw new Error("The Gallery API session values are invalid.");
   }
 
   galleryApiSession = {
@@ -207,37 +189,24 @@ export function manageGalleryApiSession(root: ParentNode = document, baseUrl = w
     apiUid,
     apiUrl: apiUrl.href,
   };
-  return true;
 }
 
 /** Builds GalleryInfo's tag/rating API data from the captured session and current URL. */
-export function extractGalleryTagApiInfo(): GalleryTagApiInfo | null {
+export function extractGalleryTagApiInfo(): GalleryTagApiInfo {
   const gallery = galleryIdentityFromUrl();
 
   if (!gallery) {
-    console.warn("[ehpeek] Gallery API context unavailable", {
-      reason: "gallery-path-invalid",
-      pathname: window.location.pathname,
-    });
-    return null;
+    throw new Error("The current Gallery identity could not be read.");
   }
 
   if (!galleryApiSession) {
-    console.warn("[ehpeek] Gallery API context unavailable", {
-      reason: "api-session-unavailable",
-      galleryId: gallery.galleryId,
-    });
-    return null;
+    throw new Error("The Gallery API session is unavailable.");
   }
 
   const { galleryId, token } = gallery;
 
   if (!Number.isSafeInteger(galleryId) || galleryId <= 0 || !/^[A-Za-z0-9]+$/.test(token)) {
-    console.warn("[ehpeek] Gallery API context unavailable", {
-      reason: "gallery-identity-invalid",
-      galleryId,
-    });
-    return null;
+    throw new Error("The current Gallery identity is invalid.");
   }
 
   return {
@@ -256,7 +225,7 @@ export function manageGalleryContinueReadingButtonMount() {
 
   if (viewerOptions) {
     viewerOptions
-      .transform({ classes: { add: ["ehpeek-gallery-actions"] } })
+      .addClasses("ehpeek-gallery-actions")
       .append(managedHost);
     return managedHost;
   }
@@ -268,13 +237,13 @@ export function manageGalleryContinueReadingButtonMount() {
 export type GalleryPreviewData = {
   currentIndex: number;
   currentUrl: string;
-  descriptionText: string | null;
-  endImage: number | null;
-  maxIndex: number | null;
-  pageSize: number | null;
+  descriptionText: string;
+  endImage: number;
+  maxIndex: number;
+  pageSize: number;
   pages: ReaderPage[];
-  startImage: number | null;
-  totalImages: number | null;
+  startImage: number;
+  totalImages: number;
 };
 
 /** Manages Gallery Preview pagination, thumbnails, and Reader-page data. */
@@ -288,22 +257,34 @@ export function manageGalleryPreview(
   const pageDescriptionSource = page.one<HTMLElement>(GALLERY_PAGE_DESCRIPTION_SELECTOR);
   const rangeText = pageDescriptionSource?.text() ?? "";
   const rangeMatch = rangeText.match(/([\d,]+)\s*-\s*([\d,]+)\D+([\d,]+)/);
-  const rangeValues = rangeMatch
-    ? rangeMatch.slice(1).map((value) => Number(value.replace(/,/g, "")))
-    : [];
-  const [startImage, endImage, totalImages] = rangeValues.length === 3 && rangeValues.every((value) => value > 0)
-    ? rangeValues
-    : [null, null, null];
-  const currentPageSize = startImage !== null && endImage !== null ? endImage - startImage + 1 : null;
-  const inferredFullPageSize = currentPageSize !== null && totalImages !== null && endImage === totalImages && currentIndex > 0
+  const rangeValues = rangeMatch?.slice(1).map((value) => Number(value.replace(/,/g, ""))) ?? [];
+  const startImage = rangeValues[0];
+  const endImage = rangeValues[1];
+  const totalImages = rangeValues[2];
+  if (
+    startImage === undefined ||
+    endImage === undefined ||
+    totalImages === undefined ||
+    !Number.isSafeInteger(startImage) ||
+    !Number.isSafeInteger(endImage) ||
+    !Number.isSafeInteger(totalImages) ||
+    startImage <= 0 ||
+    endImage <= 0 ||
+    totalImages <= 0 ||
+    endImage < startImage ||
+    totalImages < endImage
+  ) {
+    throw new Error("Cannot read the gallery preview image range.");
+  }
+  const currentPageSize = endImage - startImage + 1;
+  const inferredFullPageSize = endImage === totalImages && currentIndex > 0
     ? (totalImages - currentPageSize) / currentIndex
     : currentPageSize;
-  const pageSize = inferredFullPageSize !== null && Number.isInteger(inferredFullPageSize) && inferredFullPageSize > 0
-    ? inferredFullPageSize
-    : null;
-  const maxIndex = pageSize !== null && totalImages !== null
-    ? Math.max(currentIndex, Math.ceil(totalImages / pageSize) - 1)
-    : null;
+  if (!Number.isInteger(inferredFullPageSize) || inferredFullPageSize <= 0) {
+    throw new Error("Cannot determine the gallery preview page size.");
+  }
+  const pageSize = inferredFullPageSize;
+  const maxIndex = Math.max(currentIndex, Math.ceil(totalImages / pageSize) - 1);
   const seen = new Set<string>();
   const pages = page
     .all<HTMLAnchorElement>("#gdt a[href], .gdtm a[href], .gdtl a[href], a[href*='/s/']")
@@ -326,7 +307,7 @@ export function manageGalleryPreview(
   const data: GalleryPreviewData = {
     currentIndex,
     currentUrl,
-    descriptionText: rangeText || null,
+    descriptionText: rangeText,
     endImage,
     maxIndex,
     pageSize,
@@ -335,36 +316,32 @@ export function manageGalleryPreview(
     totalImages,
   };
   const thumbsSource = page.one<HTMLElement>("#gdt");
-  const thumbImages = thumbsSource?.all<HTMLImageElement>("img") ?? [];
-  const thumbs = root === document ? thumbsSource?.inplace() ?? null : null;
-  const thumbItems = thumbsSource?.children().map((item) =>
-    root === document ? item.inplace() : item.move()
-  ) ?? [];
-  const mount = root === document && thumbs
-    ? createManagedElement("div").transform({ classes: { replace: "contents" } })
-    : null;
-  const originalPageBarTop = page.one<HTMLElement>(".ptt")?.inplace() ?? null;
-  const originalPageBarBottom = page.one<HTMLElement>(".ptb")?.inplace() ?? null;
-  const originalPageDescription = pageDescriptionSource?.inplace() ?? null;
-  const pageBarTop = originalPageBarTop ? createManagedElement("div") : null;
-  const pageBarBottom = originalPageBarBottom ? createManagedElement("div") : null;
-  const pageBarDescription = originalPageDescription && pageBarTop
-    ? createManagedElement("div")
-    : null;
-  if (mount && thumbs) {
-    thumbs.before(mount);
-  }
+  const pageBarTopSource = page.one<HTMLElement>(".ptt");
+  const pageBarBottomSource = page.one<HTMLElement>(".ptb");
   const elems = {
-    mount,
-    pageBarBottom,
-    pageBarDescription,
-    pageBarTop,
-    thumbItems,
-    thumbs,
+    mount: root === document && thumbsSource
+      ? createManagedElement("div").replaceClasses("contents")
+      : null,
+    originalPageBarBottom: pageBarBottomSource?.inplace() ?? null,
+    originalPageBarTop: pageBarTopSource?.inplace() ?? null,
+    originalPageDescription: pageDescriptionSource?.inplace() ?? null,
+    pageBarBottom: pageBarBottomSource ? createManagedElement("div") : null,
+    pageBarDescription: pageDescriptionSource && pageBarTopSource
+      ? createManagedElement("div")
+      : null,
+    pageBarTop: pageBarTopSource ? createManagedElement("div") : null,
+    thumbImages: thumbsSource?.all<HTMLImageElement>("img").map((image) => image.inplace()) ?? [],
+    thumbItems: thumbsSource?.children().map((item) =>
+      root === document ? item.inplace() : item.move()
+    ) ?? [],
+    thumbs: root === document ? thumbsSource?.inplace() ?? null : null,
   };
+  if (elems.mount && elems.thumbs) {
+    elems.thumbs.before(elems.mount);
+  }
   const handle = {
     /** Opens thumbnail image links in EhPeek Reader instead of original navigation. */
-    connectImageOpen(onOpen: (url: string) => void): () => void {
+    interceptPreviewImageOpen(onOpen: (url: string) => void): () => void {
       const handleClick = (event: MouseEvent) => {
         const link = event.target instanceof Element
           ? DomNode.from(event.target).closest<HTMLAnchorElement>("a[href]")
@@ -383,47 +360,43 @@ export function manageGalleryPreview(
         onOpen(normalizeUrl(href, currentUrl));
       };
 
-      return thumbs?.listen("click", handleClick) ?? (() => undefined);
+      return elems.thumbs?.listen("click", handleClick) ?? (() => undefined);
     },
     /** Makes thumbnail dragging available to the horizontal preview-page gesture. */
-    transformSwipeInput(): void {
-      if (!thumbsSource) {
-        return;
-      }
-      thumbs?.transform({ classes: { add: ["select-none", "touch-pan-y"] } });
-      for (const source of thumbImages) {
-        source.inplace().transform({
-          attributes: { set: { draggable: "false" } },
-          classes: { add: ["[-webkit-user-drag:none]"] },
-        });
+    ensurePreviewSwipeInput(): void {
+      elems.thumbs?.addClasses("select-none", "touch-pan-y");
+      for (const image of elems.thumbImages) {
+        image
+          .setAttributes({ draggable: "false" })
+          .addClasses("[-webkit-user-drag:none]");
       }
     },
     /** Installs a fetched preview page into the currently visible thumbnail host. */
-    replaceThumbs(items: typeof thumbItems): void {
-      thumbs?.replaceChildren(...items);
+    replacePreviewThumbs(items: typeof elems.thumbItems): void {
+      elems.thumbs?.replaceChildren(...items);
     },
     /** Marks preview loading while retaining the currently visible thumbnails. */
-    setThumbsLoading(loading: boolean): void {
-      thumbs?.attribute("aria-busy", String(loading));
+    updatePreviewLoading(loading: boolean): void {
+      elems.thumbs?.attribute("aria-busy", String(loading));
     },
     /** Replaces both original page bars with mounts owned by EhPeek pagination. */
-    transformPageBars(): void {
-      if (originalPageBarTop && pageBarTop) {
-        originalPageBarTop.after(pageBarTop);
-        originalPageBarTop.setHidden(true);
+    installPreviewPageBars(): void {
+      if (elems.originalPageBarTop && elems.pageBarTop) {
+        elems.originalPageBarTop.after(elems.pageBarTop);
+        elems.originalPageBarTop.setHidden(true);
       }
-      if (originalPageBarBottom && pageBarBottom) {
-        originalPageBarBottom.after(pageBarBottom);
-        originalPageBarBottom.setHidden(true);
+      if (elems.originalPageBarBottom && elems.pageBarBottom) {
+        elems.originalPageBarBottom.after(elems.pageBarBottom);
+        elems.originalPageBarBottom.setHidden(true);
       }
-      if (originalPageDescription && pageBarDescription && pageBarTop) {
-        originalPageDescription.setHidden(true);
-        pageBarTop.before(pageBarDescription);
+      if (elems.originalPageDescription && elems.pageBarDescription && elems.pageBarTop) {
+        elems.originalPageDescription.setHidden(true);
+        elems.pageBarTop.before(elems.pageBarDescription);
       }
     },
     /** Brings the requested EhPeek page bar into view after preview navigation. */
-    scrollPageBar(position: "bottom" | "top"): void {
-      const pageBar = position === "top" ? pageBarTop : pageBarBottom;
+    scrollPreviewPageBarIntoView(position: "bottom" | "top"): void {
+      const pageBar = position === "top" ? elems.pageBarTop : elems.pageBarBottom;
       pageBar?.scrollIntoView({
         behavior: "smooth",
         block: position === "top" ? "start" : "end",

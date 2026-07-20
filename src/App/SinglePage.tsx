@@ -86,7 +86,7 @@ export function SinglePage(props: {
     try {
       const next = await loadPage(request, controller.signal);
       const nextSource = next.source;
-      nextSource.handle.mount(stagingHost);
+      nextSource.handle.mountPageContent(stagingHost);
       await eh.EhSyringe.waitForRouteTranslation(stagingHost);
 
       if (sequence !== navigationSequence || controller.signal.aborted) {
@@ -110,7 +110,7 @@ export function SinglePage(props: {
         );
       }
 
-      nextSource.handle.mount(routeHost);
+      nextSource.handle.mountPageContent(routeHost);
       document.title = nextSource.data.title || document.title;
       await props.onPageActivate(next.page);
 
@@ -171,11 +171,11 @@ export function SinglePage(props: {
         return;
       }
       const pageSource = eh.managePageContent();
-      pageSource.handle.mount(routeHost);
+      pageSource.handle.mountPageContent(routeHost);
       const onPageNavigation = (request: eh.NavigationRequest) => {
         void navigate(request, "push");
       };
-      disconnectPageNavigation = pageSource.handle.connectNavigation(
+      disconnectPageNavigation = pageSource.handle.interceptSinglePageNavigation(
         routeHost,
         onPageNavigation,
       );

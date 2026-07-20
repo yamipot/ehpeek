@@ -226,9 +226,9 @@ export function previewUrlForIndex(previewIndex: number, pageUrl = window.locati
   return url.href;
 }
 
-export function previewPageIndexForGalleryPage(galleryPage: number, pageSize: number, maxPreviewIndex: number | null): number {
+export function previewPageIndexForGalleryPage(galleryPage: number, pageSize: number, maxPreviewIndex: number): number {
   const previewIndex = Math.max(0, Math.floor((galleryPage - 1) / pageSize));
-  return maxPreviewIndex === null ? previewIndex : Math.min(previewIndex, maxPreviewIndex);
+  return Math.min(previewIndex, maxPreviewIndex);
 }
 
 export function peekPageFromHash(hash = window.location.hash): number | null {
@@ -238,7 +238,7 @@ export function peekPageFromHash(hash = window.location.hash): number | null {
   return Number.isFinite(page) && page > 0 ? page : null;
 }
 
-export function updatePeekLocation(pageNumber: number | undefined, pageSize: number, maxPreviewIndex: number | null): void {
+export function updatePeekLocation(pageNumber: number | undefined, pageSize: number, maxPreviewIndex: number): void {
   if (!pageNumber || pageNumber <= 0) {
     return;
   }

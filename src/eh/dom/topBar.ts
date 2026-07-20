@@ -55,26 +55,24 @@ export function manageTopBar() {
     homeHref: links[0]?.attribute("href") ?? "/",
   };
 
-  const navItems = links.map((link) => link.clone());
-  const originalElem = original.inplace();
-  originalElem.replaceWith(mount);
+  const elems = {
+    mount,
+    navItems: links.map((link) => link.clone()),
+  } satisfies ManagedDomElements;
+  original.inplace().replaceWith(elems.mount);
 
   const handle = {
     /** Normalizes cloned original links for EhPeek's icon-based TopBar. */
-    transformNavItems(className: string) {
-      navItems.forEach((item) =>
-        item.transform({
-          attributes: { remove: ["id"] },
-          classes: { replace: className },
-          styles: { remove: "all" },
-        }),
+    updateNavItemVisual(className: string) {
+      elems.navItems.forEach((item) =>
+        item.removeAttributes("id").replaceClasses(className).removeAllStyles(),
       );
     },
   };
 
   return {
     data,
-    elems: { mount, navItems } satisfies ManagedDomElements,
+    elems,
     handle,
   };
 }

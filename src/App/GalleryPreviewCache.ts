@@ -1,7 +1,6 @@
 import { createSignal, type Accessor } from "solid-js";
 import * as eh from "../eh";
 import type { LoadedReaderPage, ReaderPage } from "../readerTypes";
-import texts from "../texts.json";
 
 const PREVIEW_CACHE_LIMIT = 10;
 
@@ -55,9 +54,6 @@ export function createGalleryPreviewCache(
   };
 
   const previewIndexForPage = (pageNum: number): number => {
-    if (pageSize === null) {
-      throw new Error(texts.errors.previewPageSizeUnknown);
-    }
     return eh.previewPageIndexForGalleryPage(
       pageNum,
       pageSize,
@@ -68,7 +64,7 @@ export function createGalleryPreviewCache(
   const load = (previewIndex: number): Promise<eh.GalleryPreviewDom> => {
     if (
       previewIndex < 0 ||
-      (maxPreviewIndex !== null && previewIndex > maxPreviewIndex)
+      previewIndex > maxPreviewIndex
     ) {
       return Promise.reject(new RangeError(`Invalid Preview index: ${previewIndex}`));
     }

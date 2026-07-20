@@ -22,7 +22,7 @@ type PageBarItemState = "link" | "current" | "disabled";
 
 type ScrollPageBarOptions = {
   currentIndex: number;
-  maxIndex: number | null;
+  maxIndex: number;
   onNavigate: (previewIndex: number, scrollToPageBar: "bottom" | "top") => void;
   onWindowIndexChange: (index: number) => void;
   top: boolean;
@@ -35,7 +35,7 @@ export function GalleryPageDescription(props: { text: string }) {
 }
 
 export function ScrollPageBar(options: ScrollPageBarOptions & { element: ManagedDomNode<HTMLDivElement> }) {
-  const maxIndex = createMemo(() => Math.max(0, options.maxIndex ?? options.currentIndex));
+  const maxIndex = createMemo(() => Math.max(0, options.maxIndex));
   const currentIndex = createMemo(() => clamp(options.currentIndex, 0, maxIndex()));
   const windowIndex = createMemo(() => clamp(options.windowIndex() ?? currentIndex(), 0, maxIndex()));
   let dragStartWindowIndex = untrack(windowIndex);
@@ -90,11 +90,9 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: Managed
   );
 
   untrack(() => {
-    options.element.transform({
-      classes: {
-        replace: `${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${options.top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}`,
-      },
-    });
+    options.element.replaceClasses(
+      `${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${options.top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}`,
+    );
   });
 
   createPointerGestureElement(

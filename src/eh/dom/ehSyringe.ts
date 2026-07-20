@@ -254,7 +254,7 @@ function captureTagTipInput(): boolean {
     return false;
   }
 
-  list.transform({ classes: { add: TAG_TIP_LIST_CLASS_NAME.split(" ") } });
+  list.addClasses(...TAG_TIP_LIST_CLASS_NAME.split(" "));
 
   const input = page.one<HTMLInputElement>(TAG_TIP_INPUT_SELECTOR);
   tagTipInput = input?.inplace() ?? null;

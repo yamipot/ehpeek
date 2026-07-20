@@ -14,13 +14,13 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
   const itemButtons: HTMLButtonElement[] = [];
   const visiblePosition = () => open() && !searchValue().trim() && history().length > 0 ? position() : null;
   const selectHistory = (item: string) => {
-    props.source.handle.select(item);
+    props.source.handle.applySearchSelection(item);
     setOpen(false);
   };
 
   onMount(() => {
     const updatePosition = () => {
-      setPosition(props.source.handle.position());
+      setPosition(props.source.handle.readSearchOverlayPosition());
     };
     const showHistory = () => {
       updatePosition();
@@ -74,7 +74,7 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
 
       setHistory(addSearchHistory(value));
     };
-    const disconnect = props.source.handle.connect({
+    const disconnect = props.source.handle.listenSearchHistoryOverlay({
       onFocus: showHistory,
       onInput: updateSearchValue,
       onKeyDown: onInputKeyDown,

@@ -44,19 +44,19 @@ export function TouchSearchPanel(props: { after?: JSX.Element; source: SearchPan
 
 export function TouchSearchCategoryToggle(props: { source: SearchPanelDom }) {
   const [open, setOpen] = createSignal(false);
-  createEffect(() => props.source.handle.transformCategories(open()));
+  createEffect(() => props.source.handle.updateCategoryVisibility(open()));
   return <ToggleButton expanded={open()} label={texts.search.categories} onClick={() => setOpen((value) => !value)} />;
 }
 
 export function TouchSearchFileToggle(props: { source: SearchPanelDom }) {
   const [open, setOpen] = createSignal(false);
-  createEffect(() => props.source.handle.transformFileSearch(open()));
+  createEffect(() => props.source.handle.updateFileSearchVisibility(open()));
   return <ToggleButton expanded={open()} label={texts.search.fileSearch} onClick={() => setOpen((value) => !value)} />;
 }
 
 export function TouchSearchAdvancedToggle(props: { source: SearchPanelDom }) {
   const [open, setOpen] = createSignal(false);
-  createEffect(() => props.source.handle.transformAdvanced(open()));
+  createEffect(() => props.source.handle.updateAdvancedOptionsVisibility(open()));
   return <ToggleButton expanded={open()} label={texts.search.advancedOptions} onClick={() => setOpen((value) => !value)} />;
 }
 
@@ -85,9 +85,9 @@ export function TouchSearchAction(props: { action: "search" | "clear"; source: S
         onClick={(event: MouseEvent) => {
           event.preventDefault();
           if (search) {
-            source.handle.submit();
+            source.handle.submitSearchForm();
           } else {
-            source.handle.clear();
+            source.handle.clearSearchInput();
           }
         }}
       >

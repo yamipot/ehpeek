@@ -63,144 +63,125 @@ export function manageSearchPanel() {
   const categoryBits = categoryItems.map((item) => Number(item.attribute("id")?.match(/^cat_(\d+)$/)?.[1]));
   const optionLinkItems = optionLinks?.all<HTMLAnchorElement>("a") ?? [];
 
-  const sourceSearchBoxElem = standardSearchBox?.inplace() ?? null;
-  const formElem = form.inplace();
-  const searchInputElem = searchInput.inplace();
-  const searchSubmitElem = searchSubmit.inplace();
-  const clearButtonElem = clearButton?.inplace() ?? null;
-  const categoriesElem = categories?.inplace() ?? null;
-  const advancedPanelElem = advancedPanel?.inplace() ?? null;
-  const optionLinksElem = optionLinks?.inplace() ?? null;
-  const advancedToggleElem = advancedToggle?.inplace() ?? null;
-  const fileSearchToggleElem = fileSearchToggle?.inplace() ?? null;
-  const fileSearchElem = fileSearch?.inplace() ?? null;
-  const categoryRowElems = categoryRows.map((row) => row.inplace());
-  const categoryCellElems = categoryCells.map((cell) => cell.inplace());
-  const categoryItemElems = categoryItems.map((item) => item.inplace());
-  const categoryMaskElem = categoryMask?.inplace() ?? null;
-  const optionLinkElems = optionLinkItems.map((link) => link.inplace());
-  const searchControlsElem = createManagedElement("div");
-  const searchBoxElem = sourceSearchBoxElem ?? searchControlsElem;
+  const searchControls = createManagedElement("div");
+  const elems = {
+    advancedPanel: advancedPanel?.inplace() ?? null,
+    advancedToggle: advancedToggle?.inplace() ?? null,
+    advancedToggleMount,
+    categories: categories?.inplace() ?? null,
+    categoryCells: categoryCells.map((cell) => cell.inplace()),
+    categoryItems: categoryItems.map((item) => item.inplace()),
+    categoryMask: categoryMask?.inplace() ?? null,
+    categoryRows: categoryRows.map((row) => row.inplace()),
+    categoryToggleMount,
+    clearActionMount,
+    clearButton: clearButton?.inplace() ?? null,
+    fileSearch: fileSearch?.inplace() ?? null,
+    fileSearchToggle: fileSearchToggle?.inplace() ?? null,
+    fileSearchToggleMount,
+    form: form.inplace(),
+    mount,
+    optionLinks: optionLinks?.inplace() ?? null,
+    optionLinkItems: optionLinkItems.map((link) => link.inplace()),
+    searchActionMount,
+    searchBox: standardSearchBox?.inplace() ?? searchControls,
+    searchControls,
+    searchInput: searchInput.inplace(),
+    searchSubmit: searchSubmit.inplace(),
+  } satisfies ManagedDomElements;
 
-  const targetElem = sourceSearchBoxElem ?? formElem;
-  targetElem.before(mount);
-  if (sourceSearchBoxElem) {
-    searchBoxElem.remove();
+  (standardSearchBox ? elems.searchBox : elems.form).before(elems.mount);
+  if (standardSearchBox) {
+    elems.searchBox.remove();
   }
-  searchInputElem.before(searchControlsElem);
-  searchControlsElem.append(searchInputElem);
-  searchSubmitElem.remove();
-  if (clearButtonElem && clearActionMount) {
-    clearButtonElem.remove();
-    searchControlsElem.append(clearActionMount);
+  elems.searchInput.replaceWith(elems.searchControls);
+  elems.searchControls.append(elems.searchInput);
+  elems.searchSubmit.remove();
+  if (elems.clearButton && elems.clearActionMount) {
+    elems.clearButton.remove();
+    elems.searchControls.append(elems.clearActionMount);
   }
-  searchControlsElem.append(searchActionMount);
-  if (categoriesElem && optionLinksElem && categoryToggleMount) {
-    optionLinksElem.after(categoriesElem);
-    optionLinksElem.prepend(categoryToggleMount);
+  elems.searchControls.append(elems.searchActionMount);
+  if (elems.categories && elems.optionLinks && elems.categoryToggleMount) {
+    elems.optionLinks.after(elems.categories);
+    elems.optionLinks.prepend(elems.categoryToggleMount);
   }
-  if (advancedToggleElem && advancedToggleMount) {
-    advancedToggleElem.replaceWith(advancedToggleMount);
+  if (elems.advancedToggle && elems.advancedToggleMount) {
+    elems.advancedToggle.replaceWith(elems.advancedToggleMount);
   }
-  if (fileSearchToggleElem && fileSearchToggleMount) {
-    fileSearchToggleElem.replaceWith(fileSearchToggleMount);
+  if (elems.fileSearchToggle && elems.fileSearchToggleMount) {
+    elems.fileSearchToggle.replaceWith(elems.fileSearchToggleMount);
   }
-  fileSearchElem?.remove();
+  elems.fileSearch?.remove();
 
   const formInsideSearchBox = standardSearchBox?.one<HTMLFormElement>("form")?.sameNode(form) ?? false;
+  const formId = form.attribute("id") || "ehpeek-search-form";
   const categoryColors = categoryItems.map((item) =>
     ["ct1", "ct2", "ct3", "ct4", "ct5", "ct6", "ct7", "ct8", "ct9", "cta"].find((name) => item.hasClass(name)) ?? null,
   );
   const data = {
     clearLabel: clearButton ? actionLabel(clearButton) : null,
-    hasClear: clearButtonElem !== null && clearActionMount !== null,
+    hasClear: elems.clearButton !== null && elems.clearActionMount !== null,
     searchLabel: actionLabel(searchSubmit),
   };
   populateEmptyPanels(
-    advancedPanelElem,
+    elems.advancedPanel,
     advancedPanel?.childElementCount() === 0,
-    fileSearchElem,
+    elems.fileSearch,
     fileSearch?.childElementCount() === 0,
     fileSearchAction,
   );
-  attachCategoryActions(categoryItemElems, categoryMaskElem, categoryBits);
-  const elems = {
-    advancedPanel: advancedPanelElem,
-    advancedToggleMount,
-    categories: categoriesElem,
-    categoryCells: categoryCellElems,
-    categoryItems: categoryItemElems,
-    categoryMask: categoryMaskElem,
-    categoryRows: categoryRowElems,
-    categoryToggleMount,
-    clearActionMount,
-    clearButton: clearButtonElem,
-    fileSearch: fileSearchElem,
-    fileSearchToggleMount,
-    form: formElem,
-    mount,
-    optionLinks: optionLinksElem,
-    optionLinkItems: optionLinkElems,
-    searchActionMount,
-    searchBox: searchBoxElem,
-    searchControls: searchControlsElem,
-    searchInput: searchInputElem,
-    searchSubmit: searchSubmitElem,
-  } satisfies ManagedDomElements;
+  attachCategoryActions(elems.categoryItems, elems.categoryMask, categoryBits);
 
   const handle = {
     /** Reflows original Search controls into EhPeek's shared SearchPanel structure. */
-    transformPresentation(classes: SearchPanelClasses) {
-      searchActionMount.transform({ classes: { replace: classes.actionMount } });
-      clearActionMount?.transform({ classes: { replace: classes.actionMount } });
-      searchBoxElem.transform({ classes: { replace: standardSearchBox ? classes.searchBox : classes.controls } });
+    updateSearchPanelVisual(classes: SearchPanelClasses) {
+      elems.searchActionMount.replaceClasses(classes.actionMount);
+      elems.clearActionMount?.replaceClasses(classes.actionMount);
+      elems.searchBox.replaceClasses(standardSearchBox ? classes.searchBox : classes.controls);
       if (formInsideSearchBox) {
-        formElem.transform({ attributes: { remove: ["style"] }, classes: { replace: classes.form } });
+        elems.form.removeAttributes("style").replaceClasses(classes.form);
       } else {
-        formElem.transform({ attributes: { set: { id: form.attribute("id") || "ehpeek-search-form" } } });
-        const formId = form.attribute("id") || "ehpeek-search-form";
-        searchInputElem.transform({ attributes: { set: { form: formId } } });
-        searchSubmitElem.transform({ attributes: { set: { form: formId } } });
-        clearButtonElem?.transform({ attributes: { set: { form: formId } } });
+        elems.form.setAttributes({ id: formId });
+        elems.searchInput.setAttributes({ form: formId });
+        elems.searchSubmit.setAttributes({ form: formId });
+        elems.clearButton?.setAttributes({ form: formId });
       }
-      searchControlsElem.transform({ classes: { replace: classes.controls } });
-      searchInputElem.transform({ attributes: { remove: ["style"] }, classes: { replace: classes.input } });
-      categoriesElem?.transform({ hidden: true, classes: { replace: classes.categoryTable } });
-      categoryRowElems.forEach((row) => row.transform({ classes: { replace: classes.categoryRow } }));
-      categoryCellElems.forEach((cell) => cell.transform({ classes: { replace: classes.categoryCell } }));
-      categoryItemElems.forEach((item, index) => item.transform({
-        attributes: { remove: ["onclick"] },
-        classes: { replace: `${categoryColors[index] ? `${categoryColors[index]} ` : ""}${classes.category}` },
-      }));
-      optionLinksElem?.transform({ classes: { replace: classes.optionLinks } });
-      optionLinkElems.forEach((link) => link.transform({ classes: { replace: classes.optionLink } }));
-      advancedPanelElem?.transform({ styles: { remove: ["display"] }, classes: { replace: classes.advancedPanel } });
-      fileSearchElem?.transform({ styles: { remove: ["display", "margin-top"] }, classes: { replace: classes.fileSearch } });
-      searchSubmitElem.setHidden(true);
-      clearButtonElem?.setHidden(true);
+      elems.searchControls.replaceClasses(classes.controls);
+      elems.searchInput.removeAttributes("style").replaceClasses(classes.input);
+      elems.categories?.replaceClasses(classes.categoryTable).setHidden(true);
+      elems.categoryRows.forEach((row) => row.replaceClasses(classes.categoryRow));
+      elems.categoryCells.forEach((cell) => cell.replaceClasses(classes.categoryCell));
+      elems.categoryItems.forEach((item, index) => item.removeAttributes("onclick").replaceClasses(`${categoryColors[index] ? `${categoryColors[index]} ` : ""}${classes.category}`));
+      elems.optionLinks?.replaceClasses(classes.optionLinks);
+      elems.optionLinkItems.forEach((link) => link.replaceClasses(classes.optionLink));
+      elems.advancedPanel?.replaceClasses(classes.advancedPanel).removeStyles("display");
+      elems.fileSearch?.replaceClasses(classes.fileSearch).removeStyles("display", "margin-top");
+      elems.searchSubmit.setHidden(true);
+      elems.clearButton?.setHidden(true);
     },
     /** Controls the original category table from EhPeek's category toggle. */
-    transformCategories(open: boolean) {
-      categoriesElem?.setHidden(!open);
-      categoriesElem?.transform({ attributes: { set: { "aria-hidden": String(!open) } } });
+    updateCategoryVisibility(open: boolean) {
+      elems.categories?.setHidden(!open);
+      elems.categories?.setAttributes({ "aria-hidden": String(!open) });
     },
     /** Controls the original advanced-search fields from EhPeek's toggle. */
-    transformAdvanced(open: boolean) {
-      advancedPanelElem?.setHidden(!open);
+    updateAdvancedOptionsVisibility(open: boolean) {
+      elems.advancedPanel?.setHidden(!open);
     },
     /** Controls the original file-search fields from EhPeek's toggle. */
-    transformFileSearch(open: boolean) {
-      fileSearchElem?.setHidden(!open);
+    updateFileSearchVisibility(open: boolean) {
+      elems.fileSearch?.setHidden(!open);
     },
     /** Submits through the original Search form and its preserved parameters. */
-    submit() {
-      formElem.requestSubmit(searchSubmitElem);
+    submitSearchForm() {
+      elems.form.requestSubmit(elems.searchSubmit);
     },
     /** Clears the original input and emits the event consumed by Search history. */
-    clear() {
-      searchInputElem.setInputValue("");
-      searchInputElem.dispatchInput();
-      searchInputElem.focus();
+    clearSearchInput() {
+      elems.searchInput.setInputValue("");
+      elems.searchInput.dispatchInput();
+      elems.searchInput.focus();
     },
   };
 
@@ -253,11 +234,13 @@ function attachCategoryActions(
     if (!mask || categoryBit === undefined || !Number.isInteger(categoryBit) || categoryBit <= 0) {
       return;
     }
-    const update = () => category.transform({
-      attributes: (Number(mask.inputValue()) & categoryBit) !== 0
-        ? { set: { "data-disabled": "" } }
-        : { remove: ["data-disabled"] },
-    });
+    const update = () => {
+      if ((Number(mask.inputValue()) & categoryBit) !== 0) {
+        category.setAttributes({ "data-disabled": "" });
+      } else {
+        category.removeAttributes("data-disabled");
+      }
+    };
     update();
     category.listen("click", () => {
       mask.setDisabled(false);

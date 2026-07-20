@@ -8,11 +8,7 @@ async function loadMyTagsPage(tagSet?: string): Promise<MyTagsPageData> {
     url.searchParams.set("tagset", tagSet);
   }
   const response = await eh.requestPage(url.href);
-  const data = eh.extractMyTagsPageData(response.document, tagSet);
-  if (!data) {
-    throw new Error("The My Tags page could not be read.");
-  }
-  return data;
+  return eh.extractMyTagsPageData(response.document, tagSet);
 }
 
 export async function loadMyTagAppearances(): Promise<MyTagAppearance[] | null> {

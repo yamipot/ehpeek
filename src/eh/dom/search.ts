@@ -30,16 +30,17 @@ export function manageSearchResults() {
   if (!resultSource) {
     return null;
   }
-  const resultList = resultSource.inplace();
-  const navigationBars = page.all<HTMLElement>(".searchnav").map((source) => source.inplace());
   const data = {
     nextUrl: page.one<HTMLAnchorElement>(".searchnav a[id$='next'][href]")?.attribute("href") ?? null,
     previousUrl: page.one<HTMLAnchorElement>(".searchnav a[id$='prev'][href]")?.attribute("href") ?? null,
   };
-  const elems = { navigationBars, resultList };
+  const elems = {
+    navigationBars: page.all<HTMLElement>(".searchnav").map((source) => source.inplace()),
+    resultList: resultSource.inplace(),
+  };
   const handle = {
     /** Routes the original pagination controls through the active page owner. */
-    connectNavigation(onNavigate: (url: string) => void): () => void {
+    interceptSearchNavigation(onNavigate: (url: string) => void): () => void {
       const handleClick = (event: MouseEvent) => {
         const link = event.target instanceof Element
           ? DomNode.from(event.target).closest<HTMLAnchorElement>(
@@ -60,7 +61,7 @@ export function manageSearchResults() {
       return () => document.removeEventListener("click", handleClick, true);
     },
     /** Replaces the current result page without activating Single Page App. */
-    async navigate(url: string): Promise<void> {
+    async loadSearchPage(url: string): Promise<void> {
       const response = await requestPage(url);
       if (!replaceSearchPageContent(response.document)) {
         throw new Error(texts.errors.searchPageContentNotFound);
@@ -68,36 +69,28 @@ export function manageSearchResults() {
       window.history.pushState(window.history.state, "", url);
     },
     /** Returns the viewport to the result page's upper navigation bar. */
-    scrollToTop(): void {
-      navigationBars[0]?.scrollIntoView({ block: "start", behavior: "auto" });
+    scrollSearchResultsToTop(): void {
+      elems.navigationBars[0]?.scrollIntoView({ block: "start", behavior: "auto" });
     },
     /** Exposes result loading state without removing the current result list. */
-    setBusy(busy: boolean): void {
-      resultList.transform({ attributes: busy ? { set: { "aria-busy": "true" } } : { remove: ["aria-busy"] } });
+    updateSearchLoading(busy: boolean): void {
+      if (busy) {
+        elems.resultList.setAttributes({ "aria-busy": "true" });
+      } else {
+        elems.resultList.removeAttributes("aria-busy");
+      }
     },
     /** Prevents result content from stealing a horizontal swipe gesture. */
-    transformSwipeInput(): void {
-      resultList.transform({
-        classes: {
-          add: [
-            "overscroll-x-contain",
-            "touch-pan-y",
-            "[&[data-dragging=true]]:select-none",
-          ],
-        },
-      });
+    ensureSearchSwipeInput(): void {
+      elems.resultList.addClasses("overscroll-x-contain", "touch-pan-y", "[&[data-dragging=true]]:select-none");
     },
     /** Applies the user setting to gallery links already owned by the result list. */
-    transformGalleryLinksToNewTab(): void {
-      for (const link of resultSource.all<HTMLAnchorElement>("a[href]")) {
-        if (extractPageType(link.attribute("href") ?? "").type !== "gallery") {
+    ensureGalleryLinksOpenInNewTab(): void {
+      for (const link of elems.resultList.all<HTMLAnchorElement>("a[href]")) {
+        if (extractPageType(link.readAttribute("href") ?? "").type !== "gallery") {
           continue;
         }
-        link.inplace().transform({
-          attributes: {
-            set: { target: "_blank", rel: "noopener noreferrer" },
-          },
-        });
+        link.setAttributes({ target: "_blank", rel: "noopener noreferrer" });
       }
     },
   };
@@ -116,17 +109,18 @@ export function manageSearchTextInput() {
   ) ?? inputSource?.parent()?.one<HTMLInputElement | HTMLButtonElement>(
     "input[type='submit'], button[type='submit']",
   ) ?? null;
-  const input = inputSource?.inplace() ?? null;
-  const form = formSource?.inplace() ?? null;
-  const submit = submitSource?.inplace() ?? null;
-  if (!input || !submit) {
+  if (!inputSource || !submitSource) {
     return null;
   }
-  const data = { value: input.inputValue() };
-  const elems = { form, input, submit };
+  const elems = {
+    form: formSource?.inplace() ?? null,
+    input: inputSource.inplace(),
+    submit: submitSource.inplace(),
+  };
+  const data = { value: elems.input.inputValue() };
   const handle = {
     /** Connects the original input to EhPeek's history and suggestion overlay. */
-    connect(callbacks: {
+    listenSearchHistoryOverlay(callbacks: {
       onFocus: () => void;
       onInput: (value: string, focused: boolean) => void;
       onKeyDown: (event: KeyboardEvent) => void;
@@ -134,25 +128,28 @@ export function manageSearchTextInput() {
       onPositionChange: () => void;
       onSubmit: (value: string) => void;
     }, overlay: () => HTMLElement | null): () => void {
-      const update = () => callbacks.onInput(input.inputValue(), document.activeElement === input.Component());
-      const submitValue = () => callbacks.onSubmit(input.inputValue());
+      const update = () => callbacks.onInput(
+        elems.input.inputValue(),
+        document.activeElement === elems.input.Component(),
+      );
+      const submitValue = () => callbacks.onSubmit(elems.input.inputValue());
       const outsidePointer = (event: PointerEvent) => {
         const target = event.target;
         if (
           target instanceof Node &&
-          (input.isNode(target) || overlay()?.contains(target))
+          (elems.input.isNode(target) || overlay()?.contains(target))
         ) {
           return;
         }
         callbacks.onOutsidePointer();
       };
       const disconnect = [
-        input.listen("input", update),
-        input.listen("focus", callbacks.onFocus),
-        input.listen("pointerdown", callbacks.onFocus),
-        input.listen("keydown", callbacks.onKeyDown),
-        submit.listen("click", submitValue),
-        ...(form ? [form.listen("submit", submitValue)] : []),
+        elems.input.listen("input", update),
+        elems.input.listen("focus", callbacks.onFocus),
+        elems.input.listen("pointerdown", callbacks.onFocus),
+        elems.input.listen("keydown", callbacks.onKeyDown),
+        elems.submit.listen("click", submitValue),
+        ...(elems.form ? [elems.form.listen("submit", submitValue)] : []),
       ];
       document.addEventListener("pointerdown", outsidePointer, true);
       document.addEventListener("scroll", callbacks.onPositionChange, true);
@@ -165,16 +162,16 @@ export function manageSearchTextInput() {
       };
     },
     /** Locates the overlay directly below the original search input. */
-    position(): { left: number; top: number; width: number } {
-      const rect = inputSource?.rect() ?? new DOMRect();
+    readSearchOverlayPosition(): { left: number; top: number; width: number } {
+      const rect = elems.input.rect();
       return { left: rect.left, top: rect.bottom, width: rect.width };
     },
     /** Commits a history or suggestion choice through the original input events. */
-    select(value: string): void {
-      input.setInputValue(value);
-      input.dispatchInput();
-      input.focus();
-      input.Component().setSelectionRange(value.length, value.length);
+    applySearchSelection(value: string): void {
+      elems.input.setInputValue(value);
+      elems.input.dispatchInput();
+      elems.input.focus();
+      elems.input.Component().setSelectionRange(value.length, value.length);
     },
   };
   return { data, elems, handle };
@@ -199,8 +196,7 @@ export function mutateSearchGrid(): void {
   const resultListElem = resultList.inplace();
   const bodyElem = resultList.one<HTMLElement>("tbody")?.inplace() ?? null;
 
-  resultListElem
-    .transform({ hidden: false })
+  resultListElem.setHidden(false)
     .styles({
       display: "block",
       width: "100%",
@@ -294,8 +290,7 @@ export function mutateSearchGrid(): void {
 
     if (galleryLink && title && source.galleryHref) {
       const titleLink = createManagedElement("a")
-        .attribute("href", source.galleryHref)
-        .transform({ classes: { replace: "block min-w-0 ehp-color-site-text no-underline" } });
+        .attribute("href", source.galleryHref).replaceClasses("block min-w-0 ehp-color-site-text no-underline");
       titleLink.append(title);
       galleryLink.before(detail);
       galleryLink.remove();
@@ -407,8 +402,7 @@ export function mutateSearchGrid(): void {
   ): void {
     const overlay = createManagedElement("a")
       .attribute("href", galleryHref)
-      .attribute("aria-label", title || "Open gallery")
-      .transform({ classes: { replace: "hidden coarse:block absolute inset-0 z-1" } });
+      .attribute("aria-label", title || "Open gallery").replaceClasses("hidden coarse:block absolute inset-0 z-1");
     contentCell
       .styles({ position: "relative", cursor: "pointer" }, "important")
       .append(overlay)
@@ -569,25 +563,24 @@ function replaceFirstElement(selector: string, doc: Document): void {
 
 /** Applies TouchUI layout ownership to Favorites results and extracts its collection selector. */
 function favoritesPageTouch(): TouchFavoritesCategorySelectInfo | null {
-  documentElement().transform({ classes: { add: TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" ") } });
-  documentBody().transform({ classes: { add: TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" ") } });
+  documentElement().addClasses(...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "));
+  documentBody().addClasses(...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "));
 
   const page = DomNode.from(document);
   const pageContainer = page.one<HTMLElement>(".ido");
   pageContainer?.inplace()
     .removeStyles("min-width")
-    .transform({ classes: { add: TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" ") } });
+    .addClasses(...TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" "));
 
   const categories = page.one<HTMLElement>(".ido > .nosel");
   const categorySelect = categories ? readFavoritesCategories(categories) : null;
   const searchContainer = page.one<HTMLInputElement>("input[name='f_search']")?.form()?.parent();
   searchContainer
     ?.inplace()
-    .removeStyles("width")
-    .transform({ classes: { add: ["box-border", "!w-full", "!min-w-0", "!max-w-full"] } });
+    .removeStyles("width").addClasses("box-border", "!w-full", "!min-w-0", "!max-w-full");
 
   for (const navigation of page.all<HTMLElement>(".searchnav")) {
-    navigation.inplace().transform({ classes: { add: TOUCH_FAVORITES_NAV_CLASS_NAME.split(" ") } });
+    navigation.inplace().addClasses(...TOUCH_FAVORITES_NAV_CLASS_NAME.split(" "));
   }
 
   const resultSource = page.one<HTMLElement>(".itg");
@@ -602,10 +595,9 @@ function favoritesPageTouch(): TouchFavoritesCategorySelectInfo | null {
   const contentSource = existingWrapper?.parent() ?? resultSource.parent();
   const allSelected = categorySelect?.categories[0]?.selected === true;
 
-  contentSource?.inplace()
-    .transform({ classes: { add: TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" ") } });
+  contentSource?.inplace().addClasses(...TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" "));
   const resultList = resultSource.inplace();
-  resultList.transform({ classes: { add: TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME.split(" ") } });
+  resultList.addClasses(...TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME.split(" "));
 
   if (existingWrapper) {
     return categorySelect;
@@ -615,10 +607,9 @@ function favoritesPageTouch(): TouchFavoritesCategorySelectInfo | null {
     compactFavoritesResultList(resultSource);
   }
 
-  const wrapper = createManagedElement("div")
-    .transform({ classes: { replace: TOUCH_FAVORITES_RESULTS_CLASS_NAME } });
+  const wrapper = createManagedElement("div").replaceClasses(TOUCH_FAVORITES_RESULTS_CLASS_NAME);
   if (allSelected || window.innerWidth < 850) {
-    wrapper.transform({ classes: { add: TOUCH_FAVORITES_ALL_RESULTS_CLASS_NAME.split(" ") } });
+    wrapper.addClasses(...TOUCH_FAVORITES_ALL_RESULTS_CLASS_NAME.split(" "));
   }
   resultList.replaceWith(wrapper);
   wrapper.append(resultList);
@@ -707,8 +698,8 @@ function readFavoritesCategories(
 
 /** Applies TouchUI layout ownership to Search-like result pages. */
 function searchResultsPageTouch(hideRangeBar: boolean): void {
-  documentElement().transform({ classes: { add: TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ") } });
-  documentBody().transform({ classes: { add: TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ") } });
+  documentElement().addClasses(...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" "));
+  documentBody().addClasses(...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" "));
 
   const page = DomNode.from(document);
   if (hideRangeBar) {
@@ -729,19 +720,16 @@ function searchResultsPageTouch(hideRangeBar: boolean): void {
   const contentSource = existingWrapper?.parent() ?? resultSource.parent();
   const pageContent = resultSource.closest<HTMLElement>(".ido");
 
-  pageContent?.inplace()
-    .transform({ classes: { add: TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ") } });
-  contentSource?.inplace()
-    .transform({ classes: { add: TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ") } });
+  pageContent?.inplace().addClasses(...TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" "));
+  contentSource?.inplace().addClasses(...TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" "));
   const resultList = resultSource.inplace();
-  resultList.transform({ classes: { add: TOUCH_SEARCH_RESULT_LIST_CLASS_NAME.split(" ") } });
+  resultList.addClasses(...TOUCH_SEARCH_RESULT_LIST_CLASS_NAME.split(" "));
 
   if (existingWrapper) {
     return;
   }
 
-  const wrapper = createManagedElement("div")
-    .transform({ classes: { replace: TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME } });
+  const wrapper = createManagedElement("div").replaceClasses(TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME);
   resultList.replaceWith(wrapper);
   wrapper.append(resultList);
 }
@@ -760,17 +748,17 @@ export function manageTouchResultsPage(page: PageType, hideRangeBar = false) {
   const data = { favoritesCategory: apply() };
   const handle = {
     /** Reapplies TouchUI layout after the result list is replaced in place. */
-    refresh(): void {
+    updateTouchResultsLayout(): void {
       apply();
     },
     /** Removes page-wide TouchUI constraints before the active page is released. */
-    reset(): void {
+    removeTouchResultsLayout(): void {
       const classes = [
         ...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "),
         ...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" "),
       ];
-      documentElement().transform({ classes: { remove: classes } });
-      documentBody().transform({ classes: { remove: classes } });
+      documentElement().removeClasses(...classes);
+      documentBody().removeClasses(...classes);
     },
   };
   return { data, handle };

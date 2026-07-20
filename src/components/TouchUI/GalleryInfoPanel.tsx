@@ -85,7 +85,7 @@ export function GalleryInfoPanel(props: {
   });
 
   onMount(() => {
-    const stopObservingTags = source.handle.observeTagGroups(setTagGroups);
+    const stopObservingTags = source.handle.observeGalleryTagGroups(setTagGroups);
 
     onCleanup(stopObservingTags);
   });
@@ -97,7 +97,7 @@ export function GalleryInfoPanel(props: {
 
     setRatingUpdating(true);
     try {
-      const result = await source.handle.rate(value);
+      const result = await source.handle.submitGalleryRating(value);
       setRatingValue(result.value);
       setRatingCount(String(result.count));
       setRatingValueLabel(formatRatingLabel(rating.label, result.average));
@@ -444,7 +444,7 @@ function TouchGalleryTag(props: {
     closeMenu();
     setUpdating(true);
     try {
-      await props.source.handle.tagAction(props.tag, action);
+      await props.source.handle.submitGalleryTagAction(props.tag, action);
     } catch (error) {
       console.error(
         "[ehpeek] Gallery tag vote failed",
@@ -468,7 +468,7 @@ function TouchGalleryTag(props: {
       if (props.tag.myTag) {
         await props.source.handle.removeFavoriteTag(props.tag);
       } else {
-        await props.source.handle.favoriteTag(props.tag, selectedTagSet(), tagMode());
+        await props.source.handle.submitFavoriteTag(props.tag, selectedTagSet(), tagMode());
       }
       state.gallery.myTagAppearances.clear();
       window.location.reload();
@@ -713,7 +713,7 @@ function TouchGalleryTag(props: {
 
 function TouchGalleryNewTag(props: { source: GalleryInfoDom }) {
   onMount(() => {
-    props.source.handle.reuseNewTagInput();
+    props.source.handle.reuseNewTagAutocomplete();
   });
 
   return <DomNode node={props.source.elems.newTag} />;
@@ -776,7 +776,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
     setLoadingState("loading");
 
     try {
-      setOptions(await props.source.handle.favoriteOptions(
+      setOptions(await props.source.handle.loadGalleryFavoriteOptions(
         currentFavorite.actionUrl,
         currentFavorite.favorited,
       ));
@@ -874,7 +874,7 @@ function TouchGalleryFavoriteOption(props: {
       onClick={(event: MouseEvent) => {
         event.stopPropagation();
         void props.source.handle
-          .updateFavorite(props.actionUrl, props.option.value)
+          .updateGalleryFavorite(props.actionUrl, props.option.value)
           .then(props.onApplied)
           .catch((error) => {
             console.error("[ehpeek]", error);

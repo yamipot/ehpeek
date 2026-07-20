@@ -61,15 +61,11 @@ export function managePageContent(
     if (!popupUrl) {
       continue;
     }
-    source.inplace().transform({
-      attributes: {
-        set: {
+    source.inplace().setAttributes({
           href: new URL(popupUrl, baseUrl).href,
           rel: "noopener noreferrer",
           target: "_blank",
-        },
-      },
-    });
+        });
   }
 
   const ratingScript = scriptTexts.find((text) => text.includes("display_rating"));
@@ -98,7 +94,6 @@ export function managePageContent(
   }
 
   for (const source of sources) {
-    const managedSource = source.inplace();
     const inlineAttributes = source.attributeNames().filter((name) => /^on/i.test(name));
     const handlers = inlineAttributes.map((name) => source.attribute(name) ?? "");
     const attributes: Record<string, string> = {};
@@ -111,21 +106,17 @@ export function managePageContent(
     if (handlers.some((handler) => handler.includes("inline_set=dm_"))) {
       attributes["data-ehpeek-grid-mode-source"] = "true";
     }
-    managedSource.transform({
-      attributes: {
-        remove: inlineAttributes,
-        set: attributes,
-      },
-    });
+    source.inplace().setAttributes(attributes);
   }
 
   scriptSources.forEach((script) => script.inplace().remove());
-  const content = contentSources.map((source) => {
-    const node = source.inplace();
-    node.remove();
-    return node;
-  });
-  const elems = { content } satisfies ManagedDomElements;
+  const elems = {
+    content: contentSources.map((source) => {
+      const content = source.inplace();
+      content.remove();
+      return content;
+    }),
+  } satisfies ManagedDomElements;
   const data = {
     title: documentSource.one<HTMLTitleElement>("title")?.text() ?? "",
   };
@@ -173,7 +164,7 @@ export function managePageContent(
   };
   const handle = {
     /** Intercepts only same-origin routes supported by EhPeek Single Page App. */
-    connectNavigation(
+    interceptSinglePageNavigation(
       host: HTMLElement,
       onNavigate: (request: NavigationRequest) => void,
     ): () => void {
@@ -215,8 +206,8 @@ export function managePageContent(
       };
     },
     /** Installs the detached response content into Single Page App's active host. */
-    mount(host: HTMLElement): void {
-      host.replaceChildren(...content.map((node) => node.Component()));
+    mountPageContent(host: HTMLElement): void {
+      host.replaceChildren(...elems.content.map((node) => node.Component()));
     },
   };
 

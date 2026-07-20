@@ -306,130 +306,94 @@ export function manageGalleryInfo(
   const hostChildSources = host
     .all<HTMLElement>(":scope > *")
     .filter((child) => !newTag?.sameNode(child));
-  const coverElem = coverUrl
-    ? (coverSource?.clone() ?? createManagedElement("img"))
-    : null;
-  const actionElems = actionSources.map(({ node }) => node.clone(false));
-  const newTagButtonElem = newTagButton?.inplace() ?? null;
-  const newTagFieldElem = newTagField?.inplace() ?? null;
-  const newTagFormElem = newTagForm?.inplace() ?? null;
-  const newTagElem =
-    newTagButtonElem && newTagFieldElem && newTagFormElem
-      ? (newTag?.move() ?? null)
-      : null;
-  const hostChildElems = hostChildSources.map((child) => child.inplace());
-  const hostElem = host.inplace();
-  const tagContents = tagContentSources.map((source) => source.inplace());
   const elems = {
-    actionItems: actionElems,
-    cover: coverElem,
-    host: hostElem,
-    hostChildren: hostChildElems,
+    actionItems: actionSources.map(({ node }) => node.clone(false)),
+    cover: coverUrl
+      ? (coverSource?.clone() ?? createManagedElement("img"))
+      : null,
+    host: host.inplace(),
+    hostChildren: hostChildSources.map((child) => child.inplace()),
     mount,
-    newTag: newTagElem,
-    newTagButton: newTagButtonElem,
-    newTagField: newTagFieldElem,
-    newTagForm: newTagFormElem,
-    tagContents,
+    newTag: newTagButton && newTagField && newTagForm
+      ? (newTag?.move() ?? null)
+      : null,
+    newTagButton: newTagButton?.inplace() ?? null,
+    newTagField: newTagField?.inplace() ?? null,
+    newTagForm: newTagForm?.inplace() ?? null,
+    tagContents: tagContentSources.map((source) => source.inplace()),
+    tagList: page.one<HTMLElement>("#taglist")?.inplace() ?? null,
   } satisfies ManagedDomElements;
 
   const handle = {
     /** Normalizes the original cover for GalleryInfoPanel's responsive layout. */
-    transformCover(className: string) {
-      coverElem?.transform({
-        attributes: {
-          remove: ["id", "style", "width", "height"],
-          set: {
-            alt: "",
-            decoding: "async",
-            loading: "eager",
-            src: coverUrl,
-          },
-        },
-        classes: { replace: className },
-      });
+    updateCoverVisual(className: string) {
+      elems.cover
+        ?.removeAttributes("id", "style", "width", "height")
+        .setAttributes({ alt: "", decoding: "async", loading: "eager", src: coverUrl })
+        .replaceClasses(className);
     },
     /** Converts original Gallery actions into consistently styled component items. */
-    transformActionItems(className: string) {
-      actionElems.forEach((action, index) => {
-        action.transform({
-          attributes: { remove: ["id"] },
-          classes: { replace: className },
-          styles: { remove: "all" },
-        });
+    updateActionItemsVisual(className: string) {
+      elems.actionItems.forEach((action, index) => {
+        action.removeAttributes("id").replaceClasses(className).removeAllStyles();
         action.setTextUnlessInput(actionSources[index]?.label ?? "");
       });
     },
     /** Fits the original New Tag form into GalleryInfoPanel's tag controls. */
-    transformNewTag(classes: {
+    updateNewTagVisual(classes: {
       button: string;
       container: string;
       field: string;
       form: string;
     }) {
-      newTagElem?.transform({
-        classes: { add: classes.container.split(" ") },
-        hidden: false,
-        styles: { remove: ["display"] },
-      });
-      newTagButtonElem?.transform({
-        classes: { add: classes.button.split(" ") },
-      });
-      newTagFieldElem?.transform({
-        attributes: { remove: ["size"] },
-        classes: { add: classes.field.split(" ") },
-      });
-      newTagFormElem?.transform({
-        classes: { add: classes.form.split(" ") },
-      });
+      elems.newTag
+        ?.addClasses(...classes.container.split(" "))
+        .setHidden(false)
+        .removeStyles("display");
+      elems.newTagButton?.addClasses(...classes.button.split(" "));
+      elems.newTagField?.removeAttributes("size").addClasses(...classes.field.split(" "));
+      elems.newTagForm?.addClasses(...classes.form.split(" "));
     },
     /** Hides original GalleryInfo children and installs the component mount. */
-    transformHost(className: string) {
-      hostElem.transform({ classes: { add: [className] } });
-      hostChildElems.forEach((child) => {
-        child.transform({ hidden: true });
+    installGalleryInfoPanel(className: string) {
+      elems.host.addClasses(className);
+      elems.hostChildren.forEach((child) => {
+        child.setHidden(true);
         child.styles({ display: "none" }, "important");
       });
-      hostElem.prepend(mount);
+      elems.host.prepend(elems.mount);
     },
     /** Loads the original favorite dialog choices for EhPeek's favorite modal. */
-    async favoriteOptions(actionUrl: string, favorited: boolean) {
+    async loadGalleryFavoriteOptions(actionUrl: string, favorited: boolean) {
       const response = await requestPage(actionUrl);
       return readFavoriteOptions(response.document, favorited);
     },
     /** Submits a tag to the chosen My Tags collection and validates the response. */
-    async favoriteTag(
+    async submitFavoriteTag(
       tag: GalleryTagData,
       tagSet: string,
       mode: MyTagMode,
     ): Promise<void> {
       const response = await addMyTag(tag.name, tagSet, mode);
-      if (!extractMyTagsPageData(response.document, tagSet)) {
-        throw new Error("The tag was submitted, but the returned My Tags page could not be read.");
-      }
+      extractMyTagsPageData(response.document, tagSet);
     },
     /** Keeps component tag groups synchronized with original-page tag updates. */
-    observeTagGroups(onChange: (groups: GalleryInfoTagGroup[]) => void) {
-      const tagList = page.one<HTMLElement>("#taglist");
-      const managedTagList = tagList?.inplace();
-      return managedTagList?.observe(() => onChange(manageTagGroups())) ?? (() => undefined);
+    observeGalleryTagGroups(onChange: (groups: GalleryInfoTagGroup[]) => void) {
+      return elems.tagList?.observe(() => onChange(manageTagGroups())) ?? (() => undefined);
     },
     /** Lets EhSyringe continue owning autocomplete behavior on the moved tag input. */
-    reuseNewTagInput(): void {
+    reuseNewTagAutocomplete(): void {
       if (elems.newTagField) {
         elems.newTagField = EhSyringe.reuseTagTipInput(elems.newTagField);
       }
     },
     /** Sends a Gallery rating through the captured original Gallery API session. */
-    async rate(value: number) {
+    async submitGalleryRating(value: number) {
       const rating = Math.round(value * 2);
       if (rating < 1 || rating > 10) {
         throw new RangeError("Gallery rating must be between 0.5 and 5 stars.");
       }
       const api = extractGalleryTagApiInfo();
-      if (!api) {
-        throw new Error("Gallery API context is unavailable.");
-      }
       return updateGalleryRating(api, value);
     },
     /** Removes the selected tag from its stored My Tags collection. */
@@ -438,16 +402,11 @@ export function manageGalleryInfo(
         return;
       }
       const response = await deleteMyTag(tag.myTag.id, tag.myTag.tagSet);
-      if (!extractMyTagsPageData(response.document, tag.myTag.tagSet)) {
-        throw new Error("The tag removal was submitted, but the returned My Tags page could not be read.");
-      }
+      extractMyTagsPageData(response.document, tag.myTag.tagSet);
     },
     /** Applies an upvote, downvote, or vote removal and refreshes the tag pane. */
-    async tagAction(tag: GalleryTagData, action: GalleryTagAction): Promise<void> {
+    async submitGalleryTagAction(tag: GalleryTagData, action: GalleryTagAction): Promise<void> {
       const api = extractGalleryTagApiInfo();
-      if (!api) {
-        throw new Error("Gallery API context is unavailable.");
-      }
       const vote = action === "voteUp"
         ? 1
         : action === "voteDown"
@@ -458,16 +417,15 @@ export function manageGalleryInfo(
               ? 1
               : 0;
       const tagPane = await updateGalleryTagVote(api, tag.name, vote);
-      const tagList = page.one<HTMLElement>("#taglist")?.inplace();
-      if (!tagList) {
+      if (!elems.tagList) {
         throw new Error("Gallery tag list is unavailable.");
       }
       const template = document.createElement("template");
       template.innerHTML = tagPane;
-      tagList.replaceChildren(...Array.from(template.content.childNodes));
+      elems.tagList.replaceChildren(...Array.from(template.content.childNodes));
     },
     /** Updates the Gallery favorite state through the original site endpoint. */
-    updateFavorite: updateGalleryFavorite,
+    updateGalleryFavorite,
   };
 
   return { data, elems, handle };
@@ -503,18 +461,15 @@ export function mutateGalleryCommentsTouch() {
   };
 
   for (const item of items) {
-    item.trigger.transform({
-      attributes: {
-        remove: ["onmouseover", "onmouseout", "onclick"],
-        set: {
-          "data-ehpeek-touch-comment-score": "true",
-          role: "button",
-          tabindex: "0",
-          "aria-controls": item.detailsId,
-        },
-      },
-      classes: { add: ["whitespace-nowrap"] },
-    });
+    item.trigger
+      .removeAttributes("onmouseover", "onmouseout", "onclick")
+      .setAttributes({
+        "data-ehpeek-touch-comment-score": "true",
+        role: "button",
+        tabindex: "0",
+        "aria-controls": item.detailsId,
+      })
+      .addClasses("whitespace-nowrap");
     setExpanded(item, false);
 
     const toggle = (event: Event) => {

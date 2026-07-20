@@ -47,24 +47,24 @@ export function EnhanceSearchGrids(props: {
 
     navigationLoading = true;
     setLoading(true);
-    source.handle.setBusy(true);
+    source.handle.updateSearchLoading(true);
     try {
-      await source.handle.navigate(url);
+      await source.handle.loadSearchPage(url);
       const nextSource = eh.manageSearchResults();
       if (!nextSource) {
         throw new Error(texts.errors.searchPageContentNotFound);
       }
       source = nextSource;
       props.onPageChange(source);
-      source.handle.transformSwipeInput();
+      source.handle.ensureSearchSwipeInput();
       setGestureTarget(source.elems.resultList.Component());
-      source.handle.scrollToTop();
+      source.handle.scrollSearchResultsToTop();
     } catch (error) {
       console.error("[ehpeek]", error);
     } finally {
       navigationLoading = false;
       setLoading(false);
-      source.handle.setBusy(false);
+      source.handle.updateSearchLoading(false);
     }
   };
 
@@ -85,9 +85,9 @@ export function EnhanceSearchGrids(props: {
   };
 
   onMount(() => {
-    source.handle.transformSwipeInput();
+    source.handle.ensureSearchSwipeInput();
     setGestureTarget(source.elems.resultList.Component());
-    onCleanup(source.handle.connectNavigation(onNavigation));
+    onCleanup(source.handle.interceptSearchNavigation(onNavigation));
   });
 
   createPointerGestureElement(

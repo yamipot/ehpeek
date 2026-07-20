@@ -79,48 +79,81 @@ function applySettingsMenuState(
   window.location.reload();
 }
 
-const settingsState = settingsMenuState();
+const gState = (() => {
+  const [settingsMenuOpen, setSettingsMenuOpen] = createSignal(false);
+  const [readProgress, setReadProgress] = createSignal({
+    currentPage: 1,
+    totalPages: null as number | null,
+  });
+  return {
+    page: {
+      cleanups: new Set<() => void>(),
+      generation: 0,
+      managedHosts: new Set<eh.ManagedDomNode>(),
+    },
+    readProgress,
+    setReadProgress,
+    settings: settingsMenuState(),
+    settingsMenuOpen,
+    setSettingsMenuOpen,
+    singlePageActions: undefined as SinglePageActions | undefined,
+    thumbsGridsActions: undefined as ThumbsGridsActions | undefined,
+  };
+})();
+
 document.documentElement.setAttribute("data-ehpeek-site", eh.ehSiteTheme());
 registerGlobalStyle("ehpeek-uno-style", unoCss);
 registerGlobalStyle("ehpeek-theme-style", themeCss);
+
 const settingsMenuMount = createAppMount(
   "fixed inset-0 z-[1150] pointer-events-none",
   true,
 );
-const [settingsMenuOpen, setSettingsMenuOpenSignal] = createSignal(false);
-const [readProgress, setReadProgress] = createSignal({
-  currentPage: 1,
-  totalPages: null as number | null,
-});
-let thumbsGridsActions: ThumbsGridsActions | undefined;
-let singlePageActions: SinglePageActions | undefined;
 const readerCallbacks: ReaderCallbacks = {
-  enhanceThumbsGridsEnabled: settingsState.enhanceThumbsGridsEnabled,
-  readHistoryEnabled: settingsState.readHistoryEnabled,
+  enhanceThumbsGridsEnabled: gState.settings.enhanceThumbsGridsEnabled,
+  readHistoryEnabled: gState.settings.readHistoryEnabled,
   onGotoPreviewIndex: (previewIndex) => {
-    thumbsGridsActions?.gotoPreview(previewIndex);
+    gState.thumbsGridsActions?.gotoPreview(previewIndex);
   },
   onReaderClosed: (currentPage, totalPages) => {
-    setReadProgress({ currentPage, totalPages });
+    gState.setReadProgress({ currentPage, totalPages });
   },
 };
-let pageGeneration = 0;
-const pageManagedHosts = new Set<eh.ManagedDomNode>();
-const pageCleanups = new Set<() => void>();
+
+function allowFeatureFailure<T>(name: string, run: () => T): T | null {
+  try {
+    return run();
+  } catch (error) {
+    console.error(`[ehpeek] ${name} failed`, error);
+    return null;
+  }
+}
+
+async function allowAsyncFeatureFailure<T>(
+  name: string,
+  run: () => Promise<T>,
+): Promise<T | null> {
+  try {
+    return await run();
+  } catch (error) {
+    console.error(`[ehpeek] ${name} failed`, error);
+    return null;
+  }
+}
 
 function deactivatePage(): void {
-  pageGeneration += 1;
-  for (const cleanup of pageCleanups) {
+  gState.page.generation += 1;
+  for (const cleanup of gState.page.cleanups) {
     cleanup();
   }
-  pageCleanups.clear();
-  thumbsGridsActions = undefined;
+  gState.page.cleanups.clear();
+  gState.thumbsGridsActions = undefined;
 
-  for (const host of pageManagedHosts) {
+  for (const host of gState.page.managedHosts) {
     host.remove();
   }
 
-  pageManagedHosts.clear();
+  gState.page.managedHosts.clear();
 }
 
 function openGalleryPage(
@@ -142,7 +175,7 @@ function openGalleryPage(
 }
 
 function openFromReadButton(previewCache: GalleryPreviewCache): void {
-  const pageNum = readProgress().currentPage;
+  const pageNum = gState.readProgress().currentPage;
   const firstPage = previewCache.current().data.pages[0];
   if (firstPage) {
     openGalleryPage(previewCache, firstPage.url, pageNum);
@@ -155,8 +188,8 @@ function GalleryReadButton(props: {
 }) {
   return (
     <ReadButton
-      currentPage={readProgress().currentPage}
-      totalPages={readProgress().totalPages}
+      currentPage={gState.readProgress().currentPage}
+      totalPages={gState.readProgress().totalPages}
       onClick={() => openFromReadButton(props.previewCache)}
       variant={props.variant}
     />
@@ -165,19 +198,19 @@ function GalleryReadButton(props: {
 
 if (typeof GM_registerMenuCommand === "function") {
   GM_registerMenuCommand(texts.settings.openSettings, () => {
-    setSettingsMenuOpenSignal(true);
+    gState.setSettingsMenuOpen(true);
   });
 }
 
 settingsMenuMount.mount(() => (
   <SettingsMenu
-    open={settingsMenuOpen()}
+    open={gState.settingsMenuOpen()}
     defaultState={settingsMenuState(true)}
-    initState={settingsState}
+    initState={gState.settings}
     onApply={(next) => {
       applySettingsMenuState(next);
     }}
-    onOpenChange={setSettingsMenuOpenSignal}
+    onOpenChange={gState.setSettingsMenuOpen}
   />
 ));
 
@@ -191,125 +224,147 @@ function injectEnhanceUI(
   const galleryPage = page.type === "gallery";
   const resultsPage = page.type === "search" || page.type === "favorites";
   const preview = previewCache?.current() ?? null;
+  const previewMount = preview?.elems.mount ?? null;
 
-  if (galleryPage && preview && previewCache && settingsState.readerEnabled) {
-    pageCleanups.add(preview.handle.connectImageOpen((pageUrl) => {
-      openGalleryPage(previewCache, pageUrl);
-    }));
+  if (galleryPage && preview && previewCache && gState.settings.readerEnabled) {
+    allowFeatureFailure("Reader thumbnail links", () => {
+      gState.page.cleanups.add(preview.handle.interceptPreviewImageOpen((pageUrl) => {
+        openGalleryPage(previewCache, pageUrl);
+      }));
+    });
   }
 
   if (searchTextInput) {
-    eh.EhSyringe.reuseTagTipInput(searchTextInput.elems.input);
+    allowFeatureFailure("Search autocomplete", () => {
+      eh.EhSyringe.reuseTagTipInput(searchTextInput.elems.input);
+    });
   }
 
   if (resultsPage) {
-    eh.mutateSearchGridModeSelect(
-      state.search.grid.value,
-      () => {
-        state.search.grid.set(true);
-        window.location.assign(
-          new URL("/?inline_set=dm_e", window.location.href).href,
-        );
-      },
-      (value) => {
-        state.search.grid.set(false);
-        window.location.assign(
-          new URL(`/?inline_set=dm_${value}`, window.location.href).href,
-        );
-      },
-    );
+    allowFeatureFailure("Search grid mode selector", () => {
+      eh.mutateSearchGridModeSelect(
+        state.search.grid.value,
+        () => {
+          state.search.grid.set(true);
+          window.location.assign(
+            new URL("/?inline_set=dm_e", window.location.href).href,
+          );
+        },
+        (value) => {
+          state.search.grid.set(false);
+          window.location.assign(
+            new URL(`/?inline_set=dm_${value}`, window.location.href).href,
+          );
+        },
+      );
+    });
   }
   const searchGridEnabled = Boolean(resultsPage && state.search.grid.value);
   if (searchGridEnabled) {
-    eh.mutateSearchGrid();
+    allowFeatureFailure("Search grid", () => eh.mutateSearchGrid());
   }
 
-  if (settingsState.openGalleryInNewTab && searchResultsDom) {
-    searchResultsDom.handle.transformGalleryLinksToNewTab();
+  if (gState.settings.openGalleryInNewTab && searchResultsDom) {
+    allowFeatureFailure("Gallery links in new tabs", () => {
+      searchResultsDom.handle.ensureGalleryLinksOpenInNewTab();
+    });
   }
 
-  if (!settingsState.touchUiEnabled) {
-    const settingsMount = eh.manageSettingsMenuMount();
-    if (settingsMount) {
-      settingsMount.mount(() => (
-        <a
-          href="#"
-          onClick={(event: MouseEvent) => {
-            event.preventDefault();
-            event.stopPropagation();
-            setSettingsMenuOpenSignal(true);
-          }}
-        >
-          {texts.settings.menuLabel}
-        </a>
-      ));
-      pageManagedHosts.add(settingsMount);
-    }
+  if (!gState.settings.touchUiEnabled) {
+    allowFeatureFailure("Desktop settings entry", () => {
+      const settingsMount = eh.manageSettingsMenuMount();
+      if (settingsMount) {
+        settingsMount.mount(() => (
+          <a
+            href="#"
+            onClick={(event: MouseEvent) => {
+              event.preventDefault();
+              event.stopPropagation();
+              gState.setSettingsMenuOpen(true);
+            }}
+          >
+            {texts.settings.menuLabel}
+          </a>
+        ));
+        gState.page.managedHosts.add(settingsMount);
+      }
+    });
   }
 
   if (
-    !settingsState.touchUiEnabled &&
-    settingsState.readHistoryEnabled &&
+    !gState.settings.touchUiEnabled &&
+    gState.settings.readHistoryEnabled &&
     galleryPage &&
     preview &&
     previewCache
   ) {
-    const galleryReadButtonMount = eh.manageGalleryContinueReadingButtonMount();
-    pageManagedHosts.add(galleryReadButtonMount);
-    galleryReadButtonMount.mount(() => (
-      <GalleryReadButton previewCache={previewCache} variant="gallery" />
-    ));
+    allowFeatureFailure("Desktop Read button", () => {
+      const galleryReadButtonMount = eh.manageGalleryContinueReadingButtonMount();
+      gState.page.managedHosts.add(galleryReadButtonMount);
+      galleryReadButtonMount.mount(() => (
+        <GalleryReadButton previewCache={previewCache} variant="gallery" />
+      ));
+    });
   }
 
   if (
     galleryPage &&
-    settingsState.enhanceThumbsGridsEnabled &&
+    gState.settings.enhanceThumbsGridsEnabled &&
     previewCache &&
-    preview?.elems.mount
+    previewMount
   ) {
-    const previewMount = preview.elems.mount;
-    previewMount.mount(() => (
-      <ThumbsGrids
-        actionsRef={(actions) => {
-          thumbsGridsActions = actions;
-        }}
-        onLoadError={reportReaderOpenError}
-        previewCache={previewCache}
-      />
-    ));
-    pageManagedHosts.add(previewMount);
+    allowFeatureFailure("Enhanced thumbnail grid", () => {
+      previewMount.mount(() => (
+        <ThumbsGrids
+          actionsRef={(actions) => {
+            gState.thumbsGridsActions = actions;
+          }}
+          onLoadError={reportReaderOpenError}
+          previewCache={previewCache}
+        />
+      ));
+      gState.page.managedHosts.add(previewMount);
+    });
   } else if (galleryPage && preview && previewCache) {
-    preview.elems.mount?.remove();
+    allowFeatureFailure("Original thumbnail grid", () => {
+      preview.elems.mount?.remove();
+    });
   }
 
   if (
-    settingsState.enhanceSearchGridsEnabled &&
+    gState.settings.enhanceSearchGridsEnabled &&
     searchResultsDom &&
     (searchResultsDom.data.previousUrl || searchResultsDom.data.nextUrl)
   ) {
-    const host = createAppMount();
-    host.mount(() => (
-      <EnhanceSearchGrids
-        source={searchResultsDom}
-        onNavigateRequest={(url) => singlePageActions?.navigate(url) ?? false}
-        onPageChange={(source) => {
-          if (settingsState.openGalleryInNewTab) {
-            source.handle.transformGalleryLinksToNewTab();
-          }
-          touchResultsDom?.handle.refresh();
-          if (searchGridEnabled) {
-            eh.mutateSearchGrid();
-          }
-        }}
-      />
-    ));
-    pageManagedHosts.add(host);
+    allowFeatureFailure("Enhanced Search pagination", () => {
+      const host = createAppMount();
+      host.mount(() => (
+        <EnhanceSearchGrids
+          source={searchResultsDom}
+          onNavigateRequest={(url) => gState.singlePageActions?.navigate(url) ?? false}
+          onPageChange={(source) => {
+            allowFeatureFailure("Changed Search page", () => {
+              if (gState.settings.openGalleryInNewTab) {
+                source.handle.ensureGalleryLinksOpenInNewTab();
+              }
+              touchResultsDom?.handle.updateTouchResultsLayout();
+              if (searchGridEnabled) {
+                eh.mutateSearchGrid();
+              }
+            });
+          }}
+        />
+      ));
+      gState.page.managedHosts.add(host);
+    });
   }
 
-  if (settingsState.searchHistoryEnabled && searchTextInput) {
-    const host = createAppMount();
-    host.mount(() => <SearchHistory source={searchTextInput} />);
-    pageManagedHosts.add(host);
+  if (gState.settings.searchHistoryEnabled && searchTextInput) {
+    allowFeatureFailure("Search history", () => {
+      const host = createAppMount();
+      host.mount(() => <SearchHistory source={searchTextInput} />);
+      gState.page.managedHosts.add(host);
+    });
   }
 }
 
@@ -321,110 +376,121 @@ function injectTouchUI(
   const resultsPage = page.type === "search" || page.type === "favorites";
   const preview = previewCache?.current() ?? null;
   const resultsDom = resultsPage
-    ? eh.manageTouchResultsPage(page, singlePageActive)
+    ? allowFeatureFailure("Touch results layout", () =>
+        eh.manageTouchResultsPage(page, singlePageActive))
     : null;
   if (resultsDom) {
-    pageCleanups.add(resultsDom.handle.reset);
+    gState.page.cleanups.add(resultsDom.handle.removeTouchResultsLayout);
   }
 
-  const topBarDom = eh.manageTopBar();
-  if (topBarDom) {
-    topBarDom.handle.transformNavItems(TOUCH_TOP_BAR_NAV_ITEM_CLASS);
-    topBarDom.elems.mount.mount(() => (
-      <TouchTopBar
-        source={topBarDom}
-        onSettingsMenuOpen={() => {
-          setSettingsMenuOpenSignal(true);
-        }}
-      />
-    ));
-    pageManagedHosts.add(topBarDom.elems.mount);
-  }
+  allowFeatureFailure("Touch top bar", () => {
+    const topBarDom = eh.manageTopBar();
+    if (topBarDom) {
+      topBarDom.handle.updateNavItemVisual(TOUCH_TOP_BAR_NAV_ITEM_CLASS);
+      topBarDom.elems.mount.mount(() => (
+        <TouchTopBar
+          source={topBarDom}
+          onSettingsMenuOpen={() => {
+            gState.setSettingsMenuOpen(true);
+          }}
+        />
+      ));
+      gState.page.managedHosts.add(topBarDom.elems.mount);
+    }
+  });
 
   if (galleryPage || resultsPage) {
-    const host = createAppMount("ehpeek-back-to-top-host");
-    host.mount(() => <BackToTop />);
-    pageManagedHosts.add(host);
+    allowFeatureFailure("Back to top", () => {
+      const host = createAppMount("ehpeek-back-to-top-host");
+      host.mount(() => <BackToTop />);
+      gState.page.managedHosts.add(host);
+    });
   }
 
   if (galleryPage) {
-    registerGlobalStyle(
-      "ehpeek-touch-gallery-page-rearrange-style",
-      galleryRearrange,
-    );
-    const galleryInfoDom = eh.manageGalleryInfo(preview?.data ?? null);
-    if (galleryInfoDom) {
-      galleryInfoDom.handle.transformCover(TOUCH_GALLERY_INFO_CLASSES.cover);
-      galleryInfoDom.handle.transformActionItems(TOUCH_GALLERY_INFO_CLASSES.actionItems);
-      galleryInfoDom.handle.transformNewTag(TOUCH_GALLERY_INFO_CLASSES.newTag);
-      galleryInfoDom.handle.transformHost(TOUCH_GALLERY_INFO_CLASSES.host);
-      galleryInfoDom.elems.mount.mount(() => (
-        <GalleryInfoPanel
-          source={galleryInfoDom}
-          primaryAction={
-            settingsState.readHistoryEnabled && preview && previewCache ? (
-              <GalleryReadButton
-                previewCache={previewCache}
-                variant="touchGallery"
-              />
-            ) : undefined
-          }
-        />
-      ));
-      pageManagedHosts.add(galleryInfoDom.elems.mount);
-    }
+    allowFeatureFailure("Touch GalleryInfo", () => {
+      registerGlobalStyle(
+        "ehpeek-touch-gallery-page-rearrange-style",
+        galleryRearrange,
+      );
+      const galleryInfoDom = eh.manageGalleryInfo(preview?.data ?? null);
+      if (galleryInfoDom) {
+        galleryInfoDom.handle.updateCoverVisual(TOUCH_GALLERY_INFO_CLASSES.cover);
+        galleryInfoDom.handle.updateActionItemsVisual(TOUCH_GALLERY_INFO_CLASSES.actionItems);
+        galleryInfoDom.handle.updateNewTagVisual(TOUCH_GALLERY_INFO_CLASSES.newTag);
+        galleryInfoDom.handle.installGalleryInfoPanel(TOUCH_GALLERY_INFO_CLASSES.host);
+        galleryInfoDom.elems.mount.mount(() => (
+          <GalleryInfoPanel
+            source={galleryInfoDom}
+            primaryAction={
+              gState.settings.readHistoryEnabled && preview && previewCache ? (
+                <GalleryReadButton
+                  previewCache={previewCache}
+                  variant="touchGallery"
+                />
+              ) : undefined
+            }
+          />
+        ));
+        gState.page.managedHosts.add(galleryInfoDom.elems.mount);
+      }
+    });
 
-    eh.mutateGalleryCommentsTouch();
+    allowFeatureFailure("Touch Gallery comments", () => {
+      eh.mutateGalleryCommentsTouch();
+    });
   }
 
   if (resultsPage) {
-    const searchPanelDom = eh.manageSearchPanel();
-    if (searchPanelDom) {
-      searchPanelDom.handle.transformPresentation(
-        touchSearchPanelClasses(searchPanelDom.data.hasClear),
-      );
-      searchPanelDom.elems.mount.mount(() => (
-        <TouchSearchPanel
-          source={searchPanelDom}
-          after={
-            resultsDom?.data.favoritesCategory ? (
-              <FavoritesCategorySelect
-                info={resultsDom.data.favoritesCategory}
-              />
-            ) : undefined
-          }
-        />
-      ));
-      pageManagedHosts.add(searchPanelDom.elems.mount);
-      if (searchPanelDom.elems.categoryToggleMount) {
-        searchPanelDom.elems.categoryToggleMount.mount(() => (
-          <TouchSearchCategoryToggle source={searchPanelDom} />
+    allowFeatureFailure("Touch Search panel", () => {
+      const searchPanelDom = eh.manageSearchPanel();
+      if (searchPanelDom) {
+        searchPanelDom.handle.updateSearchPanelVisual(
+          touchSearchPanelClasses(searchPanelDom.data.hasClear),
+        );
+        searchPanelDom.elems.mount.mount(() => (
+          <TouchSearchPanel
+            source={searchPanelDom}
+            after={
+              resultsDom?.data.favoritesCategory ? (
+                <FavoritesCategorySelect
+                  info={resultsDom.data.favoritesCategory}
+                />
+              ) : undefined
+            }
+          />
         ));
-        pageManagedHosts.add(searchPanelDom.elems.categoryToggleMount);
-      }
-      if (searchPanelDom.elems.advancedToggleMount) {
-        searchPanelDom.elems.advancedToggleMount.mount(() => (
-          <TouchSearchAdvancedToggle source={searchPanelDom} />
+        gState.page.managedHosts.add(searchPanelDom.elems.mount);
+        if (searchPanelDom.elems.categoryToggleMount) {
+          searchPanelDom.elems.categoryToggleMount.mount(() => (
+            <TouchSearchCategoryToggle source={searchPanelDom} />
+          ));
+          gState.page.managedHosts.add(searchPanelDom.elems.categoryToggleMount);
+        }
+        if (searchPanelDom.elems.advancedToggleMount) {
+          searchPanelDom.elems.advancedToggleMount.mount(() => (
+            <TouchSearchAdvancedToggle source={searchPanelDom} />
+          ));
+          gState.page.managedHosts.add(searchPanelDom.elems.advancedToggleMount);
+        }
+        if (searchPanelDom.elems.fileSearchToggleMount) {
+          searchPanelDom.elems.fileSearchToggleMount.mount(() => (
+            <TouchSearchFileToggle source={searchPanelDom} />
+          ));
+          gState.page.managedHosts.add(searchPanelDom.elems.fileSearchToggleMount);
+        }
+        searchPanelDom.elems.searchActionMount.mount(() => (
+          <TouchSearchAction action="search" source={searchPanelDom} />
         ));
-        pageManagedHosts.add(searchPanelDom.elems.advancedToggleMount);
+        gState.page.managedHosts.add(searchPanelDom.elems.searchActionMount);
+        if (searchPanelDom.elems.clearActionMount) {
+          searchPanelDom.elems.clearActionMount.mount(() => (
+            <TouchSearchAction action="clear" source={searchPanelDom} />
+          ));
+          gState.page.managedHosts.add(searchPanelDom.elems.clearActionMount);
+        }
       }
-      if (searchPanelDom.elems.fileSearchToggleMount) {
-        searchPanelDom.elems.fileSearchToggleMount.mount(() => (
-          <TouchSearchFileToggle source={searchPanelDom} />
-        ));
-        pageManagedHosts.add(searchPanelDom.elems.fileSearchToggleMount);
-      }
-      searchPanelDom.elems.searchActionMount.mount(() => (
-        <TouchSearchAction action="search" source={searchPanelDom} />
-      ));
-      pageManagedHosts.add(searchPanelDom.elems.searchActionMount);
-      if (searchPanelDom.elems.clearActionMount) {
-        searchPanelDom.elems.clearActionMount.mount(() => (
-          <TouchSearchAction action="clear" source={searchPanelDom} />
-        ));
-        pageManagedHosts.add(searchPanelDom.elems.clearActionMount);
-      }
-    }
+    });
   }
 
   return resultsDom;
@@ -434,75 +500,89 @@ async function injectPage(nextPage: eh.PageType): Promise<void> {
   const galleryPage = nextPage.type === "gallery";
   const resultsPage =
     nextPage.type === "search" || nextPage.type === "favorites";
-  const generation = ++pageGeneration;
+  const generation = ++gState.page.generation;
 
-  if (settingsState.touchUiEnabled) {
+  if (gState.settings.touchUiEnabled) {
     await eh.EhSyringe.waitForInitialUi();
     if (nextPage.type === "search") {
       await eh.EhSyringe.waitForSearchUi();
     }
-    if (generation !== pageGeneration) {
+    if (generation !== gState.page.generation) {
       return;
     }
   }
 
   if (galleryPage) {
-    eh.manageGalleryApiSession();
+    allowFeatureFailure("Gallery API session", () => {
+      eh.manageGalleryApiSession();
+    });
   }
-  const galleryPreview = galleryPage ? eh.manageGalleryPreview() : null;
+  const galleryPreview = galleryPage
+    ? allowFeatureFailure("Gallery Preview", () => eh.manageGalleryPreview())
+    : null;
   const galleryPreviewCache = galleryPreview
-    ? createGalleryPreviewCache(galleryPreview)
+    ? allowFeatureFailure("Gallery Preview cache", () =>
+        createGalleryPreviewCache(galleryPreview))
     : null;
   if (nextPage.type === "gallery" && galleryPreview) {
-    const record = loadReadHistory(nextPage.galleryId, nextPage.token);
-    setReadProgress({
-      currentPage: record?.pageNum && record.pageNum > 0 ? record.pageNum : 1,
-      totalPages: record?.totalPages ?? galleryPreview.data.totalImages,
+    allowFeatureFailure("Gallery Read History", () => {
+      const record = loadReadHistory(nextPage.galleryId, nextPage.token);
+      gState.setReadProgress({
+        currentPage: record?.pageNum && record.pageNum > 0 ? record.pageNum : 1,
+        totalPages: record?.totalPages ?? galleryPreview.data.totalImages,
+      });
     });
   }
   const searchTextInput = resultsPage
-    ? eh.manageSearchTextInput()
+    ? allowFeatureFailure("Search text input", () => eh.manageSearchTextInput())
     : null;
   const searchResultsSource = resultsPage
-    ? eh.manageSearchResults()
+    ? allowFeatureFailure("Search results", () => eh.manageSearchResults())
     : null;
 
   let myTagAppearances: Awaited<ReturnType<typeof loadMyTagAppearances>> = null;
 
-  if (settingsState.myTagsEnabled) {
+  if (gState.settings.myTagsEnabled) {
     if (nextPage.type === "myTags") {
-      const currentMyTags = eh.extractMyTagsPageData();
-      if (currentMyTags) {
+      await allowAsyncFeatureFailure("My Tags refresh", async () => {
+        const currentMyTags = eh.extractMyTagsPageData();
         await refreshMyTags(currentMyTags);
-      }
+      });
     } else if (galleryPage) {
-      myTagAppearances = await loadMyTagAppearances();
+      myTagAppearances = await allowAsyncFeatureFailure(
+        "My Tags appearance",
+        loadMyTagAppearances,
+      );
     }
   }
 
-  if (generation !== pageGeneration) {
+  if (generation !== gState.page.generation) {
     return;
   }
 
   if (myTagAppearances) {
-    pageCleanups.add(eh.mutateGalleryMyTags(myTagAppearances));
+    allowFeatureFailure("Gallery My Tags appearance", () => {
+      gState.page.cleanups.add(eh.mutateGalleryMyTags(myTagAppearances));
+    });
   }
 
-  if (settingsState.readHistoryEnabled && nextPage.type === "image") {
-    const gallery = eh.extractImageGalleryPage();
-    if (gallery?.galleryId === nextPage.galleryId) {
-      const previous = loadReadHistory(gallery.galleryId, gallery.token);
-      const historySession = new ReadHistorySession({
-        galleryId: gallery.galleryId,
-        token: gallery.token,
-        totalPages: previous?.totalPages,
-      });
-      historySession.update(nextPage.pageNum, previous?.totalPages);
-      pageCleanups.add(() => historySession.dispose());
-    }
+  if (gState.settings.readHistoryEnabled && nextPage.type === "image") {
+    allowFeatureFailure("Image Read History", () => {
+      const gallery = eh.extractImageGalleryPage();
+      if (gallery?.galleryId === nextPage.galleryId) {
+        const previous = loadReadHistory(gallery.galleryId, gallery.token);
+        const historySession = new ReadHistorySession({
+          galleryId: gallery.galleryId,
+          token: gallery.token,
+          totalPages: previous?.totalPages,
+        });
+        historySession.update(nextPage.pageNum, previous?.totalPages);
+        gState.page.cleanups.add(() => historySession.dispose());
+      }
+    });
   }
 
-  const touchResultsDom = settingsState.touchUiEnabled
+  const touchResultsDom = gState.settings.touchUiEnabled
     ? injectTouchUI(nextPage, galleryPreviewCache)
     : null;
   injectEnhanceUI(
@@ -519,18 +599,21 @@ async function injectPage(nextPage: eh.PageType): Promise<void> {
     nextPage.peekPage !== null
   ) {
     if (galleryPreviewCache) {
-      void openReaderFromHash(
-        readerCallbacks,
-        galleryPreviewCache,
-        readerViewport,
+      void allowAsyncFeatureFailure(
+        "Reader deep link",
+        () => openReaderFromHash(
+          readerCallbacks,
+          galleryPreviewCache,
+          readerViewport,
+        ),
       );
     }
   }
 }
 
 const singlePageActive =
-  settingsState.touchUiEnabled &&
-  settingsState.singlePageAppEnabled &&
+  gState.settings.touchUiEnabled &&
+  gState.settings.singlePageAppEnabled &&
   eh.singlePageRoute(window.location.href) !== null;
 
 if (singlePageActive) {
@@ -538,7 +621,7 @@ if (singlePageActive) {
   host.mount(() => (
     <SinglePage
       actionsRef={(actions) => {
-        singlePageActions = actions;
+        gState.singlePageActions = actions;
       }}
       onPageActivate={(page) => injectPage(page)}
       onPageDeactivate={deactivatePage}

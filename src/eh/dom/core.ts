@@ -1,23 +1,6 @@
 import type { JSX } from "solid-js";
 import { render } from "solid-js/web";
 
-type ElemChanges = {
-  attributes?: {
-    remove?: readonly string[];
-    set?: Readonly<Record<string, string>>;
-  };
-  classes?: {
-    add?: readonly string[];
-    remove?: readonly string[];
-    replace?: string;
-  };
-  hidden?: boolean;
-  styles?: {
-    remove?: "all" | readonly string[];
-    set?: Readonly<Record<string, string>>;
-  };
-};
-
 const MANAGED_DOM_NODE_CLASS = "ehpeek-managed";
 const EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor";
 const mountedNodes = new WeakMap<HTMLElement, () => void>();
@@ -148,10 +131,6 @@ export class DomNode<T extends ParentNode = ParentNode> {
     return window.getComputedStyle(this.#node);
   }
 
-  rect(this: DomNode<Element>): DOMRect {
-    return this.#node.getBoundingClientRect();
-  }
-
   imageSize(this: DomNode<HTMLImageElement>): { height: number; width: number } {
     return {
       height: this.#node.naturalHeight || this.#node.height || Number(this.#node.getAttribute("height") || ""),
@@ -247,8 +226,49 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
     return new ManagedDomNode(element);
   }
 
-  transform(changes: ElemChanges): this {
-    changeElem(this.#node, changes);
+  all<TElement extends HTMLElement = HTMLElement>(
+    selector: string,
+  ): ManagedDomNode<TElement>[] {
+    return Array.from(
+      this.#node.querySelectorAll<TElement>(selector),
+      ManagedDomNode.from,
+    );
+  }
+
+  rect(): DOMRect {
+    return this.#node.getBoundingClientRect();
+  }
+
+  readAttribute(name: string): string | null {
+    return this.#node.getAttribute(name);
+  }
+
+  setAttributes(values: Readonly<Record<string, string>>): this {
+    for (const [name, value] of Object.entries(values)) {
+      this.#node.setAttribute(name, value);
+    }
+    return this;
+  }
+
+  removeAttributes(...names: string[]): this {
+    for (const name of names) {
+      this.#node.removeAttribute(name);
+    }
+    return this;
+  }
+
+  addClasses(...names: string[]): this {
+    this.#node.classList.add(...names);
+    return this;
+  }
+
+  removeClasses(...names: string[]): this {
+    this.#node.classList.remove(...names);
+    return this;
+  }
+
+  replaceClasses(value: string): this {
+    this.#node.className = value;
     return this;
   }
 
@@ -263,6 +283,11 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
     for (const property of properties) {
       this.#node.style.removeProperty(property);
     }
+    return this;
+  }
+
+  removeAllStyles(): this {
+    this.#node.removeAttribute("style");
     return this;
   }
 
@@ -316,8 +341,9 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
     }
   }
 
-  setHidden(hidden: boolean): void {
+  setHidden(hidden: boolean): this {
     this.#node.hidden = hidden;
+    return this;
   }
 
   replaceChildren(...children: Array<ManagedDomNode | Node>): void {
@@ -410,44 +436,5 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
       childList: true,
       subtree: true,
     });
-  }
-}
-
-function changeElem(
-  element: HTMLElement,
-  changes: ElemChanges,
-): void {
-  for (const name of changes.attributes?.remove ?? []) {
-    element.removeAttribute(name);
-  }
-  for (const [name, value] of Object.entries(changes.attributes?.set ?? {})) {
-    element.setAttribute(name, value);
-  }
-
-  if (changes.classes?.replace !== undefined) {
-    element.className = changes.classes.replace;
-  }
-  element.classList.remove(...(changes.classes?.remove ?? []));
-  element.classList.add(...(changes.classes?.add ?? []));
-
-  if (changes.styles?.remove === "all") {
-    element.removeAttribute("style");
-  } else {
-    for (const property of changes.styles?.remove ?? []) {
-      element.style.removeProperty(property);
-    }
-  }
-  for (const [property, value] of Object.entries(changes.styles?.set ?? {})) {
-    element.style.setProperty(property, value);
-  }
-  if (!element.getAttribute("style")?.trim()) {
-    element.removeAttribute("style");
-  }
-
-  if (changes.hidden !== undefined) {
-    element.hidden = changes.hidden;
-  }
-  if (__EHPEEK_DEBUG__) {
-    element.classList.add(MANAGED_DOM_NODE_CLASS);
   }
 }

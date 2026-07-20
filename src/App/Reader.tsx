@@ -84,10 +84,6 @@ export async function openOriginalReader(
   pageNum: number,
   previewCache: GalleryPreviewCache,
 ): Promise<void> {
-  const preview = previewCache.current().data;
-  if (preview.pageSize === null) {
-    throw new Error(texts.errors.previewPageSizeUnknown);
-  }
   const page = (await previewCache.getPages([pageNum]))[0];
 
   if (!page || page.pageNum !== pageNum) {
@@ -116,12 +112,9 @@ async function openReader(
   }
 
   const currentPreviewIndex = preview.currentIndex;
-  if (preview.pageSize === null) {
-    throw new Error(texts.errors.previewPageSizeUnknown);
-  }
   const pageSize = preview.pageSize;
   const maxPreviewIndex = preview.maxIndex;
-  const totalPages = preview.totalImages ?? undefined;
+  const totalPages = preview.totalImages;
   const startPageNum = preferredPageNum ?? eh.peekPageFromHash() ?? eh.galleryPageNumber(startPageUrl);
 
   if (!startPageNum) {
