@@ -9,7 +9,6 @@ import { loadReadHistory, ReadHistorySession } from "../state/readHistory";
 import { SearchHistory } from "../components/Enhance/SearchHistory";
 import { loadMyTagAppearances, refreshMyTags } from "../components/Enhance/MyTags";
 import { SettingsMenu } from "../components/SettingsMenu";
-import { WelcomeIcon } from "../components/WelcomeIcon";
 import { BackToTop } from "../components/Widgets/BackToTop";
 import {
   touchSearchPanelClasses,
@@ -43,15 +42,12 @@ import {
 import { createAppMount } from "./host";
 import { readerViewport } from "./viewport";
 
-const WELCOME_ICON_TIMEOUT_MS = 3_000;
-
 function settingsMenuState(defaults = false) {
   const read = <T,>(setting: { defaultValue: T; value: T }): T =>
     defaults ? setting.defaultValue : setting.value;
 
   return {
     openGalleryInNewTab: read(state.app.openGalleryInNewTab),
-    welcomeIconEnabled: read(state.app.welcomeIcon),
     readerEnabled: read(state.reader.enabled),
     readerFullscreenEnabled: read(state.reader.fullscreen),
     enhanceThumbsGridsEnabled: read(state.gallery.enhanceThumbs),
@@ -67,7 +63,6 @@ function applySettingsMenuState(
   next: ReturnType<typeof settingsMenuState>,
 ): void {
   state.app.openGalleryInNewTab.set(next.openGalleryInNewTab);
-  state.app.welcomeIcon.set(next.welcomeIconEnabled);
   state.reader.enabled.set(next.readerEnabled);
   state.reader.fullscreen.set(next.readerFullscreenEnabled);
   state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled);
@@ -99,25 +94,6 @@ const gState = (() => {
 document.documentElement.setAttribute("data-ehpeek-site", eh.ehSiteTheme());
 registerGlobalStyle("ehpeek-uno-style", unoCss);
 registerGlobalStyle("ehpeek-theme-style", themeCss);
-
-const welcomeIconMount = gState.settings.welcomeIconEnabled
-  ? createAppMount()
-  : null;
-welcomeIconMount?.mount(() => <WelcomeIcon />);
-let welcomeIconTimeout: number | null = null;
-const removeWelcomeIcon = () => {
-  if (welcomeIconTimeout !== null) {
-    window.clearTimeout(welcomeIconTimeout);
-    welcomeIconTimeout = null;
-  }
-  welcomeIconMount?.remove();
-};
-if (welcomeIconMount) {
-  welcomeIconTimeout = window.setTimeout(
-    removeWelcomeIcon,
-    WELCOME_ICON_TIMEOUT_MS,
-  );
-}
 
 const readerCallbacks: ReaderCallbacks = {
   enhanceThumbsGridsEnabled: gState.settings.enhanceThumbsGridsEnabled,
@@ -574,6 +550,4 @@ async function startApp(): Promise<void> {
 
 void startApp().catch((error) => {
   console.error("[ehpeek] App startup failed", error);
-}).finally(() => {
-  removeWelcomeIcon();
 });

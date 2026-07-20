@@ -37,8 +37,6 @@
     "menuLabel": "Ehpeek",
     "on": "On",
     "off": "Off",
-    "welcomeIcon": "Welcome Icon",
-    "welcomeIconHelp": "Shows a small status icon until Ehpeek finishes preparing the UI.",
     "readerLabel": "Reader",
     "readerHelp": "Opens gallery images in Ehpeek's reader",
     "readerFullscreenLabel": "Reader in Fullscreen",

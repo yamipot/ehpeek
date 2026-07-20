@@ -4,7 +4,6 @@ import texts from "../texts.json";
 
 type SettingsMenuState = {
   openGalleryInNewTab: boolean;
-  welcomeIconEnabled: boolean;
   readerEnabled: boolean;
   readerFullscreenEnabled: boolean;
   enhanceThumbsGridsEnabled: boolean;
@@ -170,12 +169,6 @@ export function SettingsMenu(props: {
                 description={texts.settings.openGalleryInNewTabHelp}
                 label={texts.settings.openGalleryInNewTabLabel}
                 onChange={(value) => setDraft("openGalleryInNewTab", value)}
-              />
-              <SwitchButton
-                checked={draft.welcomeIconEnabled}
-                description={texts.settings.welcomeIconHelp}
-                label={texts.settings.welcomeIcon}
-                onChange={(value) => setDraft("welcomeIconEnabled", value)}
               />
             </div>
           </Show>
