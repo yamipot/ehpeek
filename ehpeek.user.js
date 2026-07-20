@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260720.1259
+// @version      260720.1414
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -1303,6 +1303,9 @@
   function originalPageNode(node) {
     return node.closest(EH_SYRINGE_IGNORE_SELECTOR) === null;
   }
+  function anyDomNode() {
+    return !0;
+  }
   function createAnchor(name) {
     let selector = `[${EHPEEK_ANCHOR_ATTRIBUTE}="${CSS.escape(name)}"]`;
     if (document.querySelector(selector))
@@ -1570,91 +1573,160 @@
   // src/eh/dom/ehSyringe.ts
   var ehSyringe_exports = {};
   __export(ehSyringe_exports, {
-    reuseTagTipInput: () => reuseTagTipInput,
-    waitForInitialUi: () => waitForInitialUi,
-    waitForSearchUi: () => waitForSearchUi
+    initialize: () => initialize
   });
-  var ROOT_CLASS = "ehs-injected", TRANSLATED_LANGUAGE = "zh-hans", INITIALIZED_SELECTOR = "#eh-syringe-popup-button", SEARCH_SUBMIT_SELECTOR = "#searchbox button[ehs-input][type='submit']", CLEAR_BUTTON_SELECTOR = "#searchbox button[ehs-input][type='button']", TAG_TIP_INPUT_SELECTOR = "#f_search, #newtagfield, [name='f_search']", TAG_TIP_LIST_SELECTOR = ".eh-syringe-lite-auto-complete-list", TAG_TIP_LIST_CLASS_NAME = "!max-h-[60dvh] !py-sm [&_.auto-complete-item]:box-border [&_.auto-complete-item]:min-h-lg [&_.auto-complete-item]:!py-sm [&_.auto-complete-item]:!px-lg [&_.auto-complete-item]:!text-[length:var(--font-size-lg)] [&_.auto-complete-item]:!leading-[1.25] [&_.auto-complete-text]:!text-inherit [&_.auto-complete-text]:!leading-inherit", DETECTED_KEY = "ehpeek:ehsyringe:detected", INJECTION_TIMEOUT_MS = 3e3, initialUiReady = null, tagTipInput = null, injectionWatcherStarted = !1, tagTipWatcherStarted = !1;
-  function waitForInitialUi() {
-    return watchForSuccessfulInjection(), initialUiReady ?? (initialUiReady = waitForExpectedInitialUi()), initialUiReady;
-  }
-  async function waitForSearchUi() {
-    await waitForInitialUi(), isTranslatingUi() && await waitFor(searchUiReady);
-  }
-  function reuseTagTipInput(target) {
-    return watchForTagTipInput(), !tagTipInput || tagTipInput.Component().isConnected || target === tagTipInput ? target : (target.copyAttributesTo(tagTipInput), tagTipInput.setInputValue(target.inputValue()), target.replaceWith(tagTipInput), tagTipInput);
-  }
-  async function waitForExpectedInitialUi() {
-    if (initialUiLoaded()) {
-      setDetected(!0);
-      return;
+
+  // src/state/index.ts
+  var touchUiDefault = window.matchMedia("(pointer: coarse)").matches, state = {
+    app: {
+      ehSyringeDetected: persisted("ehpeek:ehsyringe:detected", !1),
+      openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", !1)
+    },
+    reader: {
+      enabled: persisted("ehpeek:reader:enabled", !0),
+      fullscreen: persisted("ehpeek:reader:fullscreen", prefersTouchFullscreen()),
+      viewMode: persisted("ehpeek:reader:view-mode", "scroll"),
+      readDirection: persisted("ehpeek:reader:read-direction", "rtl"),
+      rightTapAction: persisted("ehpeek:reader:right-tap-action", "previous")
+    },
+    gallery: {
+      enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", !0),
+      myTags: persisted("ehpeek:my-tags:enabled", !0),
+      myTagAppearances: localJson("ehpeek:my-tags", [], isMyTagAppearance),
+      myTagSets: localJson("ehpeek:my-tag-sets", [], isMyTagSetOption),
+      readHistory: persisted("ehpeek:read-history:enabled", !0),
+      readHistoryCount: persisted("ehpeek:history-count", 0)
+    },
+    search: {
+      enhance: persisted("ehpeek:enhance-search:enabled", !0),
+      grid: localSelection("ehpeek:search-grid", "ehpeek"),
+      history: persisted("ehpeek:search-history:enabled", !0),
+      searchHistory: persisted("ehpeek:search:history", [])
+    },
+    touch: {
+      enabled: persisted("ehpeek:touch-ui:enabled", touchUiDefault)
     }
-    if (!isInjected() && !wasDetected())
-      return;
-    let loaded = await waitFor(initialUiLoaded, INJECTION_TIMEOUT_MS);
-    setDetected(loaded);
+  };
+  function loadSearchHistory() {
+    let history = state.search.searchHistory.reload();
+    return Array.isArray(history) ? history.filter((item) => typeof item == "string") : [];
   }
-  function waitFor(ready, timeoutMs, observe = { childList: !0, subtree: !0 }, root = document.documentElement) {
-    return ready() ? Promise.resolve(!0) : new Promise((resolve) => {
-      let timer = null, observer = new MutationObserver(() => {
-        ready() && finish(!0);
-      }), finish = (value) => {
-        observer.disconnect(), timer !== null && window.clearTimeout(timer), resolve(value);
-      };
-      observer.observe(root, observe), timeoutMs !== void 0 && (timer = window.setTimeout(() => finish(!1), timeoutMs));
+  function addSearchHistory(value) {
+    let normalized = value.trim();
+    if (!normalized)
+      return loadSearchHistory();
+    let history = [normalized, ...loadSearchHistory().filter((item) => item !== normalized)];
+    return state.search.searchHistory.set(history), history;
+  }
+  function removeSearchHistory(value) {
+    let history = loadSearchHistory().filter((item) => item !== value);
+    return state.search.searchHistory.set(history), history;
+  }
+  function prefersTouchFullscreen() {
+    return window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+  }
+  function persisted(key, defaultValue) {
+    let item = {
+      defaultValue,
+      value: GM_getValue(key, defaultValue),
+      set(value) {
+        item.value = value, GM_setValue(key, value);
+      },
+      reload() {
+        return item.value = GM_getValue(key, defaultValue), item.value;
+      }
+    };
+    return item;
+  }
+  function localSelection(key, selectedValue) {
+    let read = () => window.localStorage.getItem(key) === selectedValue, item = {
+      defaultValue: !1,
+      value: read(),
+      set(value) {
+        item.value = value, value ? window.localStorage.setItem(key, selectedValue) : window.localStorage.removeItem(key);
+      },
+      reload() {
+        return item.value = read(), item.value;
+      }
+    };
+    return item;
+  }
+  function localJson(key, defaultValue, valid) {
+    let read = () => {
+      try {
+        let value = JSON.parse(window.localStorage.getItem(key) ?? "null");
+        return Array.isArray(value) ? value.filter(valid) : defaultValue;
+      } catch {
+        return defaultValue;
+      }
+    }, item = {
+      defaultValue,
+      value: read(),
+      set(value) {
+        item.value = value, window.localStorage.setItem(key, JSON.stringify(value));
+      },
+      reload() {
+        return item.value = read(), item.value;
+      },
+      clear() {
+        item.value = defaultValue, window.localStorage.removeItem(key);
+      },
+      stored() {
+        return window.localStorage.getItem(key) !== null;
+      }
+    };
+    return item;
+  }
+  function isMyTagAppearance(value) {
+    if (!value || typeof value != "object" || Array.isArray(value))
+      return !1;
+    let item = value;
+    return typeof item.name == "string" && typeof item.backgroundColor == "string" && typeof item.color == "string" && typeof item.id == "string" && typeof item.tagSet == "string";
+  }
+  function isMyTagSetOption(value) {
+    if (!value || typeof value != "object" || Array.isArray(value))
+      return !1;
+    let item = value;
+    return typeof item.label == "string" && typeof item.selected == "boolean" && typeof item.value == "string";
+  }
+
+  // src/eh/dom/ehSyringe.ts
+  var ROOT_CLASS = "ehs-injected", TAG_TIP_LIST_SELECTOR = ".eh-syringe-lite-auto-complete-list", TAG_TIP_LIST_CLASS_NAME = "!max-h-[60dvh] !py-sm [&_.auto-complete-item]:box-border [&_.auto-complete-item]:min-h-lg [&_.auto-complete-item]:!py-sm [&_.auto-complete-item]:!px-lg [&_.auto-complete-item]:!text-[length:var(--font-size-lg)] [&_.auto-complete-item]:!leading-[1.25] [&_.auto-complete-text]:!text-inherit [&_.auto-complete-text]:!leading-inherit", INJECTION_TIMEOUT_MS = 3e3;
+  function initialize() {
+    let stopCoordination = state.app.ehSyringeDetected.value ? coordinateEhSyringe() : null;
+    detect().then((detected) => {
+      if (detected) {
+        stopCoordination ?? (stopCoordination = coordinateEhSyringe());
+        return;
+      }
+      stopCoordination?.();
     });
   }
-  function watchForSuccessfulInjection() {
-    if (injectionWatcherStarted)
-      return;
-    if (injectionWatcherStarted = !0, initialUiLoaded()) {
-      setDetected(!0);
-      return;
-    }
-    let observer = new MutationObserver(() => {
-      initialUiLoaded() && (observer.disconnect(), setDetected(!0));
-    });
-    observer.observe(document.documentElement, {
+  function coordinateEhSyringe() {
+    let updateTagTipListVisual = () => {
+      DomNode.from(document).all(TAG_TIP_LIST_SELECTOR, anyDomNode).forEach((list) => {
+        let classes = TAG_TIP_LIST_CLASS_NAME.split(" ");
+        classes.some((className2) => !list.hasClass(className2)) && list.inplace().addClasses(...classes);
+      });
+    }, tagTipListObserver = new MutationObserver(updateTagTipListVisual);
+    return tagTipListObserver.observe(document.documentElement, {
       childList: !0,
       subtree: !0
+    }), updateTagTipListVisual(), () => {
+      tagTipListObserver.disconnect();
+    };
+  }
+  async function detect() {
+    document.readyState === "loading" && await new Promise((resolve) => {
+      document.addEventListener("DOMContentLoaded", () => resolve(), { once: !0 });
     });
-  }
-  function initialUiLoaded() {
-    return isInjected() && !!DomNode.from(document).one(INITIALIZED_SELECTOR);
-  }
-  function wasDetected() {
-    return GM_getValue(DETECTED_KEY, 0) === 1;
-  }
-  function setDetected(detected) {
-    GM_setValue(DETECTED_KEY, detected ? 1 : 0);
+    let detected = isInjected();
+    return !detected && state.app.ehSyringeDetected.value && (await new Promise((resolve) => {
+      window.setTimeout(resolve, INJECTION_TIMEOUT_MS);
+    }), detected = isInjected()), state.app.ehSyringeDetected.value !== detected && state.app.ehSyringeDetected.set(detected), detected;
   }
   function isInjected() {
     return DomNode.from(document.documentElement).hasClass(ROOT_CLASS);
-  }
-  function isTranslatingUi() {
-    let root = document.documentElement;
-    return isInjected() && root.lang.toLowerCase() === TRANSLATED_LANGUAGE;
-  }
-  function searchUiReady() {
-    let page = DomNode.from(document);
-    return !!(page.one(SEARCH_SUBMIT_SELECTOR) && page.one(CLEAR_BUTTON_SELECTOR));
-  }
-  function captureTagTipInput() {
-    if (tagTipInput)
-      return !0;
-    let page = DomNode.from(document), list = page.one(TAG_TIP_LIST_SELECTOR)?.inplace();
-    return list ? (list.addClasses(...TAG_TIP_LIST_CLASS_NAME.split(" ")), tagTipInput = page.one(TAG_TIP_INPUT_SELECTOR)?.inplace() ?? null, tagTipInput !== null) : !1;
-  }
-  function watchForTagTipInput() {
-    if (tagTipWatcherStarted || (tagTipWatcherStarted = !0, captureTagTipInput()))
-      return;
-    let observer = new MutationObserver(() => {
-      captureTagTipInput() && observer.disconnect();
-    });
-    observer.observe(document.documentElement, {
-      childList: !0,
-      subtree: !0
-    });
   }
 
   // src/texts.json
@@ -1697,8 +1769,6 @@
       menuLabel: "Ehpeek",
       on: "On",
       off: "Off",
-      welcomeIcon: "Welcome Icon",
-      welcomeIconHelp: "Shows a small status icon until Ehpeek finishes preparing the UI.",
       readerLabel: "Reader",
       readerHelp: "Opens gallery images in Ehpeek's reader",
       readerFullscreenLabel: "Reader in Fullscreen",
@@ -2017,7 +2087,8 @@
           },
           label,
           myTag: myTagId && myTagSet ? { id: myTagId, tagSet: myTagSet } : null,
-          name
+          name,
+          url: href
         },
         source: tag
       };
@@ -2119,10 +2190,6 @@
         return elems.tagList?.observe(() => onChange(manageTagGroups())) ?? (() => {
         });
       },
-      /** Lets EhSyringe continue owning autocomplete behavior on the moved tag input. */
-      reuseNewTagAutocomplete() {
-        elems.newTagField && (elems.newTagField = reuseTagTipInput(elems.newTagField));
-      },
       /** Activates E-H's original rating area and lets its page script submit the vote. */
       submitGalleryRating(value) {
         let rating = Math.round(value * 2);
@@ -2141,7 +2208,7 @@
         extractMyTagsPageData(response.document, tag.myTag.tagSet);
       },
       /** Opens E-H's original tag actions and only adapts their presentation. */
-      openGalleryTagMenu(tag, containerClassName, itemClassName, onNewTagOpen) {
+      openGalleryTagMenu(tag, containerClassName, itemClassName) {
         if (!elems.tagMenuAction)
           throw new Error("Gallery tag actions are unavailable.");
         tag.contentSource.click();
@@ -2152,11 +2219,7 @@
           image.setHidden(!0);
         }), actions.forEach((action) => {
           action.replaceClasses(itemClassName).removeAllStyles();
-        });
-        let addNewTag = actions.find((action) => action.readAttribute("onclick")?.includes("toggle_tagmenu"));
-        addNewTag && onNewTagOpen && addNewTag.removeAttributes("onclick").listen("click", (event) => {
-          event.preventDefault(), onNewTagOpen();
-        });
+        }), actions.find((action) => action.readAttribute("onclick")?.includes("toggle_tagmenu"))?.setHidden(!0);
       },
       /** Closes E-H's selected tag without replacing its action DOM. */
       closeGalleryTagMenu() {
@@ -2662,9 +2725,9 @@
       activateSearch() {
         elems.searchSubmit.click();
       },
-      /** Activates E-H's original Search clear control. */
-      activateClear() {
-        elems.clearButton?.click();
+      /** Clears only the Search text without invoking E-H's page-navigation reset. */
+      clearSearchText() {
+        elems.searchInput.setInputValue(""), elems.searchInput.dispatchInput(), elems.searchInput.focus();
       }
     } };
   }
@@ -3443,120 +3506,6 @@
   }
   delegateEvents(["click"]);
 
-  // src/state/index.ts
-  var touchUiDefault = window.matchMedia("(pointer: coarse)").matches, state = {
-    app: {
-      openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", !1),
-      welcomeIcon: persisted("ehpeek:welcome-icon:enabled", !0)
-    },
-    reader: {
-      enabled: persisted("ehpeek:reader:enabled", !0),
-      fullscreen: persisted("ehpeek:reader:fullscreen", prefersTouchFullscreen()),
-      viewMode: persisted("ehpeek:reader:view-mode", "scroll"),
-      readDirection: persisted("ehpeek:reader:read-direction", "rtl"),
-      rightTapAction: persisted("ehpeek:reader:right-tap-action", "previous")
-    },
-    gallery: {
-      enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", !0),
-      myTags: persisted("ehpeek:my-tags:enabled", !0),
-      myTagAppearances: localJson("ehpeek:my-tags", [], isMyTagAppearance),
-      myTagSets: localJson("ehpeek:my-tag-sets", [], isMyTagSetOption),
-      readHistory: persisted("ehpeek:read-history:enabled", !0),
-      readHistoryCount: persisted("ehpeek:history-count", 0)
-    },
-    search: {
-      enhance: persisted("ehpeek:enhance-search:enabled", !0),
-      grid: localSelection("ehpeek:search-grid", "ehpeek"),
-      history: persisted("ehpeek:search-history:enabled", !0),
-      searchHistory: persisted("ehpeek:search:history", [])
-    },
-    touch: {
-      enabled: persisted("ehpeek:touch-ui:enabled", touchUiDefault)
-    }
-  };
-  function loadSearchHistory() {
-    let history = state.search.searchHistory.reload();
-    return Array.isArray(history) ? history.filter((item) => typeof item == "string") : [];
-  }
-  function addSearchHistory(value) {
-    let normalized = value.trim();
-    if (!normalized)
-      return loadSearchHistory();
-    let history = [normalized, ...loadSearchHistory().filter((item) => item !== normalized)];
-    return state.search.searchHistory.set(history), history;
-  }
-  function removeSearchHistory(value) {
-    let history = loadSearchHistory().filter((item) => item !== value);
-    return state.search.searchHistory.set(history), history;
-  }
-  function prefersTouchFullscreen() {
-    return window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
-  }
-  function persisted(key, defaultValue) {
-    let item = {
-      defaultValue,
-      value: GM_getValue(key, defaultValue),
-      set(value) {
-        item.value = value, GM_setValue(key, value);
-      },
-      reload() {
-        return item.value = GM_getValue(key, defaultValue), item.value;
-      }
-    };
-    return item;
-  }
-  function localSelection(key, selectedValue) {
-    let read = () => window.localStorage.getItem(key) === selectedValue, item = {
-      defaultValue: !1,
-      value: read(),
-      set(value) {
-        item.value = value, value ? window.localStorage.setItem(key, selectedValue) : window.localStorage.removeItem(key);
-      },
-      reload() {
-        return item.value = read(), item.value;
-      }
-    };
-    return item;
-  }
-  function localJson(key, defaultValue, valid) {
-    let read = () => {
-      try {
-        let value = JSON.parse(window.localStorage.getItem(key) ?? "null");
-        return Array.isArray(value) ? value.filter(valid) : defaultValue;
-      } catch {
-        return defaultValue;
-      }
-    }, item = {
-      defaultValue,
-      value: read(),
-      set(value) {
-        item.value = value, window.localStorage.setItem(key, JSON.stringify(value));
-      },
-      reload() {
-        return item.value = read(), item.value;
-      },
-      clear() {
-        item.value = defaultValue, window.localStorage.removeItem(key);
-      },
-      stored() {
-        return window.localStorage.getItem(key) !== null;
-      }
-    };
-    return item;
-  }
-  function isMyTagAppearance(value) {
-    if (!value || typeof value != "object" || Array.isArray(value))
-      return !1;
-    let item = value;
-    return typeof item.name == "string" && typeof item.backgroundColor == "string" && typeof item.color == "string" && typeof item.id == "string" && typeof item.tagSet == "string";
-  }
-  function isMyTagSetOption(value) {
-    if (!value || typeof value != "object" || Array.isArray(value))
-      return !1;
-    let item = value;
-    return typeof item.label == "string" && typeof item.selected == "boolean" && typeof item.value == "string";
-  }
-
   // src/state/readHistory.ts
   var HISTORY_KEY_PREFIX = "ehpeek:history:", HISTORY_LIMIT = 2e3, HISTORY_PRUNE_COUNT = 1e3, SAVE_DELAY_MS = 1e4, ReadHistorySession = class {
     constructor(baseRecord) {
@@ -3978,17 +3927,6 @@
                 return texts_default.settings.openGalleryInNewTabLabel;
               },
               onChange: (value) => setDraft("openGalleryInNewTab", value)
-            }), null), insert(_el$13, createComponent(SwitchButton, {
-              get checked() {
-                return draft.welcomeIconEnabled;
-              },
-              get description() {
-                return texts_default.settings.welcomeIconHelp;
-              },
-              get label() {
-                return texts_default.settings.welcomeIcon;
-              },
-              onChange: (value) => setDraft("welcomeIconEnabled", value)
             }), null), _el$13;
           }
         }), null), _el$15.$$click = (event) => {
@@ -4056,7 +3994,7 @@
               onChange: (value) => setDraft("searchHistoryEnabled", value)
             }), null), _el$18;
           }
-        }), null), insert(_el$19, "260720.1259", null), _el$22.$$click = (event) => {
+        }), null), insert(_el$19, "260720.1414", null), _el$22.$$click = (event) => {
           event.stopPropagation(), props.onApply({
             ...draft
           });
@@ -4079,7 +4017,7 @@
   delegateEvents(["click"]);
 
   // src/components/Widgets/BackToTop.tsx
-  var _tmpl$11 = /* @__PURE__ */ template('<button type=button class="ehpeek-back-to-top fixed right-[max(16px,env(safe-area-inset-right,0px))] bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_64px)] z-ui inline-flex w-lg h-lg items-center justify-center rounded-full border ehp-color-site-border bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96">'), BACK_TO_TOP_POSITION_KEY = "ehpeek:back-to-top:position";
+  var _tmpl$11 = /* @__PURE__ */ template('<button type=button class="ehpeek-back-to-top fixed right-[max(16px,env(safe-area-inset-right,0px))] bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_64px)] z-ui inline-flex w-lg h-lg items-center justify-center rounded-full border-0 bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96">'), BACK_TO_TOP_POSITION_KEY = "ehpeek:back-to-top:position";
   function BackToTop() {
     let button, drag = null, dragged = !1, [visible, setVisible] = createSignal(!1), [position, setPosition] = createSignal(null), positionStyle = () => {
       let current = position();
@@ -4178,7 +4116,7 @@
   }
 
   // src/components/TouchUI/GalleryInfoPanel.tsx
-  var _tmpl$12 = /* @__PURE__ */ template("<div>"), _tmpl$25 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-rating-dialog fixed inset-0 z-overlay flex items-center justify-center p-md bg-black/65"role=dialog aria-modal=true aria-label="Rate gallery"><div class="box-border flex w-[min(92vw,420px)] flex-col gap-lg rounded-lg border ehp-color-site-border p-lg ehp-color-site-elevated ehp-color-site-text shadow-xl"><div class="textsize-md font-700">Rate gallery</div><button type=button class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"><span class="flex gap-1px pointer-events-none text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></button><div class="grid grid-cols-2 gap-sm pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108">Submit</button><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">'), _tmpl$34 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans"><div class="ehpeek-touch-gallery-hero relative grid min-h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text"><div><div class="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 flex-col items-start gap-8px pt-2px"><div class="ehpeek-touch-gallery-heading flex min-w-0 w-full flex-none flex-col gap-sm items-start pb-xs"><div class="ehpeek-touch-gallery-title-main line-clamp-4 flex-none overflow-hidden textsize-lg font-400 leading-[1.16] text-left break-anywhere"></div><div class="ehpeek-touch-gallery-title-sub line-clamp-3 flex-none overflow-hidden opacity-82 textsize-md leading-[1.2] text-left break-anywhere"></div></div><div class="ehpeek-touch-gallery-category-row grid grid-cols-[minmax(0,35fr)_minmax(0,65fr)] w-full flex-none items-center gap-lg mt-auto pt-md"><div class="ehpeek-touch-gallery-category box-border w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xs border border-solid py-6px px-10px text-center textsize-md font-700 leading-[1.1] uppercase"></div></div></div></div></div><div class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"><div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]"></div></div><div class="ehpeek-touch-gallery-content flex flex-col gap-lg pt-xl pr-[max(16px,env(safe-area-inset-right,0px))] pb-lg pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text"><div class="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-md gap-x-lg items-center textsize-md leading-[1.2] text-center">'), _tmpl$44 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">'), _tmpl$53 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-rating flex w-full min-w-0 flex-col items-center gap-4px p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-center cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"aria-label="Rate gallery"><div class="ehpeek-touch-gallery-rating-stars relative inline-flex max-w-full overflow-hidden"><span class="ehpeek-touch-gallery-rating-stars-empty flex gap-1px text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></div><div class="ehpeek-touch-gallery-rating-meta flex max-w-full min-w-0 items-center justify-center gap-6px text-[var(--color-muted)] textsize-md leading-[1.15] whitespace-nowrap"><span class="ehpeek-touch-gallery-rating-label min-w-0 overflow-hidden text-ellipsis"aria-live=polite>'), _tmpl$63 = /* @__PURE__ */ template('<span class="ehpeek-touch-gallery-rating-count flex-none pl-6px border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">'), _tmpl$72 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-meta-value line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">'), _tmpl$82 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-groups flex flex-col gap-md pt-2px">'), _tmpl$92 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu-panel absolute top-48px right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$0 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu relative flex min-w-0 items-center justify-center"><button type=button class="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text"aria-haspopup=menu>'), _tmpl$1 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-sm items-start"><div class="ehpeek-touch-gallery-tag-group-name min-h-sm overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-sm px-md text-center lowercase ehp-color-site-accent textsize-md font-600"></div><div class="ehpeek-touch-gallery-tags flex flex-wrap gap-sm">'), _tmpl$102 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-none transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"aria-haspopup=menu>'), _tmpl$112 = /* @__PURE__ */ template('<div role=dialog aria-modal=true><div class="ehpeek-touch-gallery-tag-menu-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-x-hidden overflow-y-auto whitespace-nowrap border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl"role=menu>'), _tmpl$122 = /* @__PURE__ */ template('<label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md">'), _tmpl$13 = /* @__PURE__ */ template('<label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"><option value=marked></option><option value=watched></option><option value=hidden>'), _tmpl$14 = /* @__PURE__ */ template('<div class="grid grid-cols-2 gap-md"><button type=button class="min-h-md rounded-xs border-0 ehp-color-site-surface ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer"></button><button type=button class="flex min-h-md items-center justify-center gap-md rounded-xs border-0 bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit font-700 textsize-md cursor-pointer"><span>'), _tmpl$15 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"role=dialog aria-modal=true><div class="box-border flex w-full max-w-420px flex-col gap-lg rounded-md border ehp-color-site-border ehp-color-site-elevated p-lg shadow-xl"><div class="ehp-color-site-text textsize-lg font-700">'), _tmpl$16 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex box-border w-full min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer"role=menuitem><span>'), _tmpl$17 = /* @__PURE__ */ template("<option>"), _tmpl$18 = /* @__PURE__ */ template('<span class="contents [&amp;_*]:!bg-transparent [&amp;_*]:!text-inherit"translate=no>'), _tmpl$19 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-panel absolute top-[calc(100%+8px)] left-0 z-overlay flex w-[min(86vw,360px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$20 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0"><button type=button aria-haspopup=menu><span class="block leading-[1.15]"></span><span class="ehpeek-touch-gallery-favorite-icon block mt-2px opacity-78 normal-case"aria-hidden=true>'), _tmpl$21 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-loading flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left">'), _tmpl$222 = /* @__PURE__ */ template('<button type=button><span class="ehpeek-touch-gallery-favorite-option-icon flex-none ehp-color-site-text"aria-hidden=true></span><span></span><span aria-hidden=true>'), TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]", TOUCH_GALLERY_TAG_MENU_ITEM_CLASS = "ehpeek-touch-gallery-tag-menu-item flex box-border w-full min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer", TOUCH_GALLERY_TAG_MENU_CLASS = "!box-border flex !h-auto !w-full !float-none !m-0 !p-0 flex-col !textsize-md", TOUCH_GALLERY_INFO_CLASSES = {
+  var _tmpl$12 = /* @__PURE__ */ template("<div>"), _tmpl$25 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-rating-dialog fixed inset-0 z-overlay flex items-center justify-center p-md bg-black/65"role=dialog aria-modal=true aria-label="Rate gallery"><div class="box-border flex w-[min(92vw,420px)] flex-col gap-lg rounded-lg border ehp-color-site-border p-lg ehp-color-site-elevated ehp-color-site-text shadow-xl"><div class="textsize-md font-700">Rate gallery</div><button type=button class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"><span class="flex gap-1px pointer-events-none text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></button><div class="grid grid-cols-2 gap-sm pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108">Submit</button><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">'), _tmpl$34 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans"><div class="ehpeek-touch-gallery-hero relative grid min-h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text"><div><div class="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 flex-col items-start gap-8px pt-2px"><div class="ehpeek-touch-gallery-heading flex min-w-0 w-full flex-none flex-col gap-sm items-start pb-xs"><div class="ehpeek-touch-gallery-title-main line-clamp-4 flex-none overflow-hidden textsize-lg font-400 leading-[1.16] text-left break-anywhere"></div><div class="ehpeek-touch-gallery-title-sub line-clamp-3 flex-none overflow-hidden opacity-82 textsize-md leading-[1.2] text-left break-anywhere"></div></div><div class="ehpeek-touch-gallery-category-row grid grid-cols-[minmax(0,35fr)_minmax(0,65fr)] w-full flex-none items-center gap-lg mt-auto pt-md"><div class="ehpeek-touch-gallery-category box-border w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xs border border-solid py-6px px-10px text-center textsize-md font-700 leading-[1.1] uppercase"></div></div></div></div></div><div class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"><div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]"></div></div><div class="ehpeek-touch-gallery-content flex flex-col gap-lg pt-xl pr-[max(16px,env(safe-area-inset-right,0px))] pb-lg pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text"><div class="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-md gap-x-lg items-center textsize-md leading-[1.2] text-center">'), _tmpl$44 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">'), _tmpl$53 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-rating flex w-full min-w-0 flex-col items-center gap-4px p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-center cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"aria-label="Rate gallery"><div class="ehpeek-touch-gallery-rating-stars relative inline-flex max-w-full overflow-hidden"><span class="ehpeek-touch-gallery-rating-stars-empty flex gap-1px text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></div><div class="ehpeek-touch-gallery-rating-meta flex max-w-full min-w-0 items-center justify-center gap-6px text-[var(--color-muted)] textsize-md leading-[1.15] whitespace-nowrap"><span class="ehpeek-touch-gallery-rating-label min-w-0 overflow-hidden text-ellipsis"aria-live=polite>'), _tmpl$63 = /* @__PURE__ */ template('<span class="ehpeek-touch-gallery-rating-count flex-none pl-6px border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">'), _tmpl$72 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-meta-value line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">'), _tmpl$82 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-groups flow-root pt-2px"><button type=button><span>Tagging</span><span aria-hidden=true>'), _tmpl$92 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu-panel absolute top-48px right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$0 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu relative flex min-w-0 items-center justify-center"><button type=button class="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text"aria-haspopup=menu>'), _tmpl$1 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-sm items-start mb-md last:mb-0"><div class="ehpeek-touch-gallery-tag-group-name min-h-sm overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-sm px-md text-center lowercase ehp-color-site-accent textsize-md font-600"></div><div class="ehpeek-touch-gallery-tags flex flex-wrap gap-sm">'), _tmpl$102 = /* @__PURE__ */ template('<a class="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-none no-underline transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent">'), _tmpl$112 = /* @__PURE__ */ template('<div role=dialog aria-modal=true><div class="ehpeek-touch-gallery-tag-menu-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-x-hidden overflow-y-auto whitespace-nowrap border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl"role=menu>'), _tmpl$122 = /* @__PURE__ */ template('<label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md">'), _tmpl$13 = /* @__PURE__ */ template('<label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"><option value=marked></option><option value=watched></option><option value=hidden>'), _tmpl$14 = /* @__PURE__ */ template('<div class="grid grid-cols-2 gap-md"><button type=button class="min-h-md rounded-xs border-0 ehp-color-site-surface ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer"></button><button type=button class="flex min-h-md items-center justify-center gap-md rounded-xs border-0 bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit font-700 textsize-md cursor-pointer"><span>'), _tmpl$15 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"role=dialog aria-modal=true><div class="box-border flex w-full max-w-420px flex-col gap-lg rounded-md border ehp-color-site-border ehp-color-site-elevated p-lg shadow-xl"><div class="ehp-color-site-text textsize-lg font-700">'), _tmpl$16 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex box-border w-full min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer"role=menuitem><span>'), _tmpl$17 = /* @__PURE__ */ template("<option>"), _tmpl$18 = /* @__PURE__ */ template('<span class="contents [&amp;_*]:!bg-transparent [&amp;_*]:!text-inherit"translate=no>'), _tmpl$19 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-panel absolute top-[calc(100%+8px)] left-0 z-overlay flex w-[min(86vw,360px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$20 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0"><button type=button aria-haspopup=menu><span class="block leading-[1.15]"></span><span class="ehpeek-touch-gallery-favorite-icon block mt-2px opacity-78 normal-case"aria-hidden=true>'), _tmpl$21 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-loading flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left">'), _tmpl$222 = /* @__PURE__ */ template('<button type=button><span class="ehpeek-touch-gallery-favorite-option-icon flex-none ehp-color-site-text"aria-hidden=true></span><span></span><span aria-hidden=true>'), TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]", TOUCH_GALLERY_TAG_MENU_ITEM_CLASS = "ehpeek-touch-gallery-tag-menu-item flex box-border w-full min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer", TOUCH_GALLERY_TAG_MENU_CLASS = "!box-border flex !h-auto !w-full !float-none !m-0 !p-0 flex-col !textsize-md", TOUCH_GALLERY_INFO_CLASSES = {
     actionItems: TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS,
     cover: "block w-full max-w-full h-full max-h-full mx-auto object-contain object-center",
     host: "ehpeek-touch-gallery-host",
@@ -4202,7 +4140,7 @@
           contentSource
         }] : [];
       })
-    })), [tagGroups, setTagGroups] = createSignal(initialTagGroups), [selectedTag, setSelectedTag] = createSignal(null), [newTagVisible, setNewTagVisible] = createSignal(!1), hasNewTag = () => !!(source.elems.newTag && source.elems.newTagButton && source.elems.newTagField && source.elems.newTagForm), displayedRating = createMemo(() => ratingPreview() ?? ratingValue()), ratingLabel = createMemo(() => {
+    })), [tagGroups, setTagGroups] = createSignal(initialTagGroups), [selectedTag, setSelectedTag] = createSignal(null), [tagging, setTagging] = createSignal(!1), hasNewTag = () => !!(source.elems.newTag && source.elems.newTagButton && source.elems.newTagField && source.elems.newTagForm), displayedRating = createMemo(() => ratingPreview() ?? ratingValue()), ratingLabel = createMemo(() => {
       let preview = ratingPreview();
       return preview !== null ? `Rate as ${preview.toFixed(1)} stars` : ratingValueLabel();
     });
@@ -4218,15 +4156,9 @@
       } catch (error) {
         return setRatingPreview(null), console.error("[ehpeek]", error), window.alert(error instanceof Error ? error.message : texts_default.errors.loadFailed), !1;
       }
-    }, openNewTag = () => {
-      hasNewTag() && (setNewTagVisible(!0), queueMicrotask(() => {
-        source.elems.newTag?.scrollIntoView({
-          block: "nearest"
-        }), source.elems.newTagField?.focus();
-      }));
     }, openTagMenu = (tag) => {
       try {
-        source.handle.openGalleryTagMenu(tag, TOUCH_GALLERY_TAG_MENU_CLASS, TOUCH_GALLERY_TAG_MENU_ITEM_CLASS, hasNewTag() ? openNewTag : void 0), setSelectedTag(tag);
+        source.handle.openGalleryTagMenu(tag, TOUCH_GALLERY_TAG_MENU_CLASS, TOUCH_GALLERY_TAG_MENU_ITEM_CLASS), setSelectedTag(tag);
       } catch (error) {
         console.error("[ehpeek] Gallery tag actions failed", error), window.alert(error instanceof Error ? error.message : texts_default.errors.loadFailed);
       }
@@ -4293,16 +4225,33 @@
       }), null), insert(_el$10, (() => {
         var _c$ = memo(() => tagGroups().length > 0);
         return () => _c$() && (() => {
-          var _el$31 = _tmpl$82();
-          return insert(_el$31, createComponent(For, {
+          var _el$31 = _tmpl$82(), _el$32 = _el$31.firstChild, _el$33 = _el$32.firstChild, _el$34 = _el$33.nextSibling;
+          return _el$32.$$click = () => {
+            let enabled = !tagging();
+            setTagging(enabled), enabled && hasNewTag() && queueMicrotask(() => {
+              source.elems.newTag?.scrollIntoView({
+                block: "nearest"
+              }), source.elems.newTagField?.focus();
+            });
+          }, insert(_el$31, createComponent(For, {
             get each() {
               return tagGroups();
             },
             children: (group) => createComponent(TouchGalleryTagGroup, {
               group,
+              get tagging() {
+                return tagging();
+              },
               onTagOpen: openTagMenu
             })
-          })), _el$31;
+          }), null), createRenderEffect((_p$) => {
+            var _v$6 = `float-right inline-flex min-h-sm items-center justify-center gap-md ml-sm mb-sm rounded-xl border-0 px-lg font-inherit font-700 textsize-sm cursor-pointer transition-[background-color,color] duration-120 ${tagging() ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent" : "bg-[var(--color-site-surface)] ehp-color-site-text"}`, _v$7 = tagging(), _v$8 = `block flex-none w-10px h-10px coarse:w-18px coarse:h-18px rounded-full ${tagging() ? "bg-[var(--color-state-on)]" : "bg-[var(--color-state-off)]"}`;
+            return _v$6 !== _p$.e && className(_el$32, _p$.e = _v$6), _v$7 !== _p$.t && setAttribute(_el$32, "aria-pressed", _p$.t = _v$7), _v$8 !== _p$.a && className(_el$34, _p$.a = _v$8), _p$;
+          }, {
+            e: void 0,
+            t: void 0,
+            a: void 0
+          }), _el$31;
         })();
       })(), null), insert(_el$10, createComponent(Show, {
         get when() {
@@ -4312,7 +4261,7 @@
           var _el$12 = _tmpl$12();
           return insert(_el$12, createComponent(TouchGalleryNewTag, {
             source
-          })), createRenderEffect(() => className(_el$12, newTagVisible() ? "block" : "hidden")), _el$12;
+          })), createRenderEffect(() => className(_el$12, tagging() ? "block" : "hidden")), _el$12;
         }
       }), null), insert(_el$, createComponent(TouchGalleryTagMenu, {
         source,
@@ -4369,56 +4318,61 @@
         document.removeEventListener("click", onClick);
       });
     }), (() => {
-      var _el$32 = _tmpl$0(), _el$33 = _el$32.firstChild, _ref$ = root;
-      return typeof _ref$ == "function" ? use(_ref$, _el$32) : root = _el$32, _el$33.$$click = (event) => {
+      var _el$35 = _tmpl$0(), _el$36 = _el$35.firstChild, _ref$ = root;
+      return typeof _ref$ == "function" ? use(_ref$, _el$35) : root = _el$35, _el$36.$$click = (event) => {
         event.stopPropagation(), setOpen((value) => !value);
-      }, insert(_el$33, createComponent(Icon, {
+      }, insert(_el$36, createComponent(Icon, {
         name: "menu"
-      })), insert(_el$32, createComponent(Show, {
+      })), insert(_el$35, createComponent(Show, {
         get when() {
           return open();
         },
         get children() {
-          var _el$34 = _tmpl$92();
-          return insert(_el$34, createComponent(DomNodes, {
+          var _el$37 = _tmpl$92();
+          return insert(_el$37, createComponent(DomNodes, {
             get nodes() {
               return props.items;
             }
-          })), _el$34;
+          })), _el$37;
         }
-      }), null), createRenderEffect(() => setAttribute(_el$33, "aria-expanded", open())), _el$32;
+      }), null), createRenderEffect(() => setAttribute(_el$36, "aria-expanded", open())), _el$35;
     })();
   }
   function TouchGalleryTagGroup(props) {
     return (() => {
-      var _el$35 = _tmpl$1(), _el$36 = _el$35.firstChild, _el$37 = _el$36.nextSibling;
-      return insert(_el$36, () => props.group.namespace), insert(_el$37, createComponent(For, {
+      var _el$38 = _tmpl$1(), _el$39 = _el$38.firstChild, _el$40 = _el$39.nextSibling;
+      return insert(_el$39, () => props.group.namespace), _el$40.$$click = (event) => {
+        if (!props.tagging || event.defaultPrevented || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
+          return;
+        let href = (event.target instanceof Element ? event.target.closest("a.ehpeek-touch-gallery-tag") : null)?.getAttribute("href"), tag = props.group.tags.find((candidate) => candidate.url === href);
+        tag && (event.preventDefault(), props.onTagOpen(tag));
+      }, insert(_el$40, createComponent(For, {
         get each() {
           return props.group.tags;
         },
         children: (tag) => createComponent(TouchGalleryTag, {
-          tag,
-          onOpen: () => props.onTagOpen(tag)
+          tag
         })
-      })), _el$35;
+      })), _el$38;
     })();
   }
   function TouchGalleryTag(props) {
     return (() => {
-      var _el$38 = _tmpl$102();
-      return _el$38.$$click = () => props.onOpen(), insert(_el$38, createComponent(TouchGalleryTagContent, {
+      var _el$41 = _tmpl$102();
+      return insert(_el$41, createComponent(TouchGalleryTagContent, {
         get tag() {
           return props.tag;
         }
       })), createRenderEffect((_p$) => {
-        var _v$6 = props.tag.appearance.backgroundColor, _v$7 = props.tag.appearance.borderColor, _v$8 = props.tag.appearance.color, _v$9 = props.tag.label;
-        return _v$6 !== _p$.e && setStyleProperty(_el$38, "background-color", _p$.e = _v$6), _v$7 !== _p$.t && setStyleProperty(_el$38, "border-color", _p$.t = _v$7), _v$8 !== _p$.a && setStyleProperty(_el$38, "color", _p$.a = _v$8), _v$9 !== _p$.o && setAttribute(_el$38, "aria-label", _p$.o = _v$9), _p$;
+        var _v$9 = props.tag.url, _v$0 = props.tag.appearance.backgroundColor, _v$1 = props.tag.appearance.borderColor, _v$10 = props.tag.appearance.color, _v$11 = props.tag.label;
+        return _v$9 !== _p$.e && setAttribute(_el$41, "href", _p$.e = _v$9), _v$0 !== _p$.t && setStyleProperty(_el$41, "background-color", _p$.t = _v$0), _v$1 !== _p$.a && setStyleProperty(_el$41, "border-color", _p$.a = _v$1), _v$10 !== _p$.o && setStyleProperty(_el$41, "color", _p$.o = _v$10), _v$11 !== _p$.i && setAttribute(_el$41, "aria-label", _p$.i = _v$11), _p$;
       }, {
         e: void 0,
         t: void 0,
         a: void 0,
-        o: void 0
-      }), _el$38;
+        o: void 0,
+        i: void 0
+      }), _el$41;
     })();
   }
   function TouchGalleryTagMenu(props) {
@@ -4444,12 +4398,12 @@
       }
     };
     return [(() => {
-      var _el$39 = _tmpl$112(), _el$40 = _el$39.firstChild;
-      return _el$39.$$click = (event) => {
+      var _el$42 = _tmpl$112(), _el$43 = _el$42.firstChild;
+      return _el$42.$$click = (event) => {
         event.target === event.currentTarget && props.onClose();
-      }, _el$40.$$click = () => {
+      }, _el$43.$$click = () => {
         updating() || props.onClose();
-      }, insert(_el$40, createComponent(Show, {
+      }, insert(_el$43, createComponent(Show, {
         get when() {
           return !updating();
         },
@@ -4477,43 +4431,43 @@
               },
               get fallback() {
                 return (() => {
-                  var _el$59 = _tmpl$16(), _el$60 = _el$59.firstChild;
-                  return _el$59.$$click = (event) => {
+                  var _el$62 = _tmpl$16(), _el$63 = _el$62.firstChild;
+                  return _el$62.$$click = (event) => {
                     event.stopPropagation(), updateFavoriteTag(tag());
-                  }, insert(_el$59, createComponent(Icon, {
+                  }, insert(_el$62, createComponent(Icon, {
                     name: "heart",
                     filled: !0
-                  }), _el$60), insert(_el$60, () => texts_default.gallery.removeFavoriteTag), _el$59;
+                  }), _el$63), insert(_el$63, () => texts_default.gallery.removeFavoriteTag), _el$62;
                 })();
               },
               get children() {
-                var _el$57 = _tmpl$16(), _el$58 = _el$57.firstChild;
-                return _el$57.$$click = () => {
+                var _el$60 = _tmpl$16(), _el$61 = _el$60.firstChild;
+                return _el$60.$$click = () => {
                   setFavoriteTag(tag()), setFavoriteDialogOpen(!0);
-                }, insert(_el$57, createComponent(Icon, {
+                }, insert(_el$60, createComponent(Icon, {
                   name: "heart"
-                }), _el$58), insert(_el$58, () => texts_default.gallery.favoriteTag), _el$57;
+                }), _el$61), insert(_el$61, () => texts_default.gallery.favoriteTag), _el$60;
               }
             })
           })];
         }
       })), createRenderEffect((_p$) => {
-        var _v$0 = `ehpeek-touch-gallery-tag-menu-dialog fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 transition-opacity duration-120 ${props.tag ? "visible opacity-100" : "invisible opacity-0 pointer-events-none"}`, _v$1 = !props.tag, _v$10 = props.tag?.label ?? "";
-        return _v$0 !== _p$.e && className(_el$39, _p$.e = _v$0), _v$1 !== _p$.t && setAttribute(_el$39, "aria-hidden", _p$.t = _v$1), _v$10 !== _p$.a && setAttribute(_el$39, "aria-label", _p$.a = _v$10), _p$;
+        var _v$12 = `ehpeek-touch-gallery-tag-menu-dialog fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 transition-opacity duration-120 ${props.tag ? "visible opacity-100" : "invisible opacity-0 pointer-events-none"}`, _v$13 = !props.tag, _v$14 = props.tag?.label ?? "";
+        return _v$12 !== _p$.e && className(_el$42, _p$.e = _v$12), _v$13 !== _p$.t && setAttribute(_el$42, "aria-hidden", _p$.t = _v$13), _v$14 !== _p$.a && setAttribute(_el$42, "aria-label", _p$.a = _v$14), _p$;
       }, {
         e: void 0,
         t: void 0,
         a: void 0
-      }), _el$39;
+      }), _el$42;
     })(), createComponent(Show, {
       get when() {
         return favoriteDialogOpen();
       },
       get children() {
-        var _el$41 = _tmpl$15(), _el$42 = _el$41.firstChild, _el$43 = _el$42.firstChild;
-        return _el$41.$$click = (event) => {
+        var _el$44 = _tmpl$15(), _el$45 = _el$44.firstChild, _el$46 = _el$45.firstChild;
+        return _el$44.$$click = (event) => {
           event.target === event.currentTarget && setFavoriteDialogOpen(!1);
-        }, insert(_el$43, () => texts_default.gallery.favoriteTag), insert(_el$42, createComponent(Show, {
+        }, insert(_el$46, () => texts_default.gallery.favoriteTag), insert(_el$45, createComponent(Show, {
           get when() {
             return !updating();
           },
@@ -4528,35 +4482,33 @@
           },
           get children() {
             return [(() => {
-              var _el$44 = _tmpl$122(), _el$45 = _el$44.firstChild, _el$46 = _el$45.nextSibling;
-              return insert(_el$45, () => texts_default.gallery.tagCollection), _el$46.addEventListener("change", (event) => setSelectedTagSet(event.currentTarget.value)), insert(_el$46, createComponent(For, {
+              var _el$47 = _tmpl$122(), _el$48 = _el$47.firstChild, _el$49 = _el$48.nextSibling;
+              return insert(_el$48, () => texts_default.gallery.tagCollection), _el$49.addEventListener("change", (event) => setSelectedTagSet(event.currentTarget.value)), insert(_el$49, createComponent(For, {
                 each: tagSets,
                 children: (option) => (() => {
-                  var _el$61 = _tmpl$17();
-                  return insert(_el$61, () => option.label), createRenderEffect(() => _el$61.value = option.value), _el$61;
+                  var _el$64 = _tmpl$17();
+                  return insert(_el$64, () => option.label), createRenderEffect(() => _el$64.value = option.value), _el$64;
                 })()
-              })), createRenderEffect(() => _el$46.value = selectedTagSet()), _el$44;
+              })), createRenderEffect(() => _el$49.value = selectedTagSet()), _el$47;
             })(), (() => {
-              var _el$47 = _tmpl$13(), _el$48 = _el$47.firstChild, _el$49 = _el$48.nextSibling, _el$50 = _el$49.firstChild, _el$51 = _el$50.nextSibling, _el$52 = _el$51.nextSibling;
-              return insert(_el$48, () => texts_default.gallery.tagBehavior), _el$49.addEventListener("change", (event) => setTagMode(event.currentTarget.value)), insert(_el$50, () => texts_default.gallery.markTag), insert(_el$51, () => texts_default.gallery.watchTag), insert(_el$52, () => texts_default.gallery.hideTag), createRenderEffect(() => _el$49.value = tagMode()), _el$47;
+              var _el$50 = _tmpl$13(), _el$51 = _el$50.firstChild, _el$52 = _el$51.nextSibling, _el$53 = _el$52.firstChild, _el$54 = _el$53.nextSibling, _el$55 = _el$54.nextSibling;
+              return insert(_el$51, () => texts_default.gallery.tagBehavior), _el$52.addEventListener("change", (event) => setTagMode(event.currentTarget.value)), insert(_el$53, () => texts_default.gallery.markTag), insert(_el$54, () => texts_default.gallery.watchTag), insert(_el$55, () => texts_default.gallery.hideTag), createRenderEffect(() => _el$52.value = tagMode()), _el$50;
             })(), (() => {
-              var _el$53 = _tmpl$14(), _el$54 = _el$53.firstChild, _el$55 = _el$54.nextSibling, _el$56 = _el$55.firstChild;
-              return _el$54.$$click = () => setFavoriteDialogOpen(!1), insert(_el$54, () => texts_default.button.close), _el$55.$$click = () => {
+              var _el$56 = _tmpl$14(), _el$57 = _el$56.firstChild, _el$58 = _el$57.nextSibling, _el$59 = _el$58.firstChild;
+              return _el$57.$$click = () => setFavoriteDialogOpen(!1), insert(_el$57, () => texts_default.button.close), _el$58.$$click = () => {
                 let tag = favoriteTag();
                 tag && updateFavoriteTag(tag);
-              }, insert(_el$55, createComponent(Icon, {
+              }, insert(_el$58, createComponent(Icon, {
                 name: "heart"
-              }), _el$56), insert(_el$56, () => texts_default.button.confirm), _el$53;
+              }), _el$59), insert(_el$59, () => texts_default.button.confirm), _el$56;
             })()];
           }
-        }), null), createRenderEffect(() => setAttribute(_el$41, "aria-label", texts_default.gallery.favoriteTag)), _el$41;
+        }), null), createRenderEffect(() => setAttribute(_el$44, "aria-label", texts_default.gallery.favoriteTag)), _el$44;
       }
     })];
   }
   function TouchGalleryNewTag(props) {
-    return onMount(() => {
-      props.source.handle.reuseNewTagAutocomplete();
-    }), createComponent(DomNode2, {
+    return createComponent(DomNode2, {
       get node() {
         return props.source.elems.newTag;
       }
@@ -4567,8 +4519,8 @@
     return onMount(() => {
       onCleanup(props.tag.contentSource.mirrorContentTo(host));
     }), (() => {
-      var _el$62 = _tmpl$18(), _ref$2 = host;
-      return typeof _ref$2 == "function" ? use(_ref$2, _el$62) : host = _el$62, _el$62;
+      var _el$65 = _tmpl$18(), _ref$2 = host;
+      return typeof _ref$2 == "function" ? use(_ref$2, _el$65) : host = _el$65, _el$65;
     })();
   }
   function TouchGalleryFavoriteButton(props) {
@@ -4610,21 +4562,21 @@
       }
     };
     return (() => {
-      var _el$63 = _tmpl$20(), _el$64 = _el$63.firstChild, _el$65 = _el$64.firstChild, _el$66 = _el$65.nextSibling, _ref$3 = root;
-      return typeof _ref$3 == "function" ? use(_ref$3, _el$63) : root = _el$63, _el$64.$$click = (event) => {
+      var _el$66 = _tmpl$20(), _el$67 = _el$66.firstChild, _el$68 = _el$67.firstChild, _el$69 = _el$68.nextSibling, _ref$3 = root;
+      return typeof _ref$3 == "function" ? use(_ref$3, _el$66) : root = _el$66, _el$67.$$click = (event) => {
         event.stopPropagation(), open() ? setOpen(!1) : openMenu();
-      }, insert(_el$65, () => favorite().label), insert(_el$66, createComponent(Icon, {
+      }, insert(_el$68, () => favorite().label), insert(_el$69, createComponent(Icon, {
         name: "heart",
         get filled() {
           return favorited();
         }
-      })), insert(_el$63, createComponent(Show, {
+      })), insert(_el$66, createComponent(Show, {
         get when() {
           return open();
         },
         get children() {
-          var _el$67 = _tmpl$19();
-          return insert(_el$67, createComponent(Show, {
+          var _el$70 = _tmpl$19();
+          return insert(_el$70, createComponent(Show, {
             get when() {
               return loadingState() === "loading";
             },
@@ -4637,7 +4589,7 @@
                 showIcon: !1
               });
             }
-          }), null), insert(_el$67, createComponent(Show, {
+          }), null), insert(_el$70, createComponent(Show, {
             get when() {
               return loadingState() === "failed";
             },
@@ -4646,7 +4598,7 @@
                 text: "Failed"
               });
             }
-          }), null), insert(_el$67, createComponent(Show, {
+          }), null), insert(_el$70, createComponent(Show, {
             get when() {
               return loadingState() === "idle";
             },
@@ -4663,46 +4615,46 @@
                 })
               });
             }
-          }), null), _el$67;
+          }), null), _el$70;
         }
       }), null), createRenderEffect((_p$) => {
-        var _v$11 = `ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] textsize-md font-700 normal-case ${favorited() ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`, _v$12 = favorite().color ?? void 0, _v$13 = open();
-        return _v$11 !== _p$.e && className(_el$64, _p$.e = _v$11), _v$12 !== _p$.t && setStyleProperty(_el$64, "color", _p$.t = _v$12), _v$13 !== _p$.a && setAttribute(_el$64, "aria-expanded", _p$.a = _v$13), _p$;
+        var _v$15 = `ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] textsize-md font-700 normal-case ${favorited() ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`, _v$16 = favorite().color ?? void 0, _v$17 = open();
+        return _v$15 !== _p$.e && className(_el$67, _p$.e = _v$15), _v$16 !== _p$.t && setStyleProperty(_el$67, "color", _p$.t = _v$16), _v$17 !== _p$.a && setAttribute(_el$67, "aria-expanded", _p$.a = _v$17), _p$;
       }, {
         e: void 0,
         t: void 0,
         a: void 0
-      }), _el$63;
+      }), _el$66;
     })();
   }
   function TouchGalleryFavoriteStatus(props) {
     return (() => {
-      var _el$68 = _tmpl$21();
-      return insert(_el$68, () => props.text), _el$68;
+      var _el$71 = _tmpl$21();
+      return insert(_el$71, () => props.text), _el$71;
     })();
   }
   function TouchGalleryFavoriteOption(props) {
     return (() => {
-      var _el$69 = _tmpl$222(), _el$70 = _el$69.firstChild, _el$71 = _el$70.nextSibling, _el$72 = _el$71.nextSibling;
-      return _el$69.$$click = (event) => {
+      var _el$72 = _tmpl$222(), _el$73 = _el$72.firstChild, _el$74 = _el$73.nextSibling, _el$75 = _el$74.nextSibling;
+      return _el$72.$$click = (event) => {
         event.stopPropagation(), props.onSelect();
-      }, insert(_el$70, createComponent(Icon, {
+      }, insert(_el$73, createComponent(Icon, {
         name: "heart",
         get filled() {
           return props.option.value !== "favdel";
         }
-      })), insert(_el$71, () => props.option.label), insert(_el$72, createComponent(Icon, {
+      })), insert(_el$74, () => props.option.label), insert(_el$75, createComponent(Icon, {
         name: "check"
       })), createRenderEffect((_p$) => {
-        var _v$14 = `ehpeek-touch-gallery-favorite-option flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left ${props.option.value === "favdel" ? "ehpeek-touch-gallery-favorite-option-remove" : ""}`, _v$15 = props.option.selected, _v$16 = props.option.color ?? void 0, _v$17 = `ml-auto flex-none ehp-color-site-text ${props.option.selected ? "visible" : "invisible"}`, _v$18 = props.option.color ?? void 0;
-        return _v$14 !== _p$.e && className(_el$69, _p$.e = _v$14), _v$15 !== _p$.t && setAttribute(_el$69, "aria-pressed", _p$.t = _v$15), _v$16 !== _p$.a && setStyleProperty(_el$70, "color", _p$.a = _v$16), _v$17 !== _p$.o && className(_el$72, _p$.o = _v$17), _v$18 !== _p$.i && setStyleProperty(_el$72, "color", _p$.i = _v$18), _p$;
+        var _v$18 = `ehpeek-touch-gallery-favorite-option flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left ${props.option.value === "favdel" ? "ehpeek-touch-gallery-favorite-option-remove" : ""}`, _v$19 = props.option.selected, _v$20 = props.option.color ?? void 0, _v$21 = `ml-auto flex-none ehp-color-site-text ${props.option.selected ? "visible" : "invisible"}`, _v$22 = props.option.color ?? void 0;
+        return _v$18 !== _p$.e && className(_el$72, _p$.e = _v$18), _v$19 !== _p$.t && setAttribute(_el$72, "aria-pressed", _p$.t = _v$19), _v$20 !== _p$.a && setStyleProperty(_el$73, "color", _p$.a = _v$20), _v$21 !== _p$.o && className(_el$75, _p$.o = _v$21), _v$22 !== _p$.i && setStyleProperty(_el$75, "color", _p$.i = _v$22), _p$;
       }, {
         e: void 0,
         t: void 0,
         a: void 0,
         o: void 0,
         i: void 0
-      }), _el$69;
+      }), _el$72;
     })();
   }
   function ratingFromPointer(clientX, element) {
@@ -4809,7 +4761,7 @@
     return [(() => {
       var _el$3 = _tmpl$36();
       return _el$3.$$click = (event) => {
-        event.preventDefault(), search ? source.handle.activateSearch() : source.handle.activateClear();
+        event.preventDefault(), search ? source.handle.activateSearch() : source.handle.clearSearchText();
       }, setAttribute(_el$3, "type", search ? "submit" : "button"), setAttribute(_el$3, "aria-label", label), setAttribute(_el$3, "title", label), insert(_el$3, createComponent(Icon, {
         name: search ? "search" : "close",
         size: 32
@@ -5069,8 +5021,10 @@ body #gdt[class],
 .z-ui{z-index:1000;}
 .mb-lg{margin-bottom:16px;}
 .mb-md{margin-bottom:12px;}
+.mb-sm{margin-bottom:8px;}
 .mb-xs{margin-bottom:4px;}
 .ml-md{margin-left:12px;}
+.ml-sm{margin-left:8px;}
 .mt-md{margin-top:12px;}
 .mt-xs{margin-top:4px;}
 .scrollbar-hidden::-webkit-scrollbar{display:none;}
@@ -5259,6 +5213,7 @@ body #gdt[class],
 .grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr));}
 .grid-cols-1{grid-template-columns:repeat(1,minmax(0,1fr));}
 .grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr));}
+.float-right{float:right;}
 .\\!float-none{float:none !important;}
 .\\!m-0{margin:0 !important;}
 .m-0{margin:0;}
@@ -5284,6 +5239,7 @@ body #gdt[class],
 .mt-1px{margin-top:1px;}
 .mt-2px{margin-top:2px;}
 .mt-auto{margin-top:auto;}
+.last\\:mb-0:last-child{margin-bottom:0;}
 .\\!box-border{box-sizing:border-box !important;}
 .\\[\\&_\\.auto-complete-item\\]\\:box-border .auto-complete-item,
 .\\[\\&_\\.searchadv\\]\\:box-border .searchadv,
@@ -5291,6 +5247,7 @@ body #gdt[class],
 .block{display:block;}
 .inline-block{display:inline-block;}
 .contents{display:contents;}
+.flow-root{display:flow-root;}
 .\\!hidden{display:none !important;}
 .hidden{display:none;}
 .aspect-\\[2\\/3\\]{aspect-ratio:2/3;}
@@ -5587,6 +5544,7 @@ body #gdt[class],
 .hover\\:brightness-108:hover{--un-brightness:brightness(1.08);filter:var(--un-blur) var(--un-brightness) var(--un-contrast) var(--un-drop-shadow) var(--un-grayscale) var(--un-hue-rotate) var(--un-invert) var(--un-saturate) var(--un-sepia);}
 .filter{filter:var(--un-blur) var(--un-brightness) var(--un-contrast) var(--un-drop-shadow) var(--un-grayscale) var(--un-hue-rotate) var(--un-invert) var(--un-saturate) var(--un-sepia);}
 .backdrop-filter{-webkit-backdrop-filter:var(--un-backdrop-blur) var(--un-backdrop-brightness) var(--un-backdrop-contrast) var(--un-backdrop-grayscale) var(--un-backdrop-hue-rotate) var(--un-backdrop-invert) var(--un-backdrop-opacity) var(--un-backdrop-saturate) var(--un-backdrop-sepia);backdrop-filter:var(--un-backdrop-blur) var(--un-backdrop-brightness) var(--un-backdrop-contrast) var(--un-backdrop-grayscale) var(--un-backdrop-hue-rotate) var(--un-backdrop-invert) var(--un-backdrop-opacity) var(--un-backdrop-saturate) var(--un-backdrop-sepia);}
+.transition-\\[background-color\\,color\\]{transition-property:background-color,color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
 .transition-\\[background-color\\,transform\\]{transition-property:background-color,transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
 .transition-\\[border-color\\,background-color\\,color\\]{transition-property:border-color,background-color,color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
 .transition-\\[filter\\,transform\\,box-shadow\\]{transition-property:filter,transform,box-shadow;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
@@ -6677,8 +6635,13 @@ body #gdt[class],
   registerGlobalStyle("ehpeek-reader-style", Reader_default);
   var DEFAULT_WINDOW_SIZE2 = 10, PAGED_SWIPE_THRESHOLD = 24, PAGED_WHEEL_THRESHOLD = 8, PROGRESS_IDLE_COMMIT_MS = 1e3, DOUBLE_TAP_MS = 340, DOUBLE_TAP_DISTANCE = 36, TAP_CANCEL_DISTANCE = 8, FALLBACK_ASPECT_RATIO2 = 1.42;
   function Reader(props) {
-    let options = untrack(() => props.options), previewCache = untrack(() => props.previewCache), callbacks = untrack(() => props.callbacks), session = new ReaderSession(options), readerState = session.state, readerCallbacks2 = wireReaderCallbacks(session, options, previewCache, callbacks);
-    return onMount(() => {
+    let options = untrack(() => props.options), previewCache = untrack(() => props.previewCache), callbacks = untrack(() => props.callbacks), session = new ReaderSession(options), readerState = session.state, readerCallbacks2 = wireReaderCallbacks(session, options, previewCache, callbacks), previousFullscreenActive = untrack(() => props.fullscreenActive);
+    return createEffect(() => {
+      let fullscreenActive = props.fullscreenActive;
+      fullscreenActive !== previousFullscreenActive && (previousFullscreenActive = fullscreenActive, session.requestAnimationFrame(() => {
+        session.requestAnimationFrame(readerCallbacks2.realignCurrentPage);
+      }));
+    }), onMount(() => {
       readerCallbacks2.init(), onCleanup(() => {
         readerCallbacks2.cleanup(), session.dispose();
       });
@@ -6870,6 +6833,9 @@ body #gdt[class],
       },
       cleanup: () => {
         document.removeEventListener("keydown", onKeydown, !0);
+      },
+      realignCurrentPage: () => {
+        scrollToCurrentPage();
       },
       toolbar,
       viewport
@@ -7391,12 +7357,11 @@ body #gdt[class],
   }
 
   // src/App/index.tsx
-  var _tmpl$49 = /* @__PURE__ */ template("<a href=#>"), WELCOME_ICON_TIMEOUT_MS = 3e3;
+  var _tmpl$49 = /* @__PURE__ */ template("<a href=#>");
   function settingsMenuState(defaults = !1) {
     let read = (setting) => defaults ? setting.defaultValue : setting.value;
     return {
       openGalleryInNewTab: read(state.app.openGalleryInNewTab),
-      welcomeIconEnabled: read(state.app.welcomeIcon),
       readerEnabled: read(state.reader.enabled),
       readerFullscreenEnabled: read(state.reader.fullscreen),
       enhanceThumbsGridsEnabled: read(state.gallery.enhanceThumbs),
@@ -7408,7 +7373,7 @@ body #gdt[class],
     };
   }
   function applySettingsMenuState(next) {
-    state.app.openGalleryInNewTab.set(next.openGalleryInNewTab), state.app.welcomeIcon.set(next.welcomeIconEnabled), state.reader.enabled.set(next.readerEnabled), state.reader.fullscreen.set(next.readerFullscreenEnabled), state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled), state.search.enhance.set(next.enhanceSearchGridsEnabled), state.gallery.myTags.set(next.myTagsEnabled), state.gallery.readHistory.set(next.readHistoryEnabled), state.search.history.set(next.searchHistoryEnabled), state.touch.enabled.set(next.touchUiEnabled), window.location.reload();
+    state.app.openGalleryInNewTab.set(next.openGalleryInNewTab), state.reader.enabled.set(next.readerEnabled), state.reader.fullscreen.set(next.readerFullscreenEnabled), state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled), state.search.enhance.set(next.enhanceSearchGridsEnabled), state.gallery.myTags.set(next.myTagsEnabled), state.gallery.readHistory.set(next.readHistoryEnabled), state.search.history.set(next.searchHistoryEnabled), state.touch.enabled.set(next.touchUiEnabled), window.location.reload();
   }
   var gState = (() => {
     let [settingsMenuOpen, setSettingsMenuOpen] = createSignal(!1), [readProgress, setReadProgress] = createSignal({
@@ -7428,12 +7393,6 @@ body #gdt[class],
   document.documentElement.setAttribute("data-ehpeek-site", ehSiteTheme());
   registerGlobalStyle("ehpeek-uno-style", ehpeek_uno_default);
   registerGlobalStyle("ehpeek-theme-style", theme_default);
-  var welcomeIconMount = gState.settings.welcomeIconEnabled ? createAppMount() : null;
-  welcomeIconMount?.mount(() => createComponent(WelcomeIcon, {}));
-  var welcomeIconTimeout = null, removeWelcomeIcon = () => {
-    welcomeIconTimeout !== null && (window.clearTimeout(welcomeIconTimeout), welcomeIconTimeout = null), welcomeIconMount?.remove();
-  };
-  welcomeIconMount && (welcomeIconTimeout = window.setTimeout(removeWelcomeIcon, WELCOME_ICON_TIMEOUT_MS));
   var readerCallbacks = {
     enhanceThumbsGridsEnabled: gState.settings.enhanceThumbsGridsEnabled,
     readHistoryEnabled: gState.settings.readHistoryEnabled,
@@ -7508,19 +7467,19 @@ body #gdt[class],
     }));
   }
   function injectEnhanceUI(page, previewCache, searchTextInput, searchResultsDom, touchResultsDom) {
-    let galleryPage = page.type === "gallery", resultsPage = page.type === "search" || page.type === "favorites", preview = previewCache?.current() ?? null, previewMount = preview?.elems.mount ?? null;
-    galleryPage && preview && previewCache && gState.settings.readerEnabled && allowFeatureFailure("Reader thumbnail links", () => {
-      preview.handle.interceptPreviewImageOpen((pageUrl) => {
-        openGalleryPage(previewCache, pageUrl);
-      });
-    }), searchTextInput && allowFeatureFailure("Search autocomplete", () => {
-      ehSyringe_exports.reuseTagTipInput(searchTextInput.elems.input);
-    }), resultsPage && allowFeatureFailure("Search grid mode selector", () => {
+    let galleryPage = page.type === "gallery", resultsPage = page.type === "search" || page.type === "favorites", preview = previewCache?.current() ?? null, previewMount = preview?.elems.mount ?? null, updateSearchGridModeSelector = () => {
       mutateSearchGridModeSelect(state.search.grid.value, () => {
         state.search.grid.set(!0), window.location.assign(new URL("/?inline_set=dm_e", window.location.href).href);
       }, () => {
         state.search.grid.set(!1);
       });
+    };
+    galleryPage && preview && previewCache && gState.settings.readerEnabled && allowFeatureFailure("Reader thumbnail links", () => {
+      preview.handle.interceptPreviewImageOpen((pageUrl) => {
+        openGalleryPage(previewCache, pageUrl);
+      });
+    }), resultsPage && allowFeatureFailure("Search grid mode selector", () => {
+      updateSearchGridModeSelector();
     });
     let searchGridEnabled = !!(resultsPage && state.search.grid.value);
     searchGridEnabled && allowFeatureFailure("Search grid", () => mutateSearchGrid()), gState.settings.openGalleryInNewTab && searchResultsDom && allowFeatureFailure("Gallery links in new tabs", () => {
@@ -7553,7 +7512,7 @@ body #gdt[class],
         source: searchResultsDom,
         onPageChange: (source) => {
           allowFeatureFailure("Changed Search page", () => {
-            gState.settings.openGalleryInNewTab && source.handle.ensureGalleryLinksOpenInNewTab(), touchResultsDom?.handle.updateTouchResultsLayout(), searchGridEnabled && mutateSearchGrid();
+            updateSearchGridModeSelector(), gState.settings.openGalleryInNewTab && source.handle.ensureGalleryLinksOpenInNewTab(), touchResultsDom?.handle.updateTouchResultsLayout(), searchGridEnabled && mutateSearchGrid();
           });
         }
       }));
@@ -7609,10 +7568,8 @@ body #gdt[class],
       })));
     }), resultsDom;
   }
-  async function injectPage() {
-    let page = extractPageType(), galleryPage = page.type === "gallery", resultsPage = page.type === "search" || page.type === "favorites";
-    gState.settings.touchUiEnabled && (await ehSyringe_exports.waitForInitialUi(), page.type === "search" && await ehSyringe_exports.waitForSearchUi());
-    let galleryPreview = galleryPage ? allowFeatureFailure("Gallery Preview", () => manageGalleryPreview()) : null, galleryPreviewCache = galleryPreview ? allowFeatureFailure("Gallery Preview cache", () => createGalleryPreviewCache(galleryPreview)) : null;
+  async function injectPage(page) {
+    let galleryPage = page.type === "gallery", resultsPage = page.type === "search" || page.type === "favorites", galleryPreview = galleryPage ? allowFeatureFailure("Gallery Preview", () => manageGalleryPreview()) : null, galleryPreviewCache = galleryPreview ? allowFeatureFailure("Gallery Preview cache", () => createGalleryPreviewCache(galleryPreview)) : null;
     page.type === "gallery" && galleryPreview && allowFeatureFailure("Gallery Read History", () => {
       let record = loadReadHistory(page.galleryId, page.token);
       gState.setReadProgress({
@@ -7641,13 +7598,16 @@ body #gdt[class],
     let touchResultsDom = gState.settings.touchUiEnabled ? injectTouchUI(page, galleryPreviewCache) : null;
     injectEnhanceUI(page, galleryPreviewCache, searchTextInput, searchResultsSource, touchResultsDom), page.type === "gallery" && state.reader.enabled.value && page.peekPage !== null && galleryPreviewCache && allowAsyncFeatureFailure("Reader deep link", () => openReaderFromHash(readerCallbacks, galleryPreviewCache, readerViewport));
   }
+  ehSyringe_exports.initialize();
   async function startApp() {
-    document.readyState !== "complete" && await new Promise((resolve) => {
-      window.addEventListener("load", () => resolve(), {
+    document.readyState === "loading" && await new Promise((resolve) => {
+      document.addEventListener("DOMContentLoaded", () => resolve(), {
         once: !0
       });
-    }), installSettingsMenu(), await injectPage();
+    }), installSettingsMenu(), await injectPage(extractPageType());
   }
-  startApp().finally(removeWelcomeIcon);
+  startApp().catch((error) => {
+    console.error("[ehpeek] App startup failed", error);
+  });
   delegateEvents(["click"]);
 })();
