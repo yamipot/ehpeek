@@ -419,22 +419,8 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
     this.#node.selected = selected;
   }
 
-  setDisabled(
-    this: ManagedDomNode<HTMLInputElement | HTMLButtonElement>,
-    disabled: boolean,
-  ): void {
-    this.#node.disabled = disabled;
-  }
-
   dispatchInput(this: ManagedDomNode<HTMLInputElement>): void {
     this.#node.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-
-  requestSubmit(
-    this: ManagedDomNode<HTMLFormElement>,
-    submitter: ManagedDomNode<HTMLInputElement | HTMLButtonElement>,
-  ): void {
-    this.#node.requestSubmit(submitter.#node);
   }
 
   mirrorContentTo(target: HTMLElement): () => void {

@@ -57,12 +57,12 @@ export function manageTopBar() {
 
   const elems = {
     mount,
-    navItems: links.map((link) => link.clone()),
+    navItems: links.map((link) => link.move()),
   } satisfies ManagedDomElements;
   original.inplace().replaceWith(elems.mount);
 
   const handle = {
-    /** Normalizes cloned original links for EhPeek's icon-based TopBar. */
+    /** Normalizes original links moved into EhPeek's icon-based TopBar. */
     updateNavItemVisual(className: string) {
       elems.navItems.forEach((item) =>
         item.removeAttributes("id").replaceClasses(className).removeAllStyles(),

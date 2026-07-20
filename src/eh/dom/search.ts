@@ -1,5 +1,4 @@
 import texts from "../../texts.json";
-import { normalizeUrl } from "../../utils";
 import { extractPageType, type PageType } from "../url";
 import { requestPage } from "../request";
 import type { TouchFavoritesCategorySelectInfo } from "../types";
@@ -8,6 +7,7 @@ import {
   documentBody,
   documentElement,
   DomNode,
+  type ManagedDomElements,
   ManagedDomNode,
 } from "./core";
 
@@ -419,7 +419,7 @@ export function mutateSearchGrid(): void {
 export function mutateSearchGridModeSelect(
   selected: boolean,
   onEhPeekSelect: () => void,
-  onOriginalSelect: (value: string) => void,
+  onOriginalSelect: () => void,
 ) {
   const selects = DomNode.from(document).all<HTMLSelectElement>(
     "select[onchange*='inline_set=dm_']",
@@ -445,9 +445,7 @@ export function mutateSearchGridModeSelect(
     select.attribute("data-ehpeek-grid-mode", "true");
     select.listen("change", (event) => {
       if (select.inputValue() !== "ehpeek") {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        onOriginalSelect(select.inputValue());
+        onOriginalSelect();
         return;
       }
 
@@ -562,7 +560,12 @@ function replaceFirstElement(selector: string, doc: Document): void {
 }
 
 /** Applies TouchUI layout ownership to Favorites results and extracts its collection selector. */
-function favoritesPageTouch(): TouchFavoritesCategorySelectInfo | null {
+type FavoritesCategoriesDom = {
+  info: TouchFavoritesCategorySelectInfo;
+  items: ManagedDomNode[];
+};
+
+function favoritesPageTouch(): FavoritesCategoriesDom | null {
   documentElement().addClasses(...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "));
   documentBody().addClasses(...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "));
 
@@ -573,7 +576,7 @@ function favoritesPageTouch(): TouchFavoritesCategorySelectInfo | null {
     .addClasses(...TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" "));
 
   const categories = page.one<HTMLElement>(".ido > .nosel");
-  const categorySelect = categories ? readFavoritesCategories(categories) : null;
+  const categorySelect = categories ? manageFavoritesCategories(categories) : null;
   const searchContainer = page.one<HTMLInputElement>("input[name='f_search']")?.form()?.parent();
   searchContainer
     ?.inplace()
@@ -593,7 +596,7 @@ function favoritesPageTouch(): TouchFavoritesCategorySelectInfo | null {
     ? existingWrapperSource
     : null;
   const contentSource = existingWrapper?.parent() ?? resultSource.parent();
-  const allSelected = categorySelect?.categories[0]?.selected === true;
+  const allSelected = categorySelect?.info.categories[0]?.selected === true;
 
   contentSource?.inplace().addClasses(...TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" "));
   const resultList = resultSource.inplace();
@@ -646,9 +649,9 @@ function compactFavoritesResultList(source: DomNode<HTMLElement>): void {
   }
 }
 
-function readFavoritesCategories(
+function manageFavoritesCategories(
   container: DomNode<HTMLElement>,
-): TouchFavoritesCategorySelectInfo | null {
+): FavoritesCategoriesDom | null {
   const nodes = container.all<HTMLElement>(":scope > .fp, :scope > .fps");
 
   if (nodes.length === 0) {
@@ -662,8 +665,6 @@ function readFavoritesCategories(
     const count = Number(countText.replace(/,/g, ""));
     const indicator = node.one<HTMLElement>(".i");
     const indicatorStyle = indicator?.computedStyle() ?? null;
-    const href = node.attribute("onclick")?.match(/document\.location\s*=\s*['"]([^'"]+)['"]/)?.[1] ?? "";
-
     return {
       appearance: indicatorStyle ? {
         backgroundImage: indicatorStyle.backgroundImage,
@@ -671,7 +672,6 @@ function readFavoritesCategories(
         backgroundSize: indicatorStyle.backgroundSize,
       } : null,
       count: Number.isFinite(count) ? count : 0,
-      href: normalizeUrl(href, window.location.href),
       label,
       selected: node.hasClass("fps"),
       source: node,
@@ -682,17 +682,20 @@ function readFavoritesCategories(
   const total = favorites.reduce((sum, category) => sum + category.count, 0);
   container.inplace().setHidden(true);
 
+  const categories = [
+    ...(all ? [{ ...all, count: total, label: texts.favorites.all }] : []),
+    ...favorites,
+  ];
   return {
-    categories: [
-      ...(all ? [{ ...all, count: total, label: texts.favorites.all }] : []),
-      ...favorites,
-    ].map(({ appearance, count, href, label, selected }) => ({
-      appearance,
-      count,
-      href,
-      label,
-      selected,
-    })),
+    info: {
+      categories: categories.map(({ appearance, count, label, selected }) => ({
+        appearance,
+        count,
+        label,
+        selected,
+      })),
+    },
+    items: categories.map(({ source }) => source.inplace()),
   };
 }
 
@@ -739,14 +742,29 @@ export function manageTouchResultsPage(page: PageType) {
     }
     return null;
   };
-  const data = { favoritesCategory: apply() };
+  const favoritesCategory = apply();
+  const data = { favoritesCategory: favoritesCategory?.info ?? null };
+  const elems = {
+    favoriteCategoryItems: favoritesCategory?.items ?? [],
+  } satisfies ManagedDomElements;
   const handle = {
+    /** Activates E-H's original Favorites collection control. */
+    activateFavoriteCategory(index: number): void {
+      elems.favoriteCategoryItems[index]?.click();
+    },
     /** Reapplies TouchUI layout after the result list is replaced in place. */
     updateTouchResultsLayout(): void {
-      apply();
+      const updated = apply();
+      if (updated) {
+        elems.favoriteCategoryItems.splice(
+          0,
+          elems.favoriteCategoryItems.length,
+          ...updated.items,
+        );
+      }
     },
   };
-  return { data, handle };
+  return { data, elems, handle };
 }
 
 export type TouchResultsPageDom = ReturnType<typeof manageTouchResultsPage>;

@@ -54,7 +54,6 @@ export type GalleryFavoriteOption = {
 type TouchFavoritesCategory = {
   appearance: TouchFavoritesCategoryAppearance | null;
   count: number;
-  href: string;
   label: string;
   selected: boolean;
 };

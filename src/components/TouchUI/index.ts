@@ -8,7 +8,6 @@ export {
   TouchSearchAction,
   TouchSearchAdvancedToggle,
   TouchSearchCategoryToggle,
-  TouchSearchFileToggle,
   TouchSearchPanel,
 } from "./SearchPanel";
 export { TouchTopBar, TOUCH_TOP_BAR_NAV_ITEM_CLASS } from "./TopBar";

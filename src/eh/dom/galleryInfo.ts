@@ -48,24 +48,24 @@ export function manageGalleryInfo(
     return null;
   }
 
-  const readMeta = () =>
-    new Map(
-      page
-        .all<HTMLTableRowElement>("#gdd tr")
-        .map((row) => {
-          const cells = row.all<HTMLTableCellElement>("td, th");
-          const label = (cells[0]?.text() ?? "")
-            .replace(/:$/, "")
-            .toLowerCase();
-          const value = cells
-            .slice(1)
-            .map((cell) => cell.text())
-            .filter(Boolean)
-            .join(" ");
-          return [label, value] as const;
-        })
-        .filter(([label, value]) => label && value),
-    );
+  const readMeta = () => {
+    // E-H keeps these rows in a fixed order; their labels may already be translated.
+    const values = page
+      .all<HTMLTableRowElement>("#gdd tr")
+      .map((row) => row
+        .all<HTMLTableCellElement>("td, th")
+        .slice(1)
+        .map((cell) => cell.text())
+        .filter(Boolean)
+        .join(" "));
+    return {
+      favorited: values[6],
+      fileSize: values[4],
+      language: values[3],
+      parent: values[1],
+      posted: values[0],
+    };
+  };
 
   const readCategory = (
     node: DomNode<HTMLElement> | null,
@@ -280,13 +280,13 @@ export function manageGalleryInfo(
       scripts,
     ),
     summary: [
-      meta.get("language"),
+      meta.language,
       preview?.totalImages
         ? `${preview.totalImages} ${texts.reader.pages.toLowerCase()}`
         : undefined,
-      meta.get("file size") ?? meta.get("size"),
-      meta.get("favorited"),
-      meta.get("posted") ?? meta.get("parent"),
+      meta.fileSize,
+      meta.favorited,
+      meta.posted ?? meta.parent,
     ]
       .filter((value): value is string => Boolean(value))
       .slice(0, 6)
@@ -301,7 +301,7 @@ export function manageGalleryInfo(
     .all<HTMLElement>(":scope > *")
     .filter((child) => !newTag?.sameNode(child));
   const elems = {
-    actionItems: actionSources.map(({ node }) => node.clone(false)),
+    actionItems: actionSources.map(({ node }) => node.move()),
     cover: coverUrl
       ? (coverSource?.clone() ?? createManagedElement("img"))
       : null,

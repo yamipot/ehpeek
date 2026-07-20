@@ -19,7 +19,6 @@ import {
   TouchSearchAction,
   TouchSearchAdvancedToggle,
   TouchSearchCategoryToggle,
-  TouchSearchFileToggle,
   TouchSearchPanel,
   TouchTopBar,
 } from "../components/TouchUI";
@@ -82,6 +81,7 @@ const gState = (() => {
   const [settingsMenuOpen, setSettingsMenuOpen] = createSignal(false);
   const [readProgress, setReadProgress] = createSignal({
     currentPage: 1,
+    hasHistory: false,
     totalPages: null as number | null,
   });
   return {
@@ -100,7 +100,6 @@ registerGlobalStyle("ehpeek-theme-style", themeCss);
 
 const settingsMenuMount = createAppMount(
   "fixed inset-0 z-[1150] pointer-events-none",
-  true,
 );
 const readerCallbacks: ReaderCallbacks = {
   enhanceThumbsGridsEnabled: gState.settings.enhanceThumbsGridsEnabled,
@@ -109,7 +108,7 @@ const readerCallbacks: ReaderCallbacks = {
     gState.thumbsGridsActions?.gotoPreview(previewIndex);
   },
   onReaderClosed: (currentPage, totalPages) => {
-    gState.setReadProgress({ currentPage, totalPages });
+    gState.setReadProgress({ currentPage, hasHistory: true, totalPages });
   },
 };
 
@@ -167,6 +166,7 @@ function GalleryReadButton(props: {
   return (
     <ReadButton
       currentPage={gState.readProgress().currentPage}
+      hasHistory={gState.readProgress().hasHistory}
       totalPages={gState.readProgress().totalPages}
       onClick={() => openFromReadButton(props.previewCache)}
       variant={props.variant}
@@ -228,11 +228,8 @@ function injectEnhanceUI(
             new URL("/?inline_set=dm_e", window.location.href).href,
           );
         },
-        (value) => {
+        () => {
           state.search.grid.set(false);
-          window.location.assign(
-            new URL(`/?inline_set=dm_${value}`, window.location.href).href,
-          );
         },
       );
     });
@@ -420,7 +417,7 @@ function injectTouchUI(
             after={
               resultsDom?.data.favoritesCategory ? (
                 <FavoritesCategorySelect
-                  info={resultsDom.data.favoritesCategory}
+                  source={resultsDom}
                 />
               ) : undefined
             }
@@ -434,11 +431,6 @@ function injectTouchUI(
         if (searchPanelDom.elems.advancedToggleMount) {
           searchPanelDom.elems.advancedToggleMount.mount(() => (
             <TouchSearchAdvancedToggle source={searchPanelDom} />
-          ));
-        }
-        if (searchPanelDom.elems.fileSearchToggleMount) {
-          searchPanelDom.elems.fileSearchToggleMount.mount(() => (
-            <TouchSearchFileToggle source={searchPanelDom} />
           ));
         }
         searchPanelDom.elems.searchActionMount.mount(() => (
@@ -485,6 +477,7 @@ async function injectPage(): Promise<void> {
       const record = loadReadHistory(page.galleryId, page.token);
       gState.setReadProgress({
         currentPage: record?.pageNum && record.pageNum > 0 ? record.pageNum : 1,
+        hasHistory: record !== null,
         totalPages: record?.totalPages ?? galleryPreview.data.totalImages,
       });
     });

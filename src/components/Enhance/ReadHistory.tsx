@@ -2,6 +2,7 @@ import texts from "../../texts.json";
 
 export function ReadButton(props: {
   currentPage: number;
+  hasHistory: boolean;
   totalPages: number | null;
   onClick: () => void;
   variant: "gallery" | "touchGallery";
@@ -25,7 +26,7 @@ export function ReadButton(props: {
         props.onClick();
       }}
     >
-      {props.currentPage > 1
+      {props.hasHistory
         ? texts.reader.continueReading
         : texts.reader.startReading}
       <span class={detailClassName()}>
