@@ -48,21 +48,6 @@ export function TouchSearchCategoryToggle(props: { source: SearchPanelDom }) {
   return <ToggleButton expanded={open()} label={texts.search.categories} onClick={() => setOpen((value) => !value)} />;
 }
 
-export function TouchSearchAdvancedToggle(props: { source: SearchPanelDom }) {
-  const source = untrack(() => props.source);
-  const [open, setOpen] = createSignal(source.data.advancedOptionsOpen);
-  return (
-    <ToggleButton
-      expanded={open()}
-      label={texts.search.advancedOptions}
-      onClick={() => {
-        source.handle.toggleAdvancedOptions();
-        setOpen((value) => !value);
-      }}
-    />
-  );
-}
-
 function ToggleButton(props: { expanded: boolean; label: string; onClick: () => void }) {
   return (
     <button type="button" class={TOUCH_SEARCH_OPTION_CLASS} aria-expanded={props.expanded} onClick={() => props.onClick()}>

@@ -6,7 +6,6 @@ export { FavoritesCategorySelect } from "./FavoritesPanel";
 export {
   touchSearchPanelClasses,
   TouchSearchAction,
-  TouchSearchAdvancedToggle,
   TouchSearchCategoryToggle,
   TouchSearchPanel,
 } from "./SearchPanel";

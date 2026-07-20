@@ -5,7 +5,6 @@ import {
   deleteMyTag,
   requestPage,
   updateGalleryFavorite,
-  updateGalleryRating,
   updateGalleryTagVote,
 } from "../request";
 import type {
@@ -252,6 +251,10 @@ export function manageGalleryInfo(
   const cover = page.one<HTMLElement>("#gd1");
   const coverSource = cover?.one<HTMLImageElement>("img") ?? null;
   const favorite = page.one<HTMLElement>("#fav");
+  const ratingCount = page.one<HTMLElement>("#rating_count");
+  const ratingImage = page.one<HTMLElement>("#rating_image");
+  const ratingLabel = page.one<HTMLElement>("#rating_label");
+  const ratingActions = page.all<HTMLAreaElement>('map[name="rating"] area');
   const newTag = page.one<HTMLElement>("#tagmenu_new");
   const newTagButton =
     newTag?.one<HTMLInputElement | HTMLButtonElement>("#newtagbutton") ?? null;
@@ -273,12 +276,7 @@ export function manageGalleryInfo(
     category: category?.text() ?? "",
     categoryAppearance: readCategory(categoryStyle),
     favorite: readFavorite(favorite, scripts),
-    rating: readRating(
-      page.one<HTMLElement>("#rating_count"),
-      page.one<HTMLElement>("#rating_image"),
-      page.one<HTMLElement>("#rating_label"),
-      scripts,
-    ),
+    rating: readRating(ratingCount, ratingImage, ratingLabel, scripts),
     summary: [
       meta.language,
       preview?.totalImages
@@ -314,6 +312,7 @@ export function manageGalleryInfo(
     newTagButton: newTagButton?.inplace() ?? null,
     newTagField: newTagField?.inplace() ?? null,
     newTagForm: newTagForm?.inplace() ?? null,
+    ratingActions: ratingActions.map((action) => action.inplace()),
     tagContents: tagContentSources.map((source) => source.inplace()),
     tagList: page.one<HTMLElement>("#taglist")?.inplace() ?? null,
   } satisfies ManagedDomElements;
@@ -381,14 +380,17 @@ export function manageGalleryInfo(
         elems.newTagField = EhSyringe.reuseTagTipInput(elems.newTagField);
       }
     },
-    /** Sends a Gallery rating through the captured original Gallery API session. */
-    async submitGalleryRating(value: number) {
+    /** Activates E-H's original rating area and lets its page script submit the vote. */
+    submitGalleryRating(value: number): void {
       const rating = Math.round(value * 2);
       if (rating < 1 || rating > 10) {
         throw new RangeError("Gallery rating must be between 0.5 and 5 stars.");
       }
-      const api = extractGalleryTagApiInfo();
-      return updateGalleryRating(api, value);
+      const action = elems.ratingActions[rating - 1];
+      if (!action) {
+        throw new Error("Gallery rating action is unavailable.");
+      }
+      action.click();
     },
     /** Removes the selected tag from its stored My Tags collection. */
     async removeFavoriteTag(tag: GalleryTagData): Promise<void> {

@@ -30,7 +30,6 @@ export function manageSearchPanel() {
   const categories = standardSearchBox?.one<HTMLTableElement>("form > table") ?? null;
   const advancedPanel = standardSearchBox?.one<HTMLElement>("#advdiv") ?? null;
   const optionLinks = advancedPanel?.previous() ?? null;
-  const advancedToggle = optionLinks?.one<HTMLAnchorElement>("a[onclick*='toggle_advsearch']") ?? null;
   const fileSearch = page.one<HTMLElement>("#fsdiv");
   const searchSubmit = form?.one<HTMLInputElement | HTMLButtonElement>("input[name='f_apply'], button[name='f_apply']")
     ?? searchInput?.parent()?.one<HTMLInputElement | HTMLButtonElement>("input[type='submit'], button[type='submit']")
@@ -44,7 +43,6 @@ export function manageSearchPanel() {
 
   const mount = createAnchor("search-panel");
   const categoryToggleMount = categories && optionLinks ? createAnchor("search-category-toggle") : null;
-  const advancedToggleMount = advancedToggle ? createAnchor("search-advanced-toggle") : null;
   const searchActionMount = createAnchor("search-action");
   const clearActionMount = clearButton ? createAnchor("search-clear-action") : null;
   if (!mount || !searchActionMount || (clearButton && !clearActionMount)) {
@@ -59,8 +57,6 @@ export function manageSearchPanel() {
   const searchControls = createManagedElement("div");
   const elems = {
     advancedPanel: advancedPanel?.inplace() ?? null,
-    advancedToggle: advancedToggle?.inplace() ?? null,
-    advancedToggleMount,
     categories: categories?.inplace() ?? null,
     categoryCells: categoryCells.map((cell) => cell.inplace()),
     categoryItems: categoryItems.map((item) => item.inplace()),
@@ -96,9 +92,6 @@ export function manageSearchPanel() {
     elems.optionLinks.after(elems.categories);
     elems.optionLinks.prepend(elems.categoryToggleMount);
   }
-  if (elems.advancedToggle && elems.advancedToggleMount) {
-    elems.advancedToggle.replaceWith(elems.advancedToggleMount);
-  }
   elems.fileSearch?.remove();
 
   const formInsideSearchBox = standardSearchBox?.one<HTMLFormElement>("form")?.sameNode(form) ?? false;
@@ -107,11 +100,6 @@ export function manageSearchPanel() {
     ["ct1", "ct2", "ct3", "ct4", "ct5", "ct6", "ct7", "ct8", "ct9", "cta"].find((name) => item.hasClass(name)) ?? null,
   );
   const data = {
-    advancedOptionsOpen: Boolean(
-      advancedPanel &&
-        !advancedPanel.hasAttribute("hidden") &&
-        advancedPanel.computedStyle().display !== "none",
-    ),
     clearLabel: clearButton ? actionLabel(clearButton) : null,
     hasClear: elems.clearButton !== null && elems.clearActionMount !== null,
     searchLabel: actionLabel(searchSubmit),
@@ -148,10 +136,6 @@ export function manageSearchPanel() {
     updateCategoryVisibility(open: boolean) {
       elems.categories?.setHidden(!open);
       elems.categories?.setAttributes({ "aria-hidden": String(!open) });
-    },
-    /** Activates E-H's original advanced-search toggle. */
-    toggleAdvancedOptions() {
-      elems.advancedToggle?.click();
     },
     /** Activates E-H's original Search submit control. */
     activateSearch() {

@@ -17,7 +17,6 @@ import {
   TOUCH_TOP_BAR_NAV_ITEM_CLASS,
   FavoritesCategorySelect,
   TouchSearchAction,
-  TouchSearchAdvancedToggle,
   TouchSearchCategoryToggle,
   TouchSearchPanel,
   TouchTopBar,
@@ -426,11 +425,6 @@ function injectTouchUI(
         if (searchPanelDom.elems.categoryToggleMount) {
           searchPanelDom.elems.categoryToggleMount.mount(() => (
             <TouchSearchCategoryToggle source={searchPanelDom} />
-          ));
-        }
-        if (searchPanelDom.elems.advancedToggleMount) {
-          searchPanelDom.elems.advancedToggleMount.mount(() => (
-            <TouchSearchAdvancedToggle source={searchPanelDom} />
           ));
         }
         searchPanelDom.elems.searchActionMount.mount(() => (

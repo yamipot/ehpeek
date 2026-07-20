@@ -54,11 +54,8 @@ export function GalleryInfoPanel(props: {
   const [ratingSubmitted, setRatingSubmitted] = createSignal(
     rating?.rated ?? false,
   );
-  const [ratingUpdating, setRatingUpdating] = createSignal(false);
-  const [ratingCount, setRatingCount] = createSignal(rating?.count ?? "");
-  const [ratingValueLabel, setRatingValueLabel] = createSignal(
-    rating?.label ?? "",
-  );
+  const [ratingCount] = createSignal(rating?.count ?? "");
+  const [ratingValueLabel] = createSignal(rating?.label ?? "");
   const initialTagGroups = source.data.tagGroups.map((group) => ({
     ...group,
     tags: group.tags.flatMap(({ contentSourceIndex, ...tag }) => {
@@ -90,17 +87,14 @@ export function GalleryInfoPanel(props: {
     onCleanup(stopObservingTags);
   });
 
-  const submitRating = async (value: number): Promise<boolean> => {
-    if (!rating || ratingUpdating()) {
+  const submitRating = (value: number): boolean => {
+    if (!rating) {
       return false;
     }
 
-    setRatingUpdating(true);
     try {
-      const result = await source.handle.submitGalleryRating(value);
-      setRatingValue(result.value);
-      setRatingCount(String(result.count));
-      setRatingValueLabel(formatRatingLabel(rating.label, result.average));
+      source.handle.submitGalleryRating(value);
+      setRatingValue(value);
       setRatingPreview(null);
       setRatingSubmitted(true);
       return true;
@@ -111,8 +105,6 @@ export function GalleryInfoPanel(props: {
         error instanceof Error ? error.message : texts.errors.loadFailed,
       );
       return false;
-    } finally {
-      setRatingUpdating(false);
     }
   };
 
@@ -159,7 +151,6 @@ export function GalleryInfoPanel(props: {
                 <button
                   type="button"
                   class="ehpeek-touch-gallery-rating flex w-full min-w-0 flex-col items-center gap-4px p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-center cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
-                  disabled={ratingUpdating()}
                   aria-label="Rate gallery"
                   onClick={() => {
                     setRatingPreview(null);
@@ -196,7 +187,7 @@ export function GalleryInfoPanel(props: {
                       </For>
                     </span>
                     <span
-                      class={`ehpeek-touch-gallery-rating-stars-fill absolute top-0 left-0 flex gap-1px overflow-hidden ${ratingSubmitted() ? "text-[var(--color-accent)]" : "ehp-color-site-accent"}`}
+                      class={`ehpeek-touch-gallery-rating-stars-fill absolute top-0 left-0 flex gap-1px overflow-hidden ${ratingSubmitted() ? "text-[var(--color-rating-submitted)]" : "ehp-color-site-accent"}`}
                       aria-hidden="true"
                       style={{ width: `${(displayedRating() / 5) * 100}%` }}
                     >
@@ -272,7 +263,6 @@ export function GalleryInfoPanel(props: {
             <button
               type="button"
               class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
-              disabled={ratingUpdating()}
               aria-label={`Rate gallery: ${displayedRating().toFixed(1)} stars`}
               onClick={(event: MouseEvent) => {
                 setRatingPreview(
@@ -292,7 +282,7 @@ export function GalleryInfoPanel(props: {
                 </For>
               </span>
               <span
-                class={`absolute top-0 left-0 flex gap-1px overflow-hidden pointer-events-none ${ratingSubmitted() ? "text-[var(--color-accent)]" : "ehp-color-site-accent"}`}
+                class={`absolute top-0 left-0 flex gap-1px overflow-hidden pointer-events-none ${ratingSubmitted() ? "text-[var(--color-rating-submitted)]" : "ehp-color-site-accent"}`}
                 aria-hidden="true"
                 style={{ width: `${(displayedRating() / 5) * 100}%` }}
               >
@@ -305,13 +295,10 @@ export function GalleryInfoPanel(props: {
               <button
                 type="button"
                 class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108`}
-                disabled={ratingUpdating()}
                 onClick={() => {
-                  void submitRating(displayedRating()).then((submitted) => {
-                    if (submitted) {
-                      setRatingPickerOpen(false);
-                    }
-                  });
+                  if (submitRating(displayedRating())) {
+                    setRatingPickerOpen(false);
+                  }
                 }}
               >
                 Submit
@@ -898,13 +885,6 @@ function TouchGalleryFavoriteOption(props: {
       </span>
     </button>
   );
-}
-
-function formatRatingLabel(label: string, value: number): string {
-  const formatted = value.toFixed(2);
-  return /\d+(?:\.\d+)?/.test(label)
-    ? label.replace(/\d+(?:\.\d+)?/, formatted)
-    : `${label} ${formatted}`.trim();
 }
 
 function ratingFromPointer(clientX: number, element: HTMLElement): number {
