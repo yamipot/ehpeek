@@ -30,6 +30,7 @@ export function SinglePage(props: {
   let navigationSequence = 0;
   let scrollFrame: number | null = null;
   let disconnectPageNavigation: (() => void) | null = null;
+  let activeUrl = window.location.href;
 
   const loadPage = async (request: eh.NavigationRequest, signal: AbortSignal) => {
     const response = await eh.requestPage(request.url, {
@@ -113,6 +114,7 @@ export function SinglePage(props: {
 
       nextSource.handle.mountPageContent(routeHost);
       document.title = nextSource.data.title || document.title;
+      activeUrl = window.location.href;
       await props.onPageActivate(next.page);
 
       const targetScroll = mode === "pop" ? appHistoryState(popState) : null;
@@ -153,6 +155,10 @@ export function SinglePage(props: {
     window.history.scrollRestoration = "manual";
 
     const onPopState = (event: PopStateEvent) => {
+      if (window.location.href === activeUrl) {
+        return;
+      }
+
       if (!eh.singlePageRoute(window.location.href)) {
         window.location.assign(window.location.href);
         return;
@@ -173,6 +179,7 @@ export function SinglePage(props: {
       }
       const pageSource = eh.managePageContent();
       pageSource.handle.mountPageContent(routeHost);
+      activeUrl = window.location.href;
       const onPageNavigation = (request: eh.NavigationRequest) => {
         void navigate(request, "push");
       };

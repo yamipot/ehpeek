@@ -27,16 +27,14 @@ export function ThumbsGrids(props: {
   previewCache: GalleryPreviewCache;
 }) {
   const pageBarSource = untrack(() => props.previewCache.current());
-  const [gotoPreviewIndex, setGotoPreviewIndex] = createSignal<number>();
-  const [pageBarWindowIndex, setPageBarWindowIndex] = createSignal<number | null>(null);
+  const [pageBarCurrentIndex, setPageBarCurrentIndex] = createSignal(
+    pageBarSource.data.currentIndex,
+  );
   const [swipeIndicatorState, setSwipeIndicatorState] = createSignal<SwipeIndicatorState>({
     blocked: false,
     direction: "left",
     progress: 0,
   });
-  const pageBarCurrentIndex = (): number =>
-    gotoPreviewIndex() ??
-    props.previewCache.current().data.currentIndex;
   const pageBarMaxIndex = (): number =>
     props.previewCache.current().data.maxIndex;
 
@@ -51,7 +49,7 @@ export function ThumbsGrids(props: {
       return;
     }
 
-    setGotoPreviewIndex(previewIndex);
+    setPageBarCurrentIndex(previewIndex);
     void props.previewCache.select(previewIndex).then(
       (next) => {
         if (untrack(() => props.previewCache.current()) === next) {
@@ -59,7 +57,12 @@ export function ThumbsGrids(props: {
         }
       },
       (error: unknown) => {
-        setGotoPreviewIndex((pending) => pending === previewIndex ? undefined : pending);
+        const cacheIndex = untrack(() => props.previewCache.current().data.currentIndex);
+        setPageBarCurrentIndex((currentIndex) =>
+          currentIndex === previewIndex
+            ? cacheIndex
+            : currentIndex,
+        );
         onLoadError(error);
       },
     );
@@ -100,7 +103,7 @@ export function ThumbsGrids(props: {
   };
 
   const actions: ThumbsGridsActions = {
-    gotoPreview: setGotoPreviewIndex,
+    gotoPreview: setPageBarCurrentIndex,
   };
   createEffect(() => {
     props.actionsRef(actions);
@@ -108,17 +111,13 @@ export function ThumbsGrids(props: {
 
   createEffect<eh.GalleryPreviewDom>((previous) => {
     const current = props.previewCache.current();
-    setGotoPreviewIndex(undefined);
+    setPageBarCurrentIndex(current.data.currentIndex);
     current.handle.ensurePreviewSwipeInput();
     if (current !== previous) {
       pageBarSource.handle.replacePreviewThumbs(current.elems.thumbItems);
     }
     return current;
   }, pageBarSource);
-
-  createEffect(() => {
-    setPageBarWindowIndex(pageBarCurrentIndex());
-  });
 
   createEffect(() => {
     pageBarSource.handle.updatePreviewLoading(props.previewCache.loading());
@@ -147,27 +146,21 @@ export function ThumbsGrids(props: {
   pageBarSource.elems.pageBarDescription?.mount(() => (
     <GalleryPageDescription text={props.previewCache.current().data.descriptionText} />
   ));
-  const mounts = [
-    { element: pageBarSource.elems.pageBarTop, top: true },
-    { element: pageBarSource.elems.pageBarBottom, top: false },
-  ];
-  for (const mount of mounts) {
-    if (!mount.element) {
+  for (const element of [
+    pageBarSource.elems.pageBarTop,
+    pageBarSource.elems.pageBarBottom,
+  ]) {
+    if (!element) {
       continue;
     }
-    const element = mount.element;
     element.mount(() => (
       <ScrollPageBar
         currentIndex={pageBarCurrentIndex()}
-        element={element}
         maxIndex={pageBarMaxIndex()}
         onNavigate={requestPreviewPage}
-        onWindowIndexChange={setPageBarWindowIndex}
-        top={mount.top}
         urlForIndex={(index) =>
           eh.previewUrlForIndex(index, props.previewCache.current().data.currentUrl)
         }
-        windowIndex={pageBarWindowIndex}
       />
     ));
   }

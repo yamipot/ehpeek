@@ -1,87 +1,83 @@
-import { createMemo, For, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
 import { clamp } from "../../utils";
 import { createPointerGestureElement } from "../PointerGesture";
-import type { ManagedDomNode } from "../../eh";
-
-const SCROLL_PAGE_BAR_CLASS = "ehpeek-scroll-page-bar";
-const SCROLL_PAGE_BAR_TOP_CLASS = "ehpeek-scroll-page-bar-top";
-const SCROLL_PAGE_BAR_BOTTOM_CLASS = "ehpeek-scroll-page-bar-bottom";
 
 const DRAG_PIXEL_STEP = 18;
-const PAGE_BAR_BOTTOM_CLASS = "mt-0 mb-10px";
 const PAGE_BAR_CELL_CLASS = "!w-sm !h-sm coarse:!w-md coarse:!h-md !p-0 rounded-sm coarse:rounded-md cursor-pointer text-center align-middle select-none";
-const PAGE_BAR_CLASS = "w-max mx-auto touch-pan-y [&[data-dragging=true]]:select-none";
 const PAGE_BAR_LINK_CLASS = "flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
 const PAGE_BAR_LINK_COLOR_CLASS = "!border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)]";
 const PAGE_BAR_CURRENT_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)]";
 const PAGE_BAR_DISABLED_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)] opacity-40 cursor-default";
 const PAGE_BAR_TABLE_CLASS = "border-separate border-spacing-4px coarse:border-spacing-6px";
-const PAGE_BAR_TOP_CLASS = "mt-2px mb-0";
 
 type PageBarItemState = "link" | "current" | "disabled";
-
-type ScrollPageBarOptions = {
-  currentIndex: number;
-  maxIndex: number;
-  onNavigate: (previewIndex: number, scrollToPageBar: "bottom" | "top") => void;
-  onWindowIndexChange: (index: number) => void;
-  top: boolean;
-  urlForIndex: (index: number) => string;
-  windowIndex: () => number | null;
-};
 
 export function GalleryPageDescription(props: { text: string }) {
   return <div class="w-full mb-xs text-center textsize-sm">{props.text}</div>;
 }
 
-export function ScrollPageBar(options: ScrollPageBarOptions & { element: ManagedDomNode<HTMLDivElement> }) {
-  const maxIndex = createMemo(() => Math.max(0, options.maxIndex));
-  const currentIndex = createMemo(() => clamp(options.currentIndex, 0, maxIndex()));
-  const windowIndex = createMemo(() => clamp(options.windowIndex() ?? currentIndex(), 0, maxIndex()));
-  let dragStartWindowIndex = untrack(windowIndex);
+export function ScrollPageBar(props: {
+  currentIndex: number;
+  maxIndex: number;
+  urlForIndex: (index: number) => string;
+  onNavigate: (previewIndex: number, scrollToPageBar: "bottom" | "top") => void;
+}) {
+  const maxIndex = createMemo(() => Math.max(0, props.maxIndex));
+  const currentIndex = createMemo(() => clamp(props.currentIndex, 0, maxIndex()));
+  const [visibleCenterIndex, setVisibleCenterIndex] = createSignal(untrack(currentIndex));
+  let gestureHost!: HTMLDivElement;
+  let dragStartVisibleCenterIndex = untrack(visibleCenterIndex);
   const draggable = () => maxIndex() + 1 > 7;
-  const slots = createMemo(() => pageSlots(windowIndex(), currentIndex(), maxIndex()));
+  const slots = createMemo(() => pageSlots(visibleCenterIndex(), maxIndex()));
   const firstSlotIndex = createMemo(() => slots()[0] ?? currentIndex());
   const lastSlotIndex = createMemo(() => slots()[slots().length - 1] ?? currentIndex());
   const currentBeforeWindow = () => currentIndex() < firstSlotIndex();
   const currentAfterWindow = () => currentIndex() > lastSlotIndex();
   const scrollTargetForIndex = (pageIndex: number): "bottom" | "top" =>
     pageIndex === currentIndex() - 1 || pageIndex === maxIndex() ? "bottom" : "top";
-  const linkCell = (text: string, pageIndex: number, itemState: PageBarItemState = "link") => {
-    if (itemState !== "link") {
-      return (
-        <td class={PAGE_BAR_CELL_CLASS}>
-          <span
-            class={`${PAGE_BAR_LINK_CLASS} ${itemState === "current" ? PAGE_BAR_CURRENT_COLOR_CLASS : PAGE_BAR_DISABLED_COLOR_CLASS}`}
-            aria-current={itemState === "current" ? "page" : undefined}
-            aria-disabled={itemState === "disabled" ? "true" : undefined}
-          >
-            {text}
-          </span>
-        </td>
-      );
-    }
 
-    return (
-      <td class={PAGE_BAR_CELL_CLASS}>
+  createEffect(() => {
+    setVisibleCenterIndex(currentIndex());
+  });
+  const linkCell = (
+    text: string | (() => string),
+    pageIndex: number | (() => number),
+    itemState: () => PageBarItemState = () => "link",
+  ) => {
+    const resolvedText = (): string => typeof text === "function" ? text() : text;
+    const resolvedPageIndex = (): number => typeof pageIndex === "function" ? pageIndex() : pageIndex;
+
+    return <td class={PAGE_BAR_CELL_CLASS}>
+      <Show
+        when={itemState() === "link"}
+        fallback={
+          <span
+            class={`${PAGE_BAR_LINK_CLASS} ${itemState() === "current" ? PAGE_BAR_CURRENT_COLOR_CLASS : PAGE_BAR_DISABLED_COLOR_CLASS}`}
+            aria-current={itemState() === "current" ? "page" : undefined}
+            aria-disabled={itemState() === "disabled" ? "true" : undefined}
+          >
+            {resolvedText()}
+          </span>
+        }
+      >
         <a
           class={`${PAGE_BAR_LINK_CLASS} ${PAGE_BAR_LINK_COLOR_CLASS}`}
           data-ehpeek-single-page-bypass=""
-          href={options.urlForIndex(pageIndex)}
+          href={props.urlForIndex(resolvedPageIndex())}
           draggable={false}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            options.onNavigate(
-              pageIndex,
-              scrollTargetForIndex(pageIndex),
+            props.onNavigate(
+              resolvedPageIndex(),
+              scrollTargetForIndex(resolvedPageIndex()),
             );
           }}
         >
-          {text}
+          {resolvedText()}
         </a>
-      </td>
-    );
+      </Show>
+    </td>;
   };
   const emptyCell = () => (
     <td class={`${PAGE_BAR_CELL_CLASS} cursor-default`}>
@@ -89,62 +85,97 @@ export function ScrollPageBar(options: ScrollPageBarOptions & { element: Managed
     </td>
   );
 
-  untrack(() => {
-    options.element.replaceClasses(
-      `${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${options.top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}`,
-    );
-  });
-
   createPointerGestureElement(
-    () => options.element.Component(),
+    () => gestureHost,
     () => ({
       shouldCaptureDrag: draggable,
       dragAxis: "x",
       onStart: () => {
-        dragStartWindowIndex = windowIndex();
+        dragStartVisibleCenterIndex = visibleCenterIndex();
       },
       onMove: (info) => {
         if (Math.abs(info.dx) < Math.abs(info.dy)) {
           return;
         }
 
-        const nextIndex = clamp(dragStartWindowIndex - acceleratedPageOffset(info.dx), 0, maxIndex());
+        const nextIndex = clamp(
+          dragStartVisibleCenterIndex - acceleratedPageOffset(info.dx),
+          0,
+          maxIndex(),
+        );
 
-        if (nextIndex === windowIndex()) {
+        if (nextIndex === visibleCenterIndex()) {
           return;
         }
 
-        options.onWindowIndexChange(nextIndex);
+        setVisibleCenterIndex(nextIndex);
       },
     }),
   );
 
   return (
-    <table class={PAGE_BAR_TABLE_CLASS}>
-      <tbody>
-        <tr>
-          {linkCell("<<", 0, currentIndex() === 0 ? "disabled" : "link")}
-          {currentBeforeWindow() ? linkCell(String(currentIndex() + 1), currentIndex(), "current") : emptyCell()}
-          {linkCell("<", Math.max(0, currentIndex() - 1), currentIndex() === 0 ? "disabled" : "link")}
-          <For each={slots()}>{(pageIndex) =>
-            pageIndex !== null ? linkCell(String(pageIndex + 1), pageIndex, pageIndex === currentIndex() ? "current" : "link") : emptyCell()
-          }</For>
-          {linkCell(">", Math.min(maxIndex(), currentIndex() + 1), currentIndex() === maxIndex() ? "disabled" : "link")}
-          {currentAfterWindow() ? linkCell(String(currentIndex() + 1), currentIndex(), "current") : emptyCell()}
-          {linkCell(">>", maxIndex(), currentIndex() === maxIndex() ? "disabled" : "link")}
-        </tr>
-      </tbody>
-    </table>
+    <div ref={gestureHost}>
+      <table class={PAGE_BAR_TABLE_CLASS}>
+        <tbody>
+          <tr>
+          {linkCell("<<", 0, () => currentIndex() === 0 ? "disabled" : "link")}
+          <Show when={currentBeforeWindow()} fallback={emptyCell()}>
+            {linkCell(() => String(currentIndex() + 1), currentIndex, () => "current")}
+          </Show>
+          {linkCell("<", () => Math.max(0, currentIndex() - 1), () => currentIndex() === 0 ? "disabled" : "link")}
+          <For each={slots()}>{(pageIndex) => {
+            const itemState = createMemo<PageBarItemState>(() =>
+              pageIndex === currentIndex() ? "current" : "link",
+            );
+            return pageIndex !== null
+              ? <td class={PAGE_BAR_CELL_CLASS}>
+                <Show
+                  when={itemState() === "link"}
+                  fallback={
+                    <span
+                      class={`${PAGE_BAR_LINK_CLASS} ${PAGE_BAR_CURRENT_COLOR_CLASS}`}
+                      aria-current="page"
+                    >
+                      {pageIndex + 1}
+                    </span>
+                  }
+                >
+                  <a
+                    class={`${PAGE_BAR_LINK_CLASS} ${PAGE_BAR_LINK_COLOR_CLASS}`}
+                    data-ehpeek-single-page-bypass=""
+                      href={props.urlForIndex(pageIndex)}
+                    draggable={false}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                        props.onNavigate(pageIndex, scrollTargetForIndex(pageIndex));
+                    }}
+                  >
+                    {pageIndex + 1}
+                  </a>
+                </Show>
+              </td>
+              : emptyCell();
+          }}</For>
+          {linkCell(">", () => Math.min(maxIndex(), currentIndex() + 1), () => currentIndex() === maxIndex() ? "disabled" : "link")}
+          <Show when={currentAfterWindow()} fallback={emptyCell()}>
+            {linkCell(() => String(currentIndex() + 1), currentIndex, () => "current")}
+          </Show>
+          {linkCell(">>", maxIndex, () => currentIndex() === maxIndex() ? "disabled" : "link")}
+          </tr>
+        </tbody>
+      </table>
+    </div>
   );
 }
 
-function pageSlots(windowIndex: number, currentIndex: number, maxIndex: number): Array<number | null> {
+function pageSlots(visibleCenterIndex: number, maxIndex: number): Array<number | null> {
   if (maxIndex + 1 <= 7) {
     return range(0, maxIndex);
   }
 
-  const windowStart = clamp(windowIndex - 3, -1, maxIndex - 5);
-  return range(windowStart, windowStart + 6).map((pageIndex) =>
+  const visibleStartIndex = clamp(visibleCenterIndex - 3, -1, maxIndex - 5);
+  return range(visibleStartIndex, visibleStartIndex + 6).map((pageIndex) =>
     pageIndex >= 0 && pageIndex <= maxIndex ? pageIndex : null,
   );
 }

@@ -81,17 +81,20 @@ export function createGalleryPreviewCache(
       return existing;
     }
 
+    setLoading(true);
     const request = eh.loadGalleryPreviewPage(
       previewIndex,
       initialPreview.data.currentUrl,
     ).then(
       (preview) => {
         pending.delete(previewIndex);
+        setLoading(pending.size > 0);
         remember(preview);
         return preview;
       },
       (error: unknown) => {
         pending.delete(previewIndex);
+        setLoading(pending.size > 0);
         throw error;
       },
     );
@@ -114,24 +117,17 @@ export function createGalleryPreviewCache(
     }
 
     const activeSelection = ++selectionId;
-    setLoading(true);
-    try {
-      const preview = await load(previewIndex);
-      if (activeSelection === selectionId) {
-        currentPreviewIndex = preview.data.currentIndex;
-        setCurrent(preview);
-        window.history.replaceState(
-          window.history.state,
-          "",
-          preview.data.currentUrl,
-        );
-      }
-      return preview;
-    } finally {
-      if (activeSelection === selectionId) {
-        setLoading(false);
-      }
+    const preview = await load(previewIndex);
+    if (activeSelection === selectionId) {
+      currentPreviewIndex = preview.data.currentIndex;
+      setCurrent(preview);
+      window.history.replaceState(
+        window.history.state,
+        "",
+        preview.data.currentUrl,
+      );
     }
+    return preview;
   };
 
   remember(initialPreview);

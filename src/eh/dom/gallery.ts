@@ -318,6 +318,10 @@ export function manageGalleryPreview(
   const thumbsSource = page.one<HTMLElement>("#gdt");
   const pageBarTopSource = page.one<HTMLElement>(".ptt");
   const pageBarBottomSource = page.one<HTMLElement>(".ptb");
+  const createPageBarMount = (position: "bottom" | "top") =>
+    createManagedElement("div").replaceClasses(
+      `w-max max-w-full mx-auto overflow-x-auto touch-pan-y [-webkit-overflow-scrolling:touch] [&[data-dragging=true]]:select-none ${position === "top" ? "mt-2px mb-0" : "mt-0 mb-10px"}`,
+    );
   const elems = {
     mount: root === document && thumbsSource
       ? createManagedElement("div").replaceClasses("contents")
@@ -325,11 +329,11 @@ export function manageGalleryPreview(
     originalPageBarBottom: pageBarBottomSource?.inplace() ?? null,
     originalPageBarTop: pageBarTopSource?.inplace() ?? null,
     originalPageDescription: pageDescriptionSource?.inplace() ?? null,
-    pageBarBottom: pageBarBottomSource ? createManagedElement("div") : null,
+    pageBarBottom: pageBarBottomSource ? createPageBarMount("bottom") : null,
     pageBarDescription: pageDescriptionSource && pageBarTopSource
       ? createManagedElement("div")
       : null,
-    pageBarTop: pageBarTopSource ? createManagedElement("div") : null,
+    pageBarTop: pageBarTopSource ? createPageBarMount("top") : null,
     thumbImages: thumbsSource?.all<HTMLImageElement>("img").map((image) => image.inplace()) ?? [],
     thumbItems: thumbsSource?.children().map((item) =>
       root === document ? item.inplace() : item.move()

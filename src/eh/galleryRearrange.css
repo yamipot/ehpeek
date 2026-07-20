@@ -41,8 +41,7 @@ body #gdt[class],
 /* Keep wide thumbnail and pagination rows scrollable inside the viewport. */
 body #gdt[class],
 .ptt,
-.ptb,
-.ehpeek-scroll-page-bar {
+.ptb {
   overflow-x: auto !important;
   -webkit-overflow-scrolling: touch;
 }

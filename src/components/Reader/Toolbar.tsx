@@ -34,7 +34,7 @@ const DOWNLOAD_OPTION_CLASS = [
   "hover:bg-[var(--color-badge)] disabled:(opacity-40 cursor-default)",
 ].join(" ");
 
-export type ReaderDownloadDialog = {
+export type ReaderDownloadInfo = {
   currentFileName: string;
   currentImageUrl: string;
   originalImageUrl: string | null;
@@ -43,51 +43,47 @@ export type ReaderDownloadDialog = {
 
 export type ToolbarCallbacks = {
   onCloseClick: () => void;
-  onDownloadClick: () => void;
-  onDownloadCurrentClick: () => void;
-  onDownloadDialogClose: () => void;
-  onDownloadOriginalClick: () => void;
+  onControlsChange: (controls: ReaderControls) => void;
   onFullscreenClick: () => void;
-  onModeClick: () => void;
   onOpenOriginalPageClick: () => void;
   onProgressCommit: (value: number) => void;
   onProgressInput: (value: number) => void;
   onProgressPointerDown: (event: PointerEvent) => void;
-  onReadDirectionClick: () => void;
-  onRightTapClick: () => void;
 };
 
-export type ToolbarState = {
+export function Toolbar(props: {
+  callbacks: ToolbarCallbacks;
   controls: ReaderControls;
-  downloadAvailable: boolean;
-  downloadDialog: ReaderDownloadDialog | null;
+  downloadInfo: ReaderDownloadInfo | null;
   fullscreenActive: boolean;
   open: boolean;
   progress: PageProgress;
-};
+}) {
+  const [dialogDownloadInfo, setDialogDownloadInfo] = createSignal<ReaderDownloadInfo | null>(null);
+  const fullscreenTime = createFullscreenTime(() => props.fullscreenActive);
 
-export function initialToolbarState(controls: ReaderControls): ToolbarState {
-  return {
-    controls,
-    downloadAvailable: false,
-    downloadDialog: null,
-    fullscreenActive: false,
-    open: false,
-    progress: {
-      pageNum: 1,
-      maxProgressPageNum: 1,
-    },
-  };
-}
+  createEffect(() => {
+    if (dialogDownloadInfo()?.pageNum !== props.progress.pageNum) {
+      setDialogDownloadInfo(null);
+    }
+  });
 
-export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarState }) {
-  const controls = () => props.state.controls;
-  const progress = () => props.state.progress;
-  const open = () => props.state.open;
-  const modeIcon = () => controls().mode === "paged" ? "arrows-horizontal" as const : "arrows-vertical" as const;
-  const readDirectionIcon = () => controls().readDirection === "rtl" ? "arrow-left" as const : "arrow-right" as const;
-  const rightTapText = () => controls().rightTapAction === "previous" ? "R-" : "R+";
-  const fullscreenTime = createFullscreenTime(() => props.state.fullscreenActive);
+  createEffect(() => {
+    if (!dialogDownloadInfo()) {
+      return;
+    }
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      setDialogDownloadInfo(null);
+    };
+    window.addEventListener("keydown", closeOnEscape, true);
+    onCleanup(() => window.removeEventListener("keydown", closeOnEscape, true));
+  });
 
   return (
     <div class="contents">
@@ -101,29 +97,42 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div class={`ehpeek-reader-toolbar-buttons flex flex-row gap-md coarse:gap-lg pointer-events-auto${open() ? "" : " !hidden"}`}>
+        <div class={`ehpeek-reader-toolbar-buttons flex flex-row gap-md coarse:gap-lg pointer-events-auto${props.open ? "" : " !hidden"}`}>
           <button
             type="button"
             class={READER_BUTTON_CLASS}
-            onClick={() => props.callbacks.onRightTapClick()}
+            onClick={() => props.callbacks.onControlsChange({
+              ...props.controls,
+              rightTapAction: props.controls.rightTapAction === "previous" ? "next" : "previous",
+            })}
           >
-            {rightTapText()}
+            {props.controls.rightTapAction === "previous" ? "R-" : "R+"}
           </button>
           <button
             type="button"
             class={READER_BUTTON_CLASS}
-            onClick={() => props.callbacks.onReadDirectionClick()}
+            onClick={() => props.callbacks.onControlsChange({
+              ...props.controls,
+              readDirection: props.controls.readDirection === "rtl" ? "ltr" : "rtl",
+            })}
           >
-            <Icon name={readDirectionIcon()} size={READER_ICON_SIZE} />
-          </button>
-          <button type="button" class={READER_BUTTON_CLASS} onClick={() => props.callbacks.onModeClick()}>
-            <Icon name={modeIcon()} size={READER_ICON_SIZE} />
+            <Icon name={props.controls.readDirection === "rtl" ? "arrow-left" : "arrow-right"} size={READER_ICON_SIZE} />
           </button>
           <button
             type="button"
             class={READER_BUTTON_CLASS}
-            disabled={!props.state.downloadAvailable}
-            onClick={() => props.callbacks.onDownloadClick()}
+            onClick={() => props.callbacks.onControlsChange({
+              ...props.controls,
+              mode: props.controls.mode === "paged" ? "scroll" : "paged",
+            })}
+          >
+            <Icon name={props.controls.mode === "paged" ? "arrows-horizontal" : "arrows-vertical"} size={READER_ICON_SIZE} />
+          </button>
+          <button
+            type="button"
+            class={READER_BUTTON_CLASS}
+            disabled={!props.downloadInfo}
+            onClick={() => setDialogDownloadInfo(props.downloadInfo)}
           >
             <Icon name="download" size={READER_ICON_SIZE} />
           </button>
@@ -139,7 +148,7 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
             class={READER_BUTTON_CLASS}
             onClick={() => props.callbacks.onFullscreenClick()}
           >
-            <Icon name={props.state.fullscreenActive ? "fullscreen-exit" : "fullscreen"} size={READER_ICON_SIZE} />
+            <Icon name={props.fullscreenActive ? "fullscreen-exit" : "fullscreen"} size={READER_ICON_SIZE} />
           </button>
           <button type="button" class={READER_BUTTON_CLASS} onClick={() => props.callbacks.onCloseClick()}>
             <Icon name="close" size={READER_ICON_SIZE} />
@@ -158,11 +167,11 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           "font-sans textsize-sm font-600 leading-[1.4] whitespace-nowrap " +
           "text-center landscape:text-right"
         }
-        hidden={controls().mode === "scroll" && !open() && !props.state.fullscreenActive}
+        hidden={props.controls.mode === "scroll" && !props.open && !props.fullscreenActive}
       >
-        {pageNumberText(progress().pageNum, progress().totalPages)}
+        {pageNumberText(props.progress.pageNum, props.progress.totalPages)}
       </div>
-      <Show when={props.state.fullscreenActive}>
+      <Show when={props.fullscreenActive}>
         <div
           class={
             "ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none " +
@@ -181,27 +190,27 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           "right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] " +
           "[&[data-open=false]]:(opacity-0 translate-y-[calc(100%+16px)] pointer-events-none)"
         }
-        data-open={String(open())}
+        data-open={String(props.open)}
         onClick={stopEvent}
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
         <ProgressBar
           class="ehpeek-reader-progress textsize-lg"
-          direction={controls().readDirection === "rtl" ? "rtl" : "ltr"}
-          fillPercent={progressFillPercent(progress())}
-          keepInputValue={progress().keepInputValue}
-          max={Math.max(1, progress().maxProgressPageNum)}
+          direction={props.controls.readDirection === "rtl" ? "rtl" : "ltr"}
+          fillPercent={progressFillPercent(props.progress)}
+          keepInputValue={props.progress.keepInputValue}
+          max={Math.max(1, props.progress.maxProgressPageNum)}
           min={1}
           step={1}
-          value={progress().pageNum}
+          value={props.progress.pageNum}
           onPointerDown={props.callbacks.onProgressPointerDown}
           onInput={props.callbacks.onProgressInput}
           onCommit={props.callbacks.onProgressCommit}
         />
       </div>
-      <Show when={props.state.downloadDialog} keyed>
-        {(downloadDialog) => (
+      <Show when={dialogDownloadInfo()} keyed>
+        {(downloadInfo) => (
         <div
           class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 pointer-events-auto"
           role="dialog"
@@ -210,41 +219,53 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
           onClick={(event: MouseEvent) => {
             event.stopPropagation();
             if (event.target === event.currentTarget) {
-              props.callbacks.onDownloadDialogClose();
+              setDialogDownloadInfo(null);
             }
           }}
           onPointerDown={stopEvent}
           onWheel={stopEvent}
         >
-          <div class="ehpeek-reader-download-dialog-panel w-full max-w-420px p-lg rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] shadow-xl">
+          <div class="ehpeek-reader-download-dialog-panel w-full max-w-480px p-lg rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] shadow-xl">
             <div class="flex items-center justify-between gap-md mb-lg">
-              <div class="font-sans textsize-lg font-700">{`${texts.reader.download} · ${downloadDialog.pageNum}`}</div>
+              <div class="font-sans textsize-md font-700">{`${texts.reader.download} · ${downloadInfo.pageNum}`}</div>
               <button
                 type="button"
                 class={READER_BUTTON_CLASS}
                 title={texts.button.close}
                 aria-label={texts.button.close}
-                onClick={props.callbacks.onDownloadDialogClose}
+                onClick={() => setDialogDownloadInfo(null)}
               >
                 <Icon name="close" size={READER_ICON_SIZE} />
               </button>
             </div>
             <div class="grid gap-md font-sans textsize-md">
-              <button type="button" class={DOWNLOAD_OPTION_CLASS} onClick={props.callbacks.onDownloadCurrentClick}>
-                <span class="font-700">{texts.reader.downloadDisplayedImage}</span>
+              <button
+                type="button"
+                class={DOWNLOAD_OPTION_CLASS}
+                onClick={() => {
+                  if (startImageDownload(downloadInfo.currentImageUrl, downloadInfo.currentFileName)) {
+                    setDialogDownloadInfo(null);
+                  }
+                }}
+              >
+                <span class="textsize-md font-700">{texts.reader.downloadDisplayedImage}</span>
                 <span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75">
-                  {downloadDialog.currentFileName}
+                  {downloadInfo.currentFileName}
                 </span>
               </button>
               <button
                 type="button"
                 class={DOWNLOAD_OPTION_CLASS}
-                disabled={!downloadDialog.originalImageUrl}
-                onClick={props.callbacks.onDownloadOriginalClick}
+                disabled={!downloadInfo.originalImageUrl}
+                onClick={() => {
+                  if (downloadInfo.originalImageUrl && startImageDownload(downloadInfo.originalImageUrl)) {
+                    setDialogDownloadInfo(null);
+                  }
+                }}
               >
-                <span class="font-700">{texts.reader.downloadOriginalImage}</span>
+                <span class="textsize-md font-700">{texts.reader.downloadOriginalImage}</span>
                 <span class="textsize-sm opacity-75">
-                  {downloadDialog.originalImageUrl ? texts.reader.originalImageSource : texts.reader.originalImageUnavailable}
+                  {downloadInfo.originalImageUrl ? texts.reader.originalImageSource : texts.reader.originalImageUnavailable}
                 </span>
               </button>
             </div>
@@ -254,6 +275,24 @@ export function Toolbar(props: { callbacks: ToolbarCallbacks; state: ToolbarStat
       </Show>
     </div>
   );
+}
+
+function startImageDownload(url: string, name?: string): boolean {
+  try {
+    GM_download({
+      url,
+      ...(name ? { name } : {}),
+      onerror: (error) => {
+        console.error("[ehpeek]", error);
+        window.alert(texts.errors.downloadFailed);
+      },
+    });
+    return true;
+  } catch (error) {
+    console.error("[ehpeek]", error);
+    window.alert(texts.errors.downloadFailed);
+    return false;
+  }
 }
 
 function createFullscreenTime(enabled: () => boolean): () => string {

@@ -1,20 +1,21 @@
 import {
-  enterReaderFullscreen,
-  FullscreenReader,
-  type FullscreenReaderOptions,
+  Reader,
+  type ReaderCallbacks as ReaderComponentCallbacks,
+  type ReaderOptions,
 } from "../components/Reader";
 import { ReadHistorySession } from "../state/readHistory";
 import * as eh from "../eh";
 import { state } from "../state";
 import texts from "../texts.json";
 import { render } from "solid-js/web";
+import { createSignal } from "solid-js";
 import type { GalleryPreviewCache } from "./GalleryPreviewCache";
-import type { ReaderViewport, ReaderViewportSnapshot } from "./viewport";
+import type { ReaderFullscreenController, ReaderViewport } from "./viewport";
 
 type ReaderFullscreenLaunch = {
+  fullscreen: ReaderFullscreenController;
   host: HTMLDivElement;
   result: Promise<boolean>;
-  viewport: ReaderViewportSnapshot | null;
 };
 
 export type ReaderCallbacks = {
@@ -49,10 +50,11 @@ export function openReaderFromUserAction(
           console.warn("[ehpeek] Failed to exit fullscreen", fullscreenError);
         });
       }
-      if (fullscreenEntered && fullscreenLaunch.viewport) {
-        await viewport.restore(fullscreenLaunch.viewport);
+      if (fullscreenEntered) {
+        await fullscreenLaunch.fullscreen.exit();
       }
       fullscreenLaunch.host.remove();
+      await fullscreenLaunch.fullscreen.restore();
     }
     reportReaderOpenError(error);
   });
@@ -133,34 +135,46 @@ async function openReader(
 
   if (automaticFullscreen && document.fullscreenElement !== fullscreenLaunch?.host) {
     historySession?.dispose();
-    if (fullscreenLaunch?.viewport) {
-      await viewport.restore(fullscreenLaunch.viewport);
-    }
+    await fullscreenLaunch?.fullscreen.exit();
     fullscreenLaunch?.host.remove();
+    await fullscreenLaunch?.fullscreen.restore();
     return;
   }
 
   let lastPageNum = startPageNum;
-  let fullscreenViewport = automaticFullscreen ? fullscreenLaunch?.viewport ?? null : null;
-  const restorePageViewport = async () => {
-    const snapshot = fullscreenViewport;
-    fullscreenViewport = null;
+  const onExit = () => {
+    historySession?.dispose();
+    callbacks.onReaderClosed(lastPageNum, totalPages ?? null);
 
-    if (snapshot) {
-      await viewport.restore(snapshot);
+    if (lastPageNum === startPageNum) {
+      return;
+    }
+
+    const exitIndex = previewCache.previewIndexForPage(lastPageNum);
+    const galleryUrl = eh.previewUrlForIndex(exitIndex);
+
+    if (callbacks.enhanceThumbsGridsEnabled) {
+      callbacks.onGotoPreviewIndex(exitIndex);
+      void previewCache.select(exitIndex).catch(() => {
+        window.location.replace(galleryUrl);
+      });
+      return;
+    }
+
+    if (exitIndex === currentPreviewIndex) {
+      window.history.replaceState(window.history.state, "", galleryUrl);
+    } else {
+      window.location.replace(galleryUrl);
     }
   };
 
-  openFullscreenReader({
+  const host = fullscreenLaunch?.host ?? createReaderHost();
+  const fullscreen = fullscreenLaunch?.fullscreen ?? viewport.createFullscreen(host);
+  mountReader({
     galleryId: gallery.galleryId,
     initialPageNum: startPageNum,
-    lockPageScroll: viewport.lockScroll,
-    previewCache,
     totalPages,
-    onBeforeEnterFullscreen: () => {
-      fullscreenViewport = viewport.prepareFullscreen();
-    },
-    restorePageViewport,
+  }, previewCache, {
     onActivePageChange: (page) => {
       if (page.pageNum) {
         lastPageNum = page.pageNum;
@@ -174,70 +188,121 @@ async function openReader(
       historySession?.update(page.pageNum, totalPages);
       eh.updatePeekLocation(page.pageNum, pageSize, maxPreviewIndex);
     },
-    onExit: () => {
-      historySession?.dispose();
-      callbacks.onReaderClosed(lastPageNum, totalPages ?? null);
-      const exitIndex = previewCache.previewIndexForPage(lastPageNum);
-      const galleryUrl = eh.previewUrlForIndex(exitIndex);
-
-      if (callbacks.enhanceThumbsGridsEnabled) {
-        callbacks.onGotoPreviewIndex(exitIndex);
-        void previewCache.select(exitIndex).catch(() => {
-          window.location.replace(galleryUrl);
-        });
-        return;
-      }
-
-      if (exitIndex === currentPreviewIndex) {
-        window.history.replaceState(window.history.state, "", galleryUrl);
-      } else {
-        window.location.replace(galleryUrl);
-      }
-    },
     onOpenOriginalPage: (page) => {
       historySession?.dispose();
       window.location.assign(page.url);
     },
-  }, fullscreenLaunch?.host);
+  }, viewport.lockScroll, fullscreen, onExit, host);
 }
 
-function openFullscreenReader(
-  options: Omit<FullscreenReaderOptions, "fullscreenTarget">,
-  existingHost?: HTMLDivElement,
+function mountReader(
+  options: ReaderOptions,
+  previewCache: GalleryPreviewCache,
+  callbacks: Pick<ReaderComponentCallbacks, "onActivePageChange" | "onOpenOriginalPage">,
+  lockPageScroll: () => () => void,
+  fullscreen: ReaderFullscreenController,
+  onExit: () => void,
+  host: HTMLDivElement,
 ): void {
   activeReaderClose?.();
 
-  const host = existingHost ?? createReaderHost();
-  let closeReader = onClosed;
   let disposeRoot: () => void = () => undefined;
-  const close = () => closeReader();
+  let unlockPageScroll = lockPageScroll();
+  let setFullscreenActive = (_active: boolean): void => undefined;
+  let keepReaderOpen = false;
+  let historyEntry = true;
+  let closeRequested = false;
+  let closing = false;
+  const close = () => requestClose();
 
-  function onClosed(): void {
+  function requestClose(): void {
+    if (closing || closeRequested) {
+      return;
+    }
+    if (historyEntry) {
+      closeRequested = true;
+      window.history.back();
+      return;
+    }
+    void onClosed();
+  }
+
+  const onPopState = (): void => {
+    historyEntry = false;
+    void onClosed();
+  };
+
+  async function onClosed(): Promise<void> {
+    if (closing) {
+      return;
+    }
+    closing = true;
+    await fullscreen.exit().catch((error: unknown) => {
+      console.warn("[ehpeek] Failed to exit fullscreen", error);
+    });
     disposeRoot();
     disposeRoot = () => undefined;
+    unlockPageScroll();
+    unlockPageScroll = () => undefined;
     host.remove();
+    await fullscreen.restore().catch((error: unknown) => {
+      console.warn("[ehpeek] Failed to restore page viewport", error);
+    });
 
     if (activeReaderClose === close) {
       activeReaderClose = undefined;
     }
+    onExit();
   }
 
   if (!host.isConnected) {
     document.body.append(host);
   }
+  window.addEventListener("popstate", onPopState);
+  window.history.pushState({ ehpeekReader: true }, "", window.location.href);
   activeReaderClose = close;
+  const unsubscribeFullscreen = fullscreen.subscribe((active) => {
+    setFullscreenActive(active);
+    if (!active && !keepReaderOpen) {
+      requestClose();
+    }
+    keepReaderOpen = false;
+  });
   disposeRoot = render(
-    () => (
-      <FullscreenReader
-        options={{ ...options, fullscreenTarget: host }}
-        actionsRef={(actions) => {
-          closeReader = actions.close;
+    () => {
+      const [fullscreenActive, updateFullscreenActive] = createSignal(fullscreen.active());
+      setFullscreenActive = updateFullscreenActive;
+      return <Reader
+        callbacks={{
+          ...callbacks,
+          onClosed: requestClose,
+          onFullscreenToggle: () => {
+            if (fullscreen.active()) {
+              keepReaderOpen = true;
+              void fullscreen.exit().catch((error: unknown) => {
+                keepReaderOpen = false;
+                console.warn("[ehpeek] Failed to exit fullscreen", error);
+              });
+            } else {
+              void fullscreen.enter().catch((error: unknown) => {
+                console.warn("[ehpeek] Fullscreen request failed", error);
+              });
+            }
+          },
         }}
-        onClosed={onClosed}
-      />
-    ),
+        options={options}
+        previewCache={previewCache}
+        fullscreenActive={fullscreenActive()}
+      />;
+    },
     host,
   );
+  const previousDispose = disposeRoot;
+  disposeRoot = () => {
+    window.removeEventListener("popstate", onPopState);
+    unsubscribeFullscreen();
+    previousDispose();
+  };
 }
 
 function requestConfiguredFullscreen(
@@ -249,20 +314,18 @@ function requestConfiguredFullscreen(
 
   const host = createReaderHost();
   document.body.append(host);
+  const fullscreen = viewportSource.createFullscreen(host);
 
   if (!document.fullscreenEnabled || typeof host.requestFullscreen !== "function") {
-    return { host, result: Promise.resolve(false), viewport: null };
+    return { fullscreen, host, result: Promise.resolve(false) };
   }
 
-  const viewport = viewportSource.prepareFullscreen();
-
   return {
+    fullscreen,
     host,
-    viewport,
-    result: enterReaderFullscreen(host).then(
+    result: fullscreen.enter().then(
       () => true,
-      async (error: unknown) => {
-        await viewportSource.restore(viewport);
+      (error: unknown) => {
         console.warn("[ehpeek] Fullscreen request failed", error);
         return false;
       },
