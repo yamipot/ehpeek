@@ -454,11 +454,6 @@ async function injectPage(): Promise<void> {
     }
   }
 
-  if (galleryPage) {
-    allowFeatureFailure("Gallery API session", () => {
-      eh.manageGalleryApiSession();
-    });
-  }
   const galleryPreview = galleryPage
     ? allowFeatureFailure("Gallery Preview", () => eh.manageGalleryPreview())
     : null;

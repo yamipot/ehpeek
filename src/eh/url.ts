@@ -34,7 +34,6 @@ type EhSiteTheme = "e-hentai" | "exhentai";
 
 const EXHENTAI_HOST = "exhentai.org";
 const EXHENTAI_ONION_HOST = "exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion";
-const GALLERY_API_HOSTS = new Set(["api.e-hentai.org", "s.exhentai.org"]);
 
 export function ehSiteTheme(url = window.location.href): EhSiteTheme {
   const hostname = new URL(url, window.location.href).hostname;
@@ -57,17 +56,6 @@ export function galleryIdentityFromUrl(url = window.location.href): { galleryId:
   } catch {
     return null;
   }
-}
-
-export function isAllowedGalleryApiUrl(apiUrl: URL, pageUrl: URL): boolean {
-  const allowedHost = apiUrl.origin === pageUrl.origin ||
-    (apiUrl.protocol === "https:" && GALLERY_API_HOSTS.has(apiUrl.hostname));
-  return allowedHost &&
-    /^\/api\.php$/i.test(apiUrl.pathname) &&
-    !apiUrl.username &&
-    !apiUrl.password &&
-    !apiUrl.search &&
-    !apiUrl.hash;
 }
 
 function urlPath(url: string): string {

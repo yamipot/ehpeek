@@ -10,7 +10,6 @@ import {
 } from "solid-js";
 import type {
   GalleryFavoriteOption,
-  GalleryTagAction,
   MyTagMode,
 } from "../../eh";
 import { type GalleryInfoDom, type GalleryInfoTagGroup } from "../../eh";
@@ -21,6 +20,10 @@ import { Icon } from "../Widgets/Icon";
 
 const TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS =
   "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]";
+const TOUCH_GALLERY_TAG_MENU_ITEM_CLASS =
+  "ehpeek-touch-gallery-tag-menu-item flex box-border w-full min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer";
+const TOUCH_GALLERY_TAG_MENU_CLASS =
+  "!box-border flex !h-auto !w-full !float-none !m-0 !p-0 flex-col !textsize-md";
 export const TOUCH_GALLERY_INFO_CLASSES = {
   actionItems: TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS,
   cover:
@@ -65,6 +68,9 @@ export function GalleryInfoPanel(props: {
   }));
   const [tagGroups, setTagGroups] =
     createSignal<GalleryPanelTagGroup[]>(initialTagGroups);
+  const [selectedTag, setSelectedTag] = createSignal<
+    GalleryPanelTagGroup["tags"][number] | null
+  >(null);
   const [newTagVisible, setNewTagVisible] = createSignal(false);
   const hasNewTag = () =>
     Boolean(
@@ -118,6 +124,29 @@ export function GalleryInfoPanel(props: {
       source.elems.newTag?.scrollIntoView({ block: "nearest" });
       source.elems.newTagField?.focus();
     });
+  };
+  const openTagMenu = (tag: GalleryPanelTagGroup["tags"][number]) => {
+    try {
+      source.handle.openGalleryTagMenu(
+        tag,
+        TOUCH_GALLERY_TAG_MENU_CLASS,
+        TOUCH_GALLERY_TAG_MENU_ITEM_CLASS,
+        hasNewTag() ? openNewTag : undefined,
+      );
+      setSelectedTag(tag);
+    } catch (error) {
+      console.error("[ehpeek] Gallery tag actions failed", error);
+      window.alert(
+        error instanceof Error ? error.message : texts.errors.loadFailed,
+      );
+    }
+  };
+  const closeTagMenu = () => {
+    if (!selectedTag()) {
+      return;
+    }
+    source.handle.closeGalleryTagMenu();
+    setSelectedTag(null);
   };
 
   return (
@@ -235,16 +264,22 @@ export function GalleryInfoPanel(props: {
             <For each={tagGroups()}>{(group) => (
               <TouchGalleryTagGroup
                 group={group}
-                source={source}
-                onNewTagOpen={hasNewTag() ? openNewTag : undefined}
+                onTagOpen={openTagMenu}
               />
             )}</For>
           </div>
         )}
-        <Show when={newTagVisible() && hasNewTag()}>
-          <TouchGalleryNewTag source={source} />
+        <Show when={hasNewTag()}>
+          <div class={newTagVisible() ? "block" : "hidden"}>
+            <TouchGalleryNewTag source={source} />
+          </div>
         </Show>
       </div>
+      <TouchGalleryTagMenu
+        source={source}
+        tag={selectedTag()}
+        onClose={closeTagMenu}
+      />
       <Show when={ratingPickerOpen()}>
         <div
           class="ehpeek-touch-gallery-rating-dialog fixed inset-0 z-overlay flex items-center justify-center p-md bg-black/65"
@@ -371,8 +406,7 @@ function TouchGalleryActionsMenu(props: {
 
 function TouchGalleryTagGroup(props: {
   group: GalleryPanelTagGroup;
-  source: GalleryInfoDom;
-  onNewTagOpen?: () => void;
+  onTagOpen: (tag: GalleryPanelTagGroup["tags"][number]) => void;
 }) {
   return (
     <section class="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-sm items-start">
@@ -381,7 +415,7 @@ function TouchGalleryTagGroup(props: {
       </div>
       <div class="ehpeek-touch-gallery-tags flex flex-wrap gap-sm">
         <For each={props.group.tags}>{(tag) => (
-          <TouchGalleryTag source={props.source} tag={tag} onNewTagOpen={props.onNewTagOpen} />
+          <TouchGalleryTag tag={tag} onOpen={() => props.onTagOpen(tag)} />
         )}</For>
       </div>
     </section>
@@ -389,11 +423,32 @@ function TouchGalleryTagGroup(props: {
 }
 
 function TouchGalleryTag(props: {
-  source: GalleryInfoDom;
   tag: GalleryPanelTagGroup["tags"][number];
-  onNewTagOpen?: () => void;
+  onOpen: () => void;
 }) {
-  const [open, setOpen] = createSignal(false);
+  return (
+    <button
+      type="button"
+      class="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-none transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"
+      style={{
+        "background-color": props.tag.appearance.backgroundColor,
+        "border-color": props.tag.appearance.borderColor,
+        color: props.tag.appearance.color,
+      }}
+      aria-label={props.tag.label}
+      aria-haspopup="menu"
+      onClick={() => props.onOpen()}
+    >
+      <TouchGalleryTagContent tag={props.tag} />
+    </button>
+  );
+}
+
+function TouchGalleryTagMenu(props: {
+  source: GalleryInfoDom;
+  tag: GalleryPanelTagGroup["tags"][number] | null;
+  onClose: () => void;
+}) {
   const [favoriteDialogOpen, setFavoriteDialogOpen] = createSignal(false);
   const tagSets = state.gallery.myTagSets.reload();
   const [selectedTagSet, setSelectedTagSet] = createSignal(
@@ -403,59 +458,31 @@ function TouchGalleryTag(props: {
   );
   const [tagMode, setTagMode] = createSignal<MyTagMode>("marked");
   const [updating, setUpdating] = createSignal(false);
-  let root!: HTMLDivElement;
-  const closeMenu = () => setOpen(false);
+  const [favoriteTag, setFavoriteTag] = createSignal<
+    GalleryPanelTagGroup["tags"][number] | null
+  >(null);
 
   onMount(() => {
-    const onClick = (event: MouseEvent) => {
-      if (!(event.target instanceof Element) || !root.contains(event.target)) {
-        closeMenu();
-      }
-    };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeMenu();
+      if (event.key === "Escape" && props.tag) {
+        props.onClose();
       }
     };
 
-    document.addEventListener("click", onClick);
     document.addEventListener("keydown", onKeyDown);
 
     onCleanup(() => {
-      document.removeEventListener("click", onClick);
       document.removeEventListener("keydown", onKeyDown);
     });
   });
 
-  const runTagAction = async (action: GalleryTagAction) => {
-    closeMenu();
+  const updateFavoriteTag = async (tag: GalleryPanelTagGroup["tags"][number]) => {
     setUpdating(true);
     try {
-      await props.source.handle.submitGalleryTagAction(props.tag, action);
-    } catch (error) {
-      console.error(
-        "[ehpeek] Gallery tag vote failed",
-        {
-          action,
-        },
-        error,
-      );
-      window.alert(
-        error instanceof Error ? error.message : texts.errors.loadFailed,
-      );
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const updateFavoriteTag = async () => {
-    closeMenu();
-    setUpdating(true);
-    try {
-      if (props.tag.myTag) {
-        await props.source.handle.removeFavoriteTag(props.tag);
+      if (tag.myTag) {
+        await props.source.handle.removeFavoriteTag(tag);
       } else {
-        await props.source.handle.submitFavoriteTag(props.tag, selectedTagSet(), tagMode());
+        await props.source.handle.submitFavoriteTag(tag, selectedTagSet(), tagMode());
       }
       state.gallery.myTagAppearances.clear();
       window.location.reload();
@@ -470,124 +497,35 @@ function TouchGalleryTag(props: {
   };
 
   return (
-    <div
-      ref={root}
-      class="ehpeek-touch-gallery-tag-menu relative inline-flex max-w-full"
-    >
-      <button
-        type="button"
-        class="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-none transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"
-        style={{
-          "background-color": props.tag.appearance.backgroundColor,
-          "border-color": props.tag.appearance.borderColor,
-          color: props.tag.appearance.color,
+    <>
+      <div
+        class={`ehpeek-touch-gallery-tag-menu-dialog fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 transition-opacity duration-120 ${props.tag ? "visible opacity-100" : "invisible opacity-0 pointer-events-none"}`}
+        role="dialog"
+        aria-modal="true"
+        aria-hidden={!props.tag}
+        aria-label={props.tag?.label ?? ""}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) {
+            props.onClose();
+          }
         }}
-        aria-label={props.tag.label}
-        aria-haspopup="menu"
-        aria-expanded={open()}
-        onClick={() => setOpen((open) => !open)}
       >
-        <TouchGalleryTagContent tag={props.tag} />
-      </button>
-      <Show when={open()}>
         <div
-          class="ehpeek-touch-gallery-tag-menu-dialog fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"
-          role="dialog"
-          aria-modal="true"
-          aria-label={props.tag.label}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              closeMenu();
-            }
-          }}
+          class="ehpeek-touch-gallery-tag-menu-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-x-hidden overflow-y-auto whitespace-nowrap border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl"
+          role="menu"
+          onClick={() => props.onClose()}
         >
-          <div
-            class="ehpeek-touch-gallery-tag-menu-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-x-hidden overflow-y-auto whitespace-nowrap border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl"
-            role="menu"
-            onClick={closeMenu}
-          >
+          <DomNode node={props.source.elems.tagMenuAction} />
+          <Show when={props.tag}>{(tag) => (
             <Show
-              when={props.tag.vote !== null}
-              fallback={
-                <>
-                  <button
-                    type="button"
-                    class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
-                    role="menuitem"
-                    disabled={updating()}
-                    onClick={() => void runTagAction("voteUp")}
-                  >
-                    <span
-                      class="w-24px text-center ehp-color-site-accent"
-                      aria-hidden="true"
-                    >
-                      ↑
-                    </span>
-                    <span>{texts.gallery.voteUp}</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
-                    role="menuitem"
-                    disabled={updating()}
-                    onClick={() => void runTagAction("voteDown")}
-                  >
-                    <span
-                      class="w-24px text-center ehp-color-site-accent"
-                      aria-hidden="true"
-                    >
-                      ↓
-                    </span>
-                    <span>{texts.gallery.voteDown}</span>
-                  </button>
-                </>
-              }
-            >
-              <button
-                type="button"
-                class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
-                role="menuitem"
-                disabled={updating()}
-                onClick={() => void runTagAction("withdrawVote")}
-              >
-                <span
-                  class="w-24px text-center ehp-color-site-accent"
-                  aria-hidden="true"
-                >
-                  ↺
-                </span>
-                <span>{texts.gallery.withdrawVote}</span>
-              </button>
-            </Show>
-            <a
-              class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left"
-              href={props.tag.href}
-              role="menuitem"
-              onClick={closeMenu}
-            >
-              <Icon name="search" />
-              <span>{texts.gallery.showTaggedGalleries}</span>
-            </a>
-            <a
-              class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer"
-              href={props.tag.definitionHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              role="menuitem"
-              onClick={closeMenu}
-            >
-              <Icon name="external-link" />
-              <span>{texts.gallery.showTagDefinition}</span>
-            </a>
-            <Show
-              when={!props.tag.myTag}
+              when={!tag().myTag}
               fallback={
                 <button
                   type="button"
-                  class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
+                  class={TOUCH_GALLERY_TAG_MENU_ITEM_CLASS}
                   role="menuitem"
                   disabled={updating()}
-                  onClick={() => void updateFavoriteTag()}
+                  onClick={() => void updateFavoriteTag(tag())}
                 >
                   <Icon name="heart" filled />
                   <span>{texts.gallery.removeFavoriteTag}</span>
@@ -596,11 +534,11 @@ function TouchGalleryTag(props: {
             >
               <button
                 type="button"
-                class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
+                class={TOUCH_GALLERY_TAG_MENU_ITEM_CLASS}
                 role="menuitem"
                 disabled={updating()}
                 onClick={() => {
-                  closeMenu();
+                  setFavoriteTag(tag());
                   setFavoriteDialogOpen(true);
                 }}
               >
@@ -608,27 +546,9 @@ function TouchGalleryTag(props: {
                 <span>{texts.gallery.favoriteTag}</span>
               </button>
             </Show>
-            <button
-              type="button"
-              class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"
-              role="menuitem"
-              disabled={!props.onNewTagOpen}
-              onClick={() => {
-                closeMenu();
-                props.onNewTagOpen?.();
-              }}
-            >
-              <span
-                class="w-24px text-center ehp-color-site-accent textsize-lg leading-none"
-                aria-hidden="true"
-              >
-                +
-              </span>
-              <span>{texts.gallery.addNewTag}</span>
-            </button>
-          </div>
+          )}</Show>
         </div>
-      </Show>
+      </div>
       <Show when={favoriteDialogOpen()}>
         <div
           class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"
@@ -685,7 +605,12 @@ function TouchGalleryTag(props: {
                 type="button"
                 class="flex min-h-md items-center justify-center gap-md rounded-xs border-0 bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit font-700 textsize-md cursor-pointer"
                 disabled={updating()}
-                onClick={() => void updateFavoriteTag()}
+                onClick={() => {
+                  const tag = favoriteTag();
+                  if (tag) {
+                    void updateFavoriteTag(tag);
+                  }
+                }}
               >
                 <Icon name="heart" />
                 <span>{texts.button.confirm}</span>
@@ -694,7 +619,7 @@ function TouchGalleryTag(props: {
           </div>
         </div>
       </Show>
-    </div>
+    </>
   );
 }
 

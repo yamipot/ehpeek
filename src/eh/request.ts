@@ -13,14 +13,6 @@ type PageResponse = {
   url: string;
 };
 
-export type GalleryTagApiInfo = {
-  apiKey: string;
-  apiUid: number;
-  apiUrl: string;
-  galleryId: number;
-  token: string;
-};
-
 export async function requestPage(url: string, options: PageRequestOptions = {}): Promise<PageResponse> {
   const controller = new AbortController();
   const abort = () => controller.abort();
@@ -116,83 +108,4 @@ export async function deleteMyTag(tagId: string, tagSet: string): Promise<PageRe
     },
     body,
   });
-}
-
-export async function updateGalleryTagVote(
-  info: GalleryTagApiInfo,
-  tag: string,
-  vote: number,
-): Promise<string> {
-  const result = await requestGalleryApi(info, {
-    method: "taggallery",
-    tags: tag,
-    vote,
-  });
-
-  if (typeof result.tagpane !== "string") {
-    throw new Error("Gallery tag response is invalid.");
-  }
-
-  return result.tagpane;
-}
-
-async function requestGalleryApi(
-  info: GalleryTagApiInfo,
-  payload: Record<string, string | number>,
-): Promise<Record<string, unknown>> {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  const requestLog = {
-    action: typeof payload.method === "string" ? payload.method : "unknown",
-    apiOrigin: new URL(info.apiUrl).origin,
-    galleryId: info.galleryId,
-  };
-
-  console.info("[ehpeek] Gallery API request started", requestLog);
-
-  try {
-    const response = await fetch(info.apiUrl, {
-      method: "POST",
-      body: JSON.stringify({
-        ...payload,
-        apiuid: info.apiUid,
-        apikey: info.apiKey,
-        gid: info.galleryId,
-        token: info.token,
-      }),
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-      },
-      signal: controller.signal,
-    });
-
-    console.info("[ehpeek] Gallery API response received", {
-      ...requestLog,
-      status: response.status,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const result: unknown = await response.json();
-
-    if (!result || typeof result !== "object" || Array.isArray(result)) {
-      throw new Error("Gallery API response is invalid.");
-    }
-
-    const record = result as Record<string, unknown>;
-
-    if (typeof record.error === "string" && record.error) {
-      throw new Error(record.error);
-    }
-
-    return record;
-  } catch (error) {
-    console.error("[ehpeek] Gallery API request failed", requestLog, error);
-    throw error;
-  } finally {
-    window.clearTimeout(timeout);
-  }
 }

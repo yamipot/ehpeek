@@ -1,7 +1,4 @@
-import {
-  requestPage,
-  type GalleryTagApiInfo,
-} from "../request";
+import { requestPage } from "../request";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
 import texts from "../../texts.json";
 import { normalizeUrl } from "../../utils";
@@ -9,9 +6,7 @@ import type { ImagePageInfo } from "../types";
 import type { MyTagAppearance, MyTagSetOption } from "../../state";
 import {
   extractPageType,
-  galleryIdentityFromUrl,
   galleryTagNameFromUrl,
-  isAllowedGalleryApiUrl,
   isFullImageUrl,
   previewPageIndex,
   previewUrlForIndex,
@@ -24,14 +19,6 @@ import {
 } from "./core";
 
 const GALLERY_PAGE_DESCRIPTION_SELECTOR = ".gpc";
-
-type GalleryApiSession = {
-  apiKey: string;
-  apiUid: number;
-  apiUrl: string;
-};
-
-let galleryApiSession: GalleryApiSession | null = null;
 
 export type MyTagsPageData = {
   appearances: MyTagAppearance[];
@@ -123,10 +110,20 @@ export function mutateGalleryMyTags(appearances: MyTagAppearance[]) {
         continue;
       }
 
-      const container = tag.closest<HTMLElement>("div.gt, div.gtl, div.gtw") ?? tag;
-      container.inplace().styles({ "background-color": appearance.backgroundColor }, "important");
+      const container = tag.closest<HTMLElement>("div.gt, div.gtl, div.gtw");
+      if (!container) {
+        continue;
+      }
+
+      container.inplace()
+        .styles({
+          "--ehpeek-my-tag-color": appearance.color,
+          "background-color": appearance.backgroundColor,
+        }, "important")
+        .addClasses("[&>a]:!text-[var(--ehpeek-my-tag-color)]");
       tag.inplace()
-        .styles({ color: appearance.color }, "important")
+        .removeStyles("color")
+        .removeClasses("!text-[var(--ehpeek-my-tag-color)]")
         .setAttributes({
           "data-ehpeek-my-tag-id": appearance.id,
           "data-ehpeek-my-tag-set": appearance.tagSet,
@@ -137,85 +134,6 @@ export function mutateGalleryMyTags(appearances: MyTagAppearance[]) {
   apply();
   return DomNode.from(document).one<HTMLElement>("#taglist")?.inplace().observe(apply)
     ?? (() => undefined);
-}
-
-/** Captures the original GalleryInfo script values used by tag and rating requests. */
-export function manageGalleryApiSession(): void {
-  if (galleryApiSession) {
-    return;
-  }
-  if (!galleryIdentityFromUrl()) {
-    return;
-  }
-
-  const script = DomNode.from(document).all<HTMLScriptElement>("script")
-    .map((item) => item.text())
-    .find((text) => text.includes("var api_url") && text.includes("var apikey"));
-
-  if (!script) {
-    throw new Error("The Gallery API session script could not be found.");
-  }
-
-  const stringValue = (name: string) =>
-    script.match(new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`))?.[2] ?? null;
-  const numberValue = (name: string) => {
-    const match = script.match(new RegExp(`\\b${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`));
-    const value = Number(match?.[1]);
-    return match && Number.isFinite(value) ? value : null;
-  };
-  const apiUrlValue = stringValue("api_url");
-  const apiKey = stringValue("apikey");
-  const apiUid = numberValue("apiuid");
-
-  if (!apiUrlValue || !apiKey || apiUid === null) {
-    throw new Error("The Gallery API session values could not be read.");
-  }
-
-  const apiUrl = new URL(apiUrlValue, window.location.href);
-  const pageUrl = new URL(window.location.href);
-  const allowedUrl = isAllowedGalleryApiUrl(apiUrl, pageUrl);
-
-  if (
-    !allowedUrl ||
-    !Number.isSafeInteger(apiUid) ||
-    apiUid <= 0 ||
-    !/^[A-Za-z0-9_-]{8,128}$/.test(apiKey)
-  ) {
-    throw new Error("The Gallery API session values are invalid.");
-  }
-
-  galleryApiSession = {
-    apiKey,
-    apiUid,
-    apiUrl: apiUrl.href,
-  };
-}
-
-/** Builds GalleryInfo's tag/rating API data from the captured session and current URL. */
-export function extractGalleryTagApiInfo(): GalleryTagApiInfo {
-  const gallery = galleryIdentityFromUrl();
-
-  if (!gallery) {
-    throw new Error("The current Gallery identity could not be read.");
-  }
-
-  if (!galleryApiSession) {
-    throw new Error("The Gallery API session is unavailable.");
-  }
-
-  const { galleryId, token } = gallery;
-
-  if (!Number.isSafeInteger(galleryId) || galleryId <= 0 || !/^[A-Za-z0-9]+$/.test(token)) {
-    throw new Error("The current Gallery identity is invalid.");
-  }
-
-  return {
-    apiKey: galleryApiSession.apiKey,
-    apiUid: galleryApiSession.apiUid,
-    apiUrl: galleryApiSession.apiUrl,
-    galleryId,
-    token,
-  };
 }
 
 /** Returns the original GalleryInfo control used to mount the Continue/Read button. */

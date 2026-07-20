@@ -30,13 +30,7 @@
     "tagBehavior": "Behavior",
     "markTag": "Mark",
     "watchTag": "Watch",
-    "hideTag": "Hide",
-    "voteUp": "Vote Up",
-    "voteDown": "Vote Down",
-    "withdrawVote": "Withdraw Vote",
-    "showTaggedGalleries": "Show Tagged Galleries",
-    "showTagDefinition": "Show Tag Definition",
-    "addNewTag": "Add New Tag"
+    "hideTag": "Hide"
   },
   "settings": {
     "openSettings": "Settings",

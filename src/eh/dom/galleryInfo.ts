@@ -5,14 +5,12 @@ import {
   deleteMyTag,
   requestPage,
   updateGalleryFavorite,
-  updateGalleryTagVote,
 } from "../request";
 import type {
   GalleryCategoryAppearance,
   GalleryFavoriteOption,
   GalleryFavoriteInfo,
   GalleryRatingInfo,
-  GalleryTagAction,
   GalleryTagData,
 } from "../types";
 import { galleryTagNameFromUrl } from "../url";
@@ -23,11 +21,7 @@ import {
   type ManagedDomElements,
   type ManagedDomNode,
 } from "./core";
-import {
-  extractGalleryTagApiInfo,
-  extractMyTagsPageData,
-  type GalleryPreviewData,
-} from "./gallery";
+import { extractMyTagsPageData, type GalleryPreviewData } from "./gallery";
 import * as EhSyringe from "./ehSyringe";
 
 /** Manages E-H's gallery header for GalleryInfoPanel. */
@@ -189,12 +183,9 @@ export function manageGalleryInfo(
           borderColor: containerStyle.borderColor,
           color: tagStyle.color,
         },
-        definitionHref: `https://ehwiki.org/wiki/${encodeURIComponent(name.replace(/^[a-z]+:\s*/i, ""))}`,
-        href,
         label,
         myTag: myTagId && myTagSet ? { id: myTagId, tagSet: myTagSet } : null,
         name,
-        vote: tag.hasClass("tup") ? "up" as const : tag.hasClass("tdn") ? "down" as const : null,
       },
       source: tag,
     };
@@ -255,6 +246,7 @@ export function manageGalleryInfo(
   const ratingImage = page.one<HTMLElement>("#rating_image");
   const ratingLabel = page.one<HTMLElement>("#rating_label");
   const ratingActions = page.all<HTMLAreaElement>('map[name="rating"] area');
+  const tagMenuAction = page.one<HTMLElement>("#tagmenu_act");
   const newTag = page.one<HTMLElement>("#tagmenu_new");
   const newTagButton =
     newTag?.one<HTMLInputElement | HTMLButtonElement>("#newtagbutton") ?? null;
@@ -315,7 +307,9 @@ export function manageGalleryInfo(
     ratingActions: ratingActions.map((action) => action.inplace()),
     tagContents: tagContentSources.map((source) => source.inplace()),
     tagList: page.one<HTMLElement>("#taglist")?.inplace() ?? null,
+    tagMenuAction: tagMenuAction?.inplace() ?? null,
   } satisfies ManagedDomElements;
+  let selectedTagSource: ManagedDomNode | null = null;
 
   const handle = {
     /** Normalizes the original cover for GalleryInfoPanel's responsive layout. */
@@ -400,25 +394,47 @@ export function manageGalleryInfo(
       const response = await deleteMyTag(tag.myTag.id, tag.myTag.tagSet);
       extractMyTagsPageData(response.document, tag.myTag.tagSet);
     },
-    /** Applies an upvote, downvote, or vote removal and refreshes the tag pane. */
-    async submitGalleryTagAction(tag: GalleryTagData, action: GalleryTagAction): Promise<void> {
-      const api = extractGalleryTagApiInfo();
-      const vote = action === "voteUp"
-        ? 1
-        : action === "voteDown"
-          ? -1
-          : tag.vote === "up"
-            ? -1
-            : tag.vote === "down"
-              ? 1
-              : 0;
-      const tagPane = await updateGalleryTagVote(api, tag.name, vote);
-      if (!elems.tagList) {
-        throw new Error("Gallery tag list is unavailable.");
+    /** Opens E-H's original tag actions and only adapts their presentation. */
+    openGalleryTagMenu(
+      tag: GalleryInfoTagGroup["tags"][number],
+      containerClassName: string,
+      itemClassName: string,
+      onNewTagOpen?: () => void,
+    ): void {
+      if (!elems.tagMenuAction) {
+        throw new Error("Gallery tag actions are unavailable.");
       }
-      const template = document.createElement("template");
-      template.innerHTML = tagPane;
-      elems.tagList.replaceChildren(...Array.from(template.content.childNodes));
+
+      // E-H only creates the action links when its original tag anchor is activated.
+      tag.contentSource.click();
+      const actions = elems.tagMenuAction.all<HTMLAnchorElement>("a");
+      if (actions.length === 0) {
+        tag.contentSource.click();
+        throw new Error("Gallery tag actions could not be opened.");
+      }
+
+      selectedTagSource = tag.contentSource;
+      elems.tagMenuAction.replaceClasses(containerClassName);
+      elems.tagMenuAction.all<HTMLImageElement>("img").forEach((image) => {
+        image.setHidden(true);
+      });
+      actions.forEach((action) => {
+        action.replaceClasses(itemClassName).removeAllStyles();
+      });
+
+      const addNewTag = actions.find((action) =>
+        action.readAttribute("onclick")?.includes("toggle_tagmenu"));
+      if (addNewTag && onNewTagOpen) {
+        addNewTag.removeAttributes("onclick").listen("click", (event) => {
+          event.preventDefault();
+          onNewTagOpen();
+        });
+      }
+    },
+    /** Closes E-H's selected tag without replacing its action DOM. */
+    closeGalleryTagMenu(): void {
+      selectedTagSource?.click();
+      selectedTagSource = null;
     },
     /** Updates the Gallery favorite state through the original site endpoint. */
     updateGalleryFavorite,

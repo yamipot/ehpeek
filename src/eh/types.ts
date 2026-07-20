@@ -7,15 +7,10 @@ export type ImagePageInfo = {
 
 export type GalleryTagData = {
   appearance: GalleryTagAppearance;
-  definitionHref: string;
-  href: string;
   label: string;
   myTag: { id: string; tagSet: string } | null;
   name: string;
-  vote: "down" | "up" | null;
 };
-
-export type GalleryTagAction = "voteDown" | "voteUp" | "withdrawVote";
 
 type GalleryTagAppearance = {
   backgroundColor: string;
