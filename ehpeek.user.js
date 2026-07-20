@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260719.1434
+// @version      260720.0115
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -1146,8 +1146,8 @@
   }
   function galleryIdentityFromUrl(url = window.location.href) {
     try {
-      let match = new URL(url, window.location.href).pathname.match(/^\/g\/(\d+)\/([^/]+)/i), galleryId = Number(match?.[1]);
-      return match && Number.isSafeInteger(galleryId) && galleryId > 0 ? { galleryId, token: match[2] } : null;
+      let match = new URL(url, window.location.href).pathname.match(/^\/g\/(\d+)\/([^/]+)/i), galleryId = Number(match?.[1]), token = match?.[2];
+      return token && Number.isSafeInteger(galleryId) && galleryId > 0 ? { galleryId, token } : null;
     } catch {
       return null;
     }
@@ -1169,9 +1169,6 @@
     return hash.forEach((_value, key) => {
       supportedHash && (supportedHash = key === "peek_page");
     }), supportedSearch && supportedHash ? page : null;
-  }
-  function supportsSinglePageRoute(url) {
-    return singlePageRoute(url) !== null;
   }
   function urlPath(url) {
     try {
@@ -1195,13 +1192,13 @@
     try {
       let parsed = new URL(url, window.location.href), galleryMatch = parsed.pathname.match(/^\/g\/(\d+)\/([^/]+)\/?$/i);
       if (galleryMatch) {
-        let galleryId = Number(galleryMatch[1]);
-        if (Number.isFinite(galleryId) && galleryId > 0)
+        let galleryId = Number(galleryMatch[1]), token = galleryMatch[2];
+        if (token && Number.isFinite(galleryId) && galleryId > 0)
           return {
             type: "gallery",
             url: parsed.href,
             galleryId,
-            token: galleryMatch[2],
+            token,
             previewIndex: previewPageIndex(parsed.href),
             peekPage: peekPageFromHash(parsed.hash)
           };
@@ -1255,7 +1252,7 @@
   }
   function previewPageIndexForGalleryPage(galleryPage, pageSize, maxPreviewIndex) {
     let previewIndex = Math.max(0, Math.floor((galleryPage - 1) / pageSize));
-    return maxPreviewIndex === null ? previewIndex : Math.min(previewIndex, maxPreviewIndex);
+    return Math.min(previewIndex, maxPreviewIndex);
   }
   function peekPageFromHash(hash = window.location.hash) {
     let params = new URLSearchParams(hash.replace(/^#/, "")), page = Number(params.get("peek_page") || "");
@@ -1464,12 +1461,6 @@
     computedStyle() {
       return window.getComputedStyle(__privateGet(this, _node));
     }
-    inlineStyle(property) {
-      return __privateGet(this, _node).style.getPropertyValue(property);
-    }
-    rect() {
-      return __privateGet(this, _node).getBoundingClientRect();
-    }
     imageSize() {
       return {
         height: __privateGet(this, _node).naturalHeight || __privateGet(this, _node).height || Number(__privateGet(this, _node).getAttribute("height") || ""),
@@ -1513,9 +1504,7 @@
       return managed.remove(), managed;
     }
     clone(deep = !0) {
-      return ManagedDomNode.from(
-        __privateGet(this, _node).cloneNode(deep)
-      );
+      return ManagedDomNode.from(__privateGet(this, _node).cloneNode(deep));
     }
   };
   _node = new WeakMap();
@@ -1527,8 +1516,36 @@
     static from(element) {
       return new _ManagedDomNode(element);
     }
-    transform(changes) {
-      return changeElem(__privateGet(this, _node2), changes), this;
+    all(selector) {
+      return Array.from(
+        __privateGet(this, _node2).querySelectorAll(selector),
+        _ManagedDomNode.from
+      );
+    }
+    rect() {
+      return __privateGet(this, _node2).getBoundingClientRect();
+    }
+    readAttribute(name) {
+      return __privateGet(this, _node2).getAttribute(name);
+    }
+    setAttributes(values) {
+      for (let [name, value] of Object.entries(values))
+        __privateGet(this, _node2).setAttribute(name, value);
+      return this;
+    }
+    removeAttributes(...names) {
+      for (let name of names)
+        __privateGet(this, _node2).removeAttribute(name);
+      return this;
+    }
+    addClasses(...names) {
+      return __privateGet(this, _node2).classList.add(...names), this;
+    }
+    removeClasses(...names) {
+      return __privateGet(this, _node2).classList.remove(...names), this;
+    }
+    replaceClasses(value) {
+      return __privateGet(this, _node2).className = value, this;
     }
     styles(values, priority = "") {
       for (let [property, value] of Object.entries(values))
@@ -1539,6 +1556,9 @@
       for (let property of properties)
         __privateGet(this, _node2).style.removeProperty(property);
       return this;
+    }
+    removeAllStyles() {
+      return __privateGet(this, _node2).removeAttribute("style"), this;
     }
     attribute(name, value) {
       return __privateGet(this, _node2).setAttribute(name, value), this;
@@ -1569,14 +1589,11 @@
     prepend(child) {
       __privateGet(this, _node2).prepend(child instanceof _ManagedDomNode ? __privateGet(child, _node2) : child);
     }
-    appendContent(...children) {
-      return __privateGet(this, _node2).append(...children), this;
-    }
     setTextUnlessInput(text) {
       __privateGet(this, _node2) instanceof HTMLInputElement || (__privateGet(this, _node2).textContent = text);
     }
     setHidden(hidden) {
-      __privateGet(this, _node2).hidden = hidden;
+      return __privateGet(this, _node2).hidden = hidden, this;
     }
     replaceChildren(...children) {
       __privateGet(this, _node2).replaceChildren(...children.map((child) => child instanceof _ManagedDomNode ? __privateGet(child, _node2) : child));
@@ -1638,20 +1655,6 @@
   };
   _node2 = new WeakMap();
   var ManagedDomNode = _ManagedDomNode;
-  function changeElem(element, changes) {
-    for (let name of changes.attributes?.remove ?? [])
-      element.removeAttribute(name);
-    for (let [name, value] of Object.entries(changes.attributes?.set ?? {}))
-      element.setAttribute(name, value);
-    if (changes.classes?.replace !== void 0 && (element.className = changes.classes.replace), element.classList.remove(...changes.classes?.remove ?? []), element.classList.add(...changes.classes?.add ?? []), changes.styles?.remove === "all")
-      element.removeAttribute("style");
-    else
-      for (let property of changes.styles?.remove ?? [])
-        element.style.removeProperty(property);
-    for (let [property, value] of Object.entries(changes.styles?.set ?? {}))
-      element.style.setProperty(property, value);
-    return element.getAttribute("style")?.trim() || element.removeAttribute("style"), changes.hidden !== void 0 && (element.hidden = changes.hidden), element;
-  }
 
   // src/eh/dom/ehSyringe.ts
   var ehSyringe_exports = {};
@@ -1661,9 +1664,9 @@
     waitForRouteTranslation: () => waitForRouteTranslation,
     waitForSearchUi: () => waitForSearchUi
   });
-  var ROOT_CLASS = "ehs-injected", TRANSLATED_LANGUAGE = "zh-hans", INITIALIZED_SELECTOR = "#eh-syringe-popup-button", SEARCH_SUBMIT_SELECTOR = "#searchbox button[ehs-input][type='submit']", CLEAR_BUTTON_SELECTOR = "#searchbox button[ehs-input][type='button']", TAG_TIP_INPUT_SELECTOR = "#f_search, #newtagfield, [name='f_search']", TAG_TIP_LIST_SELECTOR = ".eh-syringe-lite-auto-complete-list", TAG_TIP_LIST_CLASS_NAME = "!max-h-[60dvh] !py-sm [&_.auto-complete-item]:box-border [&_.auto-complete-item]:min-h-lg [&_.auto-complete-item]:!py-sm [&_.auto-complete-item]:!px-lg [&_.auto-complete-item]:!text-[length:var(--font-size-lg)] [&_.auto-complete-item]:!leading-[1.25] [&_.auto-complete-text]:!text-inherit [&_.auto-complete-text]:!leading-inherit", DETECTED_KEY = "ehpeek:ehsyringe:detected", INJECTION_TIMEOUT_MS = 3e3, ROUTE_TRANSLATION_TIMEOUT_MS = 450, ROUTE_TRANSLATION_QUIET_MS = 48, initialUiReady = null, tagTipInput = null;
+  var ROOT_CLASS = "ehs-injected", TRANSLATED_LANGUAGE = "zh-hans", INITIALIZED_SELECTOR = "#eh-syringe-popup-button", SEARCH_SUBMIT_SELECTOR = "#searchbox button[ehs-input][type='submit']", CLEAR_BUTTON_SELECTOR = "#searchbox button[ehs-input][type='button']", TAG_TIP_INPUT_SELECTOR = "#f_search, #newtagfield, [name='f_search']", TAG_TIP_LIST_SELECTOR = ".eh-syringe-lite-auto-complete-list", TAG_TIP_LIST_CLASS_NAME = "!max-h-[60dvh] !py-sm [&_.auto-complete-item]:box-border [&_.auto-complete-item]:min-h-lg [&_.auto-complete-item]:!py-sm [&_.auto-complete-item]:!px-lg [&_.auto-complete-item]:!text-[length:var(--font-size-lg)] [&_.auto-complete-item]:!leading-[1.25] [&_.auto-complete-text]:!text-inherit [&_.auto-complete-text]:!leading-inherit", DETECTED_KEY = "ehpeek:ehsyringe:detected", INJECTION_TIMEOUT_MS = 3e3, ROUTE_TRANSLATION_TIMEOUT_MS = 450, ROUTE_TRANSLATION_QUIET_MS = 48, initialUiReady = null, tagTipInput = null, injectionWatcherStarted = !1, tagTipWatcherStarted = !1;
   function waitForInitialUi() {
-    return initialUiReady ?? (initialUiReady = waitForExpectedInitialUi()), initialUiReady;
+    return watchForSuccessfulInjection(), initialUiReady ?? (initialUiReady = waitForExpectedInitialUi()), initialUiReady;
   }
   async function waitForSearchUi() {
     await waitForInitialUi(), isTranslatingUi() && await waitFor(searchUiReady);
@@ -1693,7 +1696,7 @@
     }
   }
   function reuseTagTipInput(target) {
-    return captureTagTipInput(), !tagTipInput || tagTipInput.Component().isConnected || target === tagTipInput ? target : (target.copyAttributesTo(tagTipInput), tagTipInput.setInputValue(target.inputValue()), target.replaceWith(tagTipInput), tagTipInput);
+    return watchForTagTipInput(), !tagTipInput || tagTipInput.Component().isConnected || target === tagTipInput ? target : (target.copyAttributesTo(tagTipInput), tagTipInput.setInputValue(target.inputValue()), target.replaceWith(tagTipInput), tagTipInput);
   }
   async function waitForExpectedInitialUi() {
     if (initialUiLoaded()) {
@@ -1736,7 +1739,9 @@
     return probe.className = "gt", probe.hidden = !0, probe.lang = "en", probe.setAttribute("translate", "yes"), probe.title = "ehpeek:translation probe", probe.textContent = "ehpeek:translation probe", probe;
   }
   function watchForSuccessfulInjection() {
-    if (initialUiLoaded()) {
+    if (injectionWatcherStarted)
+      return;
+    if (injectionWatcherStarted = !0, initialUiLoaded()) {
       setDetected(!0);
       return;
     }
@@ -1772,10 +1777,10 @@
     if (tagTipInput)
       return !0;
     let page = DomNode.from(document), list = page.one(TAG_TIP_LIST_SELECTOR)?.inplace();
-    return list ? (list.transform({ classes: { add: TAG_TIP_LIST_CLASS_NAME.split(" ") } }), tagTipInput = page.one(TAG_TIP_INPUT_SELECTOR)?.inplace() ?? null, tagTipInput !== null) : !1;
+    return list ? (list.addClasses(...TAG_TIP_LIST_CLASS_NAME.split(" ")), tagTipInput = page.one(TAG_TIP_INPUT_SELECTOR)?.inplace() ?? null, tagTipInput !== null) : !1;
   }
   function watchForTagTipInput() {
-    if (captureTagTipInput())
+    if (tagTipWatcherStarted || (tagTipWatcherStarted = !0, captureTagTipInput()))
       return;
     let observer = new MutationObserver(() => {
       captureTagTipInput() && observer.disconnect();
@@ -1785,8 +1790,6 @@
       subtree: !0
     });
   }
-  watchForSuccessfulInjection();
-  watchForTagTipInput();
 
   // src/texts.json
   var texts_default = {
@@ -1835,7 +1838,7 @@
       on: "On",
       off: "Off",
       singlePageApp: "Single Page App",
-      singlePageAppHelp: "Loads pages without a full page refresh; only applys to Touch UI",
+      singlePageAppHelp: "Loads pages without a full page refresh. Only applies to Touch UI and may be incompatible with other userscripts.",
       readerLabel: "Reader",
       readerHelp: "Opens gallery images in Ehpeek's reader",
       readerFullscreenLabel: "Reader in Fullscreen",
@@ -1912,14 +1915,10 @@
 
   // src/eh/dom/gallery.ts
   var GALLERY_PAGE_DESCRIPTION_SELECTOR = ".gpc:not(.eh-syringe-ignore)", galleryApiSession = null;
-  function scriptNumberValue(script, name) {
-    let match = script.match(new RegExp(`\\b${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`)), value = Number(match?.[1]);
-    return match && Number.isFinite(value) ? value : null;
-  }
   function extractMyTagsPageData(root = document, tagSet) {
     let page = DomNode.from(root), tags = page.one("#usertags_outer");
     if (!tags)
-      return null;
+      throw new Error("The My Tags page could not be read.");
     let options = page.all("#tagset_outer select option").map((option) => ({
       label: option.text() || option.inputValue(),
       selected: option.selected(),
@@ -1944,20 +1943,6 @@
       options
     };
   }
-  function applyMyTagAppearances(appearances, root = document) {
-    let byName = new Map(appearances.map((appearance) => [appearance.name, appearance]));
-    for (let tag of DomNode.from(root).all("#taglist a")) {
-      let name = galleryTagNameFromUrl(tag.attribute("href") ?? ""), appearance = name ? byName.get(normalizeTagName(name)) : void 0, container = tag.closest("div.gt, div.gtl, div.gtw") ?? tag;
-      appearance && appearance.backgroundColor && (container.inplace().styles({ "background-color": appearance.backgroundColor }, "important"), tag.inplace().styles({ color: appearance.color }, "important").transform({
-        attributes: {
-          set: {
-            "data-ehpeek-my-tag-id": appearance.id,
-            "data-ehpeek-my-tag-set": appearance.tagSet
-          }
-        }
-      }));
-    }
-  }
   function normalizeTagName(value) {
     return value.trim().replace(/\s+/g, " ").toLowerCase();
   }
@@ -1969,80 +1954,71 @@
     let red = Number.parseInt(backgroundColor.slice(1, 3), 16) / 255, green = Number.parseInt(backgroundColor.slice(3, 5), 16) / 255, blue = Number.parseInt(backgroundColor.slice(5, 7), 16) / 255, linear = (channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
     return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue) > 0.179 ? "#000000" : "#ffffff";
   }
-  function observeGalleryTagChanges(onChange) {
-    let tagList = DomNode.from(document).one("#taglist")?.inplace();
-    return tagList ? tagList.observe(onChange) : () => {
-    };
-  }
   function mutateGalleryMyTags(appearances) {
-    return applyMyTagAppearances(appearances), observeGalleryTagChanges(
-      () => applyMyTagAppearances(appearances)
-    );
+    let byName = new Map(appearances.map((appearance) => [appearance.name, appearance])), apply = () => {
+      for (let tag of DomNode.from(document).all("#taglist a")) {
+        let name = galleryTagNameFromUrl(tag.attribute("href") ?? ""), appearance = name ? byName.get(normalizeTagName(name)) : void 0;
+        if (!appearance?.backgroundColor)
+          continue;
+        (tag.closest("div.gt, div.gtl, div.gtw") ?? tag).inplace().styles({ "background-color": appearance.backgroundColor }, "important"), tag.inplace().styles({ color: appearance.color }, "important").setAttributes({
+          "data-ehpeek-my-tag-id": appearance.id,
+          "data-ehpeek-my-tag-set": appearance.tagSet
+        });
+      }
+    };
+    return apply(), DomNode.from(document).one("#taglist")?.inplace().observe(apply) ?? (() => {
+    });
   }
   function manageGalleryApiSession(root = document, baseUrl = window.location.href) {
-    if (galleryApiSession)
-      return !0;
+    if (galleryApiSession || !galleryIdentityFromUrl(baseUrl))
+      return;
     let script = DomNode.from(root).all("script").map((item) => item.text()).find((text) => text.includes("var api_url") && text.includes("var apikey"));
     if (!script)
-      return console.warn("[ehpeek] Gallery API session capture failed", {
-        reason: "api-script-not-found",
-        pathname: new URL(baseUrl).pathname
-      }), !1;
-    let apiUrlValue = scriptStringValue(script, "api_url"), apiKey = scriptStringValue(script, "apikey"), apiUid = scriptNumberValue(script, "apiuid");
+      throw new Error("The Gallery API session script could not be found.");
+    let stringValue = (name) => script.match(new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`))?.[2] ?? null, numberValue = (name) => {
+      let match = script.match(new RegExp(`\\b${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`)), value = Number(match?.[1]);
+      return match && Number.isFinite(value) ? value : null;
+    }, apiUrlValue = stringValue("api_url"), apiKey = stringValue("apikey"), apiUid = numberValue("apiuid");
     if (!apiUrlValue || !apiKey || apiUid === null)
-      return console.warn("[ehpeek] Gallery API session capture failed", {
-        reason: "api-values-missing",
-        hasApiKey: !!apiKey,
-        hasApiUid: apiUid !== null,
-        hasApiUrl: !!apiUrlValue
-      }), !1;
+      throw new Error("The Gallery API session values could not be read.");
     let apiUrl = new URL(apiUrlValue, baseUrl), pageUrl = new URL(baseUrl);
-    return !isAllowedGalleryApiUrl(apiUrl, pageUrl) || !Number.isSafeInteger(apiUid) || apiUid <= 0 || !/^[A-Za-z0-9_-]{8,128}$/.test(apiKey) ? (console.warn("[ehpeek] Gallery API session capture failed", {
-      reason: "api-values-invalid",
-      apiOrigin: apiUrl.origin,
-      apiPathname: apiUrl.pathname,
-      apiUidValid: Number.isSafeInteger(apiUid) && apiUid > 0,
-      apiKeyLength: apiKey.length
-    }), !1) : (galleryApiSession = {
+    if (!isAllowedGalleryApiUrl(apiUrl, pageUrl) || !Number.isSafeInteger(apiUid) || apiUid <= 0 || !/^[A-Za-z0-9_-]{8,128}$/.test(apiKey))
+      throw new Error("The Gallery API session values are invalid.");
+    galleryApiSession = {
       apiKey,
       apiUid,
       apiUrl: apiUrl.href
-    }, !0);
+    };
   }
   function extractGalleryTagApiInfo() {
     let gallery = galleryIdentityFromUrl();
     if (!gallery)
-      return console.warn("[ehpeek] Gallery API context unavailable", {
-        reason: "gallery-path-invalid",
-        pathname: window.location.pathname
-      }), null;
+      throw new Error("The current Gallery identity could not be read.");
     if (!galleryApiSession)
-      return console.warn("[ehpeek] Gallery API context unavailable", {
-        reason: "api-session-unavailable",
-        galleryId: gallery.galleryId
-      }), null;
-    let { galleryId, token } = gallery, session = galleryApiSession;
-    return !session || !Number.isSafeInteger(galleryId) || galleryId <= 0 || !/^[A-Za-z0-9]+$/.test(token) ? (console.warn("[ehpeek] Gallery API context unavailable", {
-      reason: "gallery-identity-invalid",
-      galleryId,
-      hasSession: !!session
-    }), null) : {
-      apiKey: session.apiKey,
-      apiUid: session.apiUid,
-      apiUrl: session.apiUrl,
+      throw new Error("The Gallery API session is unavailable.");
+    let { galleryId, token } = gallery;
+    if (!Number.isSafeInteger(galleryId) || galleryId <= 0 || !/^[A-Za-z0-9]+$/.test(token))
+      throw new Error("The current Gallery identity is invalid.");
+    return {
+      apiKey: galleryApiSession.apiKey,
+      apiUid: galleryApiSession.apiUid,
+      apiUrl: galleryApiSession.apiUrl,
       galleryId,
       token
     };
   }
-  function scriptStringValue(script, name) {
-    return script.match(new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`))?.[2] ?? null;
-  }
   function manageGalleryContinueReadingButtonMount() {
     let managedHost = createManagedElement("div"), viewerOptions = DomNode.from(document).one("#gd5")?.inplace();
-    return viewerOptions ? (viewerOptions.transform({ classes: { add: ["ehpeek-gallery-actions"] } }).append(managedHost), managedHost) : (documentBody().append(managedHost), managedHost);
+    return viewerOptions ? (viewerOptions.addClasses("ehpeek-gallery-actions").append(managedHost), managedHost) : (documentBody().append(managedHost), managedHost);
   }
   function manageGalleryPreview(root = document, baseUrl = window.location.href) {
-    let page = DomNode.from(root), currentUrl = new URL(baseUrl, window.location.href).href, currentIndex = previewPageIndex(currentUrl), pageDescriptionSource = page.one(GALLERY_PAGE_DESCRIPTION_SELECTOR), rangeText = pageDescriptionSource?.text() ?? "", rangeMatch = rangeText.match(/([\d,]+)\s*-\s*([\d,]+)\D+([\d,]+)/), rangeValues = rangeMatch ? rangeMatch.slice(1).map((value) => Number(value.replace(/,/g, ""))) : [], [startImage, endImage, totalImages] = rangeValues.length === 3 && rangeValues.every((value) => value > 0) ? rangeValues : [null, null, null], currentPageSize = startImage !== null && endImage !== null ? endImage - startImage + 1 : null, inferredFullPageSize = currentPageSize !== null && totalImages !== null && endImage === totalImages && currentIndex > 0 ? (totalImages - currentPageSize) / currentIndex : currentPageSize, pageSize = inferredFullPageSize !== null && Number.isInteger(inferredFullPageSize) && inferredFullPageSize > 0 ? inferredFullPageSize : null, maxIndex = pageSize !== null && totalImages !== null ? Math.max(currentIndex, Math.ceil(totalImages / pageSize) - 1) : null, seen = /* @__PURE__ */ new Set(), pages = page.all("#gdt a[href], .gdtm a[href], .gdtl a[href], a[href*='/s/']").flatMap((link) => {
+    let page = DomNode.from(root), currentUrl = new URL(baseUrl, window.location.href).href, currentIndex = previewPageIndex(currentUrl), pageDescriptionSource = page.one(GALLERY_PAGE_DESCRIPTION_SELECTOR), rangeText = pageDescriptionSource?.text() ?? "", rangeValues = rangeText.match(/([\d,]+)\s*-\s*([\d,]+)\D+([\d,]+)/)?.slice(1).map((value) => Number(value.replace(/,/g, ""))) ?? [], startImage = rangeValues[0], endImage = rangeValues[1], totalImages = rangeValues[2];
+    if (startImage === void 0 || endImage === void 0 || totalImages === void 0 || !Number.isSafeInteger(startImage) || !Number.isSafeInteger(endImage) || !Number.isSafeInteger(totalImages) || startImage <= 0 || endImage <= 0 || totalImages <= 0 || endImage < startImage || totalImages < endImage)
+      throw new Error("Cannot read the gallery preview image range.");
+    let currentPageSize = endImage - startImage + 1, inferredFullPageSize = endImage === totalImages && currentIndex > 0 ? (totalImages - currentPageSize) / currentIndex : currentPageSize;
+    if (!Number.isInteger(inferredFullPageSize) || inferredFullPageSize <= 0)
+      throw new Error("Cannot determine the gallery preview page size.");
+    let pageSize = inferredFullPageSize, maxIndex = Math.max(currentIndex, Math.ceil(totalImages / pageSize) - 1), seen = /* @__PURE__ */ new Set(), pages = page.all("#gdt a[href], .gdtm a[href], .gdtl a[href], a[href*='/s/']").flatMap((link) => {
       let url = normalizeUrl(link.attribute("href") || "", currentUrl), imagePage = extractPageType(url);
       if (imagePage.type !== "image" || seen.has(url))
         return [];
@@ -2056,53 +2032,58 @@
     }).sort((left, right) => (left.pageNum ?? Number.MAX_SAFE_INTEGER) - (right.pageNum ?? Number.MAX_SAFE_INTEGER)), data = {
       currentIndex,
       currentUrl,
-      descriptionText: rangeText || null,
+      descriptionText: rangeText,
       endImage,
       maxIndex,
       pageSize,
       pages,
       startImage,
       totalImages
-    }, thumbsSource = page.one("#gdt"), thumbImages = thumbsSource?.all("img") ?? [], thumbs = root === document ? thumbsSource?.inplace() ?? null : null, thumbItems = thumbsSource?.children().map(
-      (item) => root === document ? item.inplace() : item.move()
-    ) ?? [], mount = root === document && thumbs ? createManagedElement("div").transform({ classes: { replace: "contents" } }) : null, originalPageBarTop = page.one(".ptt")?.inplace() ?? null, originalPageBarBottom = page.one(".ptb")?.inplace() ?? null, originalPageDescription = pageDescriptionSource?.inplace() ?? null, pageBarTop = originalPageBarTop ? createManagedElement("div") : null, pageBarBottom = originalPageBarBottom ? createManagedElement("div") : null, pageBarDescription = originalPageDescription && pageBarTop ? createManagedElement("div") : null;
-    return mount && thumbs && thumbs.before(mount), { data, elems: {
-      mount,
-      pageBarBottom,
-      pageBarDescription,
-      pageBarTop,
-      thumbItems,
-      thumbs
-    }, handle: {
-      connectImageOpen(onOpen) {
+    }, thumbsSource = page.one("#gdt"), pageBarTopSource = page.one(".ptt"), pageBarBottomSource = page.one(".ptb"), elems = {
+      mount: root === document && thumbsSource ? createManagedElement("div").replaceClasses("contents") : null,
+      originalPageBarBottom: pageBarBottomSource?.inplace() ?? null,
+      originalPageBarTop: pageBarTopSource?.inplace() ?? null,
+      originalPageDescription: pageDescriptionSource?.inplace() ?? null,
+      pageBarBottom: pageBarBottomSource ? createManagedElement("div") : null,
+      pageBarDescription: pageDescriptionSource && pageBarTopSource ? createManagedElement("div") : null,
+      pageBarTop: pageBarTopSource ? createManagedElement("div") : null,
+      thumbImages: thumbsSource?.all("img").map((image) => image.inplace()) ?? [],
+      thumbItems: thumbsSource?.children().map(
+        (item) => root === document ? item.inplace() : item.move()
+      ) ?? [],
+      thumbs: root === document ? thumbsSource?.inplace() ?? null : null
+    };
+    return elems.mount && elems.thumbs && elems.thumbs.before(elems.mount), { data, elems, handle: {
+      /** Opens thumbnail image links in EhPeek Reader instead of original navigation. */
+      interceptPreviewImageOpen(onOpen) {
         let handleClick = (event) => {
           let link = event.target instanceof Element ? DomNode.from(event.target).closest("a[href]") : null, href = link?.attribute("href") ?? "";
           !link || extractPageType(href).type !== "image" || !link.one("img") && !link.closest("#gdt, .gdtm, .gdtl") || (event.preventDefault(), event.stopPropagation(), onOpen(normalizeUrl(href, currentUrl)));
         };
-        return thumbs?.listen("click", handleClick) ?? (() => {
+        return elems.thumbs?.listen("click", handleClick) ?? (() => {
         });
       },
-      transformSwipeInput() {
-        if (thumbsSource) {
-          thumbs?.transform({ classes: { add: ["select-none", "touch-pan-y"] } });
-          for (let source of thumbImages)
-            source.inplace().transform({
-              attributes: { set: { draggable: "false" } },
-              classes: { add: ["[-webkit-user-drag:none]"] }
-            });
-        }
+      /** Makes thumbnail dragging available to the horizontal preview-page gesture. */
+      ensurePreviewSwipeInput() {
+        elems.thumbs?.addClasses("select-none", "touch-pan-y");
+        for (let image of elems.thumbImages)
+          image.setAttributes({ draggable: "false" }).addClasses("[-webkit-user-drag:none]");
       },
-      replaceThumbs(items) {
-        thumbs?.replaceChildren(...items);
+      /** Installs a fetched preview page into the currently visible thumbnail host. */
+      replacePreviewThumbs(items) {
+        elems.thumbs?.replaceChildren(...items);
       },
-      setThumbsLoading(loading) {
-        thumbs?.attribute("aria-busy", String(loading));
+      /** Marks preview loading while retaining the currently visible thumbnails. */
+      updatePreviewLoading(loading) {
+        elems.thumbs?.attribute("aria-busy", String(loading));
       },
-      transformPageBars() {
-        originalPageBarTop && pageBarTop && (originalPageBarTop.after(pageBarTop), originalPageBarTop.setHidden(!0)), originalPageBarBottom && pageBarBottom && (originalPageBarBottom.after(pageBarBottom), originalPageBarBottom.setHidden(!0)), originalPageDescription && pageBarDescription && pageBarTop && (originalPageDescription.setHidden(!0), pageBarTop.before(pageBarDescription));
+      /** Replaces both original page bars with mounts owned by EhPeek pagination. */
+      installPreviewPageBars() {
+        elems.originalPageBarTop && elems.pageBarTop && (elems.originalPageBarTop.after(elems.pageBarTop), elems.originalPageBarTop.setHidden(!0)), elems.originalPageBarBottom && elems.pageBarBottom && (elems.originalPageBarBottom.after(elems.pageBarBottom), elems.originalPageBarBottom.setHidden(!0)), elems.originalPageDescription && elems.pageBarDescription && elems.pageBarTop && (elems.originalPageDescription.setHidden(!0), elems.pageBarTop.before(elems.pageBarDescription));
       },
-      scrollPageBar(position) {
-        (position === "top" ? pageBarTop : pageBarBottom)?.scrollIntoView({
+      /** Brings the requested EhPeek page bar into view after preview navigation. */
+      scrollPreviewPageBarIntoView(position) {
+        (position === "top" ? elems.pageBarTop : elems.pageBarBottom)?.scrollIntoView({
           behavior: "smooth",
           block: position === "top" ? "start" : "end"
         });
@@ -2114,41 +2095,30 @@
     return manageGalleryPreview(response.document, response.url);
   }
   function extractImageGalleryPage(root = document) {
-    let url = imageGalleryUrl(root);
-    if (!url)
-      return null;
-    let page = extractPageType(url);
-    return page.type === "gallery" ? page : null;
-  }
-  async function loadEhImagePage(page) {
-    let response = await requestPage(page.url), info = readImagePageInfo(response.document, page.url);
-    if (!info.imageUrl)
-      throw new Error(texts_default.errors.imageNotFound);
-    return info;
-  }
-  function readImagePageInfo(root, baseUrl) {
-    let page = DomNode.from(root), image = page.one("img#img"), imageUrl = normalizeUrl(
-      image?.attribute("src") || image?.attribute("data-src") || "",
-      baseUrl
-    ), originalImageUrl = page.all("a[href]").map((link) => normalizeUrl(link.attribute("href") || "", baseUrl)).find(isFullImageUrl) ?? null;
-    return {
-      height: numberAttribute(image, "height"),
-      imageUrl,
-      originalImageUrl,
-      width: numberAttribute(image, "width")
-    };
-  }
-  function imageGalleryUrl(root = document, baseUrl = window.location.href) {
     for (let link of DomNode.from(root).all("a[href]")) {
-      let url = normalizeUrl(link.attribute("href") || "", baseUrl);
-      if (extractPageType(url).type === "gallery")
-        return url;
+      let page = extractPageType(normalizeUrl(link.attribute("href") || ""));
+      if (page.type === "gallery")
+        return page;
     }
     return null;
   }
-  function numberAttribute(node, name) {
-    let value = Number(node?.attribute(name));
-    return Number.isFinite(value) && value > 0 ? value : null;
+  async function loadEhImagePage(page) {
+    let response = await requestPage(page.url), source = DomNode.from(response.document), image = source.one("img#img"), imageUrl = normalizeUrl(
+      image?.attribute("src") || image?.attribute("data-src") || "",
+      page.url
+    );
+    if (!imageUrl)
+      throw new Error(texts_default.errors.imageNotFound);
+    let numberAttribute = (name) => {
+      let value = Number(image?.attribute(name));
+      return Number.isFinite(value) && value > 0 ? value : null;
+    };
+    return {
+      height: numberAttribute("height"),
+      imageUrl,
+      originalImageUrl: source.all("a[href]").map((link) => normalizeUrl(link.attribute("href") || "", page.url)).find(isFullImageUrl) ?? null,
+      width: numberAttribute("width")
+    };
   }
 
   // src/eh/dom/galleryInfo.ts
@@ -2255,14 +2225,17 @@
       };
     }), manageTagGroups = () => readTagGroups().map((group) => ({
       namespace: group.namespace,
-      tags: group.tags.flatMap(({ data: tag, source }) => [{ ...tag, contentSource: source.inplace() }])
+      tags: group.tags.map(({ data: tag, source }) => ({
+        ...tag,
+        contentSource: source.inplace()
+      }))
     })), meta = readMeta(), category = page.one("#gdc"), categoryStyle = category?.one("[class*='ct']") ?? category, cover = page.one("#gd1"), coverSource = cover?.one("img") ?? null, favorite = page.one("#fav"), newTag = page.one("#tagmenu_new"), newTagButton = newTag?.one("#newtagbutton") ?? null, newTagField = newTag?.one("#newtagfield") ?? null, newTagForm = newTag?.one("form") ?? null, scripts = page.all("script").map((script) => script.text()), actionSources = readActions(), tagContentSources = [], tagGroups = readTagGroups().map((group) => ({
       namespace: group.namespace,
       tags: group.tags.map(({ data: tag, source }) => {
         let contentSourceIndex = tagContentSources.push(source) - 1;
         return { ...tag, contentSourceIndex };
       })
-    })), totalPages = preview?.totalImages ?? null, data = {
+    })), data = {
       category: category?.text() ?? "",
       categoryAppearance: readCategory(categoryStyle),
       favorite: readFavorite(favorite, scripts),
@@ -2274,7 +2247,7 @@
       ),
       summary: [
         meta.get("language"),
-        totalPages ? `${totalPages} ${texts_default.reader.pages.toLowerCase()}` : void 0,
+        preview?.totalImages ? `${preview.totalImages} ${texts_default.reader.pages.toLowerCase()}` : void 0,
         meta.get("file size") ?? meta.get("size"),
         meta.get("favorited"),
         meta.get("posted") ?? meta.get("parent")
@@ -2282,118 +2255,84 @@
       tagGroups,
       titleMain: page.one("#gn")?.text() ?? "",
       titleSub: page.one("#gj")?.text() ?? ""
-    }, coverUrl = readCoverUrl(cover, coverSource), hostChildSources = host.all(":scope > *").filter((child) => !newTag?.sameNode(child)), sources = [
-      host,
-      ...hostChildSources,
-      ...actionSources.map(({ node }) => node),
-      ...tagContentSources,
-      ...coverUrl && coverSource ? [coverSource] : [],
-      ...newTag && newTagButton && newTagField && newTagForm ? [newTag, newTagButton, newTagField, newTagForm] : []
-    ];
-    if (sources.some(
-      (source, index) => sources.slice(0, index).some((previous) => source.sameNode(previous))
-    ))
-      return null;
-    let coverElem = coverUrl ? (coverSource ?? DomNode.from(document.createElement("img"))).clone() : null, actionElems = actionSources.map(({ node }) => node.clone(!1)), newTagButtonElem = newTagButton?.inplace() ?? null, newTagFieldElem = newTagField?.inplace() ?? null, newTagFormElem = newTagForm?.inplace() ?? null, newTagElem = newTagButtonElem && newTagFieldElem && newTagFormElem ? newTag?.move() ?? null : null, hostChildElems = hostChildSources.map((child) => child.inplace()), hostElem = host.inplace(), tagContents = tagContentSources.map((source) => source.inplace()), elems = {
-      actionItems: actionElems,
-      cover: coverElem,
-      host: hostElem,
-      hostChildren: hostChildElems,
+    }, coverUrl = readCoverUrl(cover, coverSource), hostChildSources = host.all(":scope > *").filter((child) => !newTag?.sameNode(child)), elems = {
+      actionItems: actionSources.map(({ node }) => node.clone(!1)),
+      cover: coverUrl ? coverSource?.clone() ?? createManagedElement("img") : null,
+      host: host.inplace(),
+      hostChildren: hostChildSources.map((child) => child.inplace()),
       mount,
-      newTag: newTagElem,
-      newTagButton: newTagButtonElem,
-      newTagField: newTagFieldElem,
-      newTagForm: newTagFormElem,
-      tagContents
+      newTag: newTagButton && newTagField && newTagForm ? newTag?.move() ?? null : null,
+      newTagButton: newTagButton?.inplace() ?? null,
+      newTagField: newTagField?.inplace() ?? null,
+      newTagForm: newTagForm?.inplace() ?? null,
+      tagContents: tagContentSources.map((source) => source.inplace()),
+      tagList: page.one("#taglist")?.inplace() ?? null
     };
     return { data, elems, handle: {
-      transformCover(className2) {
-        coverElem?.transform({
-          attributes: {
-            remove: ["id", "style", "width", "height"],
-            set: {
-              alt: "",
-              decoding: "async",
-              loading: "eager",
-              src: coverUrl
-            }
-          },
-          classes: { replace: className2 }
+      /** Normalizes the original cover for GalleryInfoPanel's responsive layout. */
+      updateCoverVisual(className2) {
+        elems.cover?.removeAttributes("id", "style", "width", "height").setAttributes({ alt: "", decoding: "async", loading: "eager", src: coverUrl }).replaceClasses(className2);
+      },
+      /** Converts original Gallery actions into consistently styled component items. */
+      updateActionItemsVisual(className2) {
+        elems.actionItems.forEach((action, index) => {
+          action.removeAttributes("id").replaceClasses(className2).removeAllStyles(), action.setTextUnlessInput(actionSources[index]?.label ?? "");
         });
       },
-      transformActionItems(className2) {
-        actionElems.forEach((action, index) => {
-          action.transform({
-            attributes: { remove: ["id"] },
-            classes: { replace: className2 },
-            styles: { remove: "all" }
-          }), action.setTextUnlessInput(actionSources[index]?.label ?? "");
-        });
+      /** Fits the original New Tag form into GalleryInfoPanel's tag controls. */
+      updateNewTagVisual(classes) {
+        elems.newTag?.addClasses(...classes.container.split(" ")).setHidden(!1).removeStyles("display"), elems.newTagButton?.addClasses(...classes.button.split(" ")), elems.newTagField?.removeAttributes("size").addClasses(...classes.field.split(" ")), elems.newTagForm?.addClasses(...classes.form.split(" "));
       },
-      transformNewTag(classes) {
-        newTagElem?.transform({
-          classes: { add: classes.container.split(" ") },
-          hidden: !1,
-          styles: { remove: ["display"] }
-        }), newTagButtonElem?.transform({
-          classes: { add: classes.button.split(" ") }
-        }), newTagFieldElem?.transform({
-          attributes: { remove: ["size"] },
-          classes: { add: classes.field.split(" ") }
-        }), newTagFormElem?.transform({
-          classes: { add: classes.form.split(" ") }
-        });
+      /** Hides original GalleryInfo children and installs the component mount. */
+      installGalleryInfoPanel(className2) {
+        elems.host.addClasses(className2), elems.hostChildren.forEach((child) => {
+          child.setHidden(!0), child.styles({ display: "none" }, "important");
+        }), elems.host.prepend(elems.mount);
       },
-      transformHost(className2) {
-        hostElem.transform({ classes: { add: [className2] } }), hostChildElems.forEach((child) => {
-          child.transform({ hidden: !0 }), child.styles({ display: "none" }, "important");
-        }), hostElem.prepend(mount);
-      },
-      async favoriteOptions(actionUrl, favorited) {
+      /** Loads the original favorite dialog choices for EhPeek's favorite modal. */
+      async loadGalleryFavoriteOptions(actionUrl, favorited) {
         let response = await requestPage(actionUrl);
         return readFavoriteOptions(response.document, favorited);
       },
-      async favoriteTag(tag, tagSet, mode) {
+      /** Submits a tag to the chosen My Tags collection and validates the response. */
+      async submitFavoriteTag(tag, tagSet, mode) {
         let response = await addMyTag(tag.name, tagSet, mode);
-        if (!extractMyTagsPageData(response.document, tagSet))
-          throw new Error("The tag was submitted, but the returned My Tags page could not be read.");
+        extractMyTagsPageData(response.document, tagSet);
       },
-      observeTagGroups(onChange) {
-        return page.one("#taglist")?.inplace()?.observe(() => onChange(manageTagGroups())) ?? (() => {
+      /** Keeps component tag groups synchronized with original-page tag updates. */
+      observeGalleryTagGroups(onChange) {
+        return elems.tagList?.observe(() => onChange(manageTagGroups())) ?? (() => {
         });
       },
-      reuseNewTagInput() {
+      /** Lets EhSyringe continue owning autocomplete behavior on the moved tag input. */
+      reuseNewTagAutocomplete() {
         elems.newTagField && (elems.newTagField = reuseTagTipInput(elems.newTagField));
       },
-      async rate(value) {
+      /** Sends a Gallery rating through the captured original Gallery API session. */
+      async submitGalleryRating(value) {
         let rating = Math.round(value * 2);
         if (rating < 1 || rating > 10)
           throw new RangeError("Gallery rating must be between 0.5 and 5 stars.");
         let api = extractGalleryTagApiInfo();
-        if (!api)
-          throw new Error("Gallery API context is unavailable.");
         return updateGalleryRating(api, value);
       },
+      /** Removes the selected tag from its stored My Tags collection. */
       async removeFavoriteTag(tag) {
         if (!tag.myTag)
           return;
         let response = await deleteMyTag(tag.myTag.id, tag.myTag.tagSet);
-        if (!extractMyTagsPageData(response.document, tag.myTag.tagSet))
-          throw new Error("The tag removal was submitted, but the returned My Tags page could not be read.");
+        extractMyTagsPageData(response.document, tag.myTag.tagSet);
       },
-      async tagAction(tag, action) {
-        let api = extractGalleryTagApiInfo();
-        if (!api)
-          throw new Error("Gallery API context is unavailable.");
-        let vote = action === "voteUp" ? 1 : action === "voteDown" || tag.vote === "up" ? -1 : tag.vote === "down" ? 1 : 0, tagPane = await updateGalleryTagVote(api, tag.name, vote), tagList = page.one("#taglist")?.inplace();
-        if (!tagList)
+      /** Applies an upvote, downvote, or vote removal and refreshes the tag pane. */
+      async submitGalleryTagAction(tag, action) {
+        let api = extractGalleryTagApiInfo(), vote = action === "voteUp" ? 1 : action === "voteDown" || tag.vote === "up" ? -1 : tag.vote === "down" ? 1 : 0, tagPane = await updateGalleryTagVote(api, tag.name, vote);
+        if (!elems.tagList)
           throw new Error("Gallery tag list is unavailable.");
         let template2 = document.createElement("template");
-        template2.innerHTML = tagPane, tagList.replaceChildren(...Array.from(template2.content.childNodes));
+        template2.innerHTML = tagPane, elems.tagList.replaceChildren(...Array.from(template2.content.childNodes));
       },
-      async updateFavorite(actionUrl, value) {
-        await updateGalleryFavorite(actionUrl, value);
-      }
+      /** Updates the Gallery favorite state through the original site endpoint. */
+      updateGalleryFavorite
     } };
   }
   function mutateGalleryCommentsTouch() {
@@ -2409,18 +2348,12 @@
       item.expanded = expanded, item.trigger.attribute("aria-expanded", String(expanded)), item.details.attribute("aria-hidden", String(!expanded)), item.details.styles({ display: expanded ? "" : "none" });
     };
     for (let item of items) {
-      item.trigger.transform({
-        attributes: {
-          remove: ["onmouseover", "onmouseout", "onclick"],
-          set: {
-            "data-ehpeek-touch-comment-score": "true",
-            role: "button",
-            tabindex: "0",
-            "aria-controls": item.detailsId
-          }
-        },
-        classes: { add: ["whitespace-nowrap"] }
-      }), setExpanded(item, !1);
+      item.trigger.removeAttributes("onmouseover", "onmouseout", "onclick").setAttributes({
+        "data-ehpeek-touch-comment-score": "true",
+        role: "button",
+        tabindex: "0",
+        "aria-controls": item.detailsId
+      }).addClasses("whitespace-nowrap"), setExpanded(item, !1);
       let toggle = (event) => {
         event.preventDefault(), event.stopImmediatePropagation();
         let shouldExpand = !item.expanded;
@@ -2439,12 +2372,16 @@
     let page = DomNode.from(document), resultSource = page.one(".itg");
     if (!resultSource)
       return null;
-    let resultList = resultSource.inplace(), navigationBars = page.all(".searchnav").flatMap((source) => [source.inplace()]);
-    return { data: {
+    let data = {
       nextUrl: page.one(".searchnav a[id$='next'][href]")?.attribute("href") ?? null,
       previousUrl: page.one(".searchnav a[id$='prev'][href]")?.attribute("href") ?? null
-    }, elems: { navigationBars, resultList }, handle: {
-      connectNavigation(onNavigate) {
+    }, elems = {
+      navigationBars: page.all(".searchnav").map((source) => source.inplace()),
+      resultList: resultSource.inplace()
+    };
+    return { data, elems, handle: {
+      /** Routes the original pagination controls through the active page owner. */
+      interceptSearchNavigation(onNavigate) {
         let handleClick = (event) => {
           let url = (event.target instanceof Element ? DomNode.from(event.target).closest(
             ".searchnav a[id$='first'][href], .searchnav a[id$='prev'][href], .searchnav a[id$='next'][href], .searchnav a[id$='last'][href]"
@@ -2453,36 +2390,29 @@
         };
         return document.addEventListener("click", handleClick, !0), () => document.removeEventListener("click", handleClick, !0);
       },
-      async navigate(url) {
+      /** Replaces the current result page without activating Single Page App. */
+      async loadSearchPage(url) {
         let response = await requestPage(url);
         if (!replaceSearchPageContent(response.document))
           throw new Error(texts_default.errors.searchPageContentNotFound);
         window.history.pushState(window.history.state, "", url);
       },
-      scrollToTop() {
-        navigationBars[0]?.scrollIntoView({ block: "start", behavior: "auto" });
+      /** Returns the viewport to the result page's upper navigation bar. */
+      scrollSearchResultsToTop() {
+        elems.navigationBars[0]?.scrollIntoView({ block: "start", behavior: "auto" });
       },
-      setBusy(busy) {
-        resultList.transform({ attributes: busy ? { set: { "aria-busy": "true" } } : { remove: ["aria-busy"] } });
+      /** Exposes result loading state without removing the current result list. */
+      updateSearchLoading(busy) {
+        busy ? elems.resultList.setAttributes({ "aria-busy": "true" }) : elems.resultList.removeAttributes("aria-busy");
       },
-      transformSwipeInput() {
-        resultList.transform({
-          classes: {
-            add: [
-              "overscroll-x-contain",
-              "touch-pan-y",
-              "[&[data-dragging=true]]:select-none"
-            ]
-          }
-        });
+      /** Prevents result content from stealing a horizontal swipe gesture. */
+      ensureSearchSwipeInput() {
+        elems.resultList.addClasses("overscroll-x-contain", "touch-pan-y", "[&[data-dragging=true]]:select-none");
       },
-      transformGalleryLinksToNewTab() {
-        for (let link of resultSource.all("a[href]"))
-          extractPageType(link.attribute("href") ?? "").type === "gallery" && link.inplace().transform({
-            attributes: {
-              set: { target: "_blank", rel: "noopener noreferrer" }
-            }
-          });
+      /** Applies the user setting to gallery links already owned by the result list. */
+      ensureGalleryLinksOpenInNewTab() {
+        for (let link of elems.resultList.all("a[href]"))
+          extractPageType(link.readAttribute("href") ?? "").type === "gallery" && link.setAttributes({ target: "_blank", rel: "noopener noreferrer" });
       }
     } };
   }
@@ -2491,38 +2421,54 @@
       "input[name='f_apply'], button[name='f_apply']"
     ) ?? inputSource?.parent()?.one(
       "input[type='submit'], button[type='submit']"
-    ) ?? null, input = inputSource?.inplace() ?? null, form = formSource?.inplace() ?? null, submit = submitSource?.inplace() ?? null;
-    return !input || !submit ? null : { data: { value: input.inputValue() }, elems: { form, input, submit }, handle: {
-      connect(callbacks, overlay) {
-        let update = () => callbacks.onInput(input.inputValue(), document.activeElement === input.Component()), submitValue = () => callbacks.onSubmit(input.inputValue()), outsidePointer = (event) => {
+    ) ?? null;
+    if (!inputSource || !submitSource)
+      return null;
+    let elems = {
+      form: formSource?.inplace() ?? null,
+      input: inputSource.inplace(),
+      submit: submitSource.inplace()
+    };
+    return { data: { value: elems.input.inputValue() }, elems, handle: {
+      /** Connects the original input to EhPeek's history and suggestion overlay. */
+      listenSearchHistoryOverlay(callbacks, overlay) {
+        let update = () => callbacks.onInput(
+          elems.input.inputValue(),
+          document.activeElement === elems.input.Component()
+        ), submitValue = () => callbacks.onSubmit(elems.input.inputValue()), outsidePointer = (event) => {
           let target = event.target;
-          target instanceof Node && (input.isNode(target) || overlay()?.contains(target)) || callbacks.onOutsidePointer();
-        };
-        return input.listen("input", update), input.listen("focus", callbacks.onFocus), input.listen("pointerdown", callbacks.onFocus), input.listen("keydown", callbacks.onKeyDown), form?.listen("submit", submitValue), submit.listen("click", submitValue), document.addEventListener("pointerdown", outsidePointer, !0), document.addEventListener("scroll", callbacks.onPositionChange, !0), window.addEventListener("resize", callbacks.onPositionChange), () => {
-          let inputNode = input.Component();
-          inputNode.removeEventListener("input", update), inputNode.removeEventListener("focus", callbacks.onFocus), inputNode.removeEventListener("pointerdown", callbacks.onFocus), inputNode.removeEventListener("keydown", callbacks.onKeyDown), form?.Component().removeEventListener("submit", submitValue), submit.Component().removeEventListener("click", submitValue), document.removeEventListener("pointerdown", outsidePointer, !0), document.removeEventListener("scroll", callbacks.onPositionChange, !0), window.removeEventListener("resize", callbacks.onPositionChange);
+          target instanceof Node && (elems.input.isNode(target) || overlay()?.contains(target)) || callbacks.onOutsidePointer();
+        }, disconnect = [
+          elems.input.listen("input", update),
+          elems.input.listen("focus", callbacks.onFocus),
+          elems.input.listen("pointerdown", callbacks.onFocus),
+          elems.input.listen("keydown", callbacks.onKeyDown),
+          elems.submit.listen("click", submitValue),
+          ...elems.form ? [elems.form.listen("submit", submitValue)] : []
+        ];
+        return document.addEventListener("pointerdown", outsidePointer, !0), document.addEventListener("scroll", callbacks.onPositionChange, !0), window.addEventListener("resize", callbacks.onPositionChange), () => {
+          disconnect.forEach((cleanup) => cleanup()), document.removeEventListener("pointerdown", outsidePointer, !0), document.removeEventListener("scroll", callbacks.onPositionChange, !0), window.removeEventListener("resize", callbacks.onPositionChange);
         };
       },
-      position() {
-        let rect = inputSource?.rect() ?? new DOMRect();
+      /** Locates the overlay directly below the original search input. */
+      readSearchOverlayPosition() {
+        let rect = elems.input.rect();
         return { left: rect.left, top: rect.bottom, width: rect.width };
       },
-      select(value) {
-        input.setInputValue(value), input.dispatchInput(), input.focus(), input.Component().setSelectionRange(value.length, value.length);
+      /** Commits a history or suggestion choice through the original input events. */
+      applySearchSelection(value) {
+        elems.input.setInputValue(value), elems.input.dispatchInput(), elems.input.focus(), elems.input.Component().setSelectionRange(value.length, value.length);
       }
     } };
   }
   function mutateSearchGrid() {
-    return applySearchGrid(), applySearchGrid;
-  }
-  function applySearchGrid() {
     let page = DomNode.from(document);
     page.one(".ehpeek-search-grid-host")?.inplace().remove();
     let resultList = page.one(".itg");
     if (!resultList)
       return;
-    let body = resultList.one("tbody"), rows = resultList.all("tbody > tr").map(resolveSearchGridRow).filter(isSearchGridRow), resultListElem = resultList.inplace(), bodyElem = body?.inplace() ?? null;
-    resultListElem.transform({ hidden: !1 }).styles({
+    let rows = resultList.all("tbody > tr").map(resolveSearchGridRow).filter((row) => row !== null), resultListElem = resultList.inplace(), bodyElem = resultList.one("tbody")?.inplace() ?? null;
+    resultListElem.setHidden(!1).styles({
       display: "block",
       width: "100%",
       "table-layout": "auto"
@@ -2554,9 +2500,6 @@
         titleText: title?.text() ?? ""
       };
     }
-    function isSearchGridRow(row) {
-      return row !== null;
-    }
     function applySearchGridRow(source) {
       let row = source.row.inplace(), thumbnailCell = source.thumbnailCell.inplace(), contentCell = source.contentCell.inplace(), detail = source.detail.inplace(), metadata = source.metadata.inplace();
       row.styles({
@@ -2577,7 +2520,7 @@
     function applySearchGridContent(source, contentCell, detail, metadata) {
       let tags = source.tags.map((node) => node.inplace()), title = source.title?.inplace() ?? null, galleryLink = source.galleryLink?.inplace() ?? null;
       if (galleryLink && title && source.galleryHref) {
-        let titleLink = createManagedElement("a").attribute("href", source.galleryHref).transform({ classes: { replace: "block min-w-0 ehp-color-site-text no-underline" } });
+        let titleLink = createManagedElement("a").attribute("href", source.galleryHref).replaceClasses("block min-w-0 ehp-color-site-text no-underline");
         titleLink.append(title), galleryLink.before(detail), galleryLink.remove(), detail.replaceChildren(titleLink, metadata, ...tags), makeSearchGridContentClickable(contentCell, titleLink, source.galleryHref, source.titleText);
       } else title && title.after(metadata);
       title?.styles({
@@ -2636,33 +2579,31 @@
         tag.inplace().styles({ "font-size": "var(--font-size-sm)", "line-height": "1.2" }, "important");
       for (let itemSource of source.metadataItems) {
         let item = itemSource.inplace();
-        if (item) {
-          if (item.styles({
-            float: "none",
-            position: "static",
-            flex: "0 0 auto",
-            "min-width": "0",
-            margin: "0",
-            "font-size": "var(--font-size-sm)",
-            "font-weight": "600"
-          }, "important"), itemSource.matches(".ir, .gldown")) {
-            item.removeStyles("width", "height");
-            continue;
-          }
-          item.styles({ width: "auto", height: "auto", padding: "0", "line-height": "1.3" }, "important"), itemSource.matches(".cn, .cs, [class*='ct']") && item.styles({
-            display: "inline-flex",
-            "align-items": "center",
-            "justify-content": "center",
-            "box-sizing": "border-box",
-            width: "72px",
-            height: "32px",
-            padding: "0 8px"
-          }, "important");
+        if (item.styles({
+          float: "none",
+          position: "static",
+          flex: "0 0 auto",
+          "min-width": "0",
+          margin: "0",
+          "font-size": "var(--font-size-sm)",
+          "font-weight": "600"
+        }, "important"), itemSource.matches(".ir, .gldown")) {
+          item.removeStyles("width", "height");
+          continue;
         }
+        item.styles({ width: "auto", height: "auto", padding: "0", "line-height": "1.3" }, "important"), itemSource.matches(".cn, .cs, [class*='ct']") && item.styles({
+          display: "inline-flex",
+          "align-items": "center",
+          "justify-content": "center",
+          "box-sizing": "border-box",
+          width: "72px",
+          height: "32px",
+          padding: "0 8px"
+        }, "important");
       }
     }
     function makeSearchGridContentClickable(contentCell, galleryLink, galleryHref, title) {
-      let overlay = createManagedElement("a").attribute("href", galleryHref).attribute("aria-label", title || "Open gallery").transform({ classes: { replace: "hidden coarse:block absolute inset-0 z-1" } });
+      let overlay = createManagedElement("a").attribute("href", galleryHref).attribute("aria-label", title || "Open gallery").replaceClasses("hidden coarse:block absolute inset-0 z-1");
       contentCell.styles({ position: "relative", cursor: "pointer" }, "important").append(overlay).listen("click", (event) => {
         (event.target instanceof Element ? DomNode.from(event.target) : null)?.closest("a[href], button, input, select, textarea, label, [onclick]") || galleryLink.click();
       });
@@ -2716,7 +2657,10 @@
   function replaceSearchNavigationBars(doc) {
     let currentBars = DomNode.from(document).all(".searchnav"), incomingBars = DomNode.from(doc).all(".searchnav"), count = Math.min(currentBars.length, incomingBars.length);
     for (let index = 0; index < count; index += 1) {
-      let current = currentBars[index].inplace(), incoming = incomingBars[index].clone();
+      let currentSource = currentBars[index], incomingSource = incomingBars[index];
+      if (!currentSource || !incomingSource)
+        continue;
+      let current = currentSource.inplace(), incoming = incomingSource.clone();
       current.replaceWith(incoming);
     }
   }
@@ -2728,24 +2672,24 @@
     currentElement.replaceWith(incomingElement);
   }
   function favoritesPageTouch() {
-    documentElement().transform({ classes: { add: TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" ") } }), documentBody().transform({ classes: { add: TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" ") } });
+    documentElement().addClasses(...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" ")), documentBody().addClasses(...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "));
     let page = DomNode.from(document);
-    page.one(".ido")?.inplace().removeStyles("min-width").transform({ classes: { add: TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" ") } });
+    page.one(".ido")?.inplace().removeStyles("min-width").addClasses(...TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" "));
     let categories = page.one(".ido > .nosel"), categorySelect = categories ? readFavoritesCategories(categories) : null;
-    page.one("input[name='f_search']")?.form()?.parent()?.inplace().removeStyles("width").transform({ classes: { add: ["box-border", "!w-full", "!min-w-0", "!max-w-full"] } });
+    page.one("input[name='f_search']")?.form()?.parent()?.inplace().removeStyles("width").addClasses("box-border", "!w-full", "!min-w-0", "!max-w-full");
     for (let navigation of page.all(".searchnav"))
-      navigation.inplace().transform({ classes: { add: TOUCH_FAVORITES_NAV_CLASS_NAME.split(" ") } });
+      navigation.inplace().addClasses(...TOUCH_FAVORITES_NAV_CLASS_NAME.split(" "));
     let resultSource = page.one(".itg");
     if (!resultSource)
       return categorySelect;
     let existingWrapperSource = resultSource.parent(), existingWrapper = existingWrapperSource?.hasClass("ehpeek-touch-favorites-results") ? existingWrapperSource : null, contentSource = existingWrapper?.parent() ?? resultSource.parent(), allSelected = categorySelect?.categories[0]?.selected === !0;
-    contentSource?.inplace().transform({ classes: { add: TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" ") } });
+    contentSource?.inplace().addClasses(...TOUCH_FAVORITES_CONTENT_CLASS_NAME.split(" "));
     let resultList = resultSource.inplace();
-    if (resultList.transform({ classes: { add: TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME.split(" ") } }), existingWrapper)
+    if (resultList.addClasses(...TOUCH_FAVORITES_RESULT_LIST_CLASS_NAME.split(" ")), existingWrapper)
       return categorySelect;
     (allSelected || window.innerWidth < 850) && compactFavoritesResultList(resultSource);
-    let wrapper = createManagedElement("div").transform({ classes: { replace: TOUCH_FAVORITES_RESULTS_CLASS_NAME } });
-    return (allSelected || window.innerWidth < 850) && wrapper.transform({ classes: { add: TOUCH_FAVORITES_ALL_RESULTS_CLASS_NAME.split(" ") } }), resultList.replaceWith(wrapper), wrapper.append(resultList), categorySelect;
+    let wrapper = createManagedElement("div").replaceClasses(TOUCH_FAVORITES_RESULTS_CLASS_NAME);
+    return (allSelected || window.innerWidth < 850) && wrapper.addClasses(...TOUCH_FAVORITES_ALL_RESULTS_CLASS_NAME.split(" ")), resultList.replaceWith(wrapper), wrapper.append(resultList), categorySelect;
   }
   function compactFavoritesResultList(source) {
     source.inplace().styles({
@@ -2802,7 +2746,7 @@
     };
   }
   function searchResultsPageTouch(hideRangeBar) {
-    documentElement().transform({ classes: { add: TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ") } }), documentBody().transform({ classes: { add: TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ") } });
+    documentElement().addClasses(...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ")), documentBody().addClasses(...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" "));
     let page = DomNode.from(document);
     if (hideRangeBar) {
       let rangeBar = page.one("#rangebar")?.inplace();
@@ -2812,25 +2756,27 @@
     if (!resultSource)
       return;
     let existingWrapperSource = resultSource.parent(), existingWrapper = existingWrapperSource?.hasClass("ehpeek-touch-search-results") ? existingWrapperSource : null, contentSource = existingWrapper?.parent() ?? resultSource.parent();
-    resultSource.closest(".ido")?.inplace().transform({ classes: { add: TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ") } }), contentSource?.inplace().transform({ classes: { add: TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ") } });
+    resultSource.closest(".ido")?.inplace().addClasses(...TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" ")), contentSource?.inplace().addClasses(...TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME.split(" "));
     let resultList = resultSource.inplace();
-    if (resultList.transform({ classes: { add: TOUCH_SEARCH_RESULT_LIST_CLASS_NAME.split(" ") } }), existingWrapper)
+    if (resultList.addClasses(...TOUCH_SEARCH_RESULT_LIST_CLASS_NAME.split(" ")), existingWrapper)
       return;
-    let wrapper = createManagedElement("div").transform({ classes: { replace: TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME } });
+    let wrapper = createManagedElement("div").replaceClasses(TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME);
     resultList.replaceWith(wrapper), wrapper.append(resultList);
   }
   function manageTouchResultsPage(page, hideRangeBar = !1) {
     let apply = () => page.type === "favorites" ? favoritesPageTouch() : (page.type === "search" && searchResultsPageTouch(hideRangeBar), null);
     return { data: { favoritesCategory: apply() }, handle: {
-      refresh() {
+      /** Reapplies TouchUI layout after the result list is replaced in place. */
+      updateTouchResultsLayout() {
         apply();
       },
-      reset() {
+      /** Removes page-wide TouchUI constraints before the active page is released. */
+      removeTouchResultsLayout() {
         let classes = [
           ...TOUCH_FAVORITES_PAGE_CLASS_NAME.split(" "),
           ...TOUCH_SEARCH_RESULTS_PAGE_CLASS_NAME.split(" ")
         ];
-        documentElement().transform({ classes: { remove: classes } }), documentBody().transform({ classes: { remove: classes } });
+        documentElement().removeClasses(...classes), documentBody().removeClasses(...classes);
       }
     } };
   }
@@ -2843,71 +2789,69 @@
     let mount = createAnchor("search-panel"), categoryToggleMount = categories && optionLinks ? createAnchor("search-category-toggle") : null, advancedToggleMount = advancedToggle ? createAnchor("search-advanced-toggle") : null, fileSearchToggleMount = fileSearchToggle ? createAnchor("search-file-toggle") : null, searchActionMount = createAnchor("search-action"), clearActionMount = clearButton ? createAnchor("search-clear-action") : null;
     if (!mount || !searchActionMount || clearButton && !clearActionMount)
       return null;
-    let categoryRows = categories?.all("tr") ?? [], categoryCells = categories?.all("td") ?? [], categoryItems = categories?.all("[id^='cat_']") ?? [], categoryMask = form.one("input[name='f_cats']"), categoryBits = categoryItems.map((item) => Number(item.attribute("id")?.match(/^cat_(\d+)$/)?.[1])), optionLinkItems = optionLinks?.all("a") ?? [], sourceSearchBoxElem = standardSearchBox?.inplace() ?? null, formElem = form.inplace(), searchInputElem = searchInput.inplace(), searchSubmitElem = searchSubmit.inplace(), clearButtonElem = clearButton?.inplace() ?? null, categoriesElem = categories?.inplace() ?? null, advancedPanelElem = advancedPanel?.inplace() ?? null, optionLinksElem = optionLinks?.inplace() ?? null, advancedToggleElem = advancedToggle?.inplace() ?? null, fileSearchToggleElem = fileSearchToggle?.inplace() ?? null, fileSearchElem = fileSearch?.inplace() ?? null, categoryRowElems = categoryRows.map((row) => row.inplace()), categoryCellElems = categoryCells.map((cell) => cell.inplace()), categoryItemElems = categoryItems.map((item) => item.inplace()), categoryMaskElem = categoryMask?.inplace() ?? null, optionLinkElems = optionLinkItems.map((link) => link.inplace()), searchControlsElem = DomNode.from(document.createElement("div")).inplace(), searchBoxElem = sourceSearchBoxElem ?? searchControlsElem;
-    (sourceSearchBoxElem ?? formElem).before(mount), sourceSearchBoxElem && searchBoxElem.remove(), searchInputElem.before(searchControlsElem), searchInputElem.remove(), searchControlsElem.append(searchInputElem), searchSubmitElem.replaceWith(searchActionMount), searchSubmitElem.remove(), clearButtonElem && clearActionMount && (clearButtonElem.replaceWith(clearActionMount), clearButtonElem.remove(), searchControlsElem.append(clearActionMount)), searchControlsElem.append(searchActionMount), categoriesElem && optionLinksElem && categoryToggleMount && (categoriesElem.remove(), optionLinksElem.after(categoriesElem), optionLinksElem.prepend(categoryToggleMount)), advancedToggleElem && advancedToggleMount && (advancedToggleElem.replaceWith(advancedToggleMount), advancedToggleElem.remove()), fileSearchToggleElem && fileSearchToggleMount && (fileSearchToggleElem.replaceWith(fileSearchToggleMount), fileSearchToggleElem.remove()), fileSearchElem?.remove();
-    let formInsideSearchBox = standardSearchBox?.one("form")?.sameNode(form) ?? !1, categoryColors = categoryItems.map(
+    let categoryRows = categories?.all("tr") ?? [], categoryCells = categories?.all("td") ?? [], categoryItems = categories?.all("[id^='cat_']") ?? [], categoryMask = form.one("input[name='f_cats']"), categoryBits = categoryItems.map((item) => Number(item.attribute("id")?.match(/^cat_(\d+)$/)?.[1])), optionLinkItems = optionLinks?.all("a") ?? [], searchControls = createManagedElement("div"), elems = {
+      advancedPanel: advancedPanel?.inplace() ?? null,
+      advancedToggle: advancedToggle?.inplace() ?? null,
+      advancedToggleMount,
+      categories: categories?.inplace() ?? null,
+      categoryCells: categoryCells.map((cell) => cell.inplace()),
+      categoryItems: categoryItems.map((item) => item.inplace()),
+      categoryMask: categoryMask?.inplace() ?? null,
+      categoryRows: categoryRows.map((row) => row.inplace()),
+      categoryToggleMount,
+      clearActionMount,
+      clearButton: clearButton?.inplace() ?? null,
+      fileSearch: fileSearch?.inplace() ?? null,
+      fileSearchToggle: fileSearchToggle?.inplace() ?? null,
+      fileSearchToggleMount,
+      form: form.inplace(),
+      mount,
+      optionLinks: optionLinks?.inplace() ?? null,
+      optionLinkItems: optionLinkItems.map((link) => link.inplace()),
+      searchActionMount,
+      searchBox: standardSearchBox?.inplace() ?? searchControls,
+      searchControls,
+      searchInput: searchInput.inplace(),
+      searchSubmit: searchSubmit.inplace()
+    };
+    (standardSearchBox ? elems.searchBox : elems.form).before(elems.mount), standardSearchBox && elems.searchBox.remove(), elems.searchInput.replaceWith(elems.searchControls), elems.searchControls.append(elems.searchInput), elems.searchSubmit.remove(), elems.clearButton && elems.clearActionMount && (elems.clearButton.remove(), elems.searchControls.append(elems.clearActionMount)), elems.searchControls.append(elems.searchActionMount), elems.categories && elems.optionLinks && elems.categoryToggleMount && (elems.optionLinks.after(elems.categories), elems.optionLinks.prepend(elems.categoryToggleMount)), elems.advancedToggle && elems.advancedToggleMount && elems.advancedToggle.replaceWith(elems.advancedToggleMount), elems.fileSearchToggle && elems.fileSearchToggleMount && elems.fileSearchToggle.replaceWith(elems.fileSearchToggleMount), elems.fileSearch?.remove();
+    let formInsideSearchBox = standardSearchBox?.one("form")?.sameNode(form) ?? !1, formId = form.attribute("id") || "ehpeek-search-form", categoryColors = categoryItems.map(
       (item) => ["ct1", "ct2", "ct3", "ct4", "ct5", "ct6", "ct7", "ct8", "ct9", "cta"].find((name) => item.hasClass(name)) ?? null
     ), data = {
       clearLabel: clearButton ? actionLabel(clearButton) : null,
-      hasClear: clearButtonElem !== null && clearActionMount !== null,
+      hasClear: elems.clearButton !== null && elems.clearActionMount !== null,
       searchLabel: actionLabel(searchSubmit)
     };
     return populateEmptyPanels(
-      advancedPanelElem,
+      elems.advancedPanel,
       advancedPanel?.childElementCount() === 0,
-      fileSearchElem,
+      elems.fileSearch,
       fileSearch?.childElementCount() === 0,
       fileSearchAction
-    ), attachCategoryActions(categoryItemElems, categoryMaskElem, categoryBits), { data, elems: {
-      advancedPanel: advancedPanelElem,
-      advancedToggleMount,
-      categories: categoriesElem,
-      categoryCells: categoryCellElems,
-      categoryItems: categoryItemElems,
-      categoryMask: categoryMaskElem,
-      categoryRows: categoryRowElems,
-      categoryToggleMount,
-      clearActionMount,
-      clearButton: clearButtonElem,
-      fileSearch: fileSearchElem,
-      fileSearchToggleMount,
-      form: formElem,
-      mount,
-      optionLinks: optionLinksElem,
-      optionLinkItems: optionLinkElems,
-      searchActionMount,
-      searchBox: searchBoxElem,
-      searchControls: searchControlsElem,
-      searchInput: searchInputElem,
-      searchSubmit: searchSubmitElem
-    }, handle: {
-      transformPresentation(classes) {
-        if (searchActionMount.transform({ classes: { replace: classes.actionMount } }), clearActionMount?.transform({ classes: { replace: classes.actionMount } }), searchBoxElem.transform({ classes: { replace: standardSearchBox ? classes.searchBox : classes.controls } }), formInsideSearchBox)
-          formElem.transform({ attributes: { remove: ["style"] }, classes: { replace: classes.form } });
-        else {
-          formElem.transform({ attributes: { set: { id: form.attribute("id") || "ehpeek-search-form" } } });
-          let formId = form.attribute("id") || "ehpeek-search-form";
-          searchInputElem.transform({ attributes: { set: { form: formId } } }), searchSubmitElem.transform({ attributes: { set: { form: formId } } }), clearButtonElem?.transform({ attributes: { set: { form: formId } } });
-        }
-        searchControlsElem.transform({ classes: { replace: classes.controls } }), searchInputElem.transform({ attributes: { remove: ["style"] }, classes: { replace: classes.input } }), categoriesElem?.transform({ hidden: !0, classes: { replace: classes.categoryTable } }), categoryRowElems.forEach((row) => row.transform({ classes: { replace: classes.categoryRow } })), categoryCellElems.forEach((cell) => cell.transform({ classes: { replace: classes.categoryCell } })), categoryItemElems.forEach((item, index) => item.transform({
-          attributes: { remove: ["onclick"] },
-          classes: { replace: `${categoryColors[index] ? `${categoryColors[index]} ` : ""}${classes.category}` }
-        })), optionLinksElem?.transform({ classes: { replace: classes.optionLinks } }), optionLinkElems.forEach((link) => link.transform({ classes: { replace: classes.optionLink } })), advancedPanelElem?.transform({ styles: { remove: ["display"] }, classes: { replace: classes.advancedPanel } }), fileSearchElem?.transform({ styles: { remove: ["display", "margin-top"] }, classes: { replace: classes.fileSearch } }), searchSubmitElem.setHidden(!0), clearButtonElem?.setHidden(!0);
+    ), attachCategoryActions(elems.categoryItems, elems.categoryMask, categoryBits), { data, elems, handle: {
+      /** Reflows original Search controls into EhPeek's shared SearchPanel structure. */
+      updateSearchPanelVisual(classes) {
+        elems.searchActionMount.replaceClasses(classes.actionMount), elems.clearActionMount?.replaceClasses(classes.actionMount), elems.searchBox.replaceClasses(standardSearchBox ? classes.searchBox : classes.controls), formInsideSearchBox ? elems.form.removeAttributes("style").replaceClasses(classes.form) : (elems.form.setAttributes({ id: formId }), elems.searchInput.setAttributes({ form: formId }), elems.searchSubmit.setAttributes({ form: formId }), elems.clearButton?.setAttributes({ form: formId })), elems.searchControls.replaceClasses(classes.controls), elems.searchInput.removeAttributes("style").replaceClasses(classes.input), elems.categories?.replaceClasses(classes.categoryTable).setHidden(!0), elems.categoryRows.forEach((row) => row.replaceClasses(classes.categoryRow)), elems.categoryCells.forEach((cell) => cell.replaceClasses(classes.categoryCell)), elems.categoryItems.forEach((item, index) => item.removeAttributes("onclick").replaceClasses(`${categoryColors[index] ? `${categoryColors[index]} ` : ""}${classes.category}`)), elems.optionLinks?.replaceClasses(classes.optionLinks), elems.optionLinkItems.forEach((link) => link.replaceClasses(classes.optionLink)), elems.advancedPanel?.replaceClasses(classes.advancedPanel).removeStyles("display"), elems.fileSearch?.replaceClasses(classes.fileSearch).removeStyles("display", "margin-top"), elems.searchSubmit.setHidden(!0), elems.clearButton?.setHidden(!0);
       },
-      transformCategories(open) {
-        categoriesElem?.setHidden(!open), categoriesElem?.transform({ attributes: { set: { "aria-hidden": String(!open) } } });
+      /** Controls the original category table from EhPeek's category toggle. */
+      updateCategoryVisibility(open) {
+        elems.categories?.setHidden(!open), elems.categories?.setAttributes({ "aria-hidden": String(!open) });
       },
-      transformAdvanced(open) {
-        advancedPanelElem?.setHidden(!open);
+      /** Controls the original advanced-search fields from EhPeek's toggle. */
+      updateAdvancedOptionsVisibility(open) {
+        elems.advancedPanel?.setHidden(!open);
       },
-      transformFileSearch(open) {
-        fileSearchElem?.setHidden(!open);
+      /** Controls the original file-search fields from EhPeek's toggle. */
+      updateFileSearchVisibility(open) {
+        elems.fileSearch?.setHidden(!open);
       },
-      submit() {
-        formElem.requestSubmit(searchSubmitElem);
+      /** Submits through the original Search form and its preserved parameters. */
+      submitSearchForm() {
+        elems.form.requestSubmit(elems.searchSubmit);
       },
-      clear() {
-        searchInputElem.setInputValue(""), searchInputElem.dispatchInput(), searchInputElem.focus();
+      /** Clears the original input and emits the event consumed by Search history. */
+      clearSearchInput() {
+        elems.searchInput.setInputValue(""), elems.searchInput.dispatchInput(), elems.searchInput.focus();
       }
     } };
   }
@@ -2934,11 +2878,11 @@
   function attachCategoryActions(categories, mask, bits) {
     categories.forEach((category, index) => {
       let categoryBit = bits[index];
-      if (!mask || !Number.isInteger(categoryBit) || categoryBit <= 0)
+      if (!mask || categoryBit === void 0 || !Number.isInteger(categoryBit) || categoryBit <= 0)
         return;
-      let update = () => category.transform({
-        attributes: (Number(mask.inputValue()) & categoryBit) !== 0 ? { set: { "data-disabled": "" } } : { remove: ["data-disabled"] }
-      });
+      let update = () => {
+        (Number(mask.inputValue()) & categoryBit) !== 0 ? category.setAttributes({ "data-disabled": "" }) : category.removeAttributes("data-disabled");
+      };
       update(), category.listen("click", () => {
         mask.setDisabled(!1), mask.setInputValue(String(Number(mask.inputValue()) ^ categoryBit)), update();
       });
@@ -2948,9 +2892,9 @@
   // src/eh/dom/singlePage.ts
   var PERSISTENT_SELECTOR = "[data-ehpeek-persistent], #eh-syringe-popup-button, #eh-syringe-popup-back, .eh-syringe-lite-auto-complete-list";
   function managePageContent(root = document, baseUrl = window.location.href) {
-    let documentSource = DomNode.from(root), container = root instanceof Document ? DomNode.from(root.body) : DomNode.from(root), page = container, persistent = (node) => node.matches(PERSISTENT_SELECTOR) || node.closest(PERSISTENT_SELECTOR) !== null, scriptSources = page.all("script").filter((script) => !persistent(script)), scriptTexts = scriptSources.map((script) => script.text()), sources = page.all("*").filter((node) => !persistent(node)), contentSources = container.children().filter((node) => !persistent(node));
+    let documentSource = DomNode.from(root), container = root instanceof Document ? DomNode.from(root.body) : DomNode.from(root), persistent = (node) => node.matches(PERSISTENT_SELECTOR) || node.closest(PERSISTENT_SELECTOR) !== null, scriptSources = container.all("script").filter((script) => !persistent(script)), scriptTexts = scriptSources.map((script) => script.text()), sources = container.all("*").filter((node) => !persistent(node)), contentSources = container.children().filter((node) => !persistent(node));
     manageGalleryApiSession(root, baseUrl);
-    let own = (source) => source.inplace(), absoluteAttributes = [
+    let absoluteAttributes = [
       ["a[href]", "href"],
       ["area[href]", "href"],
       ["form[action]", "action"],
@@ -2959,50 +2903,43 @@
       ["source[src]", "src"]
     ];
     for (let [selector, attribute] of absoluteAttributes)
-      for (let source of page.all(selector).filter((node) => !persistent(node))) {
+      for (let source of container.all(selector).filter((node) => !persistent(node))) {
         let value = source.attribute(attribute);
-        !value || value.startsWith("#") || /^(?:data|javascript|mailto):/i.test(value) || own(source).attribute(attribute, normalizeUrl(value, baseUrl));
+        !value || value.startsWith("#") || /^(?:data|javascript|mailto):/i.test(value) || source.inplace().attribute(attribute, normalizeUrl(value, baseUrl));
       }
-    let fileSearch = page.one("#fsdiv"), uploadBase = (scriptTexts.find((text) => text.includes("ulhost")) ?? "").match(/\bulhost\s*=\s*["']([^"']+)["']/)?.[1];
-    fileSearch && uploadBase && own(fileSearch).attribute(
+    let fileSearch = container.one("#fsdiv"), uploadBase = (scriptTexts.find((text) => text.includes("ulhost")) ?? "").match(/\bulhost\s*=\s*["']([^"']+)["']/)?.[1];
+    fileSearch && uploadBase && fileSearch.inplace().attribute(
       "data-ehpeek-file-search-action",
       new URL("image_lookup.php", normalizeUrl(uploadBase, baseUrl)).href
     );
-    for (let source of page.all("#gd5 a[onclick]")) {
+    for (let source of container.all("#gd5 a[onclick]")) {
       let popupUrl = (source.attribute("onclick") ?? "").match(/\bpopUp\(['"]([^'"]+)['"]/)?.[1];
-      popupUrl && own(source).transform({
-        attributes: {
-          set: {
-            href: new URL(popupUrl, baseUrl).href,
-            rel: "noopener noreferrer",
-            target: "_blank"
-          }
-        }
+      popupUrl && source.inplace().setAttributes({
+        href: new URL(popupUrl, baseUrl).href,
+        rel: "noopener noreferrer",
+        target: "_blank"
       });
     }
-    let ratingScript = scriptTexts.find((text) => text.includes("display_rating")), rating = ratingScript ? scriptNumberValue2(ratingScript, "display_rating") : null, ratingImage = page.one("#rating_image");
-    ratingImage && rating !== null && own(ratingImage).attribute("data-ehpeek-rating", String(rating));
+    let ratingScript = scriptTexts.find((text) => text.includes("display_rating")), rating = ratingScript ? scriptNumberValue(ratingScript, "display_rating") : null, ratingImage = container.one("#rating_image");
+    ratingImage && rating !== null && ratingImage.inplace().attribute("data-ehpeek-rating", String(rating));
     let gallery = galleryIdentityFromUrl(baseUrl), favoriteMatch = scriptTexts.find((text) => text.includes("popbase") && text.includes("addfav"))?.match(
       /popbase\s*=\s*base_url\s*\+\s*"gallerypopups\.php\?gid=(\d+)&t=([^"&]+)&act="/
-    ), favorite = page.one("#fav");
-    favorite && gallery && Number(favoriteMatch?.[1]) === gallery.galleryId && favoriteMatch?.[2] === gallery.token && own(favorite).attribute(
+    ), favorite = container.one("#fav");
+    favorite && gallery && Number(favoriteMatch?.[1]) === gallery.galleryId && favoriteMatch?.[2] === gallery.token && favorite.inplace().attribute(
       "data-ehpeek-action-url",
       `/gallerypopups.php?gid=${favoriteMatch[1]}&t=${favoriteMatch[2]}&act=addfav`
     );
     for (let source of sources) {
-      let managedSource = own(source), inlineAttributes = source.attributeNames().filter((name) => /^on/i.test(name)), handlers = inlineAttributes.map((name) => source.attribute(name) ?? ""), attributes = {};
-      handlers.some((handler) => handler.includes("toggle_advsearch")) && (attributes["data-ehpeek-search-advanced-toggle"] = "true"), handlers.some((handler) => handler.includes("toggle_filesearch")) && (attributes["data-ehpeek-search-file-toggle"] = "true"), handlers.some((handler) => handler.includes("inline_set=dm_")) && (attributes["data-ehpeek-grid-mode-source"] = "true"), managedSource.transform({
-        attributes: {
-          remove: inlineAttributes,
-          set: attributes
-        }
-      });
+      let handlers = source.attributeNames().filter((name) => /^on/i.test(name)).map((name) => source.attribute(name) ?? ""), attributes = {};
+      handlers.some((handler) => handler.includes("toggle_advsearch")) && (attributes["data-ehpeek-search-advanced-toggle"] = "true"), handlers.some((handler) => handler.includes("toggle_filesearch")) && (attributes["data-ehpeek-search-file-toggle"] = "true"), handlers.some((handler) => handler.includes("inline_set=dm_")) && (attributes["data-ehpeek-grid-mode-source"] = "true"), source.inplace().setAttributes(attributes);
     }
-    scriptSources.forEach((script) => own(script).remove());
-    let content = contentSources.map((source) => {
-      let node = own(source);
-      return node.remove(), node;
-    }), elems = { content }, data = {
+    scriptSources.forEach((script) => script.inplace().remove());
+    let elems = {
+      content: contentSources.map((source) => {
+        let content = source.inplace();
+        return content.remove(), content;
+      })
+    }, data = {
       title: documentSource.one("title")?.text() ?? ""
     }, navigationRequest = (event) => {
       if (event instanceof MouseEvent) {
@@ -3024,7 +2961,8 @@
       }), { method, url: url.href }) : { body: formData, method, url: url.href };
     };
     return { data, elems, handle: {
-      connectNavigation(host, onNavigate) {
+      /** Intercepts only same-origin routes supported by EhPeek Single Page App. */
+      interceptSinglePageNavigation(host, onNavigate) {
         let onClick = (event) => {
           if (event.defaultPrevented || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
             return;
@@ -3038,12 +2976,13 @@
           host.removeEventListener("click", onClick, !0), host.removeEventListener("submit", onSubmit, !0);
         };
       },
-      mount(host) {
-        host.replaceChildren(...content.map((node) => node.Component()));
+      /** Installs the detached response content into Single Page App's active host. */
+      mountPageContent(host) {
+        host.replaceChildren(...elems.content.map((node) => node.Component()));
       }
     } };
   }
-  function scriptNumberValue2(script, name) {
+  function scriptNumberValue(script, name) {
     let match = script.match(new RegExp(`\\b(?:var\\s+)?${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`));
     if (!match)
       return null;
@@ -3053,11 +2992,14 @@
 
   // src/eh/dom/topBar.ts
   function manageSettingsMenuMount() {
-    let page = DomNode.from(document), thumbnailContainer = page.one("#gdt"), titleContainer = page.one("#gd2, h1"), topNav = page.one("#nb"), anchor = thumbnailContainer ?? titleContainer, item = createManagedElement("div");
-    if (topNav)
-      return topNav.inplace().append(item), item;
+    let page = DomNode.from(document), thumbnailContainer = page.one("#gdt"), titleContainer = page.one("#gd2, h1"), topNav = page.one("#nb"), anchor = thumbnailContainer ?? titleContainer;
+    if (topNav) {
+      let item2 = createManagedElement("div");
+      return topNav.inplace().append(item2), item2;
+    }
     if (!anchor?.parent())
       return null;
+    let item = createManagedElement("div");
     item.styles({ "text-align": "right" });
     let managedAnchor = anchor.inplace();
     return thumbnailContainer ? managedAnchor.before(item) : managedAnchor.after(item), item;
@@ -3072,18 +3014,18 @@
     let data = {
       favoritesHref: new URL("/favorites.php", window.location.href).href,
       homeHref: links[0]?.attribute("href") ?? "/"
-    }, navItems = links.map((link) => link.clone());
-    return original.inplace().replaceWith(mount), {
+    }, elems = {
+      mount,
+      navItems: links.map((link) => link.clone())
+    };
+    return original.inplace().replaceWith(elems.mount), {
       data,
-      elems: { mount, navItems },
+      elems,
       handle: {
-        transformNavItems(className2) {
-          navItems.forEach(
-            (item) => item.transform({
-              attributes: { remove: ["id"] },
-              classes: { replace: className2 },
-              styles: { remove: "all" }
-            })
+        /** Normalizes cloned original links for EhPeek's icon-based TopBar. */
+        updateNavItemVisual(className2) {
+          elems.navItems.forEach(
+            (item) => item.removeAttributes("id").replaceClasses(className2).removeAllStyles()
           );
         }
       }
@@ -3091,19 +3033,20 @@
   }
 
   // src/components/PointerGesture.tsx
-  var DEFAULT_TAP_MOVE_THRESHOLD_PX = 8, DEFAULT_DRAG_START_THRESHOLD_PX = 8, DEFAULT_DRAG_INTENT_RATIO = 1, PointerGesture = class {
+  var DEFAULT_TAP_MOVE_THRESHOLD_PX = 8, DEFAULT_DRAG_START_THRESHOLD_PX = 8, DEFAULT_DRAG_INTENT_RATIO = 1, MOUSE_POINTER_ID = -1, PointerGesture = class {
     constructor(target, callbacks) {
-      __publicField(this, "mousePointerId", -1);
       __publicField(this, "pinchPointers", /* @__PURE__ */ new Map());
       __publicField(this, "drag", null);
       __publicField(this, "suppressClick", !1);
+      __publicField(this, "suppressClickPoint", null);
       __publicField(this, "suppressClickTimer", null);
       __publicField(this, "pinch", null);
       __publicField(this, "onDragStart", (event) => {
         this.drag?.canDrag && event.preventDefault();
       });
       __publicField(this, "onClick", (event) => {
-        this.suppressClick && (this.suppressClick = !1, event.preventDefault(), event.stopImmediatePropagation());
+        let point = this.suppressClickPoint, targetInside = event.target instanceof Node && this.target.contains(event.target), nearReleasePoint = point !== null && Math.hypot(event.clientX - point.clientX, event.clientY - point.clientY) <= 24;
+        !this.suppressClick || !targetInside && !nearReleasePoint || (this.clearClickSuppression(), event.preventDefault(), event.stopImmediatePropagation());
       });
       __publicField(this, "onContextMenu", () => {
         this.drag?.active || (this.cancel(), this.clearPinch());
@@ -3115,7 +3058,7 @@
         (canDrag || (callbacks.shouldObserveTap?.(event) ?? !1)) && (this.start(event.pointerId, event.pointerType, event.clientX, event.clientY, event, canDrag), event.pointerType === "mouse" && this.addMouseListeners());
       });
       __publicField(this, "onMouseDown", (event) => {
-        event.button !== 0 || typeof PointerEvent < "u" || this.drag || !(this.callbacks().shouldCaptureDrag?.(event) ?? !0) || (this.start(this.mousePointerId, "mouse", event.clientX, event.clientY, event, !0), this.addMouseListeners());
+        event.button !== 0 || typeof PointerEvent < "u" || this.drag || !(this.callbacks().shouldCaptureDrag?.(event) ?? !0) || (this.start(MOUSE_POINTER_ID, "mouse", event.clientX, event.clientY, event, !0), this.addMouseListeners());
       });
       __publicField(this, "onPointerMove", (event) => {
         !this.drag || event.pointerId !== this.drag.pointerId || this.drag.pointerType === "mouse" || this.move(event.clientX, event.clientY, event);
@@ -3148,10 +3091,10 @@
       __publicField(this, "onPinchPointerEnd", (event) => {
         this.pinchPointers.has(event.pointerId) && (this.pinchPointers.delete(event.pointerId), !(!this.pinch || this.pinchPointers.size >= 2) && (this.callbacks().onPinchEnd?.(), this.clearPinch(), event.preventDefault()));
       });
-      this.target = target, this.callbacks = callbacks, this.setDragging(!1), target.addEventListener("pointerdown", this.onPointerDown), target.addEventListener("mousedown", this.onMouseDown), target.addEventListener("dragstart", this.onDragStart), target.addEventListener("click", this.onClick, !0), target.addEventListener("contextmenu", this.onContextMenu);
+      this.target = target, this.callbacks = callbacks, this.setDragging(!1), target.addEventListener("pointerdown", this.onPointerDown), target.addEventListener("mousedown", this.onMouseDown), target.addEventListener("dragstart", this.onDragStart), target.addEventListener("contextmenu", this.onContextMenu);
     }
     dispose() {
-      this.drag && this.releaseCapture(this.drag), this.drag = null, this.setDragging(!1), this.clearPinch(), this.removePointerListeners(), this.removeMouseListeners(), this.target.removeEventListener("pointerdown", this.onPointerDown), this.target.removeEventListener("mousedown", this.onMouseDown), this.target.removeEventListener("dragstart", this.onDragStart), this.target.removeEventListener("click", this.onClick, !0), this.target.removeEventListener("contextmenu", this.onContextMenu), this.suppressClickTimer !== null && (window.clearTimeout(this.suppressClickTimer), this.suppressClickTimer = null);
+      this.drag && this.releaseCapture(this.drag), this.drag = null, this.setDragging(!1), this.clearPinch(), this.removePointerListeners(), this.removeMouseListeners(), this.target.removeEventListener("pointerdown", this.onPointerDown), this.target.removeEventListener("mousedown", this.onMouseDown), this.target.removeEventListener("dragstart", this.onDragStart), this.target.removeEventListener("contextmenu", this.onContextMenu), this.clearClickSuppression();
     }
     isDragging() {
       return this.drag?.active === !0;
@@ -3182,8 +3125,8 @@
       let drag = this.drag;
       if (!drag)
         return;
-      let dx = clientX - drag.startClientX, dy = clientY - drag.startClientY;
-      if ((Math.abs(dx) >= this.tapMoveThreshold() || Math.abs(dy) >= this.tapMoveThreshold()) && (drag.tapCancelled = !0), !drag.canDrag) {
+      let dx = clientX - drag.startClientX, dy = clientY - drag.startClientY, tapMoveThreshold = this.tapMoveThreshold();
+      if ((Math.abs(dx) >= tapMoveThreshold || Math.abs(dy) >= tapMoveThreshold) && (drag.tapCancelled = !0), !drag.canDrag) {
         this.updateLastMove(drag, clientX, clientY, event);
         return;
       }
@@ -3219,7 +3162,7 @@
         dx: clientX - drag.startClientX,
         dy: clientY - drag.startClientY,
         velocityY: drag.velocityY
-      }, isTap = !drag.tapCancelled && Math.abs(info.dx) < this.tapMoveThreshold() && Math.abs(info.dy) < this.tapMoveThreshold();
+      }, tapMoveThreshold = this.tapMoveThreshold(), isTap = !drag.tapCancelled && Math.abs(info.dx) < tapMoveThreshold && Math.abs(info.dy) < tapMoveThreshold;
       if (!cancelled && !drag.active && isTap && this.callbacks().onTap?.({
         ...info,
         startTarget: drag.startTarget
@@ -3233,7 +3176,7 @@
           }, event);
           return;
         }
-        this.suppressNextClick(), this.callbacks().onEnd?.(info, event);
+        this.suppressNextClick(info.clientX, info.clientY), this.callbacks().onEnd?.(info, event);
       }
     }
     addPointerListeners() {
@@ -3273,10 +3216,10 @@
       this.pinch || this.pinchPointers.delete(event.pointerId);
     }
     pinchSnapshot() {
-      let points = Array.from(this.pinchPointers.values());
-      if (points.length < 2)
+      let points = Array.from(this.pinchPointers.values()), first = points[0], second = points[1];
+      if (!first || !second)
         return null;
-      let [first, second] = points, dx = second.clientX - first.clientX, dy = second.clientY - first.clientY;
+      let dx = second.clientX - first.clientX, dy = second.clientY - first.clientY;
       return {
         clientX: (first.clientX + second.clientX) / 2,
         clientY: (first.clientY + second.clientY) / 2,
@@ -3310,10 +3253,16 @@
       let elapsed = Math.max(1, event.timeStamp - drag.lastMoveTime);
       drag.velocityY = (clientY - drag.lastClientY) / elapsed, drag.lastClientX = clientX, drag.lastClientY = clientY, drag.lastMoveTime = event.timeStamp;
     }
-    suppressNextClick() {
-      this.suppressClick = !0, this.suppressClickTimer !== null && window.clearTimeout(this.suppressClickTimer), this.suppressClickTimer = window.setTimeout(() => {
-        this.suppressClick = !1, this.suppressClickTimer = null;
+    suppressNextClick(clientX, clientY) {
+      this.suppressClick = !0, this.suppressClickPoint = {
+        clientX,
+        clientY
+      }, window.addEventListener("click", this.onClick, !0), this.suppressClickTimer !== null && window.clearTimeout(this.suppressClickTimer), this.suppressClickTimer = window.setTimeout(() => {
+        this.clearClickSuppression();
       }, 400);
+    }
+    clearClickSuppression() {
+      this.suppressClick = !1, this.suppressClickPoint = null, window.removeEventListener("click", this.onClick, !0), this.suppressClickTimer !== null && (window.clearTimeout(this.suppressClickTimer), this.suppressClickTimer = null);
     }
     setDragging(dragging) {
       this.target.dataset.dragging = String(dragging);
@@ -3333,7 +3282,7 @@
   }
 
   // src/components/Widgets/Loading.tsx
-  var _tmpl$ = /* @__PURE__ */ template('<span class="inline-flex items-center justify-center gap-md ehp-color-text"role=status aria-live=polite><span aria-hidden=true></span><span>'), _tmpl$2 = /* @__PURE__ */ template('<div class="fixed left-1/2 top-1/2 z-overlay flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] px-lg py-md text-[var(--color-text)] shadow-[0_6px_20px_var(--color-shadow-floating)] pointer-events-none select-none">');
+  var _tmpl$ = /* @__PURE__ */ template('<span class="inline-flex items-center justify-center gap-md ehp-color-site-text"role=status aria-live=polite><span aria-hidden=true></span><span>'), _tmpl$2 = /* @__PURE__ */ template('<div class="fixed left-1/2 top-1/2 z-overlay flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md border ehp-color-site-border bg-[var(--color-loading)] px-lg py-md ehp-color-site-text shadow-[0_6px_20px_var(--color-shadow-floating)] pointer-events-none select-none">');
   function LoadingSpinner(props) {
     let sizeClass = () => props.size === "lg" ? "w-sm h-sm border-4" : "w-xs h-xs border-3";
     return (() => {
@@ -3486,7 +3435,7 @@
   }
 
   // src/components/Enhance/EnhanceSearchGrids.tsx
-  var SWIPE_MIN_DISTANCE = 96, SWIPE_INTENT_DISTANCE = 28, HORIZONTAL_INTENT_RATIO = 2.2, SWIPE_MAX_VERTICAL_RATIO = 0.38, NAVIGATION_REQUEST_EVENT = "ehpeek:navigation-request";
+  var SWIPE_MIN_DISTANCE = 96, SWIPE_INTENT_DISTANCE = 28, HORIZONTAL_INTENT_RATIO = 2.2, SWIPE_MAX_VERTICAL_RATIO = 0.38;
   function EnhanceSearchGrids(props) {
     let [gestureTarget, setGestureTarget] = createSignal(null), [loading, setLoading] = createSignal(!1), [swipeIndicatorState, setSwipeIndicatorState] = createSignal({
       blocked: !1,
@@ -3505,24 +3454,18 @@
         progress: Math.min(1, Math.max(0, (Math.abs(info.dx) - SWIPE_INTENT_DISTANCE) / (SWIPE_MIN_DISTANCE - SWIPE_INTENT_DISTANCE)))
       });
     }, navigate = async (url) => {
-      let navigationRequest = new CustomEvent(NAVIGATION_REQUEST_EVENT, {
-        cancelable: !0,
-        detail: {
-          url
-        }
-      });
-      if (document.dispatchEvent(navigationRequest), !(navigationRequest.defaultPrevented || navigationLoading)) {
-        navigationLoading = !0, setLoading(!0), source.handle.setBusy(!0);
+      if (!(props.onNavigateRequest?.(url) || navigationLoading)) {
+        navigationLoading = !0, setLoading(!0), source.handle.updateSearchLoading(!0);
         try {
-          await source.handle.navigate(url);
+          await source.handle.loadSearchPage(url);
           let nextSource = manageSearchResults();
           if (!nextSource)
             throw new Error(texts_default.errors.searchPageContentNotFound);
-          source = nextSource, props.onPageChange(source), source.handle.transformSwipeInput(), setGestureTarget(source.elems.resultList.Component()), source.handle.scrollToTop();
+          source = nextSource, props.onPageChange(source), source.handle.ensureSearchSwipeInput(), setGestureTarget(source.elems.resultList.Component()), source.handle.scrollSearchResultsToTop();
         } catch (error) {
           console.error("[ehpeek]", error);
         } finally {
-          navigationLoading = !1, setLoading(!1), source.handle.setBusy(!1);
+          navigationLoading = !1, setLoading(!1), source.handle.updateSearchLoading(!1);
         }
       }
     }, navigateBySwipe = (info, event) => {
@@ -3535,7 +3478,7 @@
       navigate(url);
     };
     return onMount(() => {
-      source.handle.transformSwipeInput(), setGestureTarget(source.elems.resultList.Component()), onCleanup(source.handle.connectNavigation(onNavigation));
+      source.handle.ensureSearchSwipeInput(), setGestureTarget(source.elems.resultList.Component()), onCleanup(source.handle.interceptSearchNavigation(onNavigation));
     }), createPointerGestureElement(gestureTarget, () => ({
       onStart: () => {
         hideSwipeIndicator();
@@ -3573,7 +3516,7 @@
     })();
   }
   function ScrollPageBar(options) {
-    let maxIndex = createMemo(() => Math.max(0, options.maxIndex ?? options.currentIndex)), currentIndex = createMemo(() => clamp(options.currentIndex, 0, maxIndex())), windowIndex = createMemo(() => clamp(options.windowIndex() ?? currentIndex(), 0, maxIndex())), dragStartWindowIndex = untrack(windowIndex), draggable = () => maxIndex() + 1 > 7, slots = createMemo(() => pageSlots(windowIndex(), currentIndex(), maxIndex())), firstSlotIndex = createMemo(() => slots()[0] ?? currentIndex()), lastSlotIndex = createMemo(() => slots()[slots().length - 1] ?? currentIndex()), currentBeforeWindow = () => currentIndex() < firstSlotIndex(), currentAfterWindow = () => currentIndex() > lastSlotIndex(), scrollTargetForIndex = (pageIndex) => pageIndex === currentIndex() - 1 || pageIndex === maxIndex() ? "bottom" : "top", linkCell = (text, pageIndex, itemState = "link") => itemState !== "link" ? (() => {
+    let maxIndex = createMemo(() => Math.max(0, options.maxIndex)), currentIndex = createMemo(() => clamp(options.currentIndex, 0, maxIndex())), windowIndex = createMemo(() => clamp(options.windowIndex() ?? currentIndex(), 0, maxIndex())), dragStartWindowIndex = untrack(windowIndex), draggable = () => maxIndex() + 1 > 7, slots = createMemo(() => pageSlots(windowIndex(), currentIndex(), maxIndex())), firstSlotIndex = createMemo(() => slots()[0] ?? currentIndex()), lastSlotIndex = createMemo(() => slots()[slots().length - 1] ?? currentIndex()), currentBeforeWindow = () => currentIndex() < firstSlotIndex(), currentAfterWindow = () => currentIndex() > lastSlotIndex(), scrollTargetForIndex = (pageIndex) => pageIndex === currentIndex() - 1 || pageIndex === maxIndex() ? "bottom" : "top", linkCell = (text, pageIndex, itemState = "link") => itemState !== "link" ? (() => {
       var _el$2 = _tmpl$23(), _el$3 = _el$2.firstChild;
       return className(_el$3, `${PAGE_BAR_LINK_CLASS} ${itemState === "current" ? PAGE_BAR_CURRENT_COLOR_CLASS : PAGE_BAR_DISABLED_COLOR_CLASS}`), setAttribute(_el$3, "aria-current", itemState === "current" ? "page" : void 0), setAttribute(_el$3, "aria-disabled", itemState === "disabled" ? "true" : void 0), insert(_el$3, text), _el$2;
     })() : (() => {
@@ -3586,11 +3529,7 @@
       return _el$6;
     })();
     return untrack(() => {
-      options.element.transform({
-        classes: {
-          replace: `${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${options.top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}`
-        }
-      });
+      options.element.replaceClasses(`${SCROLL_PAGE_BAR_CLASS} ${PAGE_BAR_CLASS} ${options.top ? `${SCROLL_PAGE_BAR_TOP_CLASS} ${PAGE_BAR_TOP_CLASS}` : `${SCROLL_PAGE_BAR_BOTTOM_CLASS} ${PAGE_BAR_BOTTOM_CLASS}`}`);
     }), createPointerGestureElement(() => options.element.Component(), () => ({
       shouldCaptureDrag: draggable,
       dragAxis: "x",
@@ -3646,14 +3585,14 @@
       progress: 0
     }), pageBarCurrentIndex = () => gotoPreviewIndex() ?? props.previewCache.current().data.currentIndex, pageBarMaxIndex = () => props.previewCache.current().data.maxIndex, requestPreviewPage = (previewIndex, scrollToPageBar) => {
       let current = props.previewCache.current(), onLoadError = props.onLoadError;
-      pageBarSource.handle.scrollPageBar(scrollToPageBar), previewIndex !== current.data.currentIndex && props.previewCache.select(previewIndex).then((next) => {
-        untrack(() => props.previewCache.current()) === next && pageBarSource.handle.scrollPageBar(scrollToPageBar);
+      pageBarSource.handle.scrollPreviewPageBarIntoView(scrollToPageBar), previewIndex !== current.data.currentIndex && (setGotoPreviewIndex(previewIndex), props.previewCache.select(previewIndex).then((next) => {
+        untrack(() => props.previewCache.current()) === next && pageBarSource.handle.scrollPreviewPageBarIntoView(scrollToPageBar);
       }, (error) => {
-        onLoadError(error);
-      });
+        setGotoPreviewIndex((pending) => pending === previewIndex ? void 0 : pending), onLoadError(error);
+      }));
     }, swipeIndexForDelta = (dx) => {
       let current = props.previewCache.current().data, nextIndex = dx < 0 ? current.currentIndex + 1 : current.currentIndex - 1;
-      return nextIndex < 0 || current.maxIndex !== null && nextIndex > current.maxIndex ? null : nextIndex;
+      return nextIndex < 0 || nextIndex > current.maxIndex ? null : nextIndex;
     }, hideSwipeIndicator = () => {
       setSwipeIndicatorState((current) => ({
         ...current,
@@ -3679,13 +3618,13 @@
       props.actionsRef(actions);
     }), createEffect((previous) => {
       let current = props.previewCache.current();
-      return setGotoPreviewIndex(void 0), current.handle.transformSwipeInput(), current !== previous && pageBarSource.handle.replaceThumbs(current.elems.thumbItems), current;
+      return setGotoPreviewIndex(void 0), current.handle.ensurePreviewSwipeInput(), current !== previous && pageBarSource.handle.replacePreviewThumbs(current.elems.thumbItems), current;
     }, pageBarSource), createEffect(() => {
       setPageBarWindowIndex(pageBarCurrentIndex());
     }), createEffect(() => {
-      pageBarSource.handle.setThumbsLoading(props.previewCache.loading());
+      pageBarSource.handle.updatePreviewLoading(props.previewCache.loading());
     }), onCleanup(() => {
-      pageBarSource.handle.setThumbsLoading(!1);
+      pageBarSource.handle.updatePreviewLoading(!1);
     }), createPointerGestureElement(() => pageBarSource.elems.thumbs?.Component() ?? null, () => ({
       onStart: hideSwipeIndicator,
       onMove: updateSwipeIndicator,
@@ -3695,15 +3634,10 @@
       dragAxis: "x",
       dragIntentRatio: HORIZONTAL_INTENT_RATIO2,
       dragStartThreshold: SWIPE_INTENT_DISTANCE2
-    })), pageBarSource.handle.transformPageBars(), pageBarSource.elems.pageBarDescription?.mount(() => createComponent(Show, {
-      get when() {
+    })), pageBarSource.handle.installPreviewPageBars(), pageBarSource.elems.pageBarDescription?.mount(() => createComponent(GalleryPageDescription, {
+      get text() {
         return props.previewCache.current().data.descriptionText;
-      },
-      children: (description) => createComponent(GalleryPageDescription, {
-        get text() {
-          return description();
-        }
-      })
+      }
     }));
     let mounts = [{
       element: pageBarSource.elems.pageBarTop,
@@ -3712,14 +3646,15 @@
       element: pageBarSource.elems.pageBarBottom,
       top: !1
     }];
-    for (let mount of mounts)
-      mount.element?.mount(() => createComponent(ScrollPageBar, {
+    for (let mount of mounts) {
+      if (!mount.element)
+        continue;
+      let element = mount.element;
+      element.mount(() => createComponent(ScrollPageBar, {
         get currentIndex() {
           return pageBarCurrentIndex();
         },
-        get element() {
-          return mount.element;
-        },
+        element,
         get maxIndex() {
           return pageBarMaxIndex();
         },
@@ -3731,6 +3666,7 @@
         urlForIndex: (index) => previewUrlForIndex(index, props.previewCache.current().data.currentUrl),
         windowIndex: pageBarWindowIndex
       }));
+    }
     return onCleanup(() => {
       pageBarSource.elems.pageBarDescription?.remove(), pageBarSource.elems.pageBarTop?.remove(), pageBarSource.elems.pageBarBottom?.remove();
     }), [createComponent(LoadingOverlay, {
@@ -3776,7 +3712,7 @@
   var touchUiDefault = window.matchMedia("(pointer: coarse)").matches, state = {
     app: {
       openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", !1),
-      singlePage: persisted("ehpeek:single-page-app:enabled", touchUiDefault)
+      singlePage: persisted("ehpeek:single-page-app:enabled", !1)
     },
     reader: {
       enabled: persisted("ehpeek:reader:enabled", !0),
@@ -3946,11 +3882,11 @@
   var _tmpl$7 = /* @__PURE__ */ template('<section class="ehpeek-search-history fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-hidden overflow-y-auto overscroll-contain rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"role=list>'), _tmpl$24 = /* @__PURE__ */ template('<div class="flex min-w-0 flex-none items-stretch border-0 border-b ehp-color-site-border-subtle-b last:border-b-0"role=listitem><button type=button></button><button type=button class="appearance-none inline-flex w-60px min-h-lg flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text textsize-xl font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]">×');
   function SearchHistory(props) {
     let dropdown, [searchValue, setSearchValue] = createSignal(untrack(() => props.source.data.value)), [history, setHistory] = createSignal(loadSearchHistory()), [open, setOpen] = createSignal(!1), [activeIndex, setActiveIndex] = createSignal(-1), [position, setPosition] = createSignal(null), itemButtons = [], visiblePosition = () => open() && !searchValue().trim() && history().length > 0 ? position() : null, selectHistory = (item) => {
-      props.source.handle.select(item), setOpen(!1);
+      props.source.handle.applySearchSelection(item), setOpen(!1);
     };
     return onMount(() => {
       let updatePosition = () => {
-        setPosition(props.source.handle.position());
+        setPosition(props.source.handle.readSearchOverlayPosition());
       }, showHistory = () => {
         updatePosition(), setActiveIndex(-1), setOpen(!0);
       }, moveSelection = (offset) => {
@@ -3962,13 +3898,20 @@
           block: "nearest"
         }));
       }, onInputKeyDown = (event) => {
-        visiblePosition() && (event.key === "ArrowDown" || event.key === "ArrowUp" ? (event.preventDefault(), moveSelection(event.key === "ArrowDown" ? 1 : -1)) : event.key === "Enter" && activeIndex() >= 0 ? (event.preventDefault(), selectHistory(history()[activeIndex()])) : event.key === "Escape" && (event.preventDefault(), setOpen(!1)));
+        if (visiblePosition())
+          if (event.key === "ArrowDown" || event.key === "ArrowUp")
+            event.preventDefault(), moveSelection(event.key === "ArrowDown" ? 1 : -1);
+          else if (event.key === "Enter" && activeIndex() >= 0) {
+            event.preventDefault();
+            let item = history()[activeIndex()];
+            item !== void 0 && selectHistory(item);
+          } else event.key === "Escape" && (event.preventDefault(), setOpen(!1));
       }, updateSearchValue = (value, focused) => {
         setSearchValue(value), !value.trim() && focused && showHistory();
       }, recordSearch = (sourceValue) => {
         let value = sourceValue.trim();
         value && setHistory(addSearchHistory(value));
-      }, disconnect = props.source.handle.connect({
+      }, disconnect = props.source.handle.listenSearchHistoryOverlay({
         onFocus: showHistory,
         onInput: updateSearchValue,
         onKeyDown: onInputKeyDown,
@@ -3976,9 +3919,7 @@
         onPositionChange: updatePosition,
         onSubmit: recordSearch
       }, () => dropdown ?? null);
-      updateSearchValue(props.source.data.value, !1), onCleanup(() => {
-        disconnect();
-      });
+      updateSearchValue(props.source.data.value, !1), onCleanup(disconnect);
     }), createComponent(Show, {
       get when() {
         return visiblePosition();
@@ -4015,17 +3956,15 @@
   async function loadMyTagsPage(tagSet) {
     let url = new URL("/mytags", window.location.origin);
     tagSet && url.searchParams.set("tagset", tagSet);
-    let response = await requestPage(url.href), data = extractMyTagsPageData(response.document, tagSet);
-    if (!data)
-      throw new Error("The My Tags page could not be read.");
-    return data;
+    let response = await requestPage(url.href);
+    return extractMyTagsPageData(response.document, tagSet);
   }
   async function loadMyTagAppearances() {
     return state.gallery.myTagAppearances.stored() ? state.gallery.myTagAppearances.reload() : await refreshMyTags();
   }
-  async function refreshMyTags(initialPage2) {
+  async function refreshMyTags(initialPage) {
     try {
-      let initialData = initialPage2 ?? await loadMyTagsPage(), options = initialData.options;
+      let initialData = initialPage ?? await loadMyTagsPage(), options = initialData.options;
       state.gallery.myTagSets.set(options);
       let appearances = (options.length > 0 ? await Promise.all(options.map(async (option) => option.selected ? initialData : loadMyTagsPage(option.value))) : [initialData]).flatMap((page) => page.enabled ? page.appearances : []), unique = Array.from(new Map(appearances.map((appearance) => [appearance.name, appearance])).values());
       return state.gallery.myTagAppearances.set(unique), unique;
@@ -4281,20 +4220,6 @@
             return texts_default.settings.touchUiLabel;
           },
           onChange: (value) => setDraft("touchUiEnabled", value)
-        }), _el$1), insert(_el$0, createComponent(SwitchButton, {
-          get checked() {
-            return draft.singlePageAppEnabled;
-          },
-          get description() {
-            return texts_default.settings.singlePageAppHelp;
-          },
-          get disabled() {
-            return !draft.touchUiEnabled;
-          },
-          get label() {
-            return texts_default.settings.singlePageApp;
-          },
-          onChange: (value) => setDraft("singlePageAppEnabled", value)
         }), _el$1), _el$10.$$click = (event) => {
           event.stopPropagation(), setReaderOptionsOpen((open) => !open);
         }, insert(_el$11, () => texts_default.settings.readerOptions), insert(_el$12, () => readerOptionsOpen() ? "−" : "+"), insert(_el$1, createComponent(Show, {
@@ -4336,6 +4261,20 @@
           get children() {
             var _el$18 = _tmpl$34();
             return insert(_el$18, createComponent(SwitchButton, {
+              get checked() {
+                return draft.singlePageAppEnabled;
+              },
+              get description() {
+                return texts_default.settings.singlePageAppHelp;
+              },
+              get disabled() {
+                return !draft.touchUiEnabled;
+              },
+              get label() {
+                return texts_default.settings.singlePageApp;
+              },
+              onChange: (value) => setDraft("singlePageAppEnabled", value)
+            }), null), insert(_el$18, createComponent(SwitchButton, {
               get checked() {
                 return draft.enhanceSearchGridsEnabled;
               },
@@ -4392,7 +4331,7 @@
               onChange: (value) => setDraft("searchHistoryEnabled", value)
             }), null), _el$18;
           }
-        }), null), insert(_el$19, "260719.1434", null), _el$22.$$click = (event) => {
+        }), null), insert(_el$19, "260720.0115", null), _el$22.$$click = (event) => {
           event.stopPropagation(), props.onApply({
             ...draft
           });
@@ -4417,7 +4356,13 @@
   // src/components/Widgets/BackToTop.tsx
   var _tmpl$9 = /* @__PURE__ */ template('<button type=button class="ehpeek-back-to-top fixed right-[max(16px,env(safe-area-inset-right,0px))] bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_64px)] z-ui inline-flex w-lg h-lg items-center justify-center rounded-full border ehp-color-site-border bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96">'), BACK_TO_TOP_POSITION_KEY = "ehpeek:back-to-top:position";
   function BackToTop() {
-    let button, drag = null, dragged = !1, [visible, setVisible] = createSignal(!1), [position, setPosition] = createSignal(null);
+    let button, drag = null, dragged = !1, [visible, setVisible] = createSignal(!1), [position, setPosition] = createSignal(null), positionStyle = () => {
+      let current = position();
+      return current ? {
+        bottom: `${current.bottom}px`,
+        right: `${current.right}px`
+      } : void 0;
+    };
     return onMount(() => {
       let updateVisibility = () => {
         setVisible(window.scrollY > Math.max(320, window.innerHeight * 0.5));
@@ -4443,7 +4388,11 @@
             behavior: "smooth"
           });
         }, _el$.$$pointerup = (event) => {
-          !drag || drag.pointerId !== event.pointerId || (button.releasePointerCapture(event.pointerId), drag = null, dragged && position() && GM_setValue(BACK_TO_TOP_POSITION_KEY, position()));
+          if (!drag || drag.pointerId !== event.pointerId)
+            return;
+          button.releasePointerCapture(event.pointerId), drag = null;
+          let current = position();
+          dragged && current && GM_setValue(BACK_TO_TOP_POSITION_KEY, current);
         }, _el$.$$pointermove = (event) => {
           if (!drag || drag.pointerId !== event.pointerId)
             return;
@@ -4465,10 +4414,7 @@
         var _ref$ = button;
         return typeof _ref$ == "function" ? use(_ref$, _el$) : button = _el$, insert(_el$, createComponent(Icon, {
           name: "arrow-up"
-        })), createRenderEffect((_$p) => style(_el$, position() ? {
-          bottom: `${position().bottom}px`,
-          right: `${position().right}px`
-        } : void 0, _$p)), _el$;
+        })), createRenderEffect((_$p) => style(_el$, positionStyle(), _$p)), _el$;
       }
     });
   }
@@ -4507,7 +4453,7 @@
   }
 
   // src/components/TouchUI/GalleryInfoPanel.tsx
-  var _tmpl$10 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-rating-dialog fixed inset-0 z-overlay flex items-center justify-center p-md bg-black/65"role=dialog aria-modal=true aria-label="Rate gallery"><div class="box-border flex w-[min(92vw,420px)] flex-col gap-lg rounded-lg border ehp-color-site-border p-lg ehp-color-site-elevated ehp-color-site-text shadow-xl"><div class="textsize-md font-700">Rate gallery</div><button type=button class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"><span class="flex gap-1px pointer-events-none text-[rgba(255,255,255,0.25)]"aria-hidden=true></span><span aria-hidden=true></span></button><div class="grid grid-cols-2 gap-sm pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108">Submit</button><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">'), _tmpl$26 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans"><div class="ehpeek-touch-gallery-hero relative grid min-h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text"><div><div class="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 flex-col items-start gap-8px pt-2px"><div class="ehpeek-touch-gallery-heading flex min-w-0 w-full flex-none flex-col gap-sm items-start pb-xs"><div class="ehpeek-touch-gallery-title-main line-clamp-4 flex-none overflow-hidden textsize-lg font-400 leading-[1.16] text-left break-anywhere"></div><div class="ehpeek-touch-gallery-title-sub line-clamp-3 flex-none overflow-hidden opacity-82 textsize-md leading-[1.2] text-left break-anywhere"></div></div><div class="ehpeek-touch-gallery-category-row grid grid-cols-[minmax(0,35fr)_minmax(0,65fr)] w-full flex-none items-center gap-lg mt-auto pt-md"><div class="ehpeek-touch-gallery-category box-border w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xs border border-solid py-6px px-10px text-center textsize-md font-700 leading-[1.1] uppercase"></div></div></div></div></div><div class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"><div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]"></div></div><div class="ehpeek-touch-gallery-content flex flex-col gap-lg pt-xl pr-[max(16px,env(safe-area-inset-right,0px))] pb-lg pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text"><div class="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-md gap-x-lg items-center textsize-md leading-[1.2] text-center">'), _tmpl$35 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">'), _tmpl$44 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-rating flex w-full min-w-0 flex-col items-center gap-4px p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-center cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"aria-label="Rate gallery"><div class="ehpeek-touch-gallery-rating-stars relative inline-flex max-w-full overflow-hidden"><span class="ehpeek-touch-gallery-rating-stars-empty flex gap-1px text-[rgba(255,255,255,0.25)]"aria-hidden=true></span><span aria-hidden=true></span></div><div class="ehpeek-touch-gallery-rating-meta flex max-w-full min-w-0 items-center justify-center gap-6px text-[rgba(255,255,255,0.78)] textsize-md leading-[1.15] whitespace-nowrap"><span class="ehpeek-touch-gallery-rating-label min-w-0 overflow-hidden text-ellipsis"aria-live=polite>'), _tmpl$53 = /* @__PURE__ */ template('<span class="ehpeek-touch-gallery-rating-count flex-none pl-6px border-0 border-l border-[rgba(255,255,255,0.2)] text-[rgba(255,255,255,0.58)]">'), _tmpl$62 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-meta-value line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">'), _tmpl$72 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-groups flex flex-col gap-md pt-2px">'), _tmpl$82 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu-panel absolute top-48px right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$92 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu relative flex min-w-0 items-center justify-center"><button type=button class="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text"aria-haspopup=menu>'), _tmpl$0 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-sm items-start"><div class="ehpeek-touch-gallery-tag-group-name min-h-sm overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-sm px-md text-center lowercase ehp-color-site-accent textsize-md font-600"></div><div class="ehpeek-touch-gallery-tags flex flex-wrap gap-sm">'), _tmpl$1 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent"aria-hidden=true>↺</span><span>'), _tmpl$102 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span>'), _tmpl$11 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-menu-dialog fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"role=dialog aria-modal=true><div class="ehpeek-touch-gallery-tag-menu-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-x-hidden overflow-y-auto whitespace-nowrap border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl"role=menu><a class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left"role=menuitem><span></span></a><a class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer"target=_blank rel="noopener noreferrer"role=menuitem><span></span></a><button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent textsize-lg leading-none"aria-hidden=true>+</span><span>'), _tmpl$12 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"role=dialog aria-modal=true><div class="box-border flex w-full max-w-420px flex-col gap-lg rounded-md border ehp-color-site-border ehp-color-site-elevated p-lg shadow-xl"><div class="ehp-color-site-text textsize-lg font-700"></div><label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"></select></label><label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"><option value=marked></option><option value=watched></option><option value=hidden></option></select></label><div class="grid grid-cols-2 gap-md"><button type=button class="min-h-md rounded-xs border-0 ehp-color-site-surface ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer"></button><button type=button class="flex min-h-md items-center justify-center gap-md rounded-xs border-0 bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit font-700 textsize-md cursor-pointer"><span>'), _tmpl$13 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-menu relative inline-flex max-w-full"><button type=button class="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-none transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"aria-haspopup=menu>'), _tmpl$14 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent"aria-hidden=true>↑</span><span>'), _tmpl$15 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent"aria-hidden=true>↓</span><span>'), _tmpl$16 = /* @__PURE__ */ template("<option>"), _tmpl$17 = /* @__PURE__ */ template('<span class="contents [&amp;_*]:!bg-transparent [&amp;_*]:!text-inherit"translate=no>'), _tmpl$18 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-panel absolute top-[calc(100%+8px)] left-0 z-overlay flex w-[min(86vw,360px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$19 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0"><button type=button aria-haspopup=menu><span class="block leading-[1.15]"></span><span class="ehpeek-touch-gallery-favorite-icon block mt-2px opacity-78 normal-case"aria-hidden=true>'), _tmpl$20 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-loading flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left">'), _tmpl$21 = /* @__PURE__ */ template('<button type=button><span class="ehpeek-touch-gallery-favorite-option-icon flex-none ehp-color-site-text"aria-hidden=true></span><span></span><span aria-hidden=true>'), TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]", TOUCH_GALLERY_INFO_CLASSES = {
+  var _tmpl$10 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-rating-dialog fixed inset-0 z-overlay flex items-center justify-center p-md bg-black/65"role=dialog aria-modal=true aria-label="Rate gallery"><div class="box-border flex w-[min(92vw,420px)] flex-col gap-lg rounded-lg border ehp-color-site-border p-lg ehp-color-site-elevated ehp-color-site-text shadow-xl"><div class="textsize-md font-700">Rate gallery</div><button type=button class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"><span class="flex gap-1px pointer-events-none text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></button><div class="grid grid-cols-2 gap-sm pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108">Submit</button><button type=button class="block w-full min-h-md coarse:min-h-64px py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">'), _tmpl$26 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans"><div class="ehpeek-touch-gallery-hero relative grid min-h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text"><div><div class="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 flex-col items-start gap-8px pt-2px"><div class="ehpeek-touch-gallery-heading flex min-w-0 w-full flex-none flex-col gap-sm items-start pb-xs"><div class="ehpeek-touch-gallery-title-main line-clamp-4 flex-none overflow-hidden textsize-lg font-400 leading-[1.16] text-left break-anywhere"></div><div class="ehpeek-touch-gallery-title-sub line-clamp-3 flex-none overflow-hidden opacity-82 textsize-md leading-[1.2] text-left break-anywhere"></div></div><div class="ehpeek-touch-gallery-category-row grid grid-cols-[minmax(0,35fr)_minmax(0,65fr)] w-full flex-none items-center gap-lg mt-auto pt-md"><div class="ehpeek-touch-gallery-category box-border w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-xs border border-solid py-6px px-10px text-center textsize-md font-700 leading-[1.1] uppercase"></div></div></div></div></div><div class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"><div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]"></div></div><div class="ehpeek-touch-gallery-content flex flex-col gap-lg pt-xl pr-[max(16px,env(safe-area-inset-right,0px))] pb-lg pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text"><div class="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-md gap-x-lg items-center textsize-md leading-[1.2] text-center">'), _tmpl$35 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">'), _tmpl$44 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-rating flex w-full min-w-0 flex-col items-center gap-4px p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-center cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"aria-label="Rate gallery"><div class="ehpeek-touch-gallery-rating-stars relative inline-flex max-w-full overflow-hidden"><span class="ehpeek-touch-gallery-rating-stars-empty flex gap-1px text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></div><div class="ehpeek-touch-gallery-rating-meta flex max-w-full min-w-0 items-center justify-center gap-6px text-[var(--color-muted)] textsize-md leading-[1.15] whitespace-nowrap"><span class="ehpeek-touch-gallery-rating-label min-w-0 overflow-hidden text-ellipsis"aria-live=polite>'), _tmpl$53 = /* @__PURE__ */ template('<span class="ehpeek-touch-gallery-rating-count flex-none pl-6px border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">'), _tmpl$62 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-meta-value line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">'), _tmpl$72 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-groups flex flex-col gap-md pt-2px">'), _tmpl$82 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu-panel absolute top-48px right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$92 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-actions-menu relative flex min-w-0 items-center justify-center"><button type=button class="ehpeek-touch-gallery-actions-menu-button inline-flex w-md h-md items-center justify-center border-0 bg-transparent ehp-color-site-text"aria-haspopup=menu>'), _tmpl$0 = /* @__PURE__ */ template('<section class="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-sm items-start"><div class="ehpeek-touch-gallery-tag-group-name min-h-sm overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-sm px-md text-center lowercase ehp-color-site-accent textsize-md font-600"></div><div class="ehpeek-touch-gallery-tags flex flex-wrap gap-sm">'), _tmpl$1 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent"aria-hidden=true>↺</span><span>'), _tmpl$102 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span>'), _tmpl$11 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-menu-dialog fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"role=dialog aria-modal=true><div class="ehpeek-touch-gallery-tag-menu-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-x-hidden overflow-y-auto whitespace-nowrap border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl"role=menu><a class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left"role=menuitem><span></span></a><a class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-t ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer"target=_blank rel="noopener noreferrer"role=menuitem><span></span></a><button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent textsize-lg leading-none"aria-hidden=true>+</span><span>'), _tmpl$12 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"role=dialog aria-modal=true><div class="box-border flex w-full max-w-420px flex-col gap-lg rounded-md border ehp-color-site-border ehp-color-site-elevated p-lg shadow-xl"><div class="ehp-color-site-text textsize-lg font-700"></div><label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"></select></label><label class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600"><span></span><select class="box-border min-h-md w-full rounded-xs border ehp-color-site-border ehp-color-site-surface ehp-color-site-text px-md font-inherit textsize-md"><option value=marked></option><option value=watched></option><option value=hidden></option></select></label><div class="grid grid-cols-2 gap-md"><button type=button class="min-h-md rounded-xs border-0 ehp-color-site-surface ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer"></button><button type=button class="flex min-h-md items-center justify-center gap-md rounded-xs border-0 bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit font-700 textsize-md cursor-pointer"><span>'), _tmpl$13 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-tag-menu relative inline-flex max-w-full"><button type=button class="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-none transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"aria-haspopup=menu>'), _tmpl$14 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent"aria-hidden=true>↑</span><span>'), _tmpl$15 = /* @__PURE__ */ template('<button type=button class="ehpeek-touch-gallery-tag-menu-item flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md text-left cursor-pointer"role=menuitem><span class="w-24px text-center ehp-color-site-accent"aria-hidden=true>↓</span><span>'), _tmpl$16 = /* @__PURE__ */ template("<option>"), _tmpl$17 = /* @__PURE__ */ template('<span class="contents [&amp;_*]:!bg-transparent [&amp;_*]:!text-inherit"translate=no>'), _tmpl$18 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-panel absolute top-[calc(100%+8px)] left-0 z-overlay flex w-[min(86vw,360px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$19 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0"><button type=button aria-haspopup=menu><span class="block leading-[1.15]"></span><span class="ehpeek-touch-gallery-favorite-icon block mt-2px opacity-78 normal-case"aria-hidden=true>'), _tmpl$20 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-favorite-loading flex min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left">'), _tmpl$21 = /* @__PURE__ */ template('<button type=button><span class="ehpeek-touch-gallery-favorite-option-icon flex-none ehp-color-site-text"aria-hidden=true></span><span></span><span aria-hidden=true>'), TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS = "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]", TOUCH_GALLERY_INFO_CLASSES = {
     actionItems: TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS,
     cover: "block w-full max-w-full h-full max-h-full mx-auto object-contain object-center",
     host: "ehpeek-touch-gallery-host",
@@ -4521,16 +4467,22 @@
   function GalleryInfoPanel(props) {
     let source = untrack(() => props.source), rating = source.data.rating, hasCover = source.elems.cover !== null, [ratingValue, setRatingValue] = createSignal(rating?.value ?? 0), [ratingPreview, setRatingPreview] = createSignal(null), [ratingPickerOpen, setRatingPickerOpen] = createSignal(!1), [ratingSubmitted, setRatingSubmitted] = createSignal(rating?.rated ?? !1), [ratingUpdating, setRatingUpdating] = createSignal(!1), [ratingCount, setRatingCount] = createSignal(rating?.count ?? ""), [ratingValueLabel, setRatingValueLabel] = createSignal(rating?.label ?? ""), initialTagGroups = source.data.tagGroups.map((group) => ({
       ...group,
-      tags: group.tags.map(({
+      tags: group.tags.flatMap(({
         contentSourceIndex,
         ...tag
-      }) => ({
-        ...tag,
-        contentSource: source.elems.tagContents[contentSourceIndex]
-      }))
-    })), [tagGroups, setTagGroups] = createSignal(initialTagGroups), [newTagVisible, setNewTagVisible] = createSignal(!1), hasNewTag = () => !!(source.elems.newTag && source.elems.newTagButton && source.elems.newTagField && source.elems.newTagForm), displayedRating = createMemo(() => ratingPreview() ?? ratingValue()), ratingLabel = createMemo(() => ratingPreview() ? `Rate as ${ratingPreview().toFixed(1)} stars` : ratingValueLabel());
+      }) => {
+        let contentSource = source.elems.tagContents[contentSourceIndex];
+        return contentSource ? [{
+          ...tag,
+          contentSource
+        }] : [];
+      })
+    })), [tagGroups, setTagGroups] = createSignal(initialTagGroups), [newTagVisible, setNewTagVisible] = createSignal(!1), hasNewTag = () => !!(source.elems.newTag && source.elems.newTagButton && source.elems.newTagField && source.elems.newTagForm), displayedRating = createMemo(() => ratingPreview() ?? ratingValue()), ratingLabel = createMemo(() => {
+      let preview = ratingPreview();
+      return preview !== null ? `Rate as ${preview.toFixed(1)} stars` : ratingValueLabel();
+    });
     onMount(() => {
-      let stopObservingTags = source.handle.observeTagGroups(setTagGroups);
+      let stopObservingTags = source.handle.observeGalleryTagGroups(setTagGroups);
       onCleanup(stopObservingTags);
     });
     let submitRating = async (value) => {
@@ -4538,7 +4490,7 @@
         return !1;
       setRatingUpdating(!0);
       try {
-        let result = await source.handle.rate(value);
+        let result = await source.handle.submitGalleryRating(value);
         return setRatingValue(result.value), setRatingCount(String(result.count)), setRatingValueLabel(formatRatingLabel(rating.label, result.average)), setRatingPreview(null), setRatingSubmitted(!0), !0;
       } catch (error) {
         return setRatingPreview(null), console.error("[ehpeek]", error), window.alert(error instanceof Error ? error.message : texts_default.errors.loadFailed), !1;
@@ -4743,7 +4695,7 @@
     let runTagAction = async (action) => {
       closeMenu(), setUpdating(!0);
       try {
-        await props.source.handle.tagAction(props.tag, action);
+        await props.source.handle.submitGalleryTagAction(props.tag, action);
       } catch (error) {
         console.error("[ehpeek] Gallery tag vote failed", {
           action
@@ -4754,7 +4706,7 @@
     }, updateFavoriteTag = async () => {
       closeMenu(), setUpdating(!0);
       try {
-        props.tag.myTag ? await props.source.handle.removeFavoriteTag(props.tag) : await props.source.handle.favoriteTag(props.tag, selectedTagSet(), tagMode()), state.gallery.myTagAppearances.clear(), window.location.reload();
+        props.tag.myTag ? await props.source.handle.removeFavoriteTag(props.tag) : await props.source.handle.submitFavoriteTag(props.tag, selectedTagSet(), tagMode()), state.gallery.myTagAppearances.clear(), window.location.reload();
       } catch (error) {
         console.error("[ehpeek]", error), window.alert(error instanceof Error ? error.message : texts_default.errors.loadFailed);
       } finally {
@@ -4877,7 +4829,7 @@
   }
   function TouchGalleryNewTag(props) {
     return onMount(() => {
-      props.source.handle.reuseNewTagInput();
+      props.source.handle.reuseNewTagAutocomplete();
     }), createComponent(DomNode2, {
       get node() {
         return props.source.elems.newTag;
@@ -4910,7 +4862,7 @@
       if (currentFavorite.actionUrl) {
         setOpen(!0), setLoadingState("loading");
         try {
-          setOptions(await props.source.handle.favoriteOptions(currentFavorite.actionUrl, currentFavorite.favorited)), setLoadingState("idle");
+          setOptions(await props.source.handle.loadGalleryFavoriteOptions(currentFavorite.actionUrl, currentFavorite.favorited)), setLoadingState("idle");
         } catch (error) {
           console.error("[ehpeek]", error), setLoadingState("failed");
         }
@@ -4999,7 +4951,7 @@
     return (() => {
       var _el$85 = _tmpl$21(), _el$86 = _el$85.firstChild, _el$87 = _el$86.nextSibling, _el$88 = _el$87.nextSibling;
       return _el$85.$$click = (event) => {
-        event.stopPropagation(), props.source.handle.updateFavorite(props.actionUrl, props.option.value).then(props.onApplied).catch((error) => {
+        event.stopPropagation(), props.source.handle.updateGalleryFavorite(props.actionUrl, props.option.value).then(props.onApplied).catch((error) => {
           console.error("[ehpeek]", error);
         });
       }, insert(_el$86, createComponent(Icon, {
@@ -5034,7 +4986,7 @@
   // src/components/TouchUI/FavoritesPanel.tsx
   var _tmpl$27 = /* @__PURE__ */ template('<div class="border-0 border-t border-t-[var(--color-site-border-subtle)]">'), _tmpl$28 = /* @__PURE__ */ template('<div class="box-border w-full min-w-0 overflow-hidden rounded-md border ehp-color-site-border bg-[var(--color-site-elevated)]"><button type=button class="flex box-border w-full min-h-md items-center justify-between gap-md px-md py-sm rounded-xs border-0 !bg-transparent ehp-color-site-text text-left textsize-md font-700 font-inherit cursor-pointer hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)]"><span class="flex min-w-0 items-center gap-sm overflow-hidden"><span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"> [<!>]</span></span><span class="flex h-20px w-20px flex-none items-center justify-center leading-none"aria-hidden=true>'), _tmpl$36 = /* @__PURE__ */ template('<a><span class="flex min-w-0 items-center gap-sm"><span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"> [<!>]'), _tmpl$45 = /* @__PURE__ */ template('<span class="block h-15px w-15px flex-none bg-no-repeat"aria-hidden=true>');
   function FavoritesCategorySelect(props) {
-    let container, [open, setOpen] = createSignal(!1), selected = () => props.info.categories.find((category) => category.selected) ?? props.info.categories[0];
+    let container, [open, setOpen] = createSignal(!1), selected = () => props.info.categories.find((category) => category.selected) ?? props.info.categories[0] ?? null;
     return onMount(() => {
       let closeOnOutsidePointer = (event) => {
         event.target instanceof Node && !container.contains(event.target) && setOpen(!1);
@@ -5114,7 +5066,7 @@
   }
   function TouchSearchCategoryToggle(props) {
     let [open, setOpen] = createSignal(!1);
-    return createEffect(() => props.source.handle.transformCategories(open())), createComponent(ToggleButton, {
+    return createEffect(() => props.source.handle.updateCategoryVisibility(open())), createComponent(ToggleButton, {
       get expanded() {
         return open();
       },
@@ -5126,7 +5078,7 @@
   }
   function TouchSearchFileToggle(props) {
     let [open, setOpen] = createSignal(!1);
-    return createEffect(() => props.source.handle.transformFileSearch(open())), createComponent(ToggleButton, {
+    return createEffect(() => props.source.handle.updateFileSearchVisibility(open())), createComponent(ToggleButton, {
       get expanded() {
         return open();
       },
@@ -5138,7 +5090,7 @@
   }
   function TouchSearchAdvancedToggle(props) {
     let [open, setOpen] = createSignal(!1);
-    return createEffect(() => props.source.handle.transformAdvanced(open())), createComponent(ToggleButton, {
+    return createEffect(() => props.source.handle.updateAdvancedOptionsVisibility(open())), createComponent(ToggleButton, {
       get expanded() {
         return open();
       },
@@ -5159,7 +5111,7 @@
     return [(() => {
       var _el$3 = _tmpl$37();
       return _el$3.$$click = (event) => {
-        event.preventDefault(), search ? source.handle.submit() : source.handle.clear();
+        event.preventDefault(), search ? source.handle.submitSearchForm() : source.handle.clearSearchInput();
       }, setAttribute(_el$3, "type", search ? "submit" : "button"), setAttribute(_el$3, "aria-label", label), setAttribute(_el$3, "title", label), insert(_el$3, createComponent(Icon, {
         name: search ? "search" : "close",
         size: 32
@@ -5658,7 +5610,6 @@ body #gdt[class],
 .h-15px{height:15px;}
 .h-20px{height:20px;}
 .h-48px{height:48px;}
-.h-4px{height:4px;}
 .h-60px{height:60px;}
 .h-64px{height:64px;}
 .h-68px{height:68px;}
@@ -5691,7 +5642,6 @@ body #gdt[class],
 .w-\\[min\\(86vw\\,360px\\)\\]{width:min(86vw,360px);}
 .w-\\[min\\(92vw\\,420px\\)\\]{width:min(92vw,420px);}
 .w-\\[var\\(--reader-frame-width\\)\\]{width:var(--reader-frame-width);}
-.w-1\\/2{width:50%;}
 .w-10px{width:10px;}
 .w-15px{width:15px;}
 .w-20px{width:20px;}
@@ -5731,9 +5681,7 @@ body #gdt[class],
 .active\\:scale-96:active{--un-scale-x:0.96;--un-scale-y:0.96;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
 .active\\:scale-98:active{--un-scale-x:0.98;--un-scale-y:0.98;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
 .transform{transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
-@keyframes pulse{0%, 100% {opacity:1} 50% {opacity:.5}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-.animate-pulse{animation:pulse 2s cubic-bezier(0.4,0,.6,1) infinite;}
 .animate-spin{animation:spin 1s linear infinite;}
 .cursor-default{cursor:default;}
 .disabled\\:cursor-default:disabled{cursor:default;}
@@ -5795,7 +5743,6 @@ body #gdt[class],
 .last\\:border-b-0:last-child{border-bottom-width:0px;}
 .\\!border-\\[var\\(--color-site-border\\)\\]{border-color:var(--color-site-border) !important;}
 .\\!border-transparent{border-color:transparent !important;}
-.border-\\[rgba\\(255\\,255\\,255\\,0\\.2\\)\\]{--un-border-opacity:0.2;border-color:rgba(255, 255, 255, var(--un-border-opacity));}
 .border-\\[var\\(--color-border\\)\\]{border-color:var(--color-border);}
 .border-\\[var\\(--color-danger-border\\)\\]{border-color:var(--color-danger-border);}
 .border-\\[var\\(--color-site-accent\\)\\]{border-color:var(--color-site-accent);}
@@ -5818,10 +5765,9 @@ body #gdt[class],
 .bg-\\[var\\(--color-badge\\)\\]{background-color:var(--color-badge);}
 .bg-\\[var\\(--color-control\\)\\]{background-color:var(--color-control);}
 .bg-\\[var\\(--color-danger-soft\\)\\]{background-color:var(--color-danger-soft);}
-.bg-\\[var\\(--color-elevated\\)\\]{background-color:var(--color-elevated);}
+.bg-\\[var\\(--color-loading\\)\\]{background-color:var(--color-loading);}
 .bg-\\[var\\(--color-site-accent-hover\\)\\]{background-color:var(--color-site-accent-hover);}
 .bg-\\[var\\(--color-site-accent\\)\\]{background-color:var(--color-site-accent);}
-.bg-\\[var\\(--color-site-border-subtle\\)\\]{background-color:var(--color-site-border-subtle);}
 .bg-\\[var\\(--color-site-elevated\\)\\]{background-color:var(--color-site-elevated);}
 .bg-\\[var\\(--color-site-item-hover\\)\\]{background-color:var(--color-site-item-hover);}
 .bg-\\[var\\(--color-site-surface\\)\\]{background-color:var(--color-site-surface);}
@@ -5875,9 +5821,6 @@ body #gdt[class],
 .\\[\\&_\\.auto-complete-item\\]\\:\\!text-\\[length\\:var\\(--font-size-lg\\)\\] .auto-complete-item{font-size:var(--font-size-lg) !important;}
 .\\!text-\\[var\\(--color-site-text\\)\\]{color:var(--color-site-text) !important;}
 .text-\\[clamp\\(88px\\,25vw\\,180px\\)\\]{font-size:clamp(88px,25vw,180px);}
-.text-\\[rgba\\(255\\,255\\,255\\,0\\.25\\)\\]{--un-text-opacity:0.25;color:rgba(255, 255, 255, var(--un-text-opacity));}
-.text-\\[rgba\\(255\\,255\\,255\\,0\\.58\\)\\]{--un-text-opacity:0.58;color:rgba(255, 255, 255, var(--un-text-opacity));}
-.text-\\[rgba\\(255\\,255\\,255\\,0\\.78\\)\\]{--un-text-opacity:0.78;color:rgba(255, 255, 255, var(--un-text-opacity));}
 .text-\\[var\\(--color-accent\\)\\]{color:var(--color-accent);}
 .text-\\[var\\(--color-background\\)\\]{color:var(--color-background);}
 .text-\\[var\\(--color-danger\\)\\]{color:var(--color-danger);}
@@ -5999,11 +5942,16 @@ body #gdt[class],
   --font-size-lg: 24px;
   --font-size-xl: 32px;
 
-  --color-background: #070707;
+  /* --color-background: #070707;
   --color-surface: #151515;
   --color-elevated: #232323;
   --color-text: #f3f3f3;
-  --color-accent: #4da3ff;
+  --color-accent: #4da3ff; */
+  --color-background: var(--color-site-page);
+  --color-surface: var(--color-site-surface);
+  --color-elevated: var(--color-site-elevated);
+  --color-text: var(--color-site-text);
+  --color-accent: var(--color-site-accent);
   --color-danger: #ffb2a7;
   --color-state-on: #4ec46a;
   --color-state-off: #8c8f96;
@@ -6021,7 +5969,8 @@ body #gdt[class],
   --color-site-favorite-9: #fe50c8;
 
   --color-muted: color-mix(in srgb, var(--color-text) 72%, transparent);
-  --color-border: color-mix(in srgb, var(--color-text) 18%, transparent);
+  /* --color-border: color-mix(in srgb, var(--color-text) 18%, transparent); */
+  --color-border: var(--color-site-border);
   --color-track: color-mix(in srgb, var(--color-text) 34%, var(--color-background));
   --color-danger-soft: color-mix(in srgb, var(--color-danger) 12%, transparent);
   --color-danger-border: color-mix(in srgb, var(--color-danger) 64%, transparent);
@@ -6035,6 +5984,11 @@ body #gdt[class],
   --color-site-accent-hover: color-mix(in srgb, var(--color-site-accent) 12%, transparent);
   --color-site-border-subtle: color-mix(in srgb, var(--color-site-border) 16%, transparent);
   --color-site-item-hover: color-mix(in srgb, var(--color-site-text) 8%, transparent);
+  --color-loading: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-site-elevated) 80%, var(--color-site-surface)) 92%,
+    transparent
+  );
   --color-site-swipe-background: color-mix(in srgb, var(--color-site-elevated) 94%, transparent);
   --color-site-swipe-border: color-mix(in srgb, var(--color-site-border) 38%, transparent);
 }
@@ -6069,18 +6023,14 @@ body #gdt[class],
 `;
 
   // src/components/animation.ts
-  var SCROLL_ANIMATION_MODE = "raf", SCROLL_ANIMATION_MS = 180, SCROLL_EASING_POWER = 3, ANIMATION_FRAME_MIN_DELTA_MS = 1, ANIMATION_FRAME_MAX_DELTA_MS = 32, SCROLL_FLING_MIN_VELOCITY = 0.35, SCROLL_FLING_STOP_VELOCITY = 0.02, SCROLL_FLING_DECAY = 45e-4, ScrollAnimator = class {
+  var SCROLL_ANIMATION_MS = 180, SCROLL_EASING_POWER = 3, ANIMATION_FRAME_MIN_DELTA_MS = 1, ANIMATION_FRAME_MAX_DELTA_MS = 32, SCROLL_FLING_MIN_VELOCITY = 0.35, SCROLL_FLING_STOP_VELOCITY = 0.02, SCROLL_FLING_DECAY = 45e-4, ScrollAnimator = class {
     constructor(axis) {
       this.axis = axis;
       this.frame = null;
     }
     scrollTo(scroller, target, motion = "instant", onComplete) {
-      if (this.cancel(), motion !== "animated" || SCROLL_ANIMATION_MODE === "none") {
+      if (this.cancel(), motion !== "animated") {
         this.setScrollPosition(scroller, target), onComplete?.();
-        return;
-      }
-      if (SCROLL_ANIMATION_MODE === "native") {
-        scroller.scrollTo(this.axis === "x" ? { left: target, behavior: "smooth" } : { top: target, behavior: "smooth" }), window.setTimeout(() => onComplete?.(), SCROLL_ANIMATION_MS);
         return;
       }
       this.scrollWithRaf(scroller, target, onComplete);
@@ -6235,7 +6185,7 @@ body #gdt[class],
         let image = pageImageDom(pageNum, slotImage);
         await loadImage(image);
         let slot = slotFor(pageNum);
-        return !slot || slot.token !== token || !slot.elements ? !1 : (slot.state = "ready", slot.image = image, slot.errorMessage = null, slot.width = positiveDimension(image.naturalWidth) ?? slotImage.width, slot.height = positiveDimension(image.naturalHeight) ?? slotImage.height, refreshSlot(slot), !0);
+        return !slot || slot.token !== token || !slot.elements ? !1 : (slot.state = "ready", slot.image = image, slot.errorMessage = null, slot.width = positiveNumber(image.naturalWidth) ?? slotImage.width, slot.height = positiveNumber(image.naturalHeight) ?? slotImage.height, refreshSlot(slot), !0);
       },
       setPageError(pageNum, token, errorMessage) {
         let slot = slotFor(pageNum);
@@ -6462,9 +6412,6 @@ body #gdt[class],
       return `${texts_default.reader.failedPrefix} ${content.pageNum}${suffix}`;
     }
     return content.kind === "end" ? texts_default.reader.end : content.kind === "blank" ? "" : String(content.pageNum);
-  }
-  function positiveDimension(value) {
-    return Number.isFinite(value) && value > 0 ? value : null;
   }
   function pageSlotKind(pageNum, totalPages) {
     return pageNum < 1 ? "blank" : totalPages && pageNum === totalPages + 1 ? "end" : totalPages && pageNum > totalPages + 1 ? "blank" : "page";
@@ -6776,7 +6723,20 @@ body #gdt[class],
   }
 
   // src/components/Reader/index.css
-  var Reader_default = `#ehpeek-reader,
+  var Reader_default = `#ehpeek-reader {
+  --color-background: #070707;
+  --color-surface: #151515;
+  --color-elevated: #232323;
+  --color-text: #f3f3f3;
+  --color-accent: #4da3ff;
+  --color-border: color-mix(in srgb, var(--color-text) 18%, transparent);
+  --color-muted: color-mix(in srgb, var(--color-text) 72%, transparent);
+  --color-track: color-mix(in srgb, var(--color-text) 34%, var(--color-background));
+  --color-control: color-mix(in srgb, var(--color-elevated) 88%, transparent);
+  --color-badge: color-mix(in srgb, var(--color-background) 34%, transparent);
+}
+
+#ehpeek-reader,
 #ehpeek-reader * {
   box-sizing: border-box;
 }
@@ -6909,14 +6869,12 @@ body #gdt[class],
     }
   };
   function pagesPointerGestureCallbacks(callbacks) {
-    let shouldStartDrag = (event) => event instanceof PointerEvent ? (event.pointerType, event.button, event.buttons, targetSummary(event.target), event.pointerType === "mouse" && event.button !== 0 ? (event.button, event.buttons, !1) : callbacks.shouldStartDrag(event)) : !1, shouldObserveTap = (event) => event instanceof PointerEvent && event.pointerType !== "mouse" && !callbacks.shouldStartDrag(event), onDragEnd = (info, event) => {
-      callbacks.onDragEnd(info, event);
-    };
+    let shouldStartDrag = (event) => event instanceof PointerEvent ? (event.pointerType, event.button, event.buttons, targetSummary(event.target), event.pointerType === "mouse" && event.button !== 0 ? (event.button, event.buttons, !1) : callbacks.shouldStartDrag(event)) : !1, shouldObserveTap = (event) => event instanceof PointerEvent && event.pointerType !== "mouse" && !callbacks.shouldStartDrag(event);
     return {
       shouldCaptureDrag: shouldStartDrag,
       onStart: callbacks.onDragStart,
       onMove: callbacks.onDragMove,
-      onEnd: onDragEnd,
+      onEnd: callbacks.onDragEnd,
       onTap: callbacks.onTap,
       dragStartThreshold: TAP_CANCEL_DISTANCE,
       tapMoveThreshold: TAP_CANCEL_DISTANCE,
@@ -7359,17 +7317,16 @@ body #gdt[class],
         event.preventDefault();
         return;
       }
-      if (this.handleViewportTap(info))
+      if (this.viewport.isHitEndPage(info)) {
+        this.close();
         return;
+      }
       if (state.reader.viewMode.value === "scroll") {
         this.callbacks.onToolbarToggle();
         return;
       }
       let width = this.viewport.viewportWidth(), zone = info.clientX / width;
       zone >= 1 / 3 && zone <= 2 / 3 ? this.callbacks.onToolbarToggle() : this.turnPageBy(zone < 1 / 3 ? this.leftTapDelta() : this.rightTapDelta());
-    }
-    handleViewportTap(point) {
-      return this.viewport.isHitEndPage(point) ? (this.close(), !0) : !1;
     }
     handleKeyboardClose() {
       return this.callbacks.isZoomActive() ? (this.callbacks.onZoomClose(), !0) : document.fullscreenElement === this.fullscreenTarget ? !1 : (this.close(), !0);
@@ -7574,8 +7531,6 @@ body #gdt[class],
     page && await openReader(page.url, callbacks, previewCache, viewport).catch(reportReaderOpenError);
   }
   async function openOriginalReader(pageNum, previewCache) {
-    if (previewCache.current().data.pageSize === null)
-      throw new Error(texts_default.errors.previewPageSizeUnknown);
     let page = (await previewCache.getPages([pageNum]))[0];
     if (!page || page.pageNum !== pageNum)
       throw new Error(texts_default.errors.imageNotFound);
@@ -7584,26 +7539,17 @@ body #gdt[class],
   async function openReader(startPageUrl, callbacks, previewCache, viewport, preferredPageNum, fullscreenLaunch) {
     if (!state.reader.enabled.value)
       return;
-    let source = previewCache.current(), gallery = galleryIdentityFromUrl(source.data.currentUrl);
+    let preview = previewCache.current().data, gallery = galleryIdentityFromUrl(preview.currentUrl);
     if (!gallery)
       return;
-    let preview = source.data, currentPreviewIndex = preview.currentIndex;
-    if (preview.pageSize === null)
-      throw new Error(texts_default.errors.previewPageSizeUnknown);
-    let pageSize = preview.pageSize, maxPreviewIndex = preview.maxIndex, totalPages = preview.totalImages ?? void 0, startPageNum = preferredPageNum ?? peekPageFromHash() ?? galleryPageNumber(startPageUrl);
+    let currentPreviewIndex = preview.currentIndex, pageSize = preview.pageSize, maxPreviewIndex = preview.maxIndex, totalPages = preview.totalImages, startPageNum = preferredPageNum ?? peekPageFromHash() ?? galleryPageNumber(startPageUrl);
     if (!startPageNum)
       throw new Error(texts_default.errors.imageNotFound);
     let historySession = callbacks.readHistoryEnabled ? new ReadHistorySession({
       galleryId: gallery.galleryId,
       token: gallery.token,
-      galleryUrl: preview.currentUrl,
       totalPages
-    }) : null;
-    if (!state.reader.enabled.value) {
-      historySession?.dispose();
-      return;
-    }
-    let automaticFullscreen = fullscreenLaunch ? await fullscreenLaunch.result : void 0;
+    }) : null, automaticFullscreen = fullscreenLaunch ? await fullscreenLaunch.result : void 0;
     if (automaticFullscreen && document.fullscreenElement !== fullscreenLaunch?.host) {
       historySession?.dispose(), fullscreenLaunch?.viewport && await viewport.restore(fullscreenLaunch.viewport), fullscreenLaunch?.host.remove();
       return;
@@ -7707,16 +7653,12 @@ body #gdt[class],
           break;
         previews.delete(removable);
       }
-    }, previewIndexForPage = (pageNum) => {
-      if (pageSize === null)
-        throw new Error(texts_default.errors.previewPageSizeUnknown);
-      return previewPageIndexForGalleryPage(
-        pageNum,
-        pageSize,
-        maxPreviewIndex
-      );
-    }, load = (previewIndex) => {
-      if (previewIndex < 0 || maxPreviewIndex !== null && previewIndex > maxPreviewIndex)
+    }, previewIndexForPage = (pageNum) => previewPageIndexForGalleryPage(
+      pageNum,
+      pageSize,
+      maxPreviewIndex
+    ), load = (previewIndex) => {
+      if (previewIndex < 0 || previewIndex > maxPreviewIndex)
         return Promise.reject(new RangeError(`Invalid Preview index: ${previewIndex}`));
       let cached = previews.get(previewIndex);
       if (cached)
@@ -7765,7 +7707,7 @@ body #gdt[class],
   }
 
   // src/App/SinglePage.tsx
-  var _tmpl$50 = /* @__PURE__ */ template('<div class="fixed top-0 left-0 z-overlay h-4px w-full overflow-hidden bg-[var(--color-site-border-subtle)]"role=progressbar><div class="h-full w-1/2 animate-pulse bg-[var(--color-site-accent)]">'), _tmpl$214 = /* @__PURE__ */ template('<div class="ehpeek-single-page-app contents"><div class="ehpeek-single-page-route contents"></div><div class=hidden aria-hidden=true inert>'), _tmpl$311 = /* @__PURE__ */ template('<aside class="fixed right-md bottom-md z-overlay flex max-w-[min(420px,calc(100vw-24px))] flex-col gap-md rounded-md border ehp-color-site-border p-lg ehp-color-site-elevated ehp-color-site-text font-sans"role=alert><div class="textsize-md font-700"></div><div class="flex flex-wrap justify-end gap-sm"><button type=button class="min-h-md rounded-md border ehp-color-site-border bg-transparent px-md ehp-color-site-text textsize-md font-inherit"></button><a data-ehpeek-single-page-bypass class="inline-flex min-h-md items-center rounded-md border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] px-md text-[var(--color-background)] no-underline textsize-md font-700">'), HISTORY_STATE_KEY = "ehpeekSinglePageApp", NAVIGATION_REQUEST_EVENT2 = "ehpeek:navigation-request";
+  var _tmpl$50 = /* @__PURE__ */ template('<div class="ehpeek-single-page-app contents"><div class="ehpeek-single-page-route contents"></div><div class=hidden aria-hidden=true inert>'), _tmpl$214 = /* @__PURE__ */ template('<aside class="fixed right-md bottom-md z-overlay flex max-w-[min(420px,calc(100vw-24px))] flex-col gap-md rounded-md border ehp-color-site-border p-lg ehp-color-site-elevated ehp-color-site-text font-sans"role=alert><div class="textsize-md font-700"></div><div class="flex flex-wrap justify-end gap-sm"><button type=button class="min-h-md rounded-md border ehp-color-site-border bg-transparent px-md ehp-color-site-text textsize-md font-inherit"></button><a data-ehpeek-single-page-bypass class="inline-flex min-h-md items-center rounded-md border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] px-md text-[var(--color-background)] no-underline textsize-md font-700">'), HISTORY_STATE_KEY = "ehpeekSinglePageApp";
   function SinglePage(props) {
     let [loading, setLoading] = createSignal(!1), [failedUrl, setFailedUrl] = createSignal(null), routeHost, stagingHost, navigationController = null, navigationSequence = 0, scrollFrame = null, disconnectPageNavigation = null, loadPage = async (request, signal) => {
       let response = await requestPage(request.url, {
@@ -7778,8 +7720,7 @@ body #gdt[class],
         throw new Error(`Unsupported Single Page App route: ${response.url}`);
       return {
         page,
-        source: managePageContent(response.document, response.url),
-        url: response.url
+        source: managePageContent(response.document, response.url)
       };
     }, updateHistoryScroll = () => {
       let current = historyState();
@@ -7801,7 +7742,7 @@ body #gdt[class],
       navigationController = controller, setFailedUrl(null), setLoading(!0), routeHost.inert = !0, routeHost.setAttribute("aria-busy", "true");
       try {
         let next = await loadPage(request, controller.signal), nextSource = next.source;
-        if (nextSource.handle.mount(stagingHost), await ehSyringe_exports.waitForRouteTranslation(stagingHost), sequence !== navigationSequence || controller.signal.aborted)
+        if (nextSource.handle.mountPageContent(stagingHost), await ehSyringe_exports.waitForRouteTranslation(stagingHost), sequence !== navigationSequence || controller.signal.aborted)
           return;
         props.onPageDeactivate(), mode === "push" && (updateHistoryScroll(), window.history.pushState({
           ...historyState(),
@@ -7809,7 +7750,7 @@ body #gdt[class],
             scrollX: 0,
             scrollY: 0
           }
-        }, "", next.url)), nextSource.handle.mount(routeHost), document.title = nextSource.data.title || document.title, await props.onPageActivate(next.page);
+        }, "", next.page.url)), nextSource.handle.mountPageContent(routeHost), document.title = nextSource.data.title || document.title, await props.onPageActivate(next.page);
         let targetScroll = mode === "pop" ? appHistoryState(popState) : null;
         window.requestAnimationFrame(() => {
           window.scrollTo(targetScroll?.scrollX ?? 0, targetScroll?.scrollY ?? 0);
@@ -7821,6 +7762,12 @@ body #gdt[class],
       } finally {
         sequence === navigationSequence && (navigationController = null, stagingHost.replaceChildren(), routeHost.inert = !1, routeHost.removeAttribute("aria-busy"), setLoading(!1));
       }
+    }, navigateUrl = (value) => {
+      let url = new URL(value, window.location.href);
+      return !isSameOriginUrl(url.href) || !singlePageRoute(url.href) ? !1 : (navigate({
+        method: "GET",
+        url: url.href
+      }, "push"), !0);
     };
     return onMount(() => {
       let disposed = !1, previousScrollRestoration = window.history.scrollRestoration;
@@ -7834,44 +7781,36 @@ body #gdt[class],
           method: "GET",
           url: window.location.href
         }, "pop", event.state);
-      }, onNavigationRequest = (event) => {
-        let request = event;
-        if (typeof request.detail?.url != "string")
-          return;
-        let url = new URL(request.detail.url, window.location.href);
-        !isSameOriginUrl(url.href) || !singlePageRoute(url.href) || (event.preventDefault(), navigate({
-          method: "GET",
-          url: url.href
-        }, "push"));
-      };
-      (async () => {
+      }, initialize = async () => {
         if (await ehSyringe_exports.waitForInitialUi(), disposed)
           return;
         let page = singlePageRoute(window.location.href);
         if (!page)
           return;
         let pageSource = managePageContent();
-        pageSource.handle.mount(routeHost);
+        pageSource.handle.mountPageContent(routeHost);
         let onPageNavigation = (request) => {
           navigate(request, "push");
         };
-        disconnectPageNavigation = pageSource.handle.connectNavigation(routeHost, onPageNavigation), updateHistoryScroll(), document.addEventListener(NAVIGATION_REQUEST_EVENT2, onNavigationRequest), window.addEventListener("popstate", onPopState), window.addEventListener("scroll", scheduleHistoryScrollUpdate, {
+        disconnectPageNavigation = pageSource.handle.interceptSinglePageNavigation(routeHost, onPageNavigation), updateHistoryScroll(), window.addEventListener("popstate", onPopState), window.addEventListener("scroll", scheduleHistoryScrollUpdate, {
           passive: !0
         }), await props.onPageActivate(page);
-      })(), onCleanup(() => {
-        disposed = !0, navigationController?.abort(), disconnectPageNavigation?.(), disconnectPageNavigation = null, props.onPageDeactivate(), window.history.scrollRestoration = previousScrollRestoration, document.removeEventListener(NAVIGATION_REQUEST_EVENT2, onNavigationRequest), window.removeEventListener("popstate", onPopState), window.removeEventListener("scroll", scheduleHistoryScrollUpdate), scrollFrame !== null && window.cancelAnimationFrame(scrollFrame);
+      };
+      props.actionsRef({
+        navigate: navigateUrl
+      }), initialize(), onCleanup(() => {
+        disposed = !0, navigationController?.abort(), disconnectPageNavigation?.(), props.onPageDeactivate(), window.history.scrollRestoration = previousScrollRestoration, window.removeEventListener("popstate", onPopState), window.removeEventListener("scroll", scheduleHistoryScrollUpdate), scrollFrame !== null && window.cancelAnimationFrame(scrollFrame);
       });
     }), (() => {
-      var _el$ = _tmpl$214(), _el$2 = _el$.firstChild, _el$3 = _el$2.nextSibling, _ref$ = routeHost;
+      var _el$ = _tmpl$50(), _el$2 = _el$.firstChild, _el$3 = _el$2.nextSibling, _ref$ = routeHost;
       typeof _ref$ == "function" ? use(_ref$, _el$2) : routeHost = _el$2;
       var _ref$2 = stagingHost;
-      return typeof _ref$2 == "function" ? use(_ref$2, _el$3) : stagingHost = _el$3, insert(_el$, createComponent(Show, {
-        get when() {
-          return loading();
+      return typeof _ref$2 == "function" ? use(_ref$2, _el$3) : stagingHost = _el$3, insert(_el$, createComponent(LoadingOverlay, {
+        get label() {
+          return texts_default.reader.loading;
         },
-        get children() {
-          var _el$4 = _tmpl$50();
-          return createRenderEffect(() => setAttribute(_el$4, "aria-label", texts_default.reader.loading)), _el$4;
+        get visible() {
+          return loading();
         }
       }), null), insert(_el$, createComponent(Show, {
         get when() {
@@ -7879,8 +7818,8 @@ body #gdt[class],
         },
         keyed: !0,
         children: (url) => (() => {
-          var _el$5 = _tmpl$311(), _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$7.firstChild, _el$9 = _el$8.nextSibling;
-          return insert(_el$6, () => texts_default.singlePageApp.loadFailed), _el$8.$$click = () => setFailedUrl(null), insert(_el$8, () => texts_default.singlePageApp.dismiss), setAttribute(_el$9, "href", url), insert(_el$9, () => texts_default.singlePageApp.openOriginal), _el$5;
+          var _el$4 = _tmpl$214(), _el$5 = _el$4.firstChild, _el$6 = _el$5.nextSibling, _el$7 = _el$6.firstChild, _el$8 = _el$7.nextSibling;
+          return insert(_el$5, () => texts_default.singlePageApp.loadFailed), _el$7.$$click = () => setFailedUrl(null), insert(_el$7, () => texts_default.singlePageApp.dismiss), setAttribute(_el$8, "href", url), insert(_el$8, () => texts_default.singlePageApp.openOriginal), _el$4;
         })()
       }), null), _el$;
     })();
@@ -7906,7 +7845,7 @@ body #gdt[class],
   // src/App/host.ts
   function createAppMount(className2 = "", persistent = !1) {
     let mount = createManagedElement("div");
-    return className2 && mount.transform({ classes: { replace: className2 } }), persistent && mount.attribute("data-ehpeek-persistent", "true"), document.body.append(mount.Component()), mount;
+    return className2 && mount.replaceClasses(className2), persistent && mount.attribute("data-ehpeek-persistent", "true"), document.body.append(mount.Component()), mount;
   }
 
   // src/App/viewport.ts
@@ -7958,80 +7897,97 @@ body #gdt[class],
 
   // src/App/index.tsx
   var _tmpl$51 = /* @__PURE__ */ template("<a href=#>");
-  function settingsMenuState() {
+  function settingsMenuState(defaults = !1) {
+    let read = (setting) => defaults ? setting.defaultValue : setting.value;
     return {
-      openGalleryInNewTab: state.app.openGalleryInNewTab.value,
-      singlePageAppEnabled: state.app.singlePage.value,
-      readerEnabled: state.reader.enabled.value,
-      readerFullscreenEnabled: state.reader.fullscreen.value,
-      enhanceThumbsGridsEnabled: state.gallery.enhanceThumbs.value,
-      enhanceSearchGridsEnabled: state.search.enhance.value,
-      myTagsEnabled: state.gallery.myTags.value,
-      readHistoryEnabled: state.gallery.readHistory.value,
-      searchHistoryEnabled: state.search.history.value,
-      touchUiEnabled: state.touch.enabled.value
-    };
-  }
-  function defaultSettingsMenuState() {
-    return {
-      openGalleryInNewTab: state.app.openGalleryInNewTab.defaultValue,
-      singlePageAppEnabled: state.app.singlePage.defaultValue,
-      readerEnabled: state.reader.enabled.defaultValue,
-      readerFullscreenEnabled: state.reader.fullscreen.defaultValue,
-      enhanceThumbsGridsEnabled: state.gallery.enhanceThumbs.defaultValue,
-      enhanceSearchGridsEnabled: state.search.enhance.defaultValue,
-      myTagsEnabled: state.gallery.myTags.defaultValue,
-      readHistoryEnabled: state.gallery.readHistory.defaultValue,
-      searchHistoryEnabled: state.search.history.defaultValue,
-      touchUiEnabled: state.touch.enabled.defaultValue
+      openGalleryInNewTab: read(state.app.openGalleryInNewTab),
+      singlePageAppEnabled: read(state.app.singlePage),
+      readerEnabled: read(state.reader.enabled),
+      readerFullscreenEnabled: read(state.reader.fullscreen),
+      enhanceThumbsGridsEnabled: read(state.gallery.enhanceThumbs),
+      enhanceSearchGridsEnabled: read(state.search.enhance),
+      myTagsEnabled: read(state.gallery.myTags),
+      readHistoryEnabled: read(state.gallery.readHistory),
+      searchHistoryEnabled: read(state.search.history),
+      touchUiEnabled: read(state.touch.enabled)
     };
   }
   function applySettingsMenuState(next) {
     state.app.openGalleryInNewTab.set(next.openGalleryInNewTab), state.app.singlePage.set(next.singlePageAppEnabled), state.reader.enabled.set(next.readerEnabled), state.reader.fullscreen.set(next.readerFullscreenEnabled), state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled), state.search.enhance.set(next.enhanceSearchGridsEnabled), state.gallery.myTags.set(next.myTagsEnabled), state.gallery.readHistory.set(next.readHistoryEnabled), state.search.history.set(next.searchHistoryEnabled), state.touch.enabled.set(next.touchUiEnabled), window.location.reload();
   }
-  var settingsState = settingsMenuState();
+  var gState = (() => {
+    let [settingsMenuOpen, setSettingsMenuOpen] = createSignal(!1), [readProgress, setReadProgress] = createSignal({
+      currentPage: 1,
+      totalPages: null
+    });
+    return {
+      page: {
+        cleanups: /* @__PURE__ */ new Set(),
+        generation: 0,
+        managedHosts: /* @__PURE__ */ new Set()
+      },
+      readProgress,
+      setReadProgress,
+      settings: settingsMenuState(),
+      settingsMenuOpen,
+      setSettingsMenuOpen,
+      singlePageActions: void 0,
+      thumbsGridsActions: void 0
+    };
+  })();
   document.documentElement.setAttribute("data-ehpeek-site", ehSiteTheme());
   registerGlobalStyle("ehpeek-uno-style", ehpeek_uno_default);
   registerGlobalStyle("ehpeek-theme-style", theme_default);
-  var settingsMenuMount = createAppMount("fixed inset-0 z-[1150] pointer-events-none", !0), [settingsMenuOpen, setSettingsMenuOpenSignal] = createSignal(!1), [readProgress, setReadProgress] = createSignal({
-    currentPage: 1,
-    totalPages: null
-  }), thumbsGridsActions, readerCallbacks = {
-    enhanceThumbsGridsEnabled: settingsState.enhanceThumbsGridsEnabled,
-    readHistoryEnabled: settingsState.readHistoryEnabled,
+  var settingsMenuMount = createAppMount("fixed inset-0 z-[1150] pointer-events-none", !0), readerCallbacks = {
+    enhanceThumbsGridsEnabled: gState.settings.enhanceThumbsGridsEnabled,
+    readHistoryEnabled: gState.settings.readHistoryEnabled,
     onGotoPreviewIndex: (previewIndex) => {
-      thumbsGridsActions?.gotoPreview(previewIndex);
+      gState.thumbsGridsActions?.gotoPreview(previewIndex);
     },
     onReaderClosed: (currentPage, totalPages) => {
-      setReadProgress({
+      gState.setReadProgress({
         currentPage,
         totalPages
       });
     }
-  }, pageGeneration = 0, pageManagedHosts = /* @__PURE__ */ new Set(), pageCleanups = /* @__PURE__ */ new Set();
+  };
+  function allowFeatureFailure(name, run) {
+    try {
+      return run();
+    } catch (error) {
+      return console.error(`[ehpeek] ${name} failed`, error), null;
+    }
+  }
+  async function allowAsyncFeatureFailure(name, run) {
+    try {
+      return await run();
+    } catch (error) {
+      return console.error(`[ehpeek] ${name} failed`, error), null;
+    }
+  }
   function deactivatePage() {
-    pageGeneration += 1;
-    for (let cleanup of pageCleanups)
+    gState.page.generation += 1;
+    for (let cleanup of gState.page.cleanups)
       cleanup();
-    pageCleanups.clear(), thumbsGridsActions = void 0;
-    for (let host of pageManagedHosts)
+    gState.page.cleanups.clear(), gState.thumbsGridsActions = void 0;
+    for (let host of gState.page.managedHosts)
       host.remove();
-    pageManagedHosts.clear();
+    gState.page.managedHosts.clear();
   }
   function openGalleryPage(previewCache, startPageUrl, preferredPageNum) {
     state.reader.enabled.value ? openReaderFromUserAction(startPageUrl, readerCallbacks, previewCache, readerViewport, preferredPageNum) : preferredPageNum !== void 0 && openOriginalReader(preferredPageNum, previewCache).catch(reportReaderOpenError);
   }
   function openFromReadButton(previewCache) {
-    let pageNum = readProgress().currentPage, firstPage = previewCache.current().data.pages[0];
+    let pageNum = gState.readProgress().currentPage, firstPage = previewCache.current().data.pages[0];
     firstPage && openGalleryPage(previewCache, firstPage.url, pageNum);
   }
   function GalleryReadButton(props) {
     return createComponent(ReadButton, {
       get currentPage() {
-        return readProgress().currentPage;
+        return gState.readProgress().currentPage;
       },
       get totalPages() {
-        return readProgress().totalPages;
+        return gState.readProgress().totalPages;
       },
       onClick: () => openFromReadButton(props.previewCache),
       get variant() {
@@ -8040,102 +7996,115 @@ body #gdt[class],
     });
   }
   typeof GM_registerMenuCommand == "function" && GM_registerMenuCommand(texts_default.settings.openSettings, () => {
-    setSettingsMenuOpenSignal(!0);
+    gState.setSettingsMenuOpen(!0);
   });
   settingsMenuMount.mount(() => createComponent(SettingsMenu, {
     get open() {
-      return settingsMenuOpen();
+      return gState.settingsMenuOpen();
     },
     get defaultState() {
-      return defaultSettingsMenuState();
+      return settingsMenuState(!0);
     },
-    initState: settingsState,
+    get initState() {
+      return gState.settings;
+    },
     onApply: (next) => {
       applySettingsMenuState(next);
     },
-    onOpenChange: setSettingsMenuOpenSignal
+    get onOpenChange() {
+      return gState.setSettingsMenuOpen;
+    }
   }));
   function injectEnhanceUI(page, previewCache, searchTextInput, searchResultsDom, touchResultsDom) {
-    let galleryPage = page.type === "gallery", resultsPage = page.type === "search" || page.type === "favorites", preview = previewCache?.current() ?? null;
-    galleryPage && preview && previewCache && settingsState.readerEnabled && pageCleanups.add(preview.handle.connectImageOpen((pageUrl) => {
-      openGalleryPage(previewCache, pageUrl);
-    })), searchTextInput && ehSyringe_exports.reuseTagTipInput(searchTextInput.elems.input), resultsPage && mutateSearchGridModeSelect(state.search.grid.value, () => {
-      state.search.grid.set(!0), window.location.assign(new URL("/?inline_set=dm_e", window.location.href).href);
-    }, (value) => {
-      state.search.grid.set(!1), window.location.assign(new URL(`/?inline_set=dm_${value}`, window.location.href).href);
+    let galleryPage = page.type === "gallery", resultsPage = page.type === "search" || page.type === "favorites", preview = previewCache?.current() ?? null, previewMount = preview?.elems.mount ?? null;
+    galleryPage && preview && previewCache && gState.settings.readerEnabled && allowFeatureFailure("Reader thumbnail links", () => {
+      gState.page.cleanups.add(preview.handle.interceptPreviewImageOpen((pageUrl) => {
+        openGalleryPage(previewCache, pageUrl);
+      }));
+    }), searchTextInput && allowFeatureFailure("Search autocomplete", () => {
+      ehSyringe_exports.reuseTagTipInput(searchTextInput.elems.input);
+    }), resultsPage && allowFeatureFailure("Search grid mode selector", () => {
+      mutateSearchGridModeSelect(state.search.grid.value, () => {
+        state.search.grid.set(!0), window.location.assign(new URL("/?inline_set=dm_e", window.location.href).href);
+      }, (value) => {
+        state.search.grid.set(!1), window.location.assign(new URL(`/?inline_set=dm_${value}`, window.location.href).href);
+      });
     });
-    let refreshSearchGrid = resultsPage && state.search.grid.value ? mutateSearchGrid() : null;
-    if (settingsState.openGalleryInNewTab && searchResultsDom && searchResultsDom.handle.transformGalleryLinksToNewTab(), !settingsState.touchUiEnabled) {
+    let searchGridEnabled = !!(resultsPage && state.search.grid.value);
+    searchGridEnabled && allowFeatureFailure("Search grid", () => mutateSearchGrid()), gState.settings.openGalleryInNewTab && searchResultsDom && allowFeatureFailure("Gallery links in new tabs", () => {
+      searchResultsDom.handle.ensureGalleryLinksOpenInNewTab();
+    }), gState.settings.touchUiEnabled || allowFeatureFailure("Desktop settings entry", () => {
       let settingsMount = manageSettingsMenuMount();
       settingsMount && (settingsMount.mount(() => (() => {
         var _el$ = _tmpl$51();
         return _el$.$$click = (event) => {
-          event.preventDefault(), event.stopPropagation(), setSettingsMenuOpenSignal(!0);
+          event.preventDefault(), event.stopPropagation(), gState.setSettingsMenuOpen(!0);
         }, insert(_el$, () => texts_default.settings.menuLabel), _el$;
-      })()), pageManagedHosts.add(settingsMount));
-    }
-    if (!settingsState.touchUiEnabled && settingsState.readHistoryEnabled && galleryPage && preview && previewCache) {
+      })()), gState.page.managedHosts.add(settingsMount));
+    }), !gState.settings.touchUiEnabled && gState.settings.readHistoryEnabled && galleryPage && preview && previewCache && allowFeatureFailure("Desktop Read button", () => {
       let galleryReadButtonMount = manageGalleryContinueReadingButtonMount();
-      pageManagedHosts.add(galleryReadButtonMount), galleryReadButtonMount.mount(() => createComponent(GalleryReadButton, {
+      gState.page.managedHosts.add(galleryReadButtonMount), galleryReadButtonMount.mount(() => createComponent(GalleryReadButton, {
         previewCache,
         variant: "gallery"
       }));
-    }
-    if (galleryPage && settingsState.enhanceThumbsGridsEnabled && previewCache && preview?.elems.mount) {
-      let previewMount = preview.elems.mount;
+    }), galleryPage && gState.settings.enhanceThumbsGridsEnabled && previewCache && previewMount ? allowFeatureFailure("Enhanced thumbnail grid", () => {
       previewMount.mount(() => createComponent(ThumbsGrids, {
         actionsRef: (actions) => {
-          thumbsGridsActions = actions;
+          gState.thumbsGridsActions = actions;
         },
         onLoadError: reportReaderOpenError,
         previewCache
-      })), pageManagedHosts.add(previewMount);
-    } else galleryPage && preview && previewCache && preview.elems.mount?.remove();
-    if (settingsState.enhanceSearchGridsEnabled && searchResultsDom && (searchResultsDom.data.previousUrl || searchResultsDom.data.nextUrl)) {
+      })), gState.page.managedHosts.add(previewMount);
+    }) : galleryPage && preview && previewCache && allowFeatureFailure("Original thumbnail grid", () => {
+      preview.elems.mount?.remove();
+    }), gState.settings.enhanceSearchGridsEnabled && searchResultsDom && (searchResultsDom.data.previousUrl || searchResultsDom.data.nextUrl) && allowFeatureFailure("Enhanced Search pagination", () => {
       let host = createAppMount();
       host.mount(() => createComponent(EnhanceSearchGrids, {
         source: searchResultsDom,
+        onNavigateRequest: (url) => gState.singlePageActions?.navigate(url) ?? !1,
         onPageChange: (source) => {
-          settingsState.openGalleryInNewTab && source.handle.transformGalleryLinksToNewTab(), touchResultsDom?.handle.refresh(), refreshSearchGrid?.();
+          allowFeatureFailure("Changed Search page", () => {
+            gState.settings.openGalleryInNewTab && source.handle.ensureGalleryLinksOpenInNewTab(), touchResultsDom?.handle.updateTouchResultsLayout(), searchGridEnabled && mutateSearchGrid();
+          });
         }
-      })), pageManagedHosts.add(host);
-    }
-    if (settingsState.searchHistoryEnabled && searchTextInput) {
+      })), gState.page.managedHosts.add(host);
+    }), gState.settings.searchHistoryEnabled && searchTextInput && allowFeatureFailure("Search history", () => {
       let host = createAppMount();
       host.mount(() => createComponent(SearchHistory, {
         source: searchTextInput
-      })), pageManagedHosts.add(host);
-    }
+      })), gState.page.managedHosts.add(host);
+    });
   }
   function injectTouchUI(page, previewCache) {
-    let galleryPage = page.type === "gallery", resultsPage = page.type === "search" || page.type === "favorites", preview = previewCache?.current() ?? null, resultsDom = resultsPage ? manageTouchResultsPage(page, singlePageInitialRoute) : null;
-    resultsDom && pageCleanups.add(resultsDom.handle.reset);
-    let topBarDom = manageTopBar();
-    if (topBarDom && (topBarDom.handle.transformNavItems(TOUCH_TOP_BAR_NAV_ITEM_CLASS), topBarDom.elems.mount.mount(() => createComponent(TouchTopBar, {
-      source: topBarDom,
-      onSettingsMenuOpen: () => {
-        setSettingsMenuOpenSignal(!0);
-      }
-    })), pageManagedHosts.add(topBarDom.elems.mount)), galleryPage || resultsPage) {
+    let galleryPage = page.type === "gallery", resultsPage = page.type === "search" || page.type === "favorites", preview = previewCache?.current() ?? null, resultsDom = resultsPage ? allowFeatureFailure("Touch results layout", () => manageTouchResultsPage(page, singlePageActive)) : null;
+    return resultsDom && gState.page.cleanups.add(resultsDom.handle.removeTouchResultsLayout), allowFeatureFailure("Touch top bar", () => {
+      let topBarDom = manageTopBar();
+      topBarDom && (topBarDom.handle.updateNavItemVisual(TOUCH_TOP_BAR_NAV_ITEM_CLASS), topBarDom.elems.mount.mount(() => createComponent(TouchTopBar, {
+        source: topBarDom,
+        onSettingsMenuOpen: () => {
+          gState.setSettingsMenuOpen(!0);
+        }
+      })), gState.page.managedHosts.add(topBarDom.elems.mount));
+    }), (galleryPage || resultsPage) && allowFeatureFailure("Back to top", () => {
       let host = createAppMount("ehpeek-back-to-top-host");
-      host.mount(() => createComponent(BackToTop, {})), pageManagedHosts.add(host);
-    }
-    if (galleryPage) {
+      host.mount(() => createComponent(BackToTop, {})), gState.page.managedHosts.add(host);
+    }), galleryPage && (allowFeatureFailure("Touch GalleryInfo", () => {
       registerGlobalStyle("ehpeek-touch-gallery-page-rearrange-style", galleryRearrange_default);
       let galleryInfoDom = manageGalleryInfo(preview?.data ?? null);
-      galleryInfoDom && (galleryInfoDom.handle.transformCover(TOUCH_GALLERY_INFO_CLASSES.cover), galleryInfoDom.handle.transformActionItems(TOUCH_GALLERY_INFO_CLASSES.actionItems), galleryInfoDom.handle.transformNewTag(TOUCH_GALLERY_INFO_CLASSES.newTag), galleryInfoDom.handle.transformHost(TOUCH_GALLERY_INFO_CLASSES.host), galleryInfoDom.elems.mount.mount(() => createComponent(GalleryInfoPanel, {
+      galleryInfoDom && (galleryInfoDom.handle.updateCoverVisual(TOUCH_GALLERY_INFO_CLASSES.cover), galleryInfoDom.handle.updateActionItemsVisual(TOUCH_GALLERY_INFO_CLASSES.actionItems), galleryInfoDom.handle.updateNewTagVisual(TOUCH_GALLERY_INFO_CLASSES.newTag), galleryInfoDom.handle.installGalleryInfoPanel(TOUCH_GALLERY_INFO_CLASSES.host), galleryInfoDom.elems.mount.mount(() => createComponent(GalleryInfoPanel, {
         source: galleryInfoDom,
         get primaryAction() {
-          return memo(() => !!(settingsState.readHistoryEnabled && preview && previewCache))() ? createComponent(GalleryReadButton, {
+          return memo(() => !!(gState.settings.readHistoryEnabled && preview && previewCache))() ? createComponent(GalleryReadButton, {
             previewCache,
             variant: "touchGallery"
           }) : void 0;
         }
-      })), pageManagedHosts.add(galleryInfoDom.elems.mount)), mutateGalleryCommentsTouch();
-    }
-    if (resultsPage) {
+      })), gState.page.managedHosts.add(galleryInfoDom.elems.mount));
+    }), allowFeatureFailure("Touch Gallery comments", () => {
+      mutateGalleryCommentsTouch();
+    })), resultsPage && allowFeatureFailure("Touch Search panel", () => {
       let searchPanelDom = manageSearchPanel();
-      searchPanelDom && (searchPanelDom.handle.transformPresentation(touchSearchPanelClasses(searchPanelDom.data.hasClear)), searchPanelDom.elems.mount.mount(() => createComponent(TouchSearchPanel, {
+      searchPanelDom && (searchPanelDom.handle.updateSearchPanelVisual(touchSearchPanelClasses(searchPanelDom.data.hasClear)), searchPanelDom.elems.mount.mount(() => createComponent(TouchSearchPanel, {
         source: searchPanelDom,
         get after() {
           return memo(() => !!resultsDom?.data.favoritesCategory)() ? createComponent(FavoritesCategorySelect, {
@@ -8144,62 +8113,65 @@ body #gdt[class],
             }
           }) : void 0;
         }
-      })), pageManagedHosts.add(searchPanelDom.elems.mount), searchPanelDom.elems.categoryToggleMount && (searchPanelDom.elems.categoryToggleMount.mount(() => createComponent(TouchSearchCategoryToggle, {
+      })), gState.page.managedHosts.add(searchPanelDom.elems.mount), searchPanelDom.elems.categoryToggleMount && (searchPanelDom.elems.categoryToggleMount.mount(() => createComponent(TouchSearchCategoryToggle, {
         source: searchPanelDom
-      })), pageManagedHosts.add(searchPanelDom.elems.categoryToggleMount)), searchPanelDom.elems.advancedToggleMount && (searchPanelDom.elems.advancedToggleMount.mount(() => createComponent(TouchSearchAdvancedToggle, {
+      })), gState.page.managedHosts.add(searchPanelDom.elems.categoryToggleMount)), searchPanelDom.elems.advancedToggleMount && (searchPanelDom.elems.advancedToggleMount.mount(() => createComponent(TouchSearchAdvancedToggle, {
         source: searchPanelDom
-      })), pageManagedHosts.add(searchPanelDom.elems.advancedToggleMount)), searchPanelDom.elems.fileSearchToggleMount && (searchPanelDom.elems.fileSearchToggleMount.mount(() => createComponent(TouchSearchFileToggle, {
+      })), gState.page.managedHosts.add(searchPanelDom.elems.advancedToggleMount)), searchPanelDom.elems.fileSearchToggleMount && (searchPanelDom.elems.fileSearchToggleMount.mount(() => createComponent(TouchSearchFileToggle, {
         source: searchPanelDom
-      })), pageManagedHosts.add(searchPanelDom.elems.fileSearchToggleMount)), searchPanelDom.elems.searchActionMount.mount(() => createComponent(TouchSearchAction, {
+      })), gState.page.managedHosts.add(searchPanelDom.elems.fileSearchToggleMount)), searchPanelDom.elems.searchActionMount.mount(() => createComponent(TouchSearchAction, {
         action: "search",
         source: searchPanelDom
-      })), pageManagedHosts.add(searchPanelDom.elems.searchActionMount), searchPanelDom.elems.clearActionMount && (searchPanelDom.elems.clearActionMount.mount(() => createComponent(TouchSearchAction, {
+      })), gState.page.managedHosts.add(searchPanelDom.elems.searchActionMount), searchPanelDom.elems.clearActionMount && (searchPanelDom.elems.clearActionMount.mount(() => createComponent(TouchSearchAction, {
         action: "clear",
         source: searchPanelDom
-      })), pageManagedHosts.add(searchPanelDom.elems.clearActionMount)));
-    }
-    return resultsDom;
+      })), gState.page.managedHosts.add(searchPanelDom.elems.clearActionMount)));
+    }), resultsDom;
   }
   async function injectPage(nextPage) {
-    let pageType = nextPage, galleryPage = pageType.type === "gallery", resultsPage = pageType.type === "search" || pageType.type === "favorites", generation = ++pageGeneration;
-    galleryPage && manageGalleryApiSession();
-    let galleryPreview = galleryPage ? manageGalleryPreview() : null, galleryPreviewCache = galleryPreview ? createGalleryPreviewCache(galleryPreview) : null;
-    if (pageType.type === "gallery" && galleryPreview) {
-      let record = loadReadHistory(pageType.galleryId, pageType.token);
-      setReadProgress({
+    let galleryPage = nextPage.type === "gallery", resultsPage = nextPage.type === "search" || nextPage.type === "favorites", generation = ++gState.page.generation;
+    if (gState.settings.touchUiEnabled && (await ehSyringe_exports.waitForInitialUi(), nextPage.type === "search" && await ehSyringe_exports.waitForSearchUi(), generation !== gState.page.generation))
+      return;
+    galleryPage && allowFeatureFailure("Gallery API session", () => {
+      manageGalleryApiSession();
+    });
+    let galleryPreview = galleryPage ? allowFeatureFailure("Gallery Preview", () => manageGalleryPreview()) : null, galleryPreviewCache = galleryPreview ? allowFeatureFailure("Gallery Preview cache", () => createGalleryPreviewCache(galleryPreview)) : null;
+    nextPage.type === "gallery" && galleryPreview && allowFeatureFailure("Gallery Read History", () => {
+      let record = loadReadHistory(nextPage.galleryId, nextPage.token);
+      gState.setReadProgress({
         currentPage: record?.pageNum && record.pageNum > 0 ? record.pageNum : 1,
         totalPages: record?.totalPages ?? galleryPreview.data.totalImages
       });
-    }
-    let searchTextInput = resultsPage ? manageSearchTextInput() : null, searchResultsSource = resultsPage ? manageSearchResults() : null, myTagAppearances = null;
-    if (settingsState.myTagsEnabled)
-      if (pageType.type === "myTags") {
-        let currentMyTags = extractMyTagsPageData();
-        currentMyTags && await refreshMyTags(currentMyTags);
-      } else galleryPage && (myTagAppearances = await loadMyTagAppearances());
-    if (generation !== pageGeneration)
+    });
+    let searchTextInput = resultsPage ? allowFeatureFailure("Search text input", () => manageSearchTextInput()) : null, searchResultsSource = resultsPage ? allowFeatureFailure("Search results", () => manageSearchResults()) : null, myTagAppearances = null;
+    if (gState.settings.myTagsEnabled && (nextPage.type === "myTags" ? await allowAsyncFeatureFailure("My Tags refresh", async () => {
+      let currentMyTags = extractMyTagsPageData();
+      await refreshMyTags(currentMyTags);
+    }) : galleryPage && (myTagAppearances = await allowAsyncFeatureFailure("My Tags appearance", loadMyTagAppearances))), generation !== gState.page.generation)
       return;
-    if (myTagAppearances && pageCleanups.add(mutateGalleryMyTags(myTagAppearances)), settingsState.readHistoryEnabled && pageType.type === "image") {
+    myTagAppearances && allowFeatureFailure("Gallery My Tags appearance", () => {
+      gState.page.cleanups.add(mutateGalleryMyTags(myTagAppearances));
+    }), gState.settings.readHistoryEnabled && nextPage.type === "image" && allowFeatureFailure("Image Read History", () => {
       let gallery = extractImageGalleryPage();
-      if (gallery?.galleryId === pageType.galleryId) {
+      if (gallery?.galleryId === nextPage.galleryId) {
         let previous = loadReadHistory(gallery.galleryId, gallery.token), historySession = new ReadHistorySession({
           galleryId: gallery.galleryId,
           token: gallery.token,
-          galleryUrl: gallery.url,
           totalPages: previous?.totalPages
         });
-        historySession.update(pageType.pageNum, previous?.totalPages), pageCleanups.add(() => historySession.dispose());
+        historySession.update(nextPage.pageNum, previous?.totalPages), gState.page.cleanups.add(() => historySession.dispose());
       }
-    }
-    if (settingsState.touchUiEnabled && (await ehSyringe_exports.waitForInitialUi(), pageType.type === "search" && await ehSyringe_exports.waitForSearchUi(), generation !== pageGeneration))
-      return;
-    let touchResultsDom = settingsState.touchUiEnabled ? injectTouchUI(pageType, galleryPreviewCache) : null;
-    injectEnhanceUI(pageType, galleryPreviewCache, searchTextInput, searchResultsSource, touchResultsDom), pageType.type === "gallery" && state.reader.enabled.value && pageType.peekPage !== null && galleryPreviewCache && openReaderFromHash(readerCallbacks, galleryPreviewCache, readerViewport);
+    });
+    let touchResultsDom = gState.settings.touchUiEnabled ? injectTouchUI(nextPage, galleryPreviewCache) : null;
+    injectEnhanceUI(nextPage, galleryPreviewCache, searchTextInput, searchResultsSource, touchResultsDom), nextPage.type === "gallery" && state.reader.enabled.value && nextPage.peekPage !== null && galleryPreviewCache && allowAsyncFeatureFailure("Reader deep link", () => openReaderFromHash(readerCallbacks, galleryPreviewCache, readerViewport));
   }
-  var initialPage = extractPageType(), singlePageInitialRoute = settingsState.touchUiEnabled && settingsState.singlePageAppEnabled && supportsSinglePageRoute(window.location.href);
-  singlePageInitialRoute ? createAppMount("isolate", !0).mount(() => createComponent(SinglePage, {
+  var singlePageActive = gState.settings.touchUiEnabled && gState.settings.singlePageAppEnabled && singlePageRoute(window.location.href) !== null;
+  singlePageActive ? createAppMount("isolate", !0).mount(() => createComponent(SinglePage, {
+    actionsRef: (actions) => {
+      gState.singlePageActions = actions;
+    },
     onPageActivate: (page) => injectPage(page),
     onPageDeactivate: deactivatePage
-  })) : injectPage(initialPage);
+  })) : injectPage(extractPageType());
   delegateEvents(["click"]);
 })();
