@@ -124,6 +124,9 @@ function createReaderFullscreen(
       if (document.fullscreenElement === target) {
         await document.exitFullscreen();
       }
+      if (snapshot) {
+        await waitForViewportSettled();
+      }
       target.style.removeProperty(FULLSCREEN_UI_SCALE_PROPERTY);
       target.style.removeProperty(FULLSCREEN_PROGRESS_SIZE_PROPERTY);
     },
@@ -167,4 +170,29 @@ function nextAnimationFrame(): Promise<void> {
   return new Promise((resolve) => {
     window.requestAnimationFrame(() => resolve());
   });
+}
+
+async function waitForViewportSettled(): Promise<void> {
+  await nextAnimationFrame();
+
+  await new Promise<void>((resolve) => {
+    const viewport = window.visualViewport;
+    let quietTimer = window.setTimeout(finish, 80);
+    const timeoutTimer = window.setTimeout(finish, 500);
+    const onResize = () => {
+      window.clearTimeout(quietTimer);
+      quietTimer = window.setTimeout(finish, 80);
+    };
+
+    function finish(): void {
+      viewport?.removeEventListener("resize", onResize);
+      window.clearTimeout(quietTimer);
+      window.clearTimeout(timeoutTimer);
+      resolve();
+    }
+
+    viewport?.addEventListener("resize", onResize);
+  });
+
+  await nextAnimationFrame();
 }
