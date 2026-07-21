@@ -3,7 +3,7 @@
 [![GitHub](https://img.shields.io/badge/GitHub-EhPeek-181717?style=flat&logo=github)](https://github.com/yamipot/ehpeek)
 [![Sleazy Fork](https://img.shields.io/badge/Sleazy%20Fork-EhPeek-8b0000?style=flat)](https://sleazyfork.org/en/scripts/588026-ehpeek)
 
-Another touch-optimized reader for E-H / ExH galleries. Inspired by [EhViewer-NekoInverter/EhViewer](https://github.com/EhViewer-NekoInverter/EhViewer).
+A userscript that turns E-H / ExH pages into a touch-optimized gallery reader. Inspired by [EhViewer-NekoInverter/EhViewer](https://github.com/EhViewer-NekoInverter/EhViewer).
 
 ## Features
 
