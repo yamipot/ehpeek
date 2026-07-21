@@ -6,6 +6,8 @@ import { ScrollAnimator, ScrollFlingAnimator, type ScrollMotion } from "../anima
 import { createPointerGestureElement, type PointerGestureCallbacks } from "../PointerGesture";
 
 const FALLBACK_ASPECT_RATIO = 1.42;
+const DEFAULT_DECODED_IMAGE_CACHE_LIMIT = 24;
+const DECODED_IMAGE_CACHE_BYTES = 96 * 1024 * 1024;
 
 type PageMeta = {
   aspectRatio: number;
@@ -68,6 +70,13 @@ type PageSlot = {
   token: number;
 };
 
+type CachedPageImage = {
+  bytes: number;
+  height: number | null;
+  image: HTMLImageElement;
+  width: number | null;
+};
+
 export type PagesViewportCallbacks = {
   onNativeScroll: () => void;
   onReloadPage: (pageNum: number) => void;
@@ -101,6 +110,7 @@ export type PagesViewportActions = {
 export function PagesViewport(props: {
   actionsRef: (actions: PagesViewportActions) => void;
   callbacks: PagesViewportCallbacks;
+  decodedImageCacheLimit?: number;
   mode: ViewMode;
   readDirection: ReadDirection;
   window: PagesViewportWindowOptions;
@@ -116,6 +126,12 @@ export function PagesViewport(props: {
   let resizeFrame: number | null = null;
   let moveRequestToken = 0;
   let disposed = false;
+  const decodedImageCacheLimit = Math.max(
+    0,
+    Math.floor(untrack(() => props.decodedImageCacheLimit) ?? DEFAULT_DECODED_IMAGE_CACHE_LIMIT),
+  );
+  const cachedImages = new Map<number, CachedPageImage>();
+  let cachedImageBytes = 0;
 
   const refresh = () => setRevision((value) => value + 1);
   const slotFor = (pageNum: number) => pageSlots.find((slot) => slot.pageNum === pageNum);
@@ -250,6 +266,18 @@ export function PagesViewport(props: {
       const oldSlot = oldSlots.get(pageNum);
       const slot = oldSlot && oldSlot.kind === kind ? oldSlot : pageSlot(pageNum, kind);
 
+      if (!oldSlot && kind === "page") {
+        const cached = cachedImages.get(pageNum);
+        if (cached) {
+          cachedImages.delete(pageNum);
+          cachedImageBytes -= cached.bytes;
+          slot.state = "ready";
+          slot.image = cached.image;
+          slot.width = cached.width;
+          slot.height = cached.height;
+        }
+      }
+
       if (kind === "page") {
         const page = options.pages.get(pageNum);
 
@@ -267,8 +295,35 @@ export function PagesViewport(props: {
 
     for (const slot of pageSlots) {
       if (!nextSet.has(slot)) {
+        if (slot.kind === "page" && slot.state === "ready" && slot.image) {
+          const width = positiveNumber(slot.image.naturalWidth) ?? slot.width;
+          const height = positiveNumber(slot.image.naturalHeight) ?? slot.height;
+          const cached = {
+            bytes: width && height ? width * height * 4 : 0,
+            height,
+            image: slot.image,
+            width,
+          };
+          const previous = cachedImages.get(slot.pageNum);
+          if (previous) {
+            cachedImageBytes -= previous.bytes;
+          }
+          cachedImages.delete(slot.pageNum);
+          cachedImages.set(slot.pageNum, cached);
+          cachedImageBytes += cached.bytes;
+        }
         slot.token += 1;
       }
+    }
+
+    while (cachedImages.size > decodedImageCacheLimit || cachedImageBytes > DECODED_IMAGE_CACHE_BYTES) {
+      const oldest = cachedImages.entries().next().value as [number, CachedPageImage] | undefined;
+      if (!oldest) {
+        break;
+      }
+      cachedImages.delete(oldest[0]);
+      cachedImageBytes -= oldest[1].bytes;
+      oldest[1].image.removeAttribute("src");
     }
 
     pageSlots = nextSlots;
@@ -406,6 +461,11 @@ export function PagesViewport(props: {
   onCleanup(() => {
     disposed = true;
     stopMotion();
+    for (const cached of cachedImages.values()) {
+      cached.image.removeAttribute("src");
+    }
+    cachedImages.clear();
+    cachedImageBytes = 0;
     if (resizeFrame !== null) {
       window.cancelAnimationFrame(resizeFrame);
       resizeFrame = null;

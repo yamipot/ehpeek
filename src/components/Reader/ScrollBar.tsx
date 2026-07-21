@@ -45,6 +45,10 @@ export function ReaderScrollBar(props: {
           : "opacity-0 pointer-events-none")
       }
       onClick={(event) => event.stopPropagation()}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
       onPointerDown={(event) => {
         event.preventDefault();
         event.stopPropagation();

@@ -34,7 +34,8 @@ const DEFAULT_WINDOW_SIZE = 10;
 
 const PAGED_SWIPE_THRESHOLD = 24;
 const PAGED_WHEEL_THRESHOLD = 8;
-const PROGRESS_IDLE_COMMIT_MS = 1000;
+const PROGRESS_IDLE_COMMIT_MS = 180;
+const LOADED_IMAGE_INFO_CACHE_LIMIT = 160;
 const SCROLL_GESTURE_IDLE_MS = 160;
 const SCROLL_BAR_IDLE_MS = 900;
 const SCROLL_BAR_SHOW_DISTANCE = 48;
@@ -121,6 +122,7 @@ export function Reader(props: {
       <PagesViewport
         actionsRef={readerCallbacks.viewportActionsRef}
         callbacks={readerCallbacks.viewport}
+        decodedImageCacheLimit={options.decodedImageCacheLimit}
         mode={readerState.ctrls.value().mode}
         readDirection={readerState.ctrls.value().readDirection}
         window={readerState.navi.viewportWindow()}
@@ -205,10 +207,13 @@ function wireReaderCallbacks(
       console.error("[ehpeek]", error);
       return;
     }
-    if (closed || token !== syncToken) {
+    if (closed) {
       return;
     }
     addPages(incoming);
+    if (token !== syncToken) {
+      return;
+    }
     syncViewportWindow();
     maintainLoadQueue();
     notifyActivePageChange();
@@ -237,11 +242,15 @@ function wireReaderCallbacks(
   }
 
   function maintainLoadQueue(): void {
-    const targets = pageWindowNumbers(state.navi.currentPageNum(), renderWindowSize)
-      .map((pageNum) => loadTargetFor(pageNum))
-      .filter((target): target is ReaderLoadTarget => Boolean(target));
-    const windowSet = new Set(targets.map((target) => target.pageNum));
-    session.imageQueue.sync(targets, state.navi.currentPageNum(), state.navi.direction(), windowSet, preloadWindowSize);
+    const currentPageNum = state.navi.currentPageNum();
+    const pageNums = [currentPageNum];
+    for (let offset = 1; offset <= preloadWindowSize; offset += 1) {
+      pageNums.push(currentPageNum + offset * state.navi.direction());
+    }
+    session.imageQueue.sync(pageNums.flatMap((pageNum, priority) => {
+      const target = loadTargetFor(pageNum);
+      return target ? [{ key: pageNum, priority, target }] : [];
+    }));
   }
 
   function pageMetaForViewport(): Map<number, {
@@ -301,6 +310,10 @@ function wireReaderCallbacks(
   function updatePageNumber(): void {
     const pageNum = state.navi.currentPageNum();
     const image = loadedImages.get(pageNum);
+    if (image) {
+      loadedImages.delete(pageNum);
+      loadedImages.set(pageNum, image);
+    }
     state.navi.setDownloadInfo(image && isRealPageNum(pageNum) ? {
       currentFileName: displayedImageFileName(options.galleryId, pageNum, image.imageUrl),
       currentImageUrl: image.imageUrl,
@@ -458,6 +471,26 @@ function wireReaderCallbacks(
 
   function wireImageQueue(): void {
 
+    const rememberLoadedImage = (pageNum: number, loaded: LoadedReaderPage): LoadedReaderImage => {
+      const image = {
+        pageNum,
+        imageUrl: loaded.imageUrl,
+        originalImageUrl: loaded.originalImageUrl ?? null,
+        width: positiveNumber(loaded.width),
+        height: positiveNumber(loaded.height),
+      };
+      loadedImages.delete(pageNum);
+      loadedImages.set(pageNum, image);
+      while (loadedImages.size > LOADED_IMAGE_INFO_CACHE_LIMIT) {
+        const oldestPageNum = loadedImages.keys().next().value as number | undefined;
+        if (oldestPageNum === undefined) {
+          break;
+        }
+        loadedImages.delete(oldestPageNum);
+      }
+      return image;
+    };
+
     const installImage = async (
       target: ReaderLoadTarget,
       loaded: LoadedReaderPage,
@@ -479,13 +512,6 @@ function wireReaderCallbacks(
         return;
       }
       if (!closed) {
-        loadedImages.set(target.pageNum, {
-          pageNum: target.pageNum,
-          imageUrl,
-          originalImageUrl: loaded.originalImageUrl ?? null,
-          width,
-          height,
-        });
         if (target.pageNum === state.navi.currentPageNum()) {
           updatePageNumber();
         }
@@ -493,11 +519,12 @@ function wireReaderCallbacks(
     };
 
     session.imageQueue.updateCallbacks({
-      loadTarget: (target) => previewCache.loadImage(target.page),
-      markLoading: (pageNum) => viewportActions.markPageLoading(pageNum),
+      loadTarget: (target) => Promise.resolve(loadedImages.get(target.pageNum) ?? previewCache.loadImage(target.page)),
+      markLoading: (target) => viewportActions.markPageLoading(target.pageNum),
       onLoaded: async (target, loaded, token) => {
+        const image = rememberLoadedImage(target.pageNum, loaded);
         if (pageWindowNumbers(state.navi.currentPageNum(), renderWindowSize).includes(target.pageNum)) {
-          await installImage(target, loaded, token);
+          await installImage(target, image, token);
         }
       },
       onError: (target, error, token) => {

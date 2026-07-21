@@ -42,20 +42,23 @@ export function manageGalleryInfo(
 
   const readMeta = () => {
     // E-H keeps these rows in a fixed order; their labels may already be translated.
-    const values = page
+    const rows = page
       .all<HTMLTableRowElement>("#gdd tr")
-      .map((row) => row
-        .all<HTMLTableCellElement>("td, th")
-        .slice(1)
-        .map((cell) => cell.text())
-        .filter(Boolean)
-        .join(" "));
+      .map((row) => {
+        const cells = row.all<HTMLTableCellElement>("td, th");
+        return {
+          label: cells[0]?.text() ?? "",
+          value: cells.slice(1).map((cell) => cell.text()).filter(Boolean).join(" "),
+        };
+      });
     return {
-      favorited: values[6],
-      fileSize: values[4],
-      language: values[3],
-      parent: values[1],
-      posted: values[0],
+      favorited: rows[6]?.value
+        ? [rows[6].label, rows[6].value].filter(Boolean).join(" ")
+        : undefined,
+      fileSize: rows[4]?.value,
+      language: rows[3]?.value,
+      parent: rows[1]?.value,
+      posted: rows[0]?.value,
     };
   };
 
@@ -98,8 +101,8 @@ export function manageGalleryInfo(
       element?.one<HTMLElement>("#favoritelink")?.text() ||
       element?.one<HTMLElement>("[title]")?.attribute("title")?.trim() ||
       "";
-    const favorited = /^favorites?\s+\d+/i.test(displayed);
-    const slot = displayed.match(/^favorites?\s+([0-9])/i)?.[1];
+    const slot = displayed.match(/(?:^|\D)([0-9])(?:\D|$)/)?.[1];
+    const favorited = slot !== undefined || /^favorited$/i.test(displayed);
     const script =
       scripts.find(
         (item) => item.includes("popbase") && item.includes("addfav"),
