@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260721.1543
+// @version      260721.1620
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -4015,7 +4015,7 @@
               onChange: (value) => setDraft("searchHistoryEnabled", value)
             }), null), _el$18;
           }
-        }), null), insert(_el$19, "260721.1543", null), _el$22.$$click = (event) => {
+        }), null), insert(_el$19, "260721.1620", null), _el$22.$$click = (event) => {
           event.stopPropagation(), props.onApply({
             ...draft
           });
