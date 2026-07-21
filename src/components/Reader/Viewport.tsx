@@ -521,8 +521,8 @@ function PageSlotPlaceholder(props: {
     <div
       class={
         props.content.state === "error"
-          ? "flex w-full h-full flex-col items-center justify-center gap-lg bg-[var(--color-surface)] p-xl text-[var(--color-danger)] text-center textsize-md font-700 leading-1"
-          : "relative flex w-full h-full items-center justify-center bg-[var(--color-surface)] text-[var(--color-muted)] text-center " +
+          ? "flex w-full h-full flex-col items-center justify-center gap-lg bg-[var(--color-reader-surface)] p-xl text-[var(--color-danger)] text-center textsize-md font-700 leading-1"
+          : "relative flex w-full h-full items-center justify-center bg-[var(--color-reader-surface)] text-[var(--color-reader-muted)] text-center " +
             (props.content.kind === "end"
               ? "p-xl [direction:ltr] textsize-xl font-700 leading-[1.3] [unicode-bidi:plaintext]"
               : "text-[clamp(88px,25vw,180px)] desktop:text-[clamp(72px,10vw,140px)] font-mono font-850 leading-[1] [font-variant-numeric:tabular-nums]")
@@ -536,7 +536,7 @@ function PageSlotPlaceholder(props: {
             <span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]">
               {props.text}
             </span>
-            <span class="block w-md h-md flex-none box-border animate-spin rounded-full border-4px border-solid ehp-color-spinner" />
+            <span class="block w-md h-md flex-none box-border animate-spin rounded-full border-4px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]" />
           </span>
         </Show>
       }>

@@ -310,6 +310,13 @@ export function manageGalleryInfo(
     tagMenuAction: tagMenuAction?.inplace() ?? null,
   } satisfies ManagedDomElements;
   let selectedTagSource: ManagedDomNode | null = null;
+  const activateTagMenu = (source: ManagedDomNode) => {
+    const stopNavigation = source.listen("click", (event) => {
+      event.preventDefault();
+    }, { once: true });
+    source.click();
+    stopNavigation();
+  };
 
   const handle = {
     /** Normalizes the original cover for GalleryInfoPanel's responsive layout. */
@@ -360,9 +367,9 @@ export function manageGalleryInfo(
       tag: GalleryTagData,
       tagSet: string,
       mode: MyTagMode,
-    ): Promise<void> {
+    ) {
       const response = await addMyTag(tag.name, tagSet, mode);
-      extractMyTagsPageData(response.document, tagSet);
+      return extractMyTagsPageData(response.document, tagSet);
     },
     /** Keeps component tag groups synchronized with original-page tag updates. */
     observeGalleryTagGroups(onChange: (groups: GalleryInfoTagGroup[]) => void) {
@@ -381,12 +388,12 @@ export function manageGalleryInfo(
       action.click();
     },
     /** Removes the selected tag from its stored My Tags collection. */
-    async removeFavoriteTag(tag: GalleryTagData): Promise<void> {
+    async removeFavoriteTag(tag: GalleryTagData) {
       if (!tag.myTag) {
-        return;
+        throw new Error("The tag is not in My Tags.");
       }
       const response = await deleteMyTag(tag.myTag.id, tag.myTag.tagSet);
-      extractMyTagsPageData(response.document, tag.myTag.tagSet);
+      return extractMyTagsPageData(response.document, tag.myTag.tagSet);
     },
     /** Opens E-H's original tag actions and only adapts their presentation. */
     openGalleryTagMenu(
@@ -399,11 +406,11 @@ export function manageGalleryInfo(
       }
 
       // E-H only creates the action links when its original tag anchor is activated.
-      tag.contentSource.click();
+      activateTagMenu(tag.contentSource);
       elems.newTag?.setHidden(false).removeStyles("display");
       const actions = elems.tagMenuAction.all<HTMLAnchorElement>("a");
       if (actions.length === 0) {
-        tag.contentSource.click();
+        activateTagMenu(tag.contentSource);
         elems.newTag?.setHidden(false).removeStyles("display");
         throw new Error("Gallery tag actions could not be opened.");
       }
@@ -423,7 +430,9 @@ export function manageGalleryInfo(
     },
     /** Closes E-H's selected tag without replacing its action DOM. */
     closeGalleryTagMenu(): void {
-      selectedTagSource?.click();
+      if (selectedTagSource) {
+        activateTagMenu(selectedTagSource);
+      }
       elems.newTag?.setHidden(false).removeStyles("display");
       selectedTagSource = null;
     },

@@ -57,7 +57,7 @@ export function EnhanceSearchGrids(props: {
       props.onPageChange(source);
       source.handle.ensureSearchSwipeInput();
       setGestureTarget(source.elems.resultList.Component());
-      source.handle.scrollSearchResultsToTop();
+      source.handle.scrollSearchPageToInput();
     } catch (error) {
       console.error("[ehpeek]", error);
     } finally {

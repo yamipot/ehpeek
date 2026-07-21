@@ -15,6 +15,7 @@ import type {
 import { type GalleryInfoDom, type GalleryInfoTagGroup } from "../../eh";
 import texts from "../../texts.json";
 import { state } from "../../state";
+import { refreshMyTags } from "../Enhance/MyTags";
 import { WelcomeIcon } from "../WelcomeIcon";
 import { DomNode, DomNodes } from "../Widgets/ExternalDom";
 import { Icon } from "../Widgets/Icon";
@@ -136,6 +137,13 @@ export function GalleryInfoPanel(props: {
     }
     source.handle.closeGalleryTagMenu();
     setSelectedTag(null);
+  };
+  const updateTag = (updatedTag: GalleryPanelTagGroup["tags"][number]) => {
+    setTagGroups((groups) => groups.map((group) => ({
+      ...group,
+      tags: group.tags.map((tag) => tag.url === updatedTag.url ? updatedTag : tag),
+    })));
+    setSelectedTag((tag) => tag?.url === updatedTag.url ? updatedTag : tag);
   };
 
   return (
@@ -290,6 +298,7 @@ export function GalleryInfoPanel(props: {
         source={source}
         tag={selectedTag()}
         onClose={closeTagMenu}
+        onTagUpdated={updateTag}
       />
       <Show when={ratingPickerOpen()}>
         <div
@@ -483,7 +492,10 @@ function TouchGalleryTagMenu(props: {
   source: GalleryInfoDom;
   tag: GalleryPanelTagGroup["tags"][number] | null;
   onClose: () => void;
+  onTagUpdated: (tag: GalleryPanelTagGroup["tags"][number]) => void;
 }) {
+  const onClose = untrack(() => props.onClose);
+  const onTagUpdated = untrack(() => props.onTagUpdated);
   const [favoriteDialogOpen, setFavoriteDialogOpen] = createSignal(false);
   const tagSets = state.gallery.myTagSets.reload();
   const [selectedTagSet, setSelectedTagSet] = createSignal(
@@ -518,13 +530,32 @@ function TouchGalleryTagMenu(props: {
 
     setUpdating(true);
     try {
-      if (tag.myTag) {
-        await props.source.handle.removeFavoriteTag(tag);
-      } else {
-        await props.source.handle.submitFavoriteTag(tag, selectedTagSet(), tagMode());
-      }
-      state.gallery.myTagAppearances.clear();
-      window.location.reload();
+      const myTagsPage = tag.myTag
+        ? await props.source.handle.removeFavoriteTag(tag)
+        : await props.source.handle.submitFavoriteTag(tag, selectedTagSet(), tagMode());
+      const updateAppearance = (
+        appearance: typeof myTagsPage.appearances[number] | undefined,
+      ) => onTagUpdated({
+          ...tag,
+          appearance: appearance
+            ? {
+                ...tag.appearance,
+                backgroundColor: appearance.backgroundColor,
+                color: appearance.color,
+              }
+            : { backgroundColor: "", borderColor: "", color: "" },
+          myTag: appearance
+            ? { id: appearance.id, tagSet: appearance.tagSet }
+            : null,
+        });
+      updateAppearance(myTagsPage.appearances.find((item) => item.name === tag.name));
+      setFavoriteDialogOpen(false);
+      onClose();
+      void refreshMyTags(myTagsPage).then((appearances) => {
+        if (appearances) {
+          updateAppearance(appearances.find((item) => item.name === tag.name));
+        }
+      });
     } catch (error) {
       console.error("[ehpeek]", error);
       window.alert(

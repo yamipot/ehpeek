@@ -10,7 +10,7 @@ export default defineConfig({
     mediaVariant("coarse-landscape", "(orientation: landscape) and (pointer: coarse)"),
   ],
   shortcuts: {
-    "ehp-color-reader": "bg-[var(--color-background)] text-[var(--color-text)]",
+    "ehp-color-reader": "bg-[var(--color-reader-background)] text-[var(--color-reader-text)]",
     "ehp-color-spinner": "border-[var(--color-border)] border-t-[var(--color-accent)]",
     "ehp-color-text": "text-[var(--color-text)]",
     "ehp-color-site-accent": "text-[var(--color-site-accent)]",

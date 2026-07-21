@@ -35,8 +35,8 @@ export function manageSearchResults() {
     previousUrl: page.one<HTMLAnchorElement>(".searchnav a[id$='prev'][href]")?.attribute("href") ?? null,
   };
   const elems = {
-    navigationBars: page.all<HTMLElement>(".searchnav").map((source) => source.inplace()),
     resultList: resultSource.inplace(),
+    searchInput: page.one<HTMLInputElement>("#f_search, input[name='f_search']")?.inplace() ?? null,
   };
   const handle = {
     /** Routes the original pagination controls through the active page owner. */
@@ -68,9 +68,13 @@ export function manageSearchResults() {
       }
       window.history.pushState(window.history.state, "", url);
     },
-    /** Returns the viewport to the result page's upper navigation bar. */
-    scrollSearchResultsToTop(): void {
-      elems.navigationBars[0]?.scrollIntoView({ block: "start", behavior: "auto" });
+    /** Returns enhanced Search navigation to its input, or the page top when absent. */
+    scrollSearchPageToInput(): void {
+      if (elems.searchInput) {
+        elems.searchInput.scrollIntoView({ block: "start", behavior: "auto" });
+      } else {
+        window.scrollTo({ top: 0, behavior: "auto" });
+      }
     },
     /** Exposes result loading state without removing the current result list. */
     updateSearchLoading(busy: boolean): void {
