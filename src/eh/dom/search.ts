@@ -390,9 +390,9 @@ export function mutateSearchGrid(): void {
           "align-items": "center",
           "justify-content": "center",
           "box-sizing": "border-box",
-          width: "72px",
-          height: "32px",
-          padding: "0 8px",
+          width: "max(72px, 6em)",
+          height: "max(32px, 2.2em)",
+          padding: "0 0.6em",
         }, "important");
       }
     }

@@ -16,6 +16,10 @@ export function ReaderScrollBar(props: {
   let thumb!: HTMLDivElement;
   const [dragging, setDragging] = createSignal(false);
   let dragOffset = 0;
+  const expanded = () => props.expanded || dragging();
+  const interactionWidth = () => expanded()
+    ? "w-18px coarse:w-24px"
+    : "w-10px coarse:w-12px";
   const position = () => props.totalPages <= 1
     ? 0
     : ((props.currentPage - 1) / (props.totalPages - 1)) * 100;
@@ -39,7 +43,7 @@ export function ReaderScrollBar(props: {
     <div
       ref={track}
       class={
-        "fixed inset-y-0 right-0 z-2 w-lg coarse:w-xl touch-none select-none transition-opacity duration-160 ease-in-out " +
+        `fixed inset-y-0 right-0 z-2 ${interactionWidth()} touch-none select-none transition-[width,opacity] duration-160 ease-in-out ` +
         (props.visible || dragging()
           ? "opacity-100"
           : "opacity-0 pointer-events-none")
@@ -88,14 +92,14 @@ export function ReaderScrollBar(props: {
       <div class="absolute inset-y-0 right-2px w-3px bg-[var(--color-reader-border)]" />
       <div
         ref={thumb}
-        class="absolute right-0 flex w-lg coarse:w-xl h-[120px] coarse:h-[200px] items-center justify-end cursor-grab active:cursor-grabbing"
+        class={`absolute right-0 flex ${interactionWidth()} h-[120px] coarse:h-[200px] items-center justify-end cursor-grab active:cursor-grabbing transition-[width] duration-160`}
         style={{
           top: `${position()}%`,
           transform: `translateY(-${position()}%)`,
         }}
       >
         <span
-          class={`block h-full rounded-l-md bg-[var(--color-reader-scrollbar)] shadow-[0_2px_10px_var(--color-shadow-control)] transition-[width] duration-160 ${props.expanded || dragging() ? "w-18px coarse:w-24px" : "w-10px coarse:w-12px"}`}
+          class={`block h-full rounded-l-md bg-[var(--color-reader-scrollbar)] shadow-[0_2px_10px_var(--color-shadow-control)] transition-[width] duration-160 ${expanded() ? "w-18px coarse:w-24px" : "w-10px coarse:w-12px"}`}
         />
       </div>
     </div>
