@@ -18,6 +18,7 @@ import {
   FavoritesCategorySelect,
   TouchSearchAction,
   TouchSearchCategoryToggle,
+  TouchSearchOptionToggle,
   TouchSearchPanel,
   TouchTopBar,
 } from "../components/TouchUI";
@@ -423,6 +424,16 @@ function injectTouchUI(
         if (searchPanelDom.elems.categoryToggleMount) {
           searchPanelDom.elems.categoryToggleMount.mount(() => (
             <TouchSearchCategoryToggle source={searchPanelDom} />
+          ));
+        }
+        if (searchPanelDom.elems.advancedToggleMount) {
+          searchPanelDom.elems.advancedToggleMount.mount(() => (
+            <TouchSearchOptionToggle option="advancedOptions" source={searchPanelDom} />
+          ));
+        }
+        if (searchPanelDom.elems.fileSearchToggleMount) {
+          searchPanelDom.elems.fileSearchToggleMount.mount(() => (
+            <TouchSearchOptionToggle option="fileSearch" source={searchPanelDom} />
           ));
         }
         searchPanelDom.elems.searchActionMount.mount(() => (

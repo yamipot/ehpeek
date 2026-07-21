@@ -53,10 +53,16 @@ export function manageSearchPanel() {
   const categoryCells = categories?.all<HTMLTableCellElement>("td") ?? [];
   const categoryItems = categories?.all<HTMLElement>("[id^='cat_']") ?? [];
   const optionLinkItems = optionLinks?.all<HTMLAnchorElement>("a") ?? [];
+  const advancedToggle = advancedPanel ? optionLinkItems[0] ?? null : null;
+  const fileSearchToggle = fileSearch ? optionLinkItems[advancedToggle ? 1 : 0] ?? null : null;
+  const advancedToggleMount = advancedToggle ? createAnchor("search-advanced-toggle") : null;
+  const fileSearchToggleMount = fileSearchToggle ? createAnchor("search-file-toggle") : null;
 
   const searchControls = createManagedElement("div");
   const elems = {
     advancedPanel: advancedPanel?.inplace() ?? null,
+    advancedToggle: advancedToggle?.inplace() ?? null,
+    advancedToggleMount,
     categories: categories?.inplace() ?? null,
     categoryCells: categoryCells.map((cell) => cell.inplace()),
     categoryItems: categoryItems.map((item) => item.inplace()),
@@ -65,6 +71,8 @@ export function manageSearchPanel() {
     clearActionMount,
     clearButton: clearButton?.inplace() ?? null,
     fileSearch: fileSearch?.inplace() ?? null,
+    fileSearchToggle: fileSearchToggle?.inplace() ?? null,
+    fileSearchToggleMount,
     form: form.inplace(),
     mount,
     optionLinks: optionLinks?.inplace() ?? null,
@@ -91,6 +99,14 @@ export function manageSearchPanel() {
   if (elems.categories && elems.optionLinks && elems.categoryToggleMount) {
     elems.optionLinks.after(elems.categories);
     elems.optionLinks.prepend(elems.categoryToggleMount);
+  }
+  if (elems.optionLinks && elems.advancedToggle && elems.advancedToggleMount) {
+    elems.advancedToggle.after(elems.advancedToggleMount);
+    elems.advancedToggle.setHidden(true);
+  }
+  if (elems.optionLinks && elems.fileSearchToggle && elems.fileSearchToggleMount) {
+    elems.fileSearchToggle.after(elems.fileSearchToggleMount);
+    elems.fileSearchToggle.setHidden(true);
   }
   elems.fileSearch?.remove();
 
@@ -146,6 +162,12 @@ export function manageSearchPanel() {
       elems.searchInput.setInputValue("");
       elems.searchInput.dispatchInput();
       elems.searchInput.focus();
+    },
+    toggleAdvancedOptions() {
+      elems.advancedToggle?.click();
+    },
+    toggleFileSearch() {
+      elems.fileSearchToggle?.click();
     },
   };
 
