@@ -130,12 +130,29 @@ export function Toolbar(props: {
             type="button"
             class={READER_BUTTON_CLASS}
             onClick={() => {
-              const mode = props.controls.mode === "paged" ? "scroll" : "paged";
+              const mode: ViewMode = props.controls.mode === "scroll"
+                ? "paged"
+                : props.controls.mode === "paged"
+                  ? "double-page"
+                  : "scroll";
               props.callbacks.onControlsChange({ ...props.controls, mode });
-              showControlChange(mode === "paged" ? texts.reader.pagedMode : texts.reader.scrollMode);
+              showControlChange(
+                mode === "paged"
+                  ? texts.reader.pagedMode
+                  : mode === "double-page"
+                    ? texts.reader.doublePageMode
+                    : texts.reader.scrollMode,
+              );
             }}
           >
-            <Icon name={props.controls.mode === "paged" ? "arrows-horizontal" : "arrows-vertical"} size={READER_ICON_SIZE} />
+            <Icon
+              name={props.controls.mode === "paged"
+                ? "arrows-horizontal"
+                : props.controls.mode === "double-page"
+                  ? "pages"
+                  : "arrows-vertical"}
+              size={READER_ICON_SIZE}
+            />
           </button>
           <button
             type="button"
@@ -224,7 +241,7 @@ export function Toolbar(props: {
         }
         hidden={props.controls.mode === "scroll" && !props.open && !props.fullscreenActive}
       >
-        {pageNumberText(props.progress.pageNum, props.progress.totalPages)}
+        {pageNumberText(props.progress.pageNum, props.progress.totalPages, props.controls.mode)}
       </div>
       <Show when={props.fullscreenActive}>
         <div
@@ -393,10 +410,17 @@ function progressFillPercent(progress: PageProgress): number {
   return max > min ? ((value - min) / (max - min)) * 100 : 100;
 }
 
-function pageNumberText(pageNum: number, totalPages: number | undefined): string {
+function pageNumberText(pageNum: number, totalPages: number | undefined, mode: ViewMode): string {
   if (totalPages && pageNum === totalPages + 1) {
     return texts.reader.endPage;
   }
 
-  return totalPages ? `${pageNum} / ${totalPages}` : String(pageNum);
+  if (!totalPages) {
+    return mode === "double-page" ? `${pageNum}–${pageNum + 1}` : String(pageNum);
+  }
+
+  const doublePageEnd = Math.min(totalPages, pageNum + 1);
+  return mode === "double-page" && doublePageEnd > pageNum
+    ? `${pageNum}–${doublePageEnd} / ${totalPages}`
+    : `${pageNum} / ${totalPages}`;
 }

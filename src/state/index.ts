@@ -1,4 +1,4 @@
-export type ViewMode = "scroll" | "paged";
+export type ViewMode = "scroll" | "paged" | "double-page";
 export type ReadDirection = "ltr" | "rtl";
 export type RightTapAction = "previous" | "next";
 export type GalleryTitlePreference = "main" | "sub";

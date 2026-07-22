@@ -28,6 +28,7 @@
   "reader": {
     "more": "More",
     "pagedMode": "Paged mode",
+    "doublePageMode": "Double-page mode",
     "scrollMode": "Scroll mode",
     "rightTapPrevious": "Right side action:\nPrevious page",
     "rightTapNext": "Right side action:\nNext page",

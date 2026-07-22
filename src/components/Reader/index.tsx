@@ -161,6 +161,8 @@ function wireReaderCallbacks(
   let pagedTargetPageNumber: number | null = null;
   let syncToken = 0;
   let closed = false;
+  const horizontalMode = () => state.ctrls.value().mode !== "scroll";
+  const pageTurnStep = () => state.ctrls.value().mode === "double-page" ? 2 : 1;
 
   function requestReaderClose(): void {
     if (closed) {
@@ -244,10 +246,13 @@ function wireReaderCallbacks(
   function maintainLoadQueue(): void {
     const currentPageNum = state.navi.currentPageNum();
     const pageNums = [currentPageNum];
+    if (state.ctrls.value().mode === "double-page") {
+      pageNums.push(currentPageNum + 1);
+    }
     for (let offset = 1; offset <= preloadWindowSize; offset += 1) {
       pageNums.push(currentPageNum + offset * state.navi.direction());
     }
-    session.imageQueue.sync(pageNums.flatMap((pageNum, priority) => {
+    session.imageQueue.sync(Array.from(new Set(pageNums)).flatMap((pageNum, priority) => {
       const target = loadTargetFor(pageNum);
       return target ? [{ key: pageNum, priority, target }] : [];
     }));
@@ -273,8 +278,8 @@ function wireReaderCallbacks(
   }
 
   function turnPageBy(delta: number): void {
-    if (appState.reader.viewMode.value === "paged") {
-      animatePagedStep(delta);
+    if (horizontalMode()) {
+      animatePagedStep(delta * pageTurnStep());
       return;
     }
     setCurrentPageNumber(state.navi.currentPageNum() + delta, true);
@@ -429,7 +434,7 @@ function wireReaderCallbacks(
 
     return {
       onNativeScroll: (): void => {
-        if (state.overlay.image() !== null || appState.reader.viewMode.value === "paged") {
+        if (state.overlay.image() !== null || horizontalMode()) {
           return;
         }
         updateScrollBarActivity();
@@ -462,7 +467,7 @@ function wireReaderCallbacks(
           });
           return;
         }
-        if (appState.reader.viewMode.value !== "paged") {
+        if (!horizontalMode()) {
           return;
         }
         event.preventDefault();
@@ -507,7 +512,10 @@ function wireReaderCallbacks(
       try {
         await viewportActions.loadPageImage(target.pageNum, token, {
           imageUrl,
-          highPriority: target.pageNum === state.navi.currentPageNum(),
+          highPriority: target.pageNum === state.navi.currentPageNum() || (
+            state.ctrls.value().mode === "double-page" &&
+            target.pageNum === state.navi.currentPageNum() + 1
+          ),
           width,
           height,
         });
@@ -634,7 +642,7 @@ function wireReaderCallbacks(
     } | null = null;
     const shouldStartDrag = (event: PointerEvent): boolean =>
       state.overlay.image() !== null ||
-      appState.reader.viewMode.value === "paged" ||
+      horizontalMode() ||
       event.pointerType === "mouse";
     const imageAtPoint = (point: { clientX: number; clientY: number }): ZoomOverlayImage | null => {
       const pageNum = viewportActions.pageNumAtPoint(point);
@@ -741,7 +749,7 @@ function wireReaderCallbacks(
         return;
       }
       viewportActions.cancelDrag();
-      if (appState.reader.viewMode.value !== "paged") {
+      if (!horizontalMode()) {
         viewportActions.moveToTop(viewportActions.scrollTop());
         viewportActions.startVerticalFlingFromDragVelocity(info.velocityY, () => updateCurrentFromScroll());
         updateCurrentFromScroll();

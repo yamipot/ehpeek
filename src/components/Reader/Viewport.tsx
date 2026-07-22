@@ -41,6 +41,7 @@ type ViewportImage = {
 };
 
 type PageSlotKind = "page" | "blank" | "end";
+type DoublePageSide = "left" | "right" | null;
 
 type SlotContent = {
   pageNum: number;
@@ -134,12 +135,13 @@ export function PagesViewport(props: {
   let cachedImageBytes = 0;
 
   const refresh = () => setRevision((value) => value + 1);
+  const horizontalMode = () => props.mode !== "scroll";
   const slotFor = (pageNum: number) => pageSlots.find((slot) => slot.pageNum === pageNum);
   const viewportWidth = () => scrollerApi.viewportWidth();
   const viewportHeight = () => scrollerApi.viewportHeight();
   const scrollTop = () => scrollerApi.scrollTop();
   const visualSlotIndex = (index: number, slotCount: number) =>
-    props.mode === "paged" && props.readDirection === "rtl" ? slotCount - 1 - index : index;
+    horizontalMode() && props.readDirection === "rtl" ? slotCount - 1 - index : index;
   const applySlotSize = (slot: PageSlot) => {
     const frameWidth = Math.max(1, viewportWidth());
     slot.frameWidth = frameWidth;
@@ -159,7 +161,7 @@ export function PagesViewport(props: {
   };
   const pageOffset = (pageNum: number) => {
     const elements = slotFor(pageNum)?.elements;
-    return elements ? scrollerApi.slotOffset(elements, props.mode) : null;
+    return elements ? scrollerApi.slotOffset(elements, props.mode, props.readDirection) : null;
   };
   const verticalScrollBoundsForElements = (
     firstElements: SlotElements | null | undefined,
@@ -224,7 +226,7 @@ export function PagesViewport(props: {
       return false;
     }
 
-    if (props.mode === "paged") {
+    if (horizontalMode()) {
       horizontalAnimator.scrollTo(scroller, scrollerApi.scrollLeft() + delta, motion, onComplete);
     } else {
       moveToTop(scrollTop() + delta);
@@ -337,7 +339,7 @@ export function PagesViewport(props: {
     isDragging: gestureDragging,
     beginDrag(): void {
       stopMotion();
-      dragStartPosition = props.mode === "paged" ? scrollerApi.scrollLeft() : scrollTop();
+      dragStartPosition = horizontalMode() ? scrollerApi.scrollLeft() : scrollTop();
     },
     cancelDrag: () => {
       dragStartPosition = null;
@@ -347,7 +349,7 @@ export function PagesViewport(props: {
         return false;
       }
 
-      if (props.mode === "paged") {
+      if (horizontalMode()) {
         scrollerApi.moveToLeft(dragStartPosition - delta.dx);
       } else {
         moveToTop(dragStartPosition - delta.dy);
@@ -481,7 +483,8 @@ export function PagesViewport(props: {
       class={
         "w-full h-full overflow-auto overscroll-contain scroll-auto touch-pan-y cursor-grab scrollbar-hidden " +
         "[&[data-dragging=true]]:(cursor-grabbing select-none) " +
-        "[#ehpeek-reader[data-view-mode=paged]_&]:(overflow-hidden touch-none select-none)"
+        "[#ehpeek-reader[data-view-mode=paged]_&]:(overflow-hidden touch-none select-none) " +
+        "[#ehpeek-reader[data-view-mode=double-page]_&]:(overflow-hidden touch-none select-none)"
       }
       tabIndex={-1}
       onScroll={() => props.callbacks.onNativeScroll()}
@@ -490,9 +493,15 @@ export function PagesViewport(props: {
         props.callbacks.onWheel(delta, event);
       }}
     >
-      <main class="ehpeek-reader-page-strip flex flex-col w-full min-h-full py-56px px-0 pb-72px [#ehpeek-reader[data-view-mode=paged]_&]:(flex-row w-auto h-full min-h-0 p-0)">
+      <main class="ehpeek-reader-page-strip flex flex-col w-full min-h-full py-56px px-0 pb-72px [#ehpeek-reader[data-view-mode=paged]_&]:(flex-row w-auto h-full min-h-0 p-0) [#ehpeek-reader[data-view-mode=double-page]_&]:(flex-row w-auto h-full min-h-0 p-0)">
         <For each={slots()}>{(slot) => (
           <PageSlotView
+            doublePageSide={doublePageSide(
+              slot.pageNum,
+              props.window.currentPageNum,
+              props.mode,
+              props.readDirection,
+            )}
             slot={slot}
             revision={revision()}
             visualIndex={visualSlotIndex(slot.index, slots().length)}
@@ -505,6 +514,7 @@ export function PagesViewport(props: {
 }
 
 function PageSlotView(props: {
+  doublePageSide: DoublePageSide;
   slot: PageSlot;
   revision: number;
   visualIndex: number;
@@ -544,7 +554,7 @@ function PageSlotView(props: {
   return (
     <section
       ref={node}
-      class="ehpeek-page flex w-full h-[var(--reader-page-height)] items-start justify-center pb-sm [#ehpeek-reader[data-view-mode=paged]_&]:(flex-[0_0_100%] w-full h-full items-center p-0)"
+      class="ehpeek-page flex w-full h-[var(--reader-page-height)] items-start justify-center pb-sm [#ehpeek-reader[data-view-mode=paged]_&]:(flex-[0_0_100%] w-full h-full items-center p-0) [#ehpeek-reader[data-view-mode=double-page]_&]:(h-full items-center p-0)"
       data-ehpeek-page-num={String(props.slot.pageNum)}
       style={slotStyle()}
     >
@@ -553,7 +563,7 @@ function PageSlotView(props: {
           frame = element;
           props.slot.elements = { node, frame };
         }}
-        class="flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [#ehpeek-reader[data-view-mode=paged]_&]:(w-full h-full)"
+        class={`flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [#ehpeek-reader[data-view-mode=paged]_&]:(w-full h-full) [#ehpeek-reader[data-view-mode=double-page]_&]:(w-full h-full) ${props.doublePageSide === "left" ? "[&>img]:object-right" : props.doublePageSide === "right" ? "[&>img]:object-left" : ""}`}
       >
         <Show
           when={image()}
@@ -565,6 +575,23 @@ function PageSlotView(props: {
       </div>
     </section>
   );
+}
+
+function doublePageSide(
+  pageNum: number,
+  currentPageNum: number,
+  mode: ViewMode,
+  readDirection: ReadDirection,
+): DoublePageSide {
+  if (mode !== "double-page") {
+    return null;
+  }
+
+  const firstInPair = Math.abs(pageNum - currentPageNum) % 2 === 0;
+  if (readDirection === "rtl") {
+    return firstInPair ? "right" : "left";
+  }
+  return firstInPair ? "left" : "right";
 }
 
 function PageSlotPlaceholder(props: {
@@ -622,7 +649,7 @@ function PageSlotPlaceholder(props: {
 function pageImageDom(pageNum: number, slotImage: ViewportImage): HTMLImageElement {
   const image = document.createElement("img");
 
-  image.className = "block w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] object-contain select-none [-webkit-user-drag:none] [#ehpeek-reader[data-view-mode=paged]_&]:(w-full h-full)";
+  image.className = "block w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] object-contain select-none [-webkit-user-drag:none] [#ehpeek-reader[data-view-mode=paged]_&]:(w-full h-full) [#ehpeek-reader[data-view-mode=double-page]_&]:(w-full h-full)";
   image.alt = `Page ${pageNum}`;
   image.decoding = "async";
   image.loading = "eager";
@@ -694,10 +721,13 @@ function createPagesScroller(element: HTMLElement) {
       return element.scrollTop + elementsRect.top - scrollerRect.top;
     },
 
-    slotOffset(elements: SlotElements, mode: ViewMode): number {
+    slotOffset(elements: SlotElements, mode: ViewMode, readDirection: ReadDirection): number {
       const pageRect = elements.node.getBoundingClientRect();
       const scrollerRect = element.getBoundingClientRect();
-      return mode === "paged" ? pageRect.left - scrollerRect.left : pageRect.top - scrollerRect.top;
+      if (mode === "double-page" && readDirection === "rtl") {
+        return pageRect.right - scrollerRect.right;
+      }
+      return mode !== "scroll" ? pageRect.left - scrollerRect.left : pageRect.top - scrollerRect.top;
     },
 
     slotContainsViewportTarget(elements: SlotElements): boolean {
