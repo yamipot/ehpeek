@@ -27,6 +27,10 @@
   },
   "reader": {
     "more": "More",
+    "adjustScrollViewport": "Adjust Scroll viewport width",
+    "resizeScrollViewport": "Resize Scroll viewport",
+    "fit": "Fit",
+    "applyGlobally": "Set Default",
     "pagedMode": "Paged mode",
     "doublePageMode": "Double-page mode",
     "scrollMode": "Scroll mode",

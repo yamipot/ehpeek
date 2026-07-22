@@ -32,6 +32,10 @@ export function ProgressBar(props: {
 
   createEffect(() => {
     const direction = props.direction ?? "ltr";
+    input.min = String(props.min);
+    input.max = String(Math.max(1, props.max ?? props.min));
+    input.step = String(props.step);
+    input.dir = direction;
     input.style.setProperty("--progress-bar-track-direction", direction === "rtl" ? "to left" : "to right");
     input.style.setProperty("--progress-bar-fill", `${Math.min(100, Math.max(0, props.fillPercent ?? 0))}%`);
 
@@ -46,6 +50,9 @@ export function ProgressBar(props: {
     <input
       ref={(element) => {
         input = element;
+        element.min = String(props.min);
+        element.max = String(Math.max(1, props.max ?? props.min));
+        element.step = String(props.step);
         element.value = String(props.value ?? props.min);
       }}
       type="range"

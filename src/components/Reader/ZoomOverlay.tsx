@@ -21,6 +21,10 @@ type ZoomPinchMove = ZoomPinchStart & {
   scale: number;
 };
 
+type ZoomReset = ZoomPinchStart & {
+  scale: number;
+};
+
 type ZoomDragMove = {
   dx: number;
   dy: number;
@@ -35,7 +39,7 @@ export type ZoomOverlayActions = {
   moveDrag: (move: ZoomDragMove) => void;
   movePinch: (pinch: ZoomPinchMove) => void;
   moveWheel: (wheel: ZoomWheelMove) => void;
-  reset: (pinch: ZoomPinchStart) => void;
+  reset: (reset: ZoomReset) => void;
   startDrag: () => void;
   startPinch: (pinch: ZoomPinchStart) => void;
 };
@@ -49,6 +53,9 @@ export function ZoomOverlay(props: {
   let element!: HTMLDivElement;
   let scale = 1;
   let requestedScale = 1;
+  let closeScale = CLOSE_SCALE;
+  let minScale = MIN_SCALE;
+  let maxScale = MAX_SCALE;
   let offsetX = 0;
   let offsetY = 0;
   let pinchStartScale = 1;
@@ -70,12 +77,15 @@ export function ZoomOverlay(props: {
     pinchStartCenterY = pinch.centerY;
   };
   const actions: ZoomOverlayActions = {
-    reset(pinch): void {
-      scale = 1;
-      requestedScale = 1;
+    reset(reset): void {
+      scale = Math.max(0.01, reset.scale);
+      requestedScale = scale;
+      closeScale = scale * CLOSE_SCALE;
+      minScale = Math.min(MIN_SCALE, scale);
+      maxScale = Math.max(MAX_SCALE, scale * MAX_SCALE);
       offsetX = 0;
       offsetY = 0;
-      startPinch(pinch);
+      startPinch(reset);
       renderTransform();
     },
     startPinch,
@@ -85,7 +95,7 @@ export function ZoomOverlay(props: {
       }
 
       requestedScale = pinchStartScale * pinch.scale;
-      scale = clamp(requestedScale, MIN_SCALE, MAX_SCALE);
+      scale = clamp(requestedScale, minScale, maxScale);
 
       const rect = element.getBoundingClientRect();
       const viewportCenterX = rect.left + rect.width / 2;
@@ -102,8 +112,8 @@ export function ZoomOverlay(props: {
 
       const nextScale = clamp(
         scale * Math.exp(-clamp(wheel.delta, -100, 100) * 0.0025),
-        MIN_SCALE,
-        MAX_SCALE,
+        minScale,
+        maxScale,
       );
       if (nextScale === scale) {
         return;
@@ -120,7 +130,7 @@ export function ZoomOverlay(props: {
       renderTransform();
     },
     endPinch(): void {
-      if (requestedScale <= CLOSE_SCALE) {
+      if (requestedScale <= closeScale) {
         props.onClose();
         return;
       }

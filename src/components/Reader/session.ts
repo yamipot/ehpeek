@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
-import { state as appState } from "../../state";
+import { state as appState, type ReaderScrollWidthScale } from "../../state";
 import { clamp } from "../../utils";
 import type { ReaderControls, ReaderDownloadInfo } from "./Toolbar";
 import type { PagesViewportWindowOptions } from "./Viewport";
@@ -47,10 +47,13 @@ export class ReaderSession {
     const [currentPageNum, setCurrentPageNum] = createSignal(initialPageNumber(options));
     const [direction, setDirection] = createSignal<Direction>(1);
     const [downloadInfo, setDownloadInfo] = createSignal<ReaderDownloadInfo | null>(null);
-    const [maxProgressPageNum, setMaxProgressPageNum] = createSignal(1);
+    const [maxProgressPageNum, setMaxProgressPageNum] = createSignal(initialMaxProgressPageNumber(options));
     const [progressInputActive, setProgressInputActive] = createSignal(false);
     const [scrollBarVisible, setScrollBarVisible] = createSignal(false);
     const [scrollBarExpanded, setScrollBarExpanded] = createSignal(false);
+    const [scrollViewportAdjusting, setScrollViewportAdjusting] = createSignal(false);
+    const [scrollViewportWidthScale, setScrollViewportWidthScale] = createSignal<ReaderScrollWidthScale>(null);
+    const [readerViewportWidth, setReaderViewportWidth] = createSignal(Math.max(1, window.innerWidth));
 
     this.state = {
       navi: {
@@ -81,6 +84,29 @@ export class ReaderSession {
         updateExpanded: setScrollBarExpanded,
         updateVisible: setScrollBarVisible,
         visible: scrollBarVisible,
+      },
+      scrollViewport: {
+        adjusting: scrollViewportAdjusting,
+        scaleMode: () => scrollViewportWidthScale() === null
+          ? "fit" as const
+          : scrollViewportWidthScale() === "one-to-one"
+            ? "one-to-one" as const
+            : "custom" as const,
+        scalePercent: () => {
+          const imageWidth = downloadInfo()?.imageWidth;
+          if (!imageWidth) {
+            return null;
+          }
+          const widthScale = scrollViewportWidthScale();
+          return widthScale === "one-to-one"
+            ? 100
+            : (widthScale ?? 1) * readerViewportWidth() / imageWidth * 100;
+        },
+        setAdjusting: setScrollViewportAdjusting,
+        setViewportWidth: setReaderViewportWidth,
+        setWidthScale: setScrollViewportWidthScale,
+        viewportWidth: readerViewportWidth,
+        widthScale: scrollViewportWidthScale,
       },
       overlay: { image: zoomImage, update: setZoomImage },
     };
@@ -149,6 +175,10 @@ function initialViewportWindow(options: ReaderOptions): PagesViewportWindowOptio
 function initialPageNumber(options: ReaderOptions): number {
   const totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : Number.MAX_SAFE_INTEGER;
   return clamp(Math.round(options.initialPageNum), 1, totalPages);
+}
+
+function initialMaxProgressPageNumber(options: ReaderOptions): number {
+  return options.totalPages && options.totalPages > 0 ? options.totalPages + 1 : 1;
 }
 
 

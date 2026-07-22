@@ -23,7 +23,8 @@ export type IconName =
   | "refresh"
   | "search"
   | "settings"
-  | "star";
+  | "star"
+  | "viewport";
 
 export function Icon(props: {
   filled?: boolean;
@@ -151,5 +152,8 @@ const ICON_DEFINITIONS: Record<IconName, IconDefinition> = {
   star: {
     fillable: true,
     paths: ["m12 2.75 2.85 5.77 6.37.93-4.61 4.49 1.09 6.34L12 17.24 6.3 20.23l1.09-6.34-4.61-4.49 6.37-.93Z"],
+  },
+  viewport: {
+    paths: ["M8 4H4v4", "M16 4h4v4", "M20 16v4h-4", "M8 20H4v-4", "M8 12h8"],
   },
 };

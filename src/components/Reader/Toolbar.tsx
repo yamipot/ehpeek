@@ -19,7 +19,7 @@ export type PageProgress = {
   keepInputValue?: boolean;
 };
 
-const READER_BUTTON_CLASS = [
+export const READER_BUTTON_CLASS = [
   "inline-flex min-w-48px h-48px items-center justify-center px-md py-0 rounded-md coarse:(min-w-64px h-64px px-lg rounded-lg)",
   "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:(opacity-40 cursor-default)",
 ].join(" ");
@@ -38,6 +38,7 @@ const DOWNLOAD_OPTION_CLASS = [
 export type ReaderDownloadInfo = {
   currentFileName: string;
   currentImageUrl: string;
+  imageWidth: number | null;
   originalImageUrl: string | null;
   pageNum: number;
 };
@@ -50,6 +51,7 @@ export type ToolbarCallbacks = {
   onProgressCommit: (value: number) => void;
   onProgressInput: (value: number) => void;
   onProgressPointerDown: (event: PointerEvent) => void;
+  onViewportAdjustClick: () => void;
 };
 
 export function Toolbar(props: {
@@ -213,6 +215,16 @@ export function Toolbar(props: {
                 }}
               >
                 <Icon name={props.controls.readDirection === "rtl" ? "arrow-left" : "arrow-right"} size={READER_ICON_SIZE} />
+              </button>
+              <button
+                type="button"
+                class={READER_BUTTON_CLASS}
+                aria-label={texts.reader.adjustScrollViewport}
+                title={texts.reader.adjustScrollViewport}
+                disabled={props.controls.mode !== "scroll"}
+                onClick={() => props.callbacks.onViewportAdjustClick()}
+              >
+                <Icon name="viewport" size={READER_ICON_SIZE} />
               </button>
               <button
                 type="button"

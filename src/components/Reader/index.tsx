@@ -2,7 +2,10 @@ import { createEffect, onCleanup, onMount, Show, untrack } from "solid-js";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
 import texts from "../../texts.json";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
-import { state as appState } from "../../state";
+import {
+  normalizeReaderScrollViewportWidth,
+  state as appState,
+} from "../../state";
 import {
   clamp,
   normalizedAspectRatio,
@@ -25,6 +28,7 @@ import {
 import { ZoomOverlay, type ZoomOverlayActions, type ZoomOverlayImage } from "./ZoomOverlay";
 import { ReaderSession, type ReaderLoadTarget, type ReaderOptions } from "./session";
 import { ReaderScrollBar } from "./ScrollBar";
+import { ViewportCanvas, type ViewportCanvasCallbacks } from "./ViewportCanvas";
 import readerCss from "./index.css";
 
 registerGlobalStyle("ehpeek-reader-style", readerCss);
@@ -100,33 +104,43 @@ export function Reader(props: {
   return (
     <div
       id={VIEWER_ID}
-      class="fixed inset-0 z-reader ehp-color-reader font-sans textsize-sm leading-[1.4]"
+      class="fixed inset-0 z-reader overflow-hidden ehp-color-reader font-sans textsize-sm leading-[1.4]"
       data-read-direction={readerState.ctrls.value().readDirection}
       data-view-mode={readerState.ctrls.value().mode}
     >
-      <header class="contents">
-        <Toolbar
-          callbacks={readerCallbacks.toolbar}
-          controls={readerState.ctrls.value()}
-          downloadInfo={readerState.navi.downloadInfo()}
-          fullscreenActive={props.fullscreenActive}
-          open={readerState.toolbar.open()}
-          progress={{
-            pageNum: readerState.navi.currentPageNum(),
-            totalPages: options.totalPages,
-            maxProgressPageNum: readerState.navi.maxProgressPageNum(),
-            keepInputValue: readerState.navi.progressInputActive(),
-          }}
+      <Show when={!readerState.scrollViewport.adjusting()}>
+        <header class="contents">
+          <Toolbar
+            callbacks={readerCallbacks.toolbar}
+            controls={readerState.ctrls.value()}
+            downloadInfo={readerState.navi.downloadInfo()}
+            fullscreenActive={props.fullscreenActive}
+            open={readerState.toolbar.open()}
+            progress={{
+              pageNum: readerState.navi.currentPageNum(),
+              totalPages: options.totalPages,
+              maxProgressPageNum: readerState.navi.maxProgressPageNum(),
+              keepInputValue: readerState.navi.progressInputActive(),
+            }}
+          />
+        </header>
+      </Show>
+      <ViewportCanvas
+        adjusting={readerState.scrollViewport.adjusting()}
+        callbacks={readerCallbacks.viewportCanvas}
+        scaleMode={readerState.scrollViewport.scaleMode()}
+        scalePercent={readerState.scrollViewport.scalePercent()}
+      >
+        <PagesViewport
+          actionsRef={readerCallbacks.viewportActionsRef}
+          callbacks={readerCallbacks.viewport}
+          decodedImageCacheLimit={options.decodedImageCacheLimit}
+          mode={readerState.ctrls.value().mode}
+          readDirection={readerState.ctrls.value().readDirection}
+          scrollWidthScale={readerState.scrollViewport.widthScale()}
+          window={readerState.navi.viewportWindow()}
         />
-      </header>
-      <PagesViewport
-        actionsRef={readerCallbacks.viewportActionsRef}
-        callbacks={readerCallbacks.viewport}
-        decodedImageCacheLimit={options.decodedImageCacheLimit}
-        mode={readerState.ctrls.value().mode}
-        readDirection={readerState.ctrls.value().readDirection}
-        window={readerState.navi.viewportWindow()}
-      />
+      </ViewportCanvas>
       <Show when={readerState.ctrls.value().mode === "scroll" && totalPages > 1}>
         <ReaderScrollBar
           callbacks={readerCallbacks.toolbar}
@@ -161,8 +175,19 @@ function wireReaderCallbacks(
   let pagedTargetPageNumber: number | null = null;
   let syncToken = 0;
   let closed = false;
+  let pendingInitialScrollWidthScale = untrack(() => appState.reader.scrollWidthScale.reload());
   const horizontalMode = () => state.ctrls.value().mode !== "scroll";
   const pageTurnStep = () => state.ctrls.value().mode === "double-page" ? 2 : 1;
+  const updateReaderViewportWidth = () => state.scrollViewport.setViewportWidth(Math.max(1, window.innerWidth));
+
+  createEffect(() => {
+    if (!state.navi.downloadInfo()?.imageWidth || pendingInitialScrollWidthScale === null) {
+      return;
+    }
+    const initialWidthScale = pendingInitialScrollWidthScale;
+    pendingInitialScrollWidthScale = null;
+    state.scrollViewport.setWidthScale(initialWidthScale);
+  });
 
   function requestReaderClose(): void {
     if (closed) {
@@ -354,6 +379,7 @@ function wireReaderCallbacks(
     state.navi.setDownloadInfo(image && isRealPageNum(pageNum) ? {
       currentFileName: displayedImageFileName(options.galleryId, pageNum, image.imageUrl),
       currentImageUrl: image.imageUrl,
+      imageWidth: viewportActions.pageImageWidth(pageNum) ?? image.width,
       originalImageUrl: image.originalImageUrl,
       pageNum,
     } : null);
@@ -397,6 +423,7 @@ function wireReaderCallbacks(
 
   const gesture = wireGesture();
   const viewport = wireViewport();
+  const scrollViewport = wireScrollViewport();
   wireImageQueue();
   const toolbar = wireToolbar();
 
@@ -408,21 +435,65 @@ function wireReaderCallbacks(
       zoomOverlay = actions;
     },
     init: () => {
-
       document.addEventListener("keydown", onKeydown, true);
+      window.addEventListener("resize", updateReaderViewportWidth);
       viewportActions.focus();
       updatePageNumber();
       syncAfterPageChange({ scrollIntoView: true });
     },
     cleanup: () => {
       document.removeEventListener("keydown", onKeydown, true);
+      window.removeEventListener("resize", updateReaderViewportWidth);
     },
     realignCurrentPage: () => {
       scrollToCurrentPage();
     },
     toolbar,
     viewport,
+    viewportCanvas: scrollViewport.callbacks,
   };
+
+  function wireScrollViewport(): {
+    callbacks: ViewportCanvasCallbacks;
+    open: () => void;
+  } {
+    let adjustmentStartWidthScale = state.scrollViewport.widthScale();
+    const updateImageScale = (scale: number | null): void => {
+      pendingInitialScrollWidthScale = null;
+      if (scale === null) {
+        state.scrollViewport.setWidthScale(null);
+        return;
+      }
+      const imageWidth = state.navi.downloadInfo()?.imageWidth;
+      if (imageWidth) {
+        state.scrollViewport.setWidthScale(normalizeReaderScrollViewportWidth(
+          imageWidth * scale / state.scrollViewport.viewportWidth(),
+        ));
+      }
+    };
+
+    return {
+      open: () => {
+        pendingInitialScrollWidthScale = null;
+        adjustmentStartWidthScale = state.scrollViewport.widthScale();
+        state.scrollViewport.setAdjusting(true);
+      },
+      callbacks: {
+        onApply: () => state.scrollViewport.setAdjusting(false),
+        onApplyAll: () => {
+          appState.reader.scrollWidthScale.set(state.scrollViewport.widthScale());
+          state.scrollViewport.setAdjusting(false);
+        },
+        onClose: () => {
+          state.scrollViewport.setWidthScale(adjustmentStartWidthScale);
+          state.scrollViewport.setAdjusting(false);
+        },
+        onFit: () => updateImageScale(null),
+        onOneToOne: () => state.scrollViewport.setWidthScale("one-to-one"),
+        onScaleChange: updateImageScale,
+      },
+    };
+  }
 
   function wireViewport(): PagesViewportCallbacks {
     let scrollFrame: number | null = null;
@@ -467,6 +538,9 @@ function wireReaderCallbacks(
     return {
       onNativeScroll: (): void => {
         if (state.overlay.image() !== null || horizontalMode()) {
+          return;
+        }
+        if (state.scrollViewport.adjusting()) {
           return;
         }
         updateScrollBarActivity();
@@ -594,6 +668,9 @@ function wireReaderCallbacks(
       appState.reader.readDirection.set(controls.readDirection);
       appState.reader.rightTapAction.set(controls.rightTapAction);
       state.ctrls.update(controls);
+      if (controls.mode !== "scroll") {
+        state.scrollViewport.setAdjusting(false);
+      }
 
       if (controls.mode !== previous.mode) {
         viewportActions.stopMotion();
@@ -634,6 +711,7 @@ function wireReaderCallbacks(
         callbacks.onOpenOriginalPage(page);
       }
     };
+    toolbar.onViewportAdjustClick = scrollViewport.open;
     toolbar.onProgressPointerDown = (event: PointerEvent): void => {
       state.navi.setProgressInputActive(true);
       cancelProgressNavigation();
@@ -705,8 +783,9 @@ function wireReaderCallbacks(
       }
       viewportActions.stopMotion();
       viewportActions.cancelDrag();
+      const zoomScale = viewportActions.pageZoomScale(image.pageNum);
       state.overlay.update(image);
-      zoomOverlay.reset({ centerX: point.clientX, centerY: point.clientY });
+      zoomOverlay.reset({ centerX: point.clientX, centerY: point.clientY, scale: zoomScale });
       zoomOverlay.movePinch({ centerX: point.clientX, centerY: point.clientY, scale: 2 });
       zoomOverlay.endPinch();
       return true;
@@ -819,8 +898,9 @@ function wireReaderCallbacks(
       if (!image) {
         return false;
       }
+      const zoomScale = viewportActions.pageZoomScale(image.pageNum);
       state.overlay.update(image);
-      zoomOverlay.reset({ centerX: info.clientX, centerY: info.clientY });
+      zoomOverlay.reset({ centerX: info.clientX, centerY: info.clientY, scale: zoomScale });
       return true;
     };
     gesture.onPinchMove = (info: { clientX: number; clientY: number; scale: number }) => zoomOverlay.movePinch({
