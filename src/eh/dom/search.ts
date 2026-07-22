@@ -1,5 +1,5 @@
 import texts from "../../texts.json";
-import { extractPageType, type PageType } from "../url";
+import { extractPageType, galleryIdentityFromUrl, type PageType } from "../url";
 import { requestPage } from "../request";
 import type {
   ReadHistoryPageItem,
@@ -28,7 +28,22 @@ const TOUCH_SEARCH_RESULTS_CONTENT_CLASS_NAME = "box-border !min-w-0 !w-full !ma
 const TOUCH_SEARCH_RESULTS_WRAPPER_CLASS_NAME =
   "ehpeek-touch-search-results box-border !min-w-0 !w-full !max-w-full";
 const TOUCH_SEARCH_RESULT_LIST_CLASS_NAME = "!min-w-0 !w-full !max-w-full";
-
+const SEARCH_HISTORY_LABEL_CLASSES = [
+  "before:content-[attr(data-ehpeek-history-label)]",
+  "before:inline-flex",
+  "before:items-center",
+  "before:mr-xs",
+  "before:px-xs",
+  "before:rounded-xs",
+  "before:border",
+  "before:border-[var(--color-site-accent)]",
+  "before:bg-transparent",
+  "before:text-[var(--color-site-accent)]",
+  "before:font-700",
+  "before:text-[length:var(--font-size-sm)]",
+  "before:leading-[1.3]",
+  "before:align-middle",
+];
 type EhPeekGridRow = {
   contentCell: ManagedDomNode<HTMLElement>;
   detail: ManagedDomNode<HTMLElement>;
@@ -59,7 +74,7 @@ type ReadHistoryGridsOptions = {
 type ManagedReadHistoryGrids = {
   elems: { resultList: ManagedDomNode<HTMLTableElement> };
   handle: {
-    listenForItemLongPress: (callback: (item: ReadHistoryPageItem) => void) => () => void;
+    listenForItemRemoval: (callback: (item: ReadHistoryPageItem) => void) => () => void;
     updateItems: (items: ReadHistoryPageItem[]) => void;
   };
 };
@@ -108,6 +123,15 @@ function createReadHistoryGridRow(
   historyStatus.setTextUnlessInput(
     `${progress} · ${updatedAt.getFullYear()}-${pad(updatedAt.getMonth() + 1)}-${pad(updatedAt.getDate())} ${pad(updatedAt.getHours())}:${pad(updatedAt.getMinutes())}`,
   );
+  const removeButton = createManagedElement("button")
+    .setAttributes({ type: "button", "data-ehpeek-remove-history": "true" })
+    .replaceClasses(
+      "relative z-2 self-end min-h-lg py-xs px-md mr-sm mb-sm rounded-md border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] ehp-color-site-text font-inherit textsize-md font-700 text-center cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]",
+    );
+  removeButton.setTextUnlessInput(texts.button.removeHistory);
+  const historyActions = createManagedElement("div")
+    .replaceClasses("flex flex-col items-start gap-xs")
+    .append(historyStatus, removeButton);
   const titleText = titlePreference === "sub"
     ? info?.titleSub || info?.title
     : info?.title || info?.titleSub;
@@ -159,7 +183,7 @@ function createReadHistoryGridRow(
     tagCells: [],
     tagElements: [],
     tagTables: [],
-    tags: [historyStatus],
+    tags: [historyActions],
     thumbnail,
     thumbnailCell,
     title,
@@ -198,8 +222,8 @@ export function manageReadHistoryPage(
   const handle = {
     /** Replaces the visible History rows without navigating away from the current document. */
     updateReadHistoryItems: grids.handle.updateItems,
-    /** Reports a stationary touch hold without exposing the managed History rows. */
-    listenForReadHistoryLongPress: grids.handle.listenForItemLongPress,
+    /** Reports explicit and long-press removal requests without exposing History rows. */
+    listenForReadHistoryRemoval: grids.handle.listenForItemRemoval,
     /** Keeps navigation anchored to the corresponding edge after an in-page page change. */
     scrollReadHistoryPage(position: "bottom" | "top"): void {
       const target = position === "bottom" ? navigationBottomMount : navigationTopMount;
@@ -408,49 +432,36 @@ function manageReadHistoryGrids(
     elems: { resultList },
     handle: {
       updateItems,
-      listenForItemLongPress(callback): () => void {
-        let suppressClick = false;
-        let suppressClickTimer: number | null = null;
+      listenForItemRemoval(callback): () => void {
         const itemForTarget = (target: EventTarget | null) => {
           if (!(target instanceof Node)) {
             return null;
           }
           return visibleRows.find(({ row }) => row.row.contains(target))?.item ?? null;
         };
-        const onContextMenu = (event: PointerEvent) => {
+        const stopLongPress = resultList.listenLongPress((event) => {
           const item = itemForTarget(event.target);
-          if (!event.pointerType || event.pointerType === "mouse" || item === null) {
+          if (item) {
+            callback(item);
+          }
+        }, (event) => itemForTarget(event.target) !== null);
+        const stopButton = resultList.listen("click", (event) => {
+          const button = event.target instanceof Element
+            ? DomNode.from(event.target).closest<HTMLButtonElement>(
+                "[data-ehpeek-remove-history]",
+              )
+            : null;
+          const item = button ? itemForTarget(event.target) : null;
+          if (!item) {
             return;
           }
           event.preventDefault();
-          suppressClick = true;
+          event.stopPropagation();
           callback(item);
-          suppressClickTimer = window.setTimeout(() => {
-            suppressClick = false;
-            suppressClickTimer = null;
-          }, 1_000);
-        };
-        const onClick = (event: MouseEvent) => {
-          if (!suppressClick) {
-            return;
-          }
-          suppressClick = false;
-          if (suppressClickTimer !== null) {
-            window.clearTimeout(suppressClickTimer);
-            suppressClickTimer = null;
-          }
-          event.preventDefault();
-          event.stopImmediatePropagation();
-        };
-        const cleanups = [
-          resultList.listen("contextmenu", onContextMenu),
-          resultList.listen("click", onClick, true),
-        ];
+        });
         return () => {
-          if (suppressClickTimer !== null) {
-            window.clearTimeout(suppressClickTimer);
-          }
-          cleanups.forEach((cleanup) => cleanup());
+          stopLongPress();
+          stopButton();
         };
       },
     },
@@ -710,6 +721,52 @@ function manageEhPeekGrid(
           galleryLink.click();
         }
       });
+  }
+}
+
+/** Tints Search result surfaces according to their stored reading progress across display modes. */
+export function mutateSearchReadHistoryAppearance(
+  readPageForGallery: (galleryId: number, token: string) => number | null,
+): void {
+  const resultList = DomNode.from(document).one<HTMLElement>(".itg");
+  if (!resultList) {
+    return;
+  }
+
+  const items = (resultList.one<HTMLElement>(":scope > tbody") ?? resultList).children();
+  for (const item of items) {
+    const galleryLinks = item.all<HTMLAnchorElement>('a[href*="/g/"]');
+    const galleryLink = galleryLinks.find((link) => Boolean(link.text())) ?? galleryLinks[0];
+    if (!galleryLink) {
+      continue;
+    }
+    const identity = galleryIdentityFromUrl(galleryLink.attribute("href") ?? "");
+    if (!identity) {
+      continue;
+    }
+
+    const pageNum = readPageForGallery(identity.galleryId, identity.token);
+    if (pageNum === null) {
+      continue;
+    }
+
+    const title = item.one<HTMLElement>(".glink") ?? galleryLink;
+    title
+      .inplace()
+      .setAttributes({
+        "data-ehpeek-history-label": pageNum > 0
+          ? texts.history.readingLabel
+          : texts.history.visitedLabel,
+      })
+      .addClasses(...SEARCH_HISTORY_LABEL_CLASSES);
+    const opacity = pageNum > 0 ? 12 : 6;
+    const tint = `inset 0 0 0 9999px color-mix(in srgb, var(--color-site-accent) ${opacity}%, transparent)`;
+    const surfaces = item.matches("tr")
+      ? item.children().filter((surface) => surface.matches("td"))
+      : [item];
+    for (const surface of surfaces) {
+      surface.inplace().styles({ "box-shadow": tint }, "important");
+    }
   }
 }
 

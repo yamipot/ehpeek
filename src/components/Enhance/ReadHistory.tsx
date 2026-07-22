@@ -92,9 +92,9 @@ export function ReadHistoryPage(props: {
       }
     };
     window.addEventListener("popstate", syncFromHistory);
-    const stopLongPress = props.source.handle.listenForReadHistoryLongPress(removeHistoryItem);
+    const stopRemoval = props.source.handle.listenForReadHistoryRemoval(removeHistoryItem);
     onCleanup(() => {
-      stopLongPress();
+      stopRemoval();
       window.removeEventListener("popstate", syncFromHistory);
     });
   });

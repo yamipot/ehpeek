@@ -244,6 +244,15 @@ function injectEnhanceUI(
   if (searchGridEnabled) {
     allowFeatureFailure("Search grid", () => eh.manageSearchGrids());
   }
+  const updateSearchReadHistoryAppearance = () => {
+    if (!searchPage || !gState.settings.readHistoryEnabled) {
+      return;
+    }
+    eh.mutateSearchReadHistoryAppearance(
+      (galleryId, token) => loadReadHistory(galleryId, token)?.pageNum ?? null,
+    );
+  };
+  allowFeatureFailure("Search Read History appearance", updateSearchReadHistoryAppearance);
 
   if (gState.settings.openGalleryInNewTab && searchResultsDom) {
     allowFeatureFailure("Gallery links in new tabs", () => {
@@ -329,6 +338,7 @@ function injectEnhanceUI(
               if (searchGridEnabled) {
                 eh.manageSearchGrids();
               }
+              updateSearchReadHistoryAppearance();
             });
           }}
         />

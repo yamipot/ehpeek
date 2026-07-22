@@ -5,7 +5,8 @@
     "clearHistory": "Clear All History",
     "close": "Close",
     "confirm": "Confirm",
-    "default": "Default"
+    "default": "Default",
+    "removeHistory": "Delete History"
   },
   "reader": {
     "download": "Download",
@@ -28,7 +29,9 @@
     "clearConfirm": "Clear all reading history?",
     "empty": "No reading history",
     "limit": "(max {limit})",
+    "visitedLabel": "[VISITED]",
     "range": "{start}-{end} in {total} histories",
+    "readingLabel": "[READING]",
     "removeConfirm": "Remove this gallery from Read History?",
     "unread": "Unread"
   },

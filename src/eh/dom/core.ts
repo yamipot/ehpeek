@@ -4,6 +4,8 @@ import { render } from "solid-js/web";
 const MANAGED_DOM_NODE_CLASS = "ehpeek-managed";
 const EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor";
 const EH_SYRINGE_IGNORE_SELECTOR = ".eh-syringe-ignore";
+const LONG_PRESS_DELAY_MS = 600;
+const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
 const mountedNodes = new WeakMap<HTMLElement, () => void>();
 let managedDocumentElement: ManagedDomNode<HTMLElement> | null = null;
 let managedBody: ManagedDomNode<HTMLElement> | null = null;
@@ -378,6 +380,85 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
   ): () => void {
     this.#node.addEventListener(type, listener, options);
     return () => this.#node.removeEventListener(type, listener, options);
+  }
+
+  listenLongPress(
+    listener: (event: PointerEvent) => void,
+    shouldStart: (event: PointerEvent) => boolean = () => true,
+  ): () => void {
+    let timer: number | null = null;
+    let press: { event: PointerEvent; x: number; y: number } | null = null;
+    let suppressClick = false;
+    let suppressClickTimer: number | null = null;
+    const cancel = () => {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+      press = null;
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (!event.isPrimary || event.button !== 0 || !shouldStart(event)) {
+        return;
+      }
+      cancel();
+      press = { event, x: event.clientX, y: event.clientY };
+      timer = window.setTimeout(() => {
+        const completed = press;
+        cancel();
+        if (!completed) {
+          return;
+        }
+        suppressClick = true;
+        listener(completed.event);
+        suppressClickTimer = window.setTimeout(() => {
+          suppressClick = false;
+          suppressClickTimer = null;
+        }, 1_000);
+      }, LONG_PRESS_DELAY_MS);
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (
+        press?.event.pointerId === event.pointerId &&
+        Math.hypot(event.clientX - press.x, event.clientY - press.y) >
+          LONG_PRESS_MOVE_TOLERANCE_PX
+      ) {
+        cancel();
+      }
+    };
+    const onPointerEnd = (event: PointerEvent) => {
+      if (press?.event.pointerId === event.pointerId) {
+        cancel();
+      }
+    };
+    const onContextMenu = (event: MouseEvent) => {
+      if (press || suppressClick) {
+        event.preventDefault();
+      }
+    };
+    const onClick = (event: MouseEvent) => {
+      if (!suppressClick) {
+        return;
+      }
+      suppressClick = false;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    const cleanups = [
+      this.listen("pointerdown", onPointerDown),
+      this.listen("pointermove", onPointerMove),
+      this.listen("pointerup", onPointerEnd),
+      this.listen("pointercancel", onPointerEnd),
+      this.listen("contextmenu", onContextMenu),
+      this.listen("click", onClick, true),
+    ];
+    return () => {
+      cancel();
+      if (suppressClickTimer !== null) {
+        window.clearTimeout(suppressClickTimer);
+      }
+      cleanups.forEach((cleanup) => cleanup());
+    };
   }
 
   observe(
