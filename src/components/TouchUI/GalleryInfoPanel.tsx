@@ -241,7 +241,10 @@ export function GalleryInfoPanel(props: {
           </div>
         </div>
       </div>
-      <div class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]">
+      <div
+        class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"
+        onDragStart={(event: DragEvent) => event.preventDefault()}
+      >
         <TouchGalleryFavoriteButton source={source} />
         <div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]">
           {props.primaryAction}
@@ -257,10 +260,13 @@ export function GalleryInfoPanel(props: {
           <TouchGalleryActionsMenu items={source.elems.actionItems} />
         </div>
         {tagGroups().length > 0 && (
-          <div class="ehpeek-touch-gallery-tag-groups flow-root pt-2px">
+          <div
+            class="ehpeek-touch-gallery-tag-groups flex flex-col pt-2px"
+            onDragStart={(event: DragEvent) => event.preventDefault()}
+          >
             <button
               type="button"
-              class={`float-right inline-flex min-h-sm items-center justify-center gap-md ml-sm mb-sm rounded-xl border-0 px-lg font-inherit font-700 textsize-sm cursor-pointer transition-[background-color,color] duration-120 ${tagging() ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent" : "bg-[var(--color-site-surface)] ehp-color-site-text"}`}
+              class={`inline-flex self-end min-h-sm items-center justify-center gap-md mb-sm rounded-xl border-0 px-lg font-inherit font-700 textsize-sm cursor-pointer transition-[background-color,color] duration-120 ${tagging() ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent" : "bg-[var(--color-site-surface)] ehp-color-site-text"}`}
               aria-pressed={tagging()}
               onClick={() => {
                 setTagging((enabled) => !enabled);
@@ -272,13 +278,15 @@ export function GalleryInfoPanel(props: {
                 aria-hidden="true"
               />
             </button>
-            <For each={tagGroups()}>{(group) => (
-              <TouchGalleryTagGroup
-                group={group}
-                tagging={tagging()}
-                onTagOpen={openTagMenu}
-              />
-            )}</For>
+            <div class="grid min-w-0 w-full grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-sm gap-y-md">
+              <For each={tagGroups()}>{(group) => (
+                <TouchGalleryTagGroup
+                  group={group}
+                  tagging={tagging()}
+                  onTagOpen={openTagMenu}
+                />
+              )}</For>
+            </div>
           </div>
         )}
         <Show when={hasNewTag()}>
@@ -423,8 +431,8 @@ function TouchGalleryTagGroup(props: {
   tagging: boolean;
 }) {
   return (
-    <section class="ehpeek-touch-gallery-tag-group grid grid-cols-[minmax(76px,20%)_minmax(0,1fr)] gap-sm items-start mb-md last:mb-0">
-      <div class="ehpeek-touch-gallery-tag-group-name min-h-sm overflow-hidden text-ellipsis whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-sm px-md text-center lowercase ehp-color-site-accent textsize-md font-600">
+    <section class="ehpeek-touch-gallery-tag-group contents">
+      <div class="ehpeek-touch-gallery-tag-group-name min-h-sm whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-sm px-md text-center lowercase ehp-color-site-accent textsize-md font-600">
         {props.group.namespace}
       </div>
       <div
@@ -468,13 +476,14 @@ function TouchGalleryTag(props: {
   return (
     <a
       href={props.tag.url}
-      class="ehpeek-touch-gallery-tag inline-flex max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-none no-underline transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"
+      class="ehpeek-touch-gallery-tag inline-flex flex-none max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-text no-underline transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"
       style={{
         "background-color": props.tag.appearance.backgroundColor,
         "border-color": props.tag.appearance.borderColor,
         color: props.tag.appearance.color,
       }}
       aria-label={props.tag.label}
+      draggable={false}
     >
       <TouchGalleryTagContent tag={props.tag} />
     </a>
