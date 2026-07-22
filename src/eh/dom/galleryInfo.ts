@@ -381,7 +381,11 @@ export function manageGalleryInfo(
     },
     /** Keeps component tag groups synchronized with original-page tag updates. */
     observeGalleryTagGroups(onChange: (groups: GalleryInfoTagGroup[]) => void) {
-      return elems.tagList?.observe(() => onChange(manageTagGroups())) ?? (() => undefined);
+      return elems.tagList?.observe(() => {
+        gallery.tags.rows.requery();
+        gallery.tags.links.requery();
+        onChange(manageTagGroups());
+      }) ?? (() => undefined);
     },
     /** Activates E-H's original rating area and lets its page script submit the vote. */
     submitGalleryRating(value: number): void {

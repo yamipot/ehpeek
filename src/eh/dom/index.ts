@@ -8,10 +8,11 @@
  * original page.
  *
  * Original selectors are declared in `domClass`; `childs` describes query
- * scope, while `group` only organizes nodes without adding a DOM level.
- * Bind a definition with `DomNode.use()` to access descendants directly, then
- * acquire a node with `inplace`, `move`, or `clone`. A managed node may call
- * `apply()` only with names declared by that definition's `apply` map.
+ * scope, while plain objects organize the tree without adding a DOM level.
+ * `DomNode.use()` binds and lazily caches only accessed paths; `requery()`
+ * updates one selector node and invalidates its descendants. Acquire a node
+ * with `inplace`, `move`, or `clone`. A managed node may call `apply()` only
+ * with names declared by that definition's `apply` map.
  *
  * Source nodes are read only through `DomNode`. Validate every required node
  * before taking ownership and return `null` when the feature cannot be resolved.

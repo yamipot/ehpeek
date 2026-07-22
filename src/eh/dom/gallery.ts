@@ -104,7 +104,7 @@ export function mutateGalleryMyTags(appearances: MyTagAppearance[]) {
   const byName = new Map(appearances.map((appearance) => [appearance.name, appearance]));
   const source = DomNode.from(document).use(domClass.gallery);
   const apply = () => {
-    for (const tag of source.tags.links.all()) {
+    for (const tag of source.tags.links.requery()) {
       const name = galleryTagNameFromUrl(tag.attribute("href") ?? "");
       const appearance = name ? byName.get(normalizeTagName(name)) : undefined;
       if (!appearance?.backgroundColor) {

@@ -19,11 +19,6 @@ export interface DomChilds {
   readonly [name: string]: DomDescription;
 }
 
-type DomGroupBase = {
-  readonly kind: "group";
-  readonly childs: DomChilds;
-};
-
 type DomDefinitionBase = {
   readonly apply: DomApply;
   readonly childs: DomChilds;
@@ -32,16 +27,13 @@ type DomDefinitionBase = {
   readonly __element?: HTMLElement;
 };
 
-export type DomDescription = DomGroupBase | DomDefinitionBase;
-
-export type DomGroup<TChilds extends DomChilds = DomChilds> = DomGroupBase & {
-  readonly childs: TChilds;
-} & TChilds;
+export type DomDescription = DomChilds | DomDefinitionBase;
+type EmptyDomChilds = Readonly<Record<never, never>>;
 
 export type DomDefinition<
   TElement extends HTMLElement = HTMLElement,
   TApply extends DomApply = DomApply,
-  TChilds extends DomChilds = DomChilds,
+  TChilds extends DomChilds = EmptyDomChilds,
 > = {
   readonly apply: TApply;
   readonly childs: TChilds;
@@ -74,23 +66,18 @@ type BoundDomNode<
   move(): ManagedDomNode<TElement, keyof TApply & string> | null;
   moveAll(): ManagedDomNode<TElement, keyof TApply & string>[];
   one(): DomNode<TElement> | null;
+  requery(): DomNode<TElement>[];
 };
 
 export type BoundDom<TDescription extends DomDescription> =
-  TDescription extends DomGroup<infer TChilds>
-    ? BoundDomChilds<TChilds>
-    : TDescription extends DomDefinition<infer TElement, infer TApply, infer TChilds>
-      ? BoundDomNode<TElement, TApply> & BoundDomChilds<TChilds>
+  TDescription extends DomDefinition<infer TElement, infer TApply, infer TChilds>
+    ? BoundDomNode<TElement, TApply> & BoundDomChilds<TChilds>
+    : TDescription extends DomChilds
+      ? BoundDomChilds<TDescription>
       : never;
 
 const emptyDomApply = {} as const;
 const emptyDomChilds = {} as const;
-
-export function group<const TChilds extends DomChilds>(
-  childs: TChilds,
-): DomGroup<TChilds> {
-  return Object.assign({ kind: "group" as const, childs }, childs);
-}
 
 function defineDomNode<TElement extends HTMLElement>() {
   return <
@@ -241,7 +228,7 @@ export class DomNode<T extends ParentNode = ParentNode> {
   use<const TDescription extends DomDescription>(
     description: TDescription,
   ): BoundDom<TDescription> {
-    return bindDom(description, () => [this]);
+    return bindDom(description, () => [this]).bound;
   }
 
   one<
@@ -479,55 +466,81 @@ export class DomNode<T extends ParentNode = ParentNode> {
 function bindDom<const TDescription extends DomDescription>(
   description: TDescription,
   scopes: () => DomNode<ParentNode>[],
-): BoundDom<TDescription> {
-  const boundNode = description.kind === "group"
-    ? null
-    : bindDomNode(description, scopes);
-  const bound = boundNode ?? {};
-  const childScopes = description.kind === "group"
-    ? scopes
-    : () => boundNode?.all() ?? [];
+): { bound: BoundDom<TDescription>; invalidate: () => void } {
+  const children: Array<{ invalidate: () => void }> = [];
+  const invalidateChildren = () => {
+    for (const child of children) {
+      child.invalidate();
+    }
+  };
+  const definition = isDomDefinition(description) ? description : null;
+  const nodeController = definition
+    ? bindDomNode(definition, scopes, invalidateChildren)
+    : null;
+  const bound = nodeController?.bound ?? {};
+  const childScopes = definition
+    ? () => nodeController?.bound.all() ?? []
+    : scopes;
+  const childs = definition?.childs ?? description as DomChilds;
 
-  for (const [name, child] of Object.entries(description.childs)) {
+  for (const [name, child] of Object.entries(childs)) {
     if (name in bound) {
       throw new Error(`Original DOM child name is reserved: ${name}`);
     }
-    Object.assign(bound, { [name]: bindDom(child, childScopes) });
+    const childController = bindDom(child, childScopes);
+    children.push(childController);
+    Object.assign(bound, { [name]: childController.bound });
   }
 
-  return bound as BoundDom<TDescription>;
+  return {
+    bound: bound as BoundDom<TDescription>,
+    invalidate: nodeController?.invalidate ?? invalidateChildren,
+  };
+}
+
+function isDomDefinition(
+  description: DomDescription,
+): description is DomDefinitionBase {
+  return "kind" in description && description.kind === "node";
 }
 
 function bindDomNode(
   description: DomDefinitionBase,
   scopes: () => DomNode<ParentNode>[],
-): BoundDomNode<HTMLElement, DomApply> {
-  const retained: DomNode<HTMLElement>[] = [];
-  const all = () => {
-    const current = scopes().flatMap((scope) => scope.all<HTMLElement>(description.selector));
-    return [
-      ...current,
-      ...retained.filter((node) => !current.some((candidate) => candidate.sameNode(node))),
-    ];
+  invalidateChildren: () => void,
+): {
+  bound: BoundDomNode<HTMLElement, DomApply>;
+  invalidate: () => void;
+} {
+  let cached: DomNode<HTMLElement>[] | undefined;
+  const queryNodes = () => scopes()
+    .flatMap((scope) => scope.all<HTMLElement>(description.selector));
+  const resolve = () => {
+    cached ??= queryNodes();
+    return cached;
   };
-  const retain = (nodes: DomNode<HTMLElement>[]) => {
-    for (const node of nodes) {
-      if (!retained.some((candidate) => candidate.sameNode(node))) {
-        retained.push(node);
-      }
-    }
-    return nodes;
+  const invalidate = () => {
+    cached = undefined;
+    invalidateChildren();
   };
 
   return {
-    all,
-    clone: () => all()[0]?.clone(description.apply) ?? null,
-    cloneAll: () => all().map((node) => node.clone(description.apply)),
-    inplace: () => retain(all().slice(0, 1))[0]?.inplace(description.apply) ?? null,
-    inplaceAll: () => retain(all()).map((node) => node.inplace(description.apply)),
-    move: () => retain(all().slice(0, 1))[0]?.move(description.apply) ?? null,
-    moveAll: () => retain(all()).map((node) => node.move(description.apply)),
-    one: () => all()[0] ?? null,
+    bound: {
+      all: () => [...resolve()],
+      clone: () => resolve()[0]?.clone(description.apply) ?? null,
+      cloneAll: () => resolve().map((node) => node.clone(description.apply)),
+      inplace: () => resolve()[0]?.inplace(description.apply) ?? null,
+      inplaceAll: () => resolve().map((node) => node.inplace(description.apply)),
+      move: () => resolve()[0]?.move(description.apply) ?? null,
+      moveAll: () => resolve().map((node) => node.move(description.apply)),
+      one: () => resolve()[0] ?? null,
+      requery: () => {
+        cached = queryNodes();
+        invalidateChildren();
+        return [...cached];
+      },
+    },
+    invalidate,
   };
 }
 
