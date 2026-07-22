@@ -229,6 +229,19 @@ export function peekPageFromHash(hash = window.location.hash): number | null {
   return Number.isFinite(page) && page > 0 ? page : null;
 }
 
+export function clearPeekLocation(): void {
+  const url = new URL(window.location.href);
+  const params = new URLSearchParams(url.hash.replace(/^#/, ""));
+
+  if (!params.has("peek_page")) {
+    return;
+  }
+
+  params.delete("peek_page");
+  url.hash = params.toString();
+  window.history.replaceState(window.history.state, "", url.href);
+}
+
 export function updatePeekLocation(pageNumber: number | undefined, pageSize: number, maxPreviewIndex: number): void {
   if (!pageNumber || pageNumber <= 0) {
     return;

@@ -146,6 +146,7 @@ async function openReader(
   const onExit = () => {
     historySession?.dispose();
     callbacks.onReaderClosed(lastPageNum, totalPages ?? null);
+    eh.clearPeekLocation();
 
     if (lastPageNum === startPageNum) {
       return;
