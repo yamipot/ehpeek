@@ -27,6 +27,12 @@
   },
   "reader": {
     "more": "More",
+    "pagedMode": "Paged mode",
+    "scrollMode": "Scroll mode",
+    "rightTapPrevious": "Right side action:\nPrevious page",
+    "rightTapNext": "Right side action:\nNext page",
+    "directionRtl": "Reading direction:\n Right to left",
+    "directionLtr": "Reading direction:\n Left to right",
     "download": "Download",
     "downloadDisplayedImage": "Displayed image",
     "downloadOriginalImage": "Original image",

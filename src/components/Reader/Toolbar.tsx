@@ -63,7 +63,25 @@ export function Toolbar(props: {
   const [dialogDownloadInfo, setDialogDownloadInfo] = createSignal<ReaderDownloadInfo | null>(null);
   const [helpOpen, setHelpOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
+  const [controlChange, setControlChange] = createSignal<string | null>(null);
+  let controlChangeTimer: number | null = null;
   const fullscreenTime = createFullscreenTime(() => props.fullscreenActive);
+  const showControlChange = (message: string) => {
+    if (controlChangeTimer !== null) {
+      window.clearTimeout(controlChangeTimer);
+    }
+    setControlChange(message);
+    controlChangeTimer = window.setTimeout(() => {
+      setControlChange(null);
+      controlChangeTimer = null;
+    }, 1_200);
+  };
+
+  onCleanup(() => {
+    if (controlChangeTimer !== null) {
+      window.clearTimeout(controlChangeTimer);
+    }
+  });
 
   createEffect(() => {
     if (!props.open) {
@@ -111,10 +129,11 @@ export function Toolbar(props: {
           <button
             type="button"
             class={READER_BUTTON_CLASS}
-            onClick={() => props.callbacks.onControlsChange({
-              ...props.controls,
-              mode: props.controls.mode === "paged" ? "scroll" : "paged",
-            })}
+            onClick={() => {
+              const mode = props.controls.mode === "paged" ? "scroll" : "paged";
+              props.callbacks.onControlsChange({ ...props.controls, mode });
+              showControlChange(mode === "paged" ? texts.reader.pagedMode : texts.reader.scrollMode);
+            }}
           >
             <Icon name={props.controls.mode === "paged" ? "arrows-horizontal" : "arrows-vertical"} size={READER_ICON_SIZE} />
           </button>
@@ -159,20 +178,22 @@ export function Toolbar(props: {
               <button
                 type="button"
                 class={READER_BUTTON_CLASS}
-                onClick={() => props.callbacks.onControlsChange({
-                  ...props.controls,
-                  rightTapAction: props.controls.rightTapAction === "previous" ? "next" : "previous",
-                })}
+                onClick={() => {
+                  const rightTapAction = props.controls.rightTapAction === "previous" ? "next" : "previous";
+                  props.callbacks.onControlsChange({ ...props.controls, rightTapAction });
+                  showControlChange(rightTapAction === "previous" ? texts.reader.rightTapPrevious : texts.reader.rightTapNext);
+                }}
               >
                 {props.controls.rightTapAction === "previous" ? "R-" : "R+"}
               </button>
               <button
                 type="button"
                 class={READER_BUTTON_CLASS}
-                onClick={() => props.callbacks.onControlsChange({
-                  ...props.controls,
-                  readDirection: props.controls.readDirection === "rtl" ? "ltr" : "rtl",
-                })}
+                onClick={() => {
+                  const readDirection = props.controls.readDirection === "rtl" ? "ltr" : "rtl";
+                  props.callbacks.onControlsChange({ ...props.controls, readDirection });
+                  showControlChange(readDirection === "rtl" ? texts.reader.directionRtl : texts.reader.directionLtr);
+                }}
               >
                 <Icon name={props.controls.readDirection === "rtl" ? "arrow-left" : "arrow-right"} size={READER_ICON_SIZE} />
               </button>
@@ -217,6 +238,13 @@ export function Toolbar(props: {
         >
           <span>{fullscreenTime()}</span>
         </div>
+      </Show>
+      <Show when={controlChange()} keyed>
+        {(message) => (
+          <div class="fixed z-overlay top-1/2 left-1/2 max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 pointer-events-none rounded-lg bg-[var(--color-badge)] ehp-color-text px-xl py-lg font-sans textsize-lg font-700 leading-[1.3] whitespace-pre-line text-center shadow-xl">
+            {message}
+          </div>
+        )}
       </Show>
       <div
         class={
