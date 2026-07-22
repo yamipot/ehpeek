@@ -1,0 +1,735 @@
+/* Style dynamic EhSyringe suggestions without observing its injected nodes. */
+.ehs-injected .eh-syringe-lite-auto-complete-list {
+  max-height: 60dvh !important;
+  padding-block: 8px !important;
+}
+
+.ehs-injected .eh-syringe-lite-auto-complete-list .auto-complete-item {
+  box-sizing: border-box;
+  min-height: 52px;
+  padding: 8px 16px !important;
+  font-size: var(--font-size-lg) !important;
+  line-height: 1.25 !important;
+}
+
+.ehs-injected .eh-syringe-lite-auto-complete-list .auto-complete-text {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+/* Keep TouchUI result tables inside the viewport without adding layout wrappers. */
+html.ehpeek-constrain-results-to-viewport,
+body.ehpeek-constrain-results-to-viewport {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.ehpeek-constrain-results-to-viewport .ido,
+.ehpeek-constrain-results-to-viewport .itg {
+  box-sizing: border-box;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.ehpeek-expand-favorites-search {
+  box-sizing: border-box;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.ehpeek-constrain-favorites-navigation .searchnav {
+  box-sizing: border-box;
+  max-width: 100% !important;
+  overflow-x: auto;
+}
+
+.ehpeek-hide-original-favorites-categories {
+  display: none !important;
+}
+
+.ehpeek-contain-search-results,
+.ehpeek-contain-favorites-results {
+  box-sizing: border-box;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.ehpeek-enable-search-swipe-input {
+  overscroll-behavior-x: contain;
+  touch-action: pan-y;
+}
+
+.ehpeek-enable-search-swipe-input[data-dragging="true"] {
+  user-select: none;
+}
+
+/* Compact wide Favorites columns while preserving the original table structure. */
+.ehpeek-compact-all-favorites-results {
+  table-layout: auto !important;
+  width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.ehpeek-compact-all-favorites-results > tbody > tr > .gl2e {
+  width: auto !important;
+  overflow-wrap: anywhere !important;
+}
+
+.ehpeek-compact-all-favorites-results .glink {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.ehpeek-compact-all-favorites-results .gl4e table {
+  table-layout: fixed !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.ehpeek-compact-all-favorites-results .gl4e td {
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.ehpeek-compact-all-favorites-results .gl4e td.tc {
+  width: 4em !important;
+  white-space: nowrap !important;
+}
+
+.ehpeek-compact-all-favorites-results > tbody > tr > .glfe {
+  width: 1% !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 849px) {
+  .ehpeek-contain-favorites-results {
+    table-layout: auto !important;
+    width: 100% !important;
+  }
+
+  .ehpeek-contain-favorites-results > tbody > tr > .gl2e {
+    width: auto !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .ehpeek-contain-favorites-results .glink {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .ehpeek-contain-favorites-results .gl4e table {
+    table-layout: fixed !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .ehpeek-contain-favorites-results .gl4e td {
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .ehpeek-contain-favorites-results .gl4e td.tc {
+    width: 4em !important;
+    white-space: nowrap !important;
+  }
+
+  .ehpeek-contain-favorites-results > tbody > tr > .glfe {
+    width: 1% !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Present original Search rows through one shared EhPeek layout state. */
+.ehpeek-layout-search-grid {
+  display: block !important;
+  width: 100% !important;
+  table-layout: auto !important;
+}
+
+.ehpeek-layout-search-grid > tbody {
+  display: block !important;
+}
+
+.ehpeek-layout-search-grid > tbody > tr {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: clamp(112px, 34%, 250px) minmax(0, 1fr) !important;
+  align-items: start !important;
+  column-gap: 0 !important;
+  width: 100% !important;
+  cursor: pointer !important;
+}
+
+.ehpeek-layout-search-grid > tbody > tr:has(> .glfe) {
+  grid-template-columns: clamp(112px, 34%, 250px) minmax(0, 1fr) auto !important;
+}
+
+.ehpeek-layout-search-grid > tbody > tr.ehpeek-expand-coverless-search-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.ehpeek-layout-search-grid > tbody > tr > .gl1e {
+  width: auto !important;
+}
+
+.ehpeek-layout-search-grid > tbody > tr > .gl2e {
+  box-sizing: border-box !important;
+  grid-column: auto;
+  align-self: stretch !important;
+  min-width: 0 !important;
+  width: auto !important;
+  height: 100% !important;
+  padding-left: 0 !important;
+}
+
+.ehpeek-layout-search-grid > tbody > tr.ehpeek-expand-coverless-search-grid > .gl2e {
+  grid-column: 1 !important;
+}
+
+.ehpeek-layout-search-grid > tbody > tr > .glfe {
+  width: auto !important;
+  margin-left: 6px !important;
+}
+
+.ehpeek-layout-search-grid > tbody > tr > .gl1e > div,
+.ehpeek-layout-search-grid > tbody > tr > .gl1e img {
+  width: 100% !important;
+  height: auto !important;
+}
+
+.ehpeek-layout-search-grid .gl4e {
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  padding-left: 6px !important;
+}
+
+.ehpeek-layout-search-grid .glink {
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  text-align: left !important;
+  font-size: var(--font-size-md) !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+}
+
+.ehpeek-layout-search-grid .gl3e {
+  position: static !important;
+  display: flex !important;
+  flex-flow: row wrap !important;
+  align-items: center !important;
+  align-content: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 8px 12px !important;
+  float: none !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-weight: 600 !important;
+}
+
+.ehpeek-layout-search-grid .gl3e > * {
+  position: static !important;
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: var(--font-size-sm) !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+}
+
+.ehpeek-layout-search-grid .gl3e > .ir {
+  width: 80px !important;
+  height: 16px !important;
+  background-repeat: no-repeat !important;
+}
+
+.ehpeek-layout-search-grid .gl3e > .gldown {
+  width: auto !important;
+  height: auto !important;
+}
+
+.ehpeek-layout-search-grid .gl3e > :is(.cn, .cs, [class*="ct"]) {
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: max(72px, 6em) !important;
+  height: max(32px, 2.2em) !important;
+  padding: 0 0.6em !important;
+}
+
+.ehpeek-layout-search-grid .ehpeek-stack-search-grid-tags {
+  position: static !important;
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.ehpeek-layout-search-grid .ehpeek-stack-search-grid-tags :is(table, tbody, tr) {
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+}
+
+.ehpeek-layout-search-grid .ehpeek-stack-search-grid-tags td {
+  min-height: 0 !important;
+  height: auto !important;
+  vertical-align: top !important;
+}
+
+.ehpeek-layout-search-grid .ehpeek-stack-search-grid-tags :is(.gt, .gtl, .gtw, td.tc) {
+  font-size: var(--font-size-sm) !important;
+  line-height: 1.2 !important;
+}
+
+.ehpeek-cover-search-grid-row {
+  grid-column: 1 / 3;
+  grid-row: 1;
+}
+
+/* Reading state remains visual and never changes the original title text. */
+.ehpeek-prefix-read-history-label::before {
+  box-sizing: border-box;
+  content: attr(data-ehpeek-history-label);
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  padding-inline: 4px;
+  border: 1px solid var(--color-site-accent);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--color-site-accent);
+  vertical-align: middle;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+[data-ehpeek-read-history="visited"] {
+  --ehpeek-read-history-tint: color-mix(in srgb, var(--color-site-accent) 6%, transparent);
+}
+
+[data-ehpeek-read-history="reading"] {
+  --ehpeek-read-history-tint: color-mix(in srgb, var(--color-site-accent) 12%, transparent);
+}
+
+tr[data-ehpeek-read-history] > td,
+[data-ehpeek-read-history]:not(tr) {
+  box-shadow: inset 0 0 0 9999px var(--ehpeek-read-history-tint) !important;
+}
+
+/* Style retained Search controls without replacing their original classes. */
+.ehpeek-reset-search-box-layout {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  text-align: left !important;
+  font-size: var(--font-size-md) !important;
+}
+
+.ehpeek-stack-search-form {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.ehpeek-overlay-search-actions {
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 60px !important;
+  align-items: start !important;
+  gap: 0 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] {
+  grid-template-columns: minmax(0, 1fr) 60px 60px !important;
+}
+
+.ehpeek-expand-search-input {
+  appearance: none !important;
+  box-sizing: border-box !important;
+  grid-column: 1 / -1 !important;
+  grid-row: 1 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  height: 60px !important;
+  margin: 0 !important;
+  padding: 0 72px 0 16px !important;
+  border: 1px solid var(--color-site-border) !important;
+  border-radius: 6px !important;
+  outline: none !important;
+  background: var(--color-site-elevated) !important;
+  color: var(--color-site-text) !important;
+  font-size: var(--font-size-md) !important;
+  line-height: 1.2 !important;
+}
+
+.ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] .ehpeek-expand-search-input {
+  padding-right: 132px !important;
+}
+
+.ehpeek-expand-search-input:focus {
+  border-color: var(--color-site-accent) !important;
+  background: var(--color-site-elevated) !important;
+  box-shadow: 0 0 0 3px var(--color-site-accent-hover) !important;
+}
+
+.ehpeek-hide-original-search-action {
+  display: none !important;
+}
+
+.ehpeek-layout-search-categories {
+  width: 100% !important;
+  margin: 0 !important;
+  border-collapse: collapse !important;
+}
+
+.ehpeek-layout-search-categories[aria-hidden="true"] {
+  display: none !important;
+}
+
+.ehpeek-layout-search-categories > tbody {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+  gap: 4px !important;
+}
+
+.ehpeek-layout-search-categories tr {
+  display: contents !important;
+}
+
+.ehpeek-layout-search-categories td {
+  padding: 0 !important;
+}
+
+.ehpeek-layout-search-categories [id^="cat_"] {
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  height: 52px !important;
+  padding-inline: 12px !important;
+  border: 1px solid var(--color-site-border) !important;
+  border-radius: 6px !important;
+  color: #ffffff !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  font-size: var(--font-size-md) !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  box-shadow: 0 2px 6px var(--color-shadow-control) !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 120ms;
+}
+
+.ehpeek-layout-search-categories [id^="cat_"]:active {
+  opacity: 0.7;
+}
+
+.ehpeek-layout-search-categories [id^="cat_"][data-disabled] {
+  opacity: 0.4;
+}
+
+.ehpeek-wrap-search-options {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px 12px !important;
+  width: 100% !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+}
+
+.ehpeek-wrap-search-options > a {
+  appearance: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 40px !important;
+  padding-inline: 12px !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: var(--color-site-accent) !important;
+  text-align: left !important;
+  text-decoration: none !important;
+  font: inherit !important;
+  font-size: var(--font-size-md) !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  cursor: pointer !important;
+  touch-action: manipulation;
+}
+
+.ehpeek-wrap-search-options > a:active {
+  background: var(--color-site-accent-hover) !important;
+}
+
+.ehpeek-expand-search-advanced-options {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  padding: 0 !important;
+  color: var(--color-site-text) !important;
+}
+
+.ehpeek-reset-search-box-layout .searchadv {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  padding-top: 12px !important;
+  font-size: var(--font-size-md) !important;
+}
+
+.ehpeek-reset-search-box-layout .searchadv > div,
+.ehpeek-expand-file-search .searchadv > div {
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+}
+
+.ehpeek-reset-search-box-layout .searchadv > div > div,
+.ehpeek-expand-file-search .searchadv > div > div {
+  padding: 8px !important;
+}
+
+.ehpeek-expand-file-search {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 16px !important;
+  border: 1px solid var(--color-site-border) !important;
+  border-radius: 6px !important;
+  background: var(--color-site-elevated) !important;
+  color: var(--color-site-text) !important;
+  text-align: left !important;
+  font-size: var(--font-size-md) !important;
+}
+
+.ehpeek-expand-file-search form {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.ehpeek-expand-file-search form > div {
+  padding: 0 !important;
+}
+
+/* Apply dynamic My Tag colors through variables instead of direct presentation writes. */
+.ehpeek-color-my-tag {
+  background-color: var(--ehpeek-my-tag-background) !important;
+}
+
+.ehpeek-color-my-tag > a {
+  color: var(--ehpeek-my-tag-color) !important;
+}
+
+.ehpeek-expand-gallery-actions {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.ehpeek-fit-gallery-cover {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  margin-inline: auto;
+  object-fit: contain;
+  object-position: center;
+}
+
+/* Hide original GalleryInfo content only while the TouchUI panel owns its host. */
+.ehpeek-hide-original-gallery-info > :not([data-ehpeek-anchor="gallery-info"]) {
+  display: none !important;
+}
+
+.ehpeek-layout-gallery-action,
+.ehpeek-layout-top-bar-menu-item {
+  box-sizing: border-box !important;
+  display: block !important;
+  position: static !important;
+  float: none !important;
+  min-height: 52px !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 12px 16px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--color-site-border-subtle) !important;
+  background: transparent !important;
+  color: var(--color-site-text) !important;
+  text-align: left !important;
+  text-decoration: none !important;
+  white-space: normal !important;
+  font-size: var(--font-size-md) !important;
+  line-height: 1.2 !important;
+}
+
+.ehpeek-layout-new-tag-form {
+  box-sizing: border-box !important;
+  display: block !important;
+  width: 100% !important;
+  padding-top: 12px !important;
+}
+
+.ehpeek-layout-new-tag-form form {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+.ehpeek-layout-new-tag-form #newtagfield {
+  box-sizing: border-box !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: 40px !important;
+  padding-inline: 12px !important;
+  border: 1px solid var(--color-site-border) !important;
+  border-radius: 3px !important;
+  outline: none !important;
+  background: var(--color-site-surface) !important;
+  color: var(--color-site-text) !important;
+  font: inherit !important;
+  font-size: var(--font-size-md) !important;
+}
+
+.ehpeek-layout-new-tag-form #newtagfield:focus {
+  border-color: var(--color-site-accent) !important;
+}
+
+.ehpeek-layout-new-tag-form #newtagbutton {
+  box-sizing: border-box !important;
+  flex: 0 0 auto !important;
+  height: 40px !important;
+  padding-inline: 16px !important;
+  border: 1px solid var(--color-site-accent) !important;
+  border-radius: 3px !important;
+  background: var(--color-site-accent) !important;
+  color: var(--color-background) !important;
+  font: inherit !important;
+  font-size: var(--font-size-md) !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+}
+
+.ehpeek-layout-gallery-tag-menu {
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  float: none !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: var(--font-size-md) !important;
+}
+
+.ehpeek-layout-gallery-tag-menu img {
+  display: none !important;
+}
+
+.ehpeek-layout-gallery-tag-menu a,
+.ehpeek-layout-gallery-tag-menu-item {
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-height: 52px !important;
+  width: 100% !important;
+  padding: 12px 16px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--color-site-border-subtle) !important;
+  background: transparent !important;
+  color: var(--color-site-text) !important;
+  text-align: left !important;
+  text-decoration: none !important;
+  font: inherit !important;
+  font-size: var(--font-size-md) !important;
+  cursor: pointer !important;
+}
+
+.ehpeek-enable-touch-comment-score .c5 {
+  white-space: nowrap !important;
+}
+
+.ehpeek-enable-touch-comment-score .c7[aria-hidden="true"] {
+  display: none !important;
+}
+
+/* Scope preview interaction visuals to one managed thumbnail root. */
+.ehpeek-suppress-thumbnail-tap-highlight a {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ehpeek-enable-preview-swipe-input {
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.ehpeek-enable-preview-swipe-input img {
+  -webkit-user-drag: none;
+}
+
+.ehpeek-hide-original-preview-page-bars :is(.ptt, .ptb, .gpc) {
+  display: none !important;
+}
+
+@media (pointer: coarse) {
+  .ehpeek-layout-top-bar-menu-item {
+    min-height: 88px !important;
+    padding: 24px !important;
+  }
+
+  .ehpeek-suppress-thumbnail-tap-highlight > :is(:hover, :active) {
+    border-color: var(--color-site-border) !important;
+  }
+
+  .ehpeek-suppress-thumbnail-tap-highlight a:is(:focus, :active) {
+    outline: none !important;
+  }
+}

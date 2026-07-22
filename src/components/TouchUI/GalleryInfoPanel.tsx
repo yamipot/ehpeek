@@ -12,7 +12,7 @@ import type {
   GalleryFavoriteOption,
   MyTagMode,
 } from "../../eh";
-import { type GalleryInfoDom, type GalleryInfoTagGroup } from "../../eh";
+import { sharedApply, type GalleryInfoDom, type GalleryInfoTagGroup } from "../../eh";
 import texts from "../../texts.json";
 import { state } from "../../state";
 import { refreshMyTags } from "../Enhance/MyTags";
@@ -20,26 +20,6 @@ import { WelcomeIcon } from "../WelcomeIcon";
 import { DomNode, DomNodes } from "../Widgets/ExternalDom";
 import { Icon } from "../Widgets/Icon";
 
-const TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS =
-  "ehpeek-touch-gallery-actions-menu-item block box-border w-full min-h-lg py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text text-left no-underline textsize-md leading-[1.2]";
-const TOUCH_GALLERY_TAG_MENU_ITEM_CLASS =
-  "ehpeek-touch-gallery-tag-menu-item flex box-border w-full min-h-lg items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text no-underline font-inherit textsize-md text-left cursor-pointer";
-const TOUCH_GALLERY_TAG_MENU_CLASS =
-  "!box-border flex !h-auto !w-full !float-none !m-0 !p-0 flex-col !textsize-md";
-export const TOUCH_GALLERY_INFO_CLASSES = {
-  actionItems: TOUCH_GALLERY_ACTION_MENU_ITEM_CLASS,
-  cover:
-    "block w-full max-w-full h-full max-h-full mx-auto object-contain object-center",
-  host: "ehpeek-touch-gallery-host",
-  newTag: {
-    button:
-      "box-border flex-none h-md px-lg rounded-xs border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-background)] font-inherit textsize-md font-700 cursor-pointer",
-    container: "ehpeek-touch-gallery-new-tag box-border w-full pt-md",
-    field:
-      "box-border min-w-0 flex-1 h-md px-md rounded-xs border ehp-color-site-border bg-[var(--color-site-surface)] ehp-color-site-text font-inherit textsize-md outline-none focus:border-[var(--color-site-accent)]",
-    form: "flex w-full min-w-0 items-center gap-sm",
-  },
-};
 const RATING_STAR_INDEXES = [0, 1, 2, 3, 4];
 const RATING_ACTION_BUTTON_CLASS =
   "flex w-full min-h-md coarse:min-h-64px items-center justify-center py-xs coarse:py-md px-md coarse:px-lg rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default";
@@ -74,13 +54,7 @@ export function GalleryInfoPanel(props: {
     GalleryPanelTagGroup["tags"][number] | null
   >(null);
   const [tagging, setTagging] = createSignal(false);
-  const hasNewTag = () =>
-    Boolean(
-      source.elems.newTag &&
-        source.elems.newTagButton &&
-        source.elems.newTagField &&
-        source.elems.newTagForm,
-    );
+  const hasNewTag = () => source.elems.newTag !== null;
   const displayedRating = createMemo(() => ratingPreview() ?? ratingValue());
   const ratingLabel = createMemo(() => {
     const preview = ratingPreview();
@@ -118,11 +92,7 @@ export function GalleryInfoPanel(props: {
 
   const openTagMenu = (tag: GalleryPanelTagGroup["tags"][number]) => {
     try {
-      source.handle.openGalleryTagMenu(
-        tag,
-        TOUCH_GALLERY_TAG_MENU_CLASS,
-        TOUCH_GALLERY_TAG_MENU_ITEM_CLASS,
-      );
+      source.handle.openGalleryTagMenu(tag);
       setSelectedTag(tag);
     } catch (error) {
       console.error("[ehpeek] Gallery tag actions failed", error);
@@ -601,7 +571,7 @@ function TouchGalleryTagMenu(props: {
                 fallback={
                   <button
                     type="button"
-                    class={TOUCH_GALLERY_TAG_MENU_ITEM_CLASS}
+                    class={sharedApply.galleryTagMenuItem}
                     role="menuitem"
                     onClick={(event) => {
                       event.stopPropagation();
@@ -615,7 +585,7 @@ function TouchGalleryTagMenu(props: {
               >
                 <button
                   type="button"
-                  class={TOUCH_GALLERY_TAG_MENU_ITEM_CLASS}
+                  class={sharedApply.galleryTagMenuItem}
                   role="menuitem"
                   onClick={() => {
                     setFavoriteTag(tag());

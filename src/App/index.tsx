@@ -17,10 +17,7 @@ import { loadMyTagAppearances, refreshMyTags } from "../components/Enhance/MyTag
 import { SettingsMenu } from "../components/SettingsMenu";
 import { BackToTop } from "../components/Widgets/BackToTop";
 import {
-  touchSearchPanelClasses,
   GalleryInfoPanel,
-  TOUCH_GALLERY_INFO_CLASSES,
-  TOUCH_TOP_BAR_NAV_ITEM_CLASS,
   FavoritesCategorySelect,
   TouchSearchAction,
   TouchSearchCategoryToggle,
@@ -33,6 +30,7 @@ import { state } from "../state";
 import texts from "../texts.json";
 import { registerGlobalStyle } from "../utils";
 import galleryRearrange from "../eh/galleryRearrange.css";
+import ehDomCss from "../eh/dom/styles.css";
 import unoCss from "ehpeek:uno.css";
 import themeCss from "../theme.css";
 import {
@@ -103,6 +101,7 @@ const gState = (() => {
 document.documentElement.setAttribute("data-ehpeek-site", eh.ehSiteTheme());
 registerGlobalStyle("ehpeek-uno-style", unoCss);
 registerGlobalStyle("ehpeek-theme-style", themeCss);
+registerGlobalStyle("ehpeek-dom-style", ehDomCss);
 
 const readerCallbacks: ReaderCallbacks = {
   enhanceThumbsGridsEnabled: gState.settings.enhanceThumbsGridsEnabled,
@@ -370,7 +369,6 @@ function injectTouchUI(
   allowFeatureFailure("Touch top bar", () => {
     const topBarDom = eh.manageTopBar();
     if (topBarDom) {
-      topBarDom.handle.updateNavItemVisual(TOUCH_TOP_BAR_NAV_ITEM_CLASS);
       topBarDom.elems.mount.mount(() => (
         <TouchTopBar
           historyHref={eh.readHistoryUrl()}
@@ -398,10 +396,7 @@ function injectTouchUI(
       );
       const galleryInfoDom = eh.manageGalleryInfo(preview?.data ?? null);
       if (galleryInfoDom) {
-        galleryInfoDom.handle.updateCoverVisual(TOUCH_GALLERY_INFO_CLASSES.cover);
-        galleryInfoDom.handle.updateActionItemsVisual(TOUCH_GALLERY_INFO_CLASSES.actionItems);
-        galleryInfoDom.handle.updateNewTagVisual(TOUCH_GALLERY_INFO_CLASSES.newTag);
-        galleryInfoDom.handle.installGalleryInfoPanel(TOUCH_GALLERY_INFO_CLASSES.host);
+        galleryInfoDom.handle.installGalleryInfoPanel();
         galleryInfoDom.elems.mount.mount(() => (
           <GalleryInfoPanel
             source={galleryInfoDom}
@@ -427,9 +422,6 @@ function injectTouchUI(
     allowFeatureFailure("Touch Search panel", () => {
       const searchPanelDom = eh.manageSearchPanel();
       if (searchPanelDom) {
-        searchPanelDom.handle.updateSearchPanelVisual(
-          touchSearchPanelClasses(searchPanelDom.data.hasClear),
-        );
         searchPanelDom.elems.mount.mount(() => (
           <TouchSearchPanel
             source={searchPanelDom}

@@ -23,28 +23,34 @@ import {
   type ManagedDomNode,
 } from "./core";
 import { extractMyTagsPageData, type GalleryPreviewData } from "./gallery";
+import { domClass } from "./domClass";
 
 /** Extracts Gallery display fields persisted with local reading history. */
 export function extractGalleryHistoryInfo(): GalleryHistoryInfo {
   const page = DomNode.from(document);
-  const category = page.one<HTMLElement>("#gdc");
+  const source = page.use(domClass.gallery.info);
+  const category = source.category.one();
   const categoryClass = (
-    category?.one<HTMLElement>("[class*='ct']")?.attribute("class") ??
+    category?.one(domClass.gallery.info.category.appearance)?.attribute("class") ??
     category?.attribute("class") ??
     ""
   ).split(/\s+/).find((className) => /^ct[1-9a]$/.test(className));
-  const rows = page
-    .all<HTMLTableRowElement>("#gdd tr")
-    .map((row) => row.all<HTMLTableCellElement>("td, th").slice(1).map((cell) => cell.text()).filter(Boolean).join(" "));
+  const rows = source.details.rows
+    .all()
+    .map((detailRow) => detailRow.all(domClass.gallery.info.details.rows.cells)
+      .slice(1)
+      .map((detailCell) => detailCell.text())
+      .filter(Boolean)
+      .join(" "));
   const ratingMatch = (
-    page.all<HTMLScriptElement>("script").map((script) => script.text())
+    page.all(domClass.common.scripts).map((pageScript) => pageScript.text())
       .find((script) => script.includes("display_rating")) ?? ""
   ).match(/\bdisplay_rating\s*=\s*(-?\d+(?:\.\d+)?)/);
   const rating = Number(ratingMatch?.[1]);
-  const cover = page.one<HTMLElement>("#gd1");
-  let coverUrl = cover?.one<HTMLImageElement>("img")?.attribute("src") ?? "";
+  const cover = source.cover.one();
+  let coverUrl = source.cover.image.one()?.attribute("src") ?? "";
   if (!coverUrl && cover) {
-    for (const node of [cover, ...cover.all<HTMLElement>("*")]) {
+    for (const node of [cover, ...cover.all(domClass.common.descendants)]) {
       const match = node.computedStyle().backgroundImage.match(/url\(["']?(.+?)["']?\)/);
       if (match?.[1]) {
         coverUrl = match[1];
@@ -59,9 +65,9 @@ export function extractGalleryHistoryInfo(): GalleryHistoryInfo {
     language: rows[3] || undefined,
     posted: rows[0] || undefined,
     rating: ratingMatch && Number.isFinite(rating) ? rating : undefined,
-    title: page.one<HTMLElement>("#gn")?.text() || undefined,
-    titleSub: page.one<HTMLElement>("#gj")?.text() || undefined,
-    uploader: page.one<HTMLElement>("#gdn a, #gdn")?.text() || undefined,
+    title: source.titleMain.one()?.text() || undefined,
+    titleSub: source.titleSub.one()?.text() || undefined,
+    uploader: source.uploader.one()?.text() || undefined,
   };
 }
 
@@ -75,19 +81,21 @@ export function manageGalleryInfo(
   }
 
   const page = DomNode.from(document);
-  const original = page.one<HTMLElement>("#gmid");
+  const gallery = page.use(domClass.gallery);
+  const source = gallery.info;
+  const original = source.original.one();
   const host =
-    original?.parent() ?? page.one<HTMLElement>("#gleft")?.parent() ?? null;
+    original?.parent() ?? source.hostFallback.one()?.parent() ?? null;
   if (!original || !host) {
     return null;
   }
 
   const readMeta = () => {
     // E-H keeps these rows in a fixed order; their labels may already be translated.
-    const rows = page
-      .all<HTMLTableRowElement>("#gdd tr")
-      .map((row) => {
-        const cells = row.all<HTMLTableCellElement>("td, th");
+    const rows = source.details.rows
+      .all()
+      .map((detailRow) => {
+        const cells = detailRow.all(domClass.gallery.info.details.rows.cells);
         return {
           label: cells[0]?.text() ?? "",
           value: cells.slice(1).map((cell) => cell.text()).filter(Boolean).join(" "),
@@ -124,7 +132,7 @@ export function manageGalleryInfo(
     if (direct) {
       return direct;
     }
-    for (const node of cover ? [cover, ...cover.all<HTMLElement>("*")] : []) {
+    for (const node of cover ? [cover, ...cover.all(domClass.common.descendants)] : []) {
       const match = node
         .computedStyle()
         .backgroundImage.match(/url\(["']?(.+?)["']?\)/);
@@ -140,8 +148,8 @@ export function manageGalleryInfo(
     scripts: string[],
   ): GalleryFavoriteInfo => {
     const displayed =
-      element?.one<HTMLElement>("#favoritelink")?.text() ||
-      element?.one<HTMLElement>("[title]")?.attribute("title")?.trim() ||
+      element?.one(domClass.gallery.info.favorite.link)?.text() ||
+      element?.one(domClass.gallery.info.favorite.titled)?.attribute("title")?.trim() ||
       "";
     const slot = displayed.match(/(?:^|\D)([0-9])(?:\D|$)/)?.[1];
     const favorited = slot !== undefined || /^favorited$/i.test(displayed);
@@ -178,19 +186,15 @@ export function manageGalleryInfo(
       ? {
           count: count?.text() ?? "",
           label,
-          rated: ["irb", "irg", "irr"].some((className) =>
-            image?.hasClass(className),
-          ),
+          rated: image?.matches(domClass.gallery.info.rating.rated) ?? false,
           value,
         }
       : null;
   };
 
   const readActions = () =>
-    page
-      .all<HTMLElement>(
-        "#gd5 a, #gd5 button, #gd5 input[type='button'], #gd5 input[type='submit']",
-      )
+    gallery.actions.items
+      .all()
       .filter((node) => {
         const href = node.attribute("href")?.trim() ?? "";
         return (
@@ -198,15 +202,7 @@ export function manageGalleryInfo(
           Boolean(href && href !== "#" && !/^javascript:/i.test(href))
         );
       })
-      .slice(0, 6)
-      .map((node) => ({
-        label:
-          node.text() ||
-          node.attribute("title")?.trim() ||
-          node.attribute("aria-label")?.trim() ||
-          "",
-        node,
-      }));
+      .slice(0, 6);
 
   const readTag = (tag: DomNode<HTMLAnchorElement>) => {
     const label = tag.text() || tag.attribute("ehs-tag")?.trim() || tag.attribute("title")?.trim() || "";
@@ -215,7 +211,7 @@ export function manageGalleryInfo(
     if (!label || !name || !href) {
       return null;
     }
-    const container = tag.closest<HTMLElement>("div.gt, div.gtl, div.gtw") ?? tag;
+    const container = tag.closest(domClass.gallery.tagContainer) ?? tag;
     const tagStyle = tag.computedStyle();
     const containerStyle = container.computedStyle();
     const myTagId = tag.attribute("data-ehpeek-my-tag-id");
@@ -237,18 +233,18 @@ export function manageGalleryInfo(
   };
 
   const readTagGroups = () => {
-    const rows = page.all<HTMLTableRowElement>("#taglist tr");
+    const rows = gallery.tags.rows.all();
     if (rows.length > 0) {
       return rows
         .map((row) => ({
-          namespace: row.one<HTMLElement>(".tc, td:first-child")?.text().replace(/:$/, "") || "tag",
-          tags: row.all<HTMLAnchorElement>("a").map(readTag).filter((tag) => tag !== null).slice(0, 30),
+          namespace: row.one(domClass.gallery.tags.rows.namespace)?.text().replace(/:$/, "") || "tag",
+          tags: row.all(domClass.gallery.tags.rows.links).map(readTag).filter((tag) => tag !== null).slice(0, 30),
         }))
         .filter((group) => group.tags.length > 0);
     }
     return [{
       namespace: "tag",
-      tags: page.all<HTMLAnchorElement>("#taglist a").map(readTag).filter((tag) => tag !== null).slice(0, 60),
+      tags: gallery.tags.links.all().map(readTag).filter((tag) => tag !== null).slice(0, 60),
     }].filter((group) => group.tags.length > 0);
   };
 
@@ -262,13 +258,13 @@ export function manageGalleryInfo(
     doc: Document,
     favorited: boolean,
   ): GalleryFavoriteOption[] =>
-    DomNode.from(doc).all<HTMLInputElement>("input[name='favcat']").map((input) => {
-      const row = input.closest<HTMLElement>("div[style*='height']");
-      const value = input.inputValue();
+    DomNode.from(doc).use(domClass.myTags).favoriteOptions.all().map((favoriteInput) => {
+      const row = favoriteInput.closest(domClass.myTags.favoriteOptionRow);
+      const value = favoriteInput.inputValue();
       return {
         color: favoriteColor(value),
         label: row?.text().replace(/\s+/g, " ") || value,
-        selected: favorited && input.checked(),
+        selected: favorited && favoriteInput.checked(),
         value,
       };
     });
@@ -282,24 +278,20 @@ export function manageGalleryInfo(
   }));
 
   const meta = readMeta();
-  const category = page.one<HTMLElement>("#gdc");
-  const categoryStyle = category?.one<HTMLElement>("[class*='ct']") ?? category;
-  const cover = page.one<HTMLElement>("#gd1");
-  const coverSource = cover?.one<HTMLImageElement>("img") ?? null;
-  const favorite = page.one<HTMLElement>("#fav");
-  const ratingCount = page.one<HTMLElement>("#rating_count");
-  const ratingImage = page.one<HTMLElement>("#rating_image");
-  const ratingLabel = page.one<HTMLElement>("#rating_label");
-  const ratingActions = page.all<HTMLAreaElement>('map[name="rating"] area');
-  const tagMenuAction = page.one<HTMLElement>("#tagmenu_act");
-  const newTag = page.one<HTMLElement>("#tagmenu_new");
+  const category = source.category.one();
+  const categoryStyle = source.category.appearance.one() ?? category;
+  const cover = source.cover.one();
+  const coverSource = source.cover.image.one();
+  const favorite = source.favorite.one();
+  const ratingCount = source.rating.count.one();
+  const ratingImage = source.rating.image.one();
+  const ratingLabel = source.rating.label.one();
+  const ratingActions = source.rating.actions.all();
   const newTagButton =
-    newTag?.one<HTMLInputElement | HTMLButtonElement>("#newtagbutton") ?? null;
-  const newTagField = newTag?.one<HTMLInputElement>("#newtagfield") ?? null;
-  const newTagForm = newTag?.one<HTMLFormElement>("form") ?? null;
-  const scripts = page
-    .all<HTMLScriptElement>("script")
-    .map((script) => script.text());
+    source.newTag.button.one();
+  const newTagField = source.newTag.field.one();
+  const newTagForm = source.newTag.form.one();
+  const scripts = page.all(domClass.common.scripts).map((pageScript) => pageScript.text());
   const actionSources = readActions();
   const tagContentSources: DomNode<HTMLElement>[] = [];
   const tagGroups = readTagGroups().map((group) => ({
@@ -327,32 +319,36 @@ export function manageGalleryInfo(
       .slice(0, 6)
       .map((value) => ({ value })),
     tagGroups,
-    titleMain: page.one<HTMLElement>("#gn")?.text() ?? "",
-    titleSub: page.one<HTMLElement>("#gj")?.text() ?? "",
+    titleMain: source.titleMain.one()?.text() ?? "",
+    titleSub: source.titleSub.one()?.text() ?? "",
   };
 
   const coverUrl = readCoverUrl(cover, coverSource);
-  const hostChildSources = host
-    .all<HTMLElement>(":scope > *")
-    .filter((child) => !newTag?.sameNode(child));
+  const managedCover = coverUrl
+    ? (source.cover.image.clone()?.replaceClasses("").apply("fit") ??
+      createManagedElement("img", { fit: "ehpeek-fit-gallery-cover" }).apply("fit"))
+    : null;
+  managedCover
+    ?.removeAttributes("id", "style", "width", "height")
+    .setAttributes({ alt: "", decoding: "async", loading: "eager", src: coverUrl });
+  const managedNewTag = newTagButton && newTagField && newTagForm
+    ? source.newTag.move()?.apply("layout") ?? null
+    : null;
+  const hostApply = { hide: "ehpeek-hide-original-gallery-info" } as const;
+  managedNewTag
+    ?.setHidden(false)
+    .removeStyles("display");
   const elems = {
-    actionItems: actionSources.map(({ node }) => node.move()),
-    cover: coverUrl
-      ? (coverSource?.clone() ?? createManagedElement("img"))
-      : null,
-    host: host.inplace(),
-    hostChildren: hostChildSources.map((child) => child.inplace()),
+    actionItems: actionSources.map((item) =>
+      item.move(domClass.gallery.actions.items.apply).apply("layout")),
+    cover: managedCover,
+    host: host.inplace(hostApply).apply("hide"),
     mount,
-    newTag: newTagButton && newTagField && newTagForm
-      ? (newTag?.move() ?? null)
-      : null,
-    newTagButton: newTagButton?.inplace() ?? null,
-    newTagField: newTagField?.inplace() ?? null,
-    newTagForm: newTagForm?.inplace() ?? null,
+    newTag: managedNewTag,
     ratingActions: ratingActions.map((action) => action.inplace()),
     tagContents: tagContentSources.map((source) => source.inplace()),
-    tagList: page.one<HTMLElement>("#taglist")?.inplace() ?? null,
-    tagMenuAction: tagMenuAction?.inplace() ?? null,
+    tagList: gallery.tags.inplace(),
+    tagMenuAction: source.tagMenu.inplace(),
   } satisfies ManagedDomElements;
   let selectedTagSource: ManagedDomNode | null = null;
   const activateTagMenu = (source: ManagedDomNode) => {
@@ -365,41 +361,8 @@ export function manageGalleryInfo(
 
   const handle = {
     /** Normalizes the original cover for GalleryInfoPanel's responsive layout. */
-    updateCoverVisual(className: string) {
-      elems.cover
-        ?.removeAttributes("id", "style", "width", "height")
-        .setAttributes({ alt: "", decoding: "async", loading: "eager", src: coverUrl })
-        .replaceClasses(className);
-    },
-    /** Converts original Gallery actions into consistently styled component items. */
-    updateActionItemsVisual(className: string) {
-      elems.actionItems.forEach((action, index) => {
-        action.removeAttributes("id").replaceClasses(className).removeAllStyles();
-        action.setTextUnlessInput(actionSources[index]?.label ?? "");
-      });
-    },
-    /** Fits the original New Tag form into GalleryInfoPanel's tag controls. */
-    updateNewTagVisual(classes: {
-      button: string;
-      container: string;
-      field: string;
-      form: string;
-    }) {
-      elems.newTag
-        ?.addClasses(...classes.container.split(" "))
-        .setHidden(false)
-        .removeStyles("display");
-      elems.newTagButton?.addClasses(...classes.button.split(" "));
-      elems.newTagField?.removeAttributes("size").addClasses(...classes.field.split(" "));
-      elems.newTagForm?.addClasses(...classes.form.split(" "));
-    },
     /** Hides original GalleryInfo children and installs the component mount. */
-    installGalleryInfoPanel(className: string) {
-      elems.host.addClasses(className);
-      elems.hostChildren.forEach((child) => {
-        child.setHidden(true);
-        child.styles({ display: "none" }, "important");
-      });
+    installGalleryInfoPanel() {
       elems.host.prepend(elems.mount);
     },
     /** Loads the original favorite dialog choices for EhPeek's favorite modal. */
@@ -443,8 +406,6 @@ export function manageGalleryInfo(
     /** Opens E-H's original tag actions and only adapts their presentation. */
     openGalleryTagMenu(
       tag: GalleryInfoTagGroup["tags"][number],
-      containerClassName: string,
-      itemClassName: string,
     ): void {
       if (!elems.tagMenuAction) {
         throw new Error("Gallery tag actions are unavailable.");
@@ -453,7 +414,7 @@ export function manageGalleryInfo(
       // E-H only creates the action links when its original tag anchor is activated.
       activateTagMenu(tag.contentSource);
       elems.newTag?.setHidden(false).removeStyles("display");
-      const actions = elems.tagMenuAction.all<HTMLAnchorElement>("a");
+      const actions = elems.tagMenuAction.all(domClass.gallery.info.tagMenu.actions);
       if (actions.length === 0) {
         activateTagMenu(tag.contentSource);
         elems.newTag?.setHidden(false).removeStyles("display");
@@ -461,13 +422,7 @@ export function manageGalleryInfo(
       }
 
       selectedTagSource = tag.contentSource;
-      elems.tagMenuAction.replaceClasses(containerClassName);
-      elems.tagMenuAction.all<HTMLImageElement>("img").forEach((image) => {
-        image.setHidden(true);
-      });
-      actions.forEach((action) => {
-        action.replaceClasses(itemClassName).removeAllStyles();
-      });
+      elems.tagMenuAction.apply("layout");
 
       const addNewTag = actions.find((action) =>
         action.readAttribute("onclick")?.includes("toggle_tagmenu"));
@@ -496,11 +451,14 @@ export type GalleryInfoTagGroup = {
 
 /** Converts Gallery Comments score details from hover interaction to touch interaction. */
 export function mutateGalleryCommentsTouch() {
-  const items = DomNode.from(document).all<HTMLElement>("#cdiv .c5")
+  const source = DomNode.from(document).use(domClass.gallery.comments);
+  source.inplace()?.apply("touchScore");
+  const items = source.score.all()
     .filter((trigger) => trigger.attribute("data-ehpeek-touch-comment-score") !== "true")
     .map((trigger) => ({
       trigger,
-      details: trigger.closest<HTMLElement>(".c1")?.one<HTMLElement>(".c7[id^='cvotes_']") ?? null,
+      details: trigger.closest(domClass.gallery.comments.scoreComment)
+        ?.one(domClass.gallery.comments.scoreComment.details) ?? null,
     }))
     .filter((item): item is { trigger: DomNode<HTMLElement>; details: DomNode<HTMLElement> } => item.details !== null)
     .map(({ trigger, details }) => ({
@@ -514,7 +472,6 @@ export function mutateGalleryCommentsTouch() {
     item.expanded = expanded;
     item.trigger.attribute("aria-expanded", String(expanded));
     item.details.attribute("aria-hidden", String(!expanded));
-    item.details.styles({ display: expanded ? "" : "none" });
   };
 
   for (const item of items) {
@@ -525,8 +482,7 @@ export function mutateGalleryCommentsTouch() {
         role: "button",
         tabindex: "0",
         "aria-controls": item.detailsId,
-      })
-      .addClasses("whitespace-nowrap");
+      });
     setExpanded(item, false);
 
     const toggle = (event: Event) => {

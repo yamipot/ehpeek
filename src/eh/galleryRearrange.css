@@ -23,7 +23,7 @@ body {
 }
 
 /* Align enhanced and original gallery sections to one responsive content column. */
-.ehpeek-touch-gallery-host,
+.ehpeek-hide-original-gallery-info,
 .gpc,
 body #gdt[class],
 #cdiv,

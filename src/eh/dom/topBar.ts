@@ -4,13 +4,15 @@ import {
   DomNode,
   type ManagedDomElements,
 } from "./core";
+import { domClass } from "./domClass";
 
 /** Creates the Settings mount beside the original page navigation or gallery header. */
 export function manageSettingsMenuMount() {
   const page = DomNode.from(document);
-  const thumbnailContainer = page.one<HTMLElement>("#gdt");
-  const titleContainer = page.one<HTMLElement>("#gd2, h1");
-  const topNav = page.one<HTMLElement>("#nb");
+  const source = page.use(domClass.topBar);
+  const thumbnailContainer = page.use(domClass.gallery).preview.thumbs.one();
+  const titleContainer = source.galleryTitle.one();
+  const topNav = source.navigation.one();
   const anchor = thumbnailContainer ?? titleContainer;
 
   if (topNav) {
@@ -23,8 +25,7 @@ export function manageSettingsMenuMount() {
     return null;
   }
 
-  const item = createManagedElement("div");
-  item.styles({ "text-align": "right" });
+  const item = createManagedElement("div").replaceClasses("text-right");
   const managedAnchor = anchor.inplace();
 
   if (thumbnailContainer) {
@@ -44,8 +45,9 @@ export function manageTopBar() {
   }
 
   const page = DomNode.from(document);
-  const original = page.one<HTMLElement>("#nb");
-  const links = original?.all<HTMLAnchorElement>("a[href]") ?? [];
+  const source = page.use(domClass.topBar);
+  const original = source.navigation.one();
+  const links = source.navigation.links.all();
   if (!original || links.length === 0) {
     return null;
   }
@@ -57,23 +59,14 @@ export function manageTopBar() {
 
   const elems = {
     mount,
-    navItems: links.map((link) => link.move()),
+    navItems: source.navigation.links.moveAll().map((link) =>
+      link.apply("layout")),
   } satisfies ManagedDomElements;
   original.inplace().replaceWith(elems.mount);
-
-  const handle = {
-    /** Normalizes original links moved into EhPeek's icon-based TopBar. */
-    updateNavItemVisual(className: string) {
-      elems.navItems.forEach((item) =>
-        item.removeAttributes("id").replaceClasses(className).removeAllStyles(),
-      );
-    },
-  };
 
   return {
     data,
     elems,
-    handle,
   };
 }
 

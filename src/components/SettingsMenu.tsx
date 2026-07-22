@@ -16,10 +16,10 @@ type SettingsMenuState = {
   touchUiEnabled: boolean;
 };
 
-type SettingsTab = "modes" | "enhance" | "options" | "about";
+type SettingsTab = "general" | "enhance" | "options" | "about";
 
 const SETTINGS_SECTIONS: ReadonlyArray<readonly [SettingsTab, string]> = [
-  ["modes", texts.settings.modes],
+  ["general", texts.settings.general],
   ["enhance", texts.settings.enhance],
   ["options", texts.settings.options],
   ["about", texts.settings.about],
@@ -92,7 +92,7 @@ export function SettingsMenu(props: {
   const [draft, setDraft] = createStore<SettingsMenuState>(
     untrack(() => ({ ...props.initState })),
   );
-  const [activeTab, setActiveTab] = createSignal<SettingsTab>("modes");
+  const [activeTab, setActiveTab] = createSignal<SettingsTab>("general");
   const [categoryOpen, setCategoryOpen] = createSignal(false);
   const [helpOpen, setHelpOpen] = createSignal(false);
   const [changed, setChanged] = createSignal(false);
@@ -113,7 +113,7 @@ export function SettingsMenu(props: {
   createEffect(() => {
     if (props.open) {
       setDraft({ ...props.initState });
-      setActiveTab("modes");
+      setActiveTab("general");
       setCategoryOpen(false);
       setHelpOpen(false);
       setChanged(false);
@@ -198,7 +198,7 @@ export function SettingsMenu(props: {
           </Show>
         </div>
         <div class="min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain">
-          <Show when={activeTab() === "modes"}>
+          <Show when={activeTab() === "general"}>
             <SwitchButton
               checked={draft.readerEnabled}
               description={texts.settings.readerHelp}
@@ -286,7 +286,7 @@ export function SettingsMenu(props: {
           </Show>
         </div>
         <a
-          class="flex w-full min-h-md coarse:min-h-88px items-center overflow-hidden text-ellipsis whitespace-nowrap px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline textsize-md font-700 hover:bg-[var(--color-site-item-hover)]"
+          class="flex w-full min-h-md coarse:min-h-88px items-center overflow-hidden text-ellipsis whitespace-nowrap px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline textsize-md hover:bg-[var(--color-site-item-hover)]"
           href={props.historyHref}
         >
           {texts.settings.readHistoryLabel}

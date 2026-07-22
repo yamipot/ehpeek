@@ -4,38 +4,25 @@ import {
   DomNode,
   type ManagedDomElements,
 } from "./core";
-
-export type SearchPanelClasses = {
-  actionMount: string;
-  advancedPanel: string;
-  category: string;
-  categoryCell: string;
-  categoryRow: string;
-  categoryTable: string;
-  controls: string;
-  fileSearch: string;
-  form: string;
-  input: string;
-  optionLink: string;
-  optionLinks: string;
-  searchBox: string;
-};
+import { domClass } from "./domClass";
 
 /** Manages the original search controls for the TouchUI SearchPanel feature. */
 export function manageSearchPanel() {
   const page = DomNode.from(document);
-  const searchInput = page.one<HTMLInputElement>("#f_search, input[name='f_search']");
+  const search = page.use(domClass.search);
+  const source = search.panel;
+  const searchInput = search.input.one();
   const form = searchInput?.form() ?? null;
-  const standardSearchBox = page.one<HTMLElement>("#searchbox");
-  const categories = standardSearchBox?.one<HTMLTableElement>("form > table") ?? null;
-  const advancedPanel = standardSearchBox?.one<HTMLElement>("#advdiv") ?? null;
+  const standardSearchBox = source.box.one();
+  const categories = source.box.categories.one();
+  const advancedPanel = source.box.advanced.one();
   const optionLinks = advancedPanel?.previous() ?? null;
-  const fileSearch = page.one<HTMLElement>("#fsdiv");
-  const searchSubmit = form?.one<HTMLInputElement | HTMLButtonElement>("input[name='f_apply'], button[name='f_apply']")
-    ?? searchInput?.parent()?.one<HTMLInputElement | HTMLButtonElement>("input[type='submit'], button[type='submit']")
+  const fileSearch = source.fileSearch.one();
+  const searchSubmit = form?.one(domClass.search.submit)
+    ?? searchInput?.parent()?.one(domClass.search.submitFallback)
     ?? null;
-  const clearButton = form?.one<HTMLInputElement | HTMLButtonElement>("input[name='f_clear'], button[name='f_clear']")
-    ?? searchInput?.parent()?.one<HTMLInputElement | HTMLButtonElement>("input[type='button'], button[type='button']")
+  const clearButton = form?.one(domClass.search.panel.clear)
+    ?? searchInput?.parent()?.one(domClass.search.panel.clearFallback)
     ?? null;
   if (!searchInput || !form || !searchSubmit) {
     return null;
@@ -49,39 +36,35 @@ export function manageSearchPanel() {
     return null;
   }
 
-  const categoryRows = categories?.all<HTMLTableRowElement>("tr") ?? [];
-  const categoryCells = categories?.all<HTMLTableCellElement>("td") ?? [];
-  const categoryItems = categories?.all<HTMLElement>("[id^='cat_']") ?? [];
-  const optionLinkItems = optionLinks?.all<HTMLAnchorElement>("a") ?? [];
+  const optionLinkItems = optionLinks?.all(domClass.search.panel.optionLinks) ?? [];
   const advancedToggle = advancedPanel ? optionLinkItems[0] ?? null : null;
   const fileSearchToggle = fileSearch ? optionLinkItems[advancedToggle ? 1 : 0] ?? null : null;
   const advancedToggleMount = advancedToggle ? createAnchor("search-advanced-toggle") : null;
   const fileSearchToggleMount = fileSearchToggle ? createAnchor("search-file-toggle") : null;
 
-  const searchControls = createManagedElement("div");
+  const searchControls = createManagedElement("div", {
+    overlay: "ehpeek-overlay-search-actions",
+  }).apply("overlay");
+  const optionLinksApply = { wrap: "ehpeek-wrap-search-options" } as const;
   const elems = {
-    advancedPanel: advancedPanel?.inplace() ?? null,
+    advancedPanel: source.box.advanced.inplace()?.apply("expand") ?? null,
     advancedToggle: advancedToggle?.inplace() ?? null,
     advancedToggleMount,
-    categories: categories?.inplace() ?? null,
-    categoryCells: categoryCells.map((cell) => cell.inplace()),
-    categoryItems: categoryItems.map((item) => item.inplace()),
-    categoryRows: categoryRows.map((row) => row.inplace()),
+    categories: source.box.categories.inplace()?.apply("layout") ?? null,
     categoryToggleMount,
     clearActionMount,
-    clearButton: clearButton?.inplace() ?? null,
-    fileSearch: fileSearch?.inplace() ?? null,
+    clearButton: clearButton?.inplace(domClass.search.panel.clear.apply).apply("hide") ?? null,
+    fileSearch: source.fileSearch.inplace()?.apply("expand") ?? null,
     fileSearchToggle: fileSearchToggle?.inplace() ?? null,
     fileSearchToggleMount,
-    form: form.inplace(),
+    form: form.inplace(domClass.search.panel.box.form.apply),
     mount,
-    optionLinks: optionLinks?.inplace() ?? null,
-    optionLinkItems: optionLinkItems.map((link) => link.inplace()),
+    optionLinks: optionLinks?.inplace(optionLinksApply).apply("wrap") ?? null,
     searchActionMount,
-    searchBox: standardSearchBox?.inplace() ?? searchControls,
+    searchBox: source.box.inplace()?.apply("reset") ?? searchControls,
     searchControls,
-    searchInput: searchInput.inplace(),
-    searchSubmit: searchSubmit.inplace(),
+    searchInput: searchInput.inplace(domClass.search.input.apply).apply("expand"),
+    searchSubmit: searchSubmit.inplace(domClass.search.panel.submit.apply).apply("hide"),
   } satisfies ManagedDomElements;
 
   (standardSearchBox ? elems.searchBox : elems.form).before(elems.mount);
@@ -110,47 +93,24 @@ export function manageSearchPanel() {
   }
   elems.fileSearch?.remove();
 
-  const formInsideSearchBox = standardSearchBox?.one<HTMLFormElement>("form")?.sameNode(form) ?? false;
+  const formInsideSearchBox = source.box.form.one()?.sameNode(form) ?? false;
   const formId = form.attribute("id") || "ehpeek-search-form";
-  const categoryColors = categoryItems.map((item) =>
-    ["ct1", "ct2", "ct3", "ct4", "ct5", "ct6", "ct7", "ct8", "ct9", "cta"].find((name) => item.hasClass(name)) ?? null,
-  );
   const data = {
     clearLabel: clearButton ? actionLabel(clearButton) : null,
     hasClear: elems.clearButton !== null && elems.clearActionMount !== null,
     searchLabel: actionLabel(searchSubmit),
   };
 
+  elems.searchActionMount.addClasses("contents");
+  elems.clearActionMount?.addClasses("contents");
+  elems.form.apply("stack");
+  elems.searchControls
+    .setAttributes({ "data-ehpeek-has-clear": String(data.hasClear) });
+  elems.categories?.setAttributes({ "aria-hidden": "true" });
+
   const handle = {
-    /** Reflows original Search controls into EhPeek's shared SearchPanel structure. */
-    updateSearchPanelVisual(classes: SearchPanelClasses) {
-      elems.searchActionMount.replaceClasses(classes.actionMount);
-      elems.clearActionMount?.replaceClasses(classes.actionMount);
-      elems.searchBox.replaceClasses(standardSearchBox ? classes.searchBox : classes.controls);
-      if (formInsideSearchBox) {
-        elems.form.removeAttributes("style").replaceClasses(classes.form);
-      } else {
-        elems.form.setAttributes({ id: formId });
-        elems.searchInput.setAttributes({ form: formId });
-        elems.searchSubmit.setAttributes({ form: formId });
-        elems.clearButton?.setAttributes({ form: formId });
-      }
-      elems.searchControls.replaceClasses(classes.controls);
-      elems.searchInput.removeAttributes("style").replaceClasses(classes.input);
-      elems.categories?.replaceClasses(classes.categoryTable).setHidden(true);
-      elems.categoryRows.forEach((row) => row.replaceClasses(classes.categoryRow));
-      elems.categoryCells.forEach((cell) => cell.replaceClasses(classes.categoryCell));
-      elems.categoryItems.forEach((item, index) => item.replaceClasses(`${categoryColors[index] ? `${categoryColors[index]} ` : ""}${classes.category}`));
-      elems.optionLinks?.replaceClasses(classes.optionLinks);
-      elems.optionLinkItems.forEach((link) => link.replaceClasses(classes.optionLink));
-      elems.advancedPanel?.replaceClasses(classes.advancedPanel);
-      elems.fileSearch?.replaceClasses(classes.fileSearch).removeStyles("margin-top");
-      elems.searchSubmit.setHidden(true);
-      elems.clearButton?.setHidden(true);
-    },
     /** Controls the original category table from EhPeek's category toggle. */
     updateCategoryVisibility(open: boolean) {
-      elems.categories?.setHidden(!open);
       elems.categories?.setAttributes({ "aria-hidden": String(!open) });
     },
     /** Activates E-H's original Search submit control. */
@@ -170,6 +130,13 @@ export function manageSearchPanel() {
       elems.fileSearchToggle?.click();
     },
   };
+
+  if (!formInsideSearchBox) {
+    elems.form.setAttributes({ id: formId });
+    elems.searchInput.setAttributes({ form: formId });
+    elems.searchSubmit.setAttributes({ form: formId });
+    elems.clearButton?.setAttributes({ form: formId });
+  }
 
   return { data, elems, handle };
 }

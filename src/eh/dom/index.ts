@@ -7,6 +7,12 @@
  * Components consume its `XxxDom` object directly and must not query the
  * original page.
  *
+ * Original selectors are declared in `domClass`; `childs` describes query
+ * scope, while `group` only organizes nodes without adding a DOM level.
+ * Bind a definition with `DomNode.use()` to access descendants directly, then
+ * acquire a node with `inplace`, `move`, or `clone`. A managed node may call
+ * `apply()` only with names declared by that definition's `apply` map.
+ *
  * Source nodes are read only through `DomNode`. Validate every required node
  * before taking ownership and return `null` when the feature cannot be resolved.
  * `inplace`, `clone`, and `move` fix ownership immediately without applying
@@ -41,6 +47,7 @@
  * mounts and global styles belong to App rather than this original-page boundary.
  */
 export * from "./core";
+export * from "./domClass";
 export * as EhSyringe from "./ehSyringe";
 export * from "./galleryInfo";
 export * from "./gallery";

@@ -14,6 +14,154 @@ export type DomNodeFilter<TElement extends Element = Element> = (
   node: DomNode<TElement>,
 ) => boolean;
 
+export type DomApply = Readonly<Record<string, string>>;
+export interface DomChilds {
+  readonly [name: string]: DomDescription;
+}
+
+type DomGroupBase = {
+  readonly kind: "group";
+  readonly childs: DomChilds;
+};
+
+type DomDefinitionBase = {
+  readonly apply: DomApply;
+  readonly childs: DomChilds;
+  readonly kind: "node";
+  readonly selector: string;
+  readonly __element?: HTMLElement;
+};
+
+export type DomDescription = DomGroupBase | DomDefinitionBase;
+
+export type DomGroup<TChilds extends DomChilds = DomChilds> = DomGroupBase & {
+  readonly childs: TChilds;
+} & TChilds;
+
+export type DomDefinition<
+  TElement extends HTMLElement = HTMLElement,
+  TApply extends DomApply = DomApply,
+  TChilds extends DomChilds = DomChilds,
+> = {
+  readonly apply: TApply;
+  readonly childs: TChilds;
+  readonly kind: "node";
+  readonly selector: string;
+  readonly __element?: TElement;
+} & TChilds;
+
+type DomOptions<
+  TApply extends DomApply,
+  TChilds extends DomChilds,
+> = {
+  readonly apply?: TApply;
+  readonly childs?: TChilds;
+};
+
+type BoundDomChilds<TChilds extends DomChilds> = {
+  readonly [TKey in keyof TChilds]: BoundDom<TChilds[TKey]>;
+};
+
+type BoundDomNode<
+  TElement extends HTMLElement,
+  TApply extends DomApply,
+> = {
+  all(): DomNode<TElement>[];
+  clone(): ManagedDomNode<TElement, keyof TApply & string> | null;
+  cloneAll(): ManagedDomNode<TElement, keyof TApply & string>[];
+  inplace(): ManagedDomNode<TElement, keyof TApply & string> | null;
+  inplaceAll(): ManagedDomNode<TElement, keyof TApply & string>[];
+  move(): ManagedDomNode<TElement, keyof TApply & string> | null;
+  moveAll(): ManagedDomNode<TElement, keyof TApply & string>[];
+  one(): DomNode<TElement> | null;
+};
+
+export type BoundDom<TDescription extends DomDescription> =
+  TDescription extends DomGroup<infer TChilds>
+    ? BoundDomChilds<TChilds>
+    : TDescription extends DomDefinition<infer TElement, infer TApply, infer TChilds>
+      ? BoundDomNode<TElement, TApply> & BoundDomChilds<TChilds>
+      : never;
+
+const emptyDomApply = {} as const;
+const emptyDomChilds = {} as const;
+
+export function group<const TChilds extends DomChilds>(
+  childs: TChilds,
+): DomGroup<TChilds> {
+  return Object.assign({ kind: "group" as const, childs }, childs);
+}
+
+function defineDomNode<TElement extends HTMLElement>() {
+  return <
+    const TApply extends DomApply = typeof emptyDomApply,
+    const TChilds extends DomChilds = typeof emptyDomChilds,
+  >(
+    selector: string,
+    options: DomOptions<TApply, TChilds> = {},
+  ): DomDefinition<TElement, TApply, TChilds> => {
+    const childs = options.childs ?? emptyDomChilds as TChilds;
+    return Object.assign({
+      apply: options.apply ?? emptyDomApply as TApply,
+      childs,
+      kind: "node" as const,
+      selector,
+    }, childs);
+  };
+}
+
+export const query = defineDomNode<HTMLElement>();
+export const anchor = defineDomNode<HTMLAnchorElement>();
+export const area = defineDomNode<HTMLAreaElement>();
+export const button = defineDomNode<HTMLButtonElement>();
+export const cell = defineDomNode<HTMLTableCellElement>();
+export const control = defineDomNode<HTMLInputElement | HTMLButtonElement>();
+export const form = defineDomNode<HTMLFormElement>();
+export const image = defineDomNode<HTMLImageElement>();
+export const input = defineDomNode<HTMLInputElement>();
+export const option = defineDomNode<HTMLOptionElement>();
+export const row = defineDomNode<HTMLTableRowElement>();
+export const script = defineDomNode<HTMLScriptElement>();
+export const select = defineDomNode<HTMLSelectElement>();
+export const table = defineDomNode<HTMLTableElement>();
+
+export function cls<
+  const TApply extends DomApply = typeof emptyDomApply,
+  const TChilds extends DomChilds = typeof emptyDomChilds,
+>(
+  name: string,
+  options: DomOptions<TApply, TChilds> = {},
+): DomDefinition<HTMLElement, TApply, TChilds> {
+  return query(`.${name}`, options);
+}
+
+export function id<
+  const TApply extends DomApply = typeof emptyDomApply,
+  const TChilds extends DomChilds = typeof emptyDomChilds,
+>(
+  name: string,
+  options: DomOptions<TApply, TChilds> = {},
+): DomDefinition<HTMLElement, TApply, TChilds> {
+  return query(`#${name}`, options);
+}
+
+export function tag<
+  const TTag extends keyof HTMLElementTagNameMap,
+  const TApply extends DomApply = typeof emptyDomApply,
+  const TChilds extends DomChilds = typeof emptyDomChilds,
+>(
+  name: TTag,
+  options: DomOptions<TApply, TChilds> = {},
+): DomDefinition<HTMLElementTagNameMap[TTag], TApply, TChilds> {
+  return defineDomNode<HTMLElementTagNameMap[TTag]>()(name, options);
+}
+
+function domSelector(
+  source: string | DomDefinition,
+): string {
+  return typeof source === "string" ? source : source.selector;
+}
+
 export function originalPageNode<TElement extends Element>(
   node: DomNode<TElement>,
 ): boolean {
@@ -26,7 +174,7 @@ export function anyDomNode(): boolean {
 
 export type ManagedDomElements = Record<
   string,
-  ManagedDomNode | ManagedDomNode[] | null
+  ManagedDomNode<HTMLElement, string> | ManagedDomNode<HTMLElement, string>[] | null
 >;
 
 /** Creates a uniquely named managed mount for one component feature. */
@@ -46,8 +194,21 @@ export function createAnchor(
 /** Creates an EhPeek-owned managed element without touching original-page DOM. */
 export function createManagedElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
-): ManagedDomNode<HTMLElementTagNameMap[K]> {
-  return ManagedDomNode.from(document.createElement(tagName));
+): ManagedDomNode<HTMLElementTagNameMap[K]>;
+
+export function createManagedElement<
+  K extends keyof HTMLElementTagNameMap,
+  const TApply extends DomApply,
+>(
+  tagName: K,
+  apply: TApply,
+): ManagedDomNode<HTMLElementTagNameMap[K], keyof TApply & string>;
+
+export function createManagedElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  apply: DomApply = emptyDomApply,
+): ManagedDomNode<HTMLElementTagNameMap[K], string> {
+  return ManagedDomNode.from(document.createElement(tagName), apply);
 }
 
 /** Acquires the document element for page-level feature transforms. */
@@ -77,21 +238,55 @@ export class DomNode<T extends ParentNode = ParentNode> {
     return new DomNode(node);
   }
 
+  use<const TDescription extends DomDescription>(
+    description: TDescription,
+  ): BoundDom<TDescription> {
+    return bindDom(description, () => [this]);
+  }
+
+  one<
+    TElement extends HTMLElement,
+    TApply extends DomApply,
+    TChilds extends DomChilds,
+  >(
+    source: DomDefinition<TElement, TApply, TChilds>,
+    filter?: DomNodeFilter<TElement>,
+  ): DomNode<TElement> | null;
+
   one<TElement extends Element = HTMLElement>(
-    selector: string,
+    source: string,
+    filter?: DomNodeFilter<TElement>,
+  ): DomNode<TElement> | null;
+
+  one<TElement extends Element = HTMLElement>(
+    source: string | DomDefinition<TElement & HTMLElement>,
     filter: DomNodeFilter<TElement> = originalPageNode,
   ): DomNode<TElement> | null {
     return Array.from(
-      this.#node.querySelectorAll<TElement>(selector),
+      this.#node.querySelectorAll<TElement>(domSelector(source)),
       DomNode.from,
     ).find(filter) ?? null;
   }
 
+  all<
+    TElement extends HTMLElement,
+    TApply extends DomApply,
+    TChilds extends DomChilds,
+  >(
+    source: DomDefinition<TElement, TApply, TChilds>,
+    filter?: DomNodeFilter<TElement>,
+  ): DomNode<TElement>[];
+
   all<TElement extends Element = HTMLElement>(
-    selector: string,
+    source: string,
+    filter?: DomNodeFilter<TElement>,
+  ): DomNode<TElement>[];
+
+  all<TElement extends Element = HTMLElement>(
+    source: string | DomDefinition<TElement & HTMLElement>,
     filter: DomNodeFilter<TElement> = originalPageNode,
   ): DomNode<TElement>[] {
-    return Array.from(this.#node.querySelectorAll<TElement>(selector))
+    return Array.from(this.#node.querySelectorAll<TElement>(domSelector(source)))
       .map(DomNode.from)
       .filter(filter);
   }
@@ -105,16 +300,30 @@ export class DomNode<T extends ParentNode = ParentNode> {
     return Array.from(this.#node.children, (child) => DomNode.from(child as HTMLElement));
   }
 
+  closest<
+    TElement extends HTMLElement,
+    TApply extends DomApply,
+    TChilds extends DomChilds,
+  >(
+    this: DomNode<Element>,
+    source: DomDefinition<TElement, TApply, TChilds>,
+  ): DomNode<TElement> | null;
+
   closest<TElement extends HTMLElement = HTMLElement>(
     this: DomNode<Element>,
-    selector: string,
+    source: string,
+  ): DomNode<TElement> | null;
+
+  closest<TElement extends HTMLElement = HTMLElement>(
+    this: DomNode<Element>,
+    source: string | DomDefinition<TElement>,
   ): DomNode<TElement> | null {
-    const element = this.#node.closest<TElement>(selector);
+    const element = this.#node.closest<TElement>(domSelector(source));
     return element ? DomNode.from(element) : null;
   }
 
-  matches(this: DomNode<Element>, selector: string): boolean {
-    return this.#node.matches(selector);
+  matches(this: DomNode<Element>, source: string | DomDefinition): boolean {
+    return this.#node.matches(domSelector(source));
   }
 
   previous(this: DomNode<Element>): DomNode<HTMLElement> | null {
@@ -178,7 +387,7 @@ export class DomNode<T extends ParentNode = ParentNode> {
   }
 
   observe<TElement extends HTMLElement>(
-    selector: string,
+    source: string | DomDefinition<TElement>,
     acquire: (node: DomNode<TElement>) => ManagedDomNode<TElement> | null,
     onManaged: (node: ManagedDomNode<TElement>) => void | (() => void),
     options: MutationObserverInit = { childList: true, subtree: true },
@@ -186,7 +395,7 @@ export class DomNode<T extends ParentNode = ParentNode> {
     const seen: DomNode<TElement>[] = [];
     const cleanups: Array<() => void> = [];
     const scan = () => {
-      for (const node of this.all<TElement>(selector)) {
+      for (const node of this.all<TElement>(domSelector(source))) {
         if (seen.some((candidate) => candidate.sameNode(node))) {
           continue;
         }
@@ -212,49 +421,184 @@ export class DomNode<T extends ParentNode = ParentNode> {
 
   inplace(
     this: DomNode<T & HTMLElement>,
-  ): ManagedDomNode<T & HTMLElement> {
-    return ManagedDomNode.from(this.#node);
+  ): ManagedDomNode<T & HTMLElement>;
+
+  inplace<const TApply extends DomApply>(
+    this: DomNode<T & HTMLElement>,
+    apply: TApply,
+  ): ManagedDomNode<T & HTMLElement, keyof TApply & string>;
+
+  inplace(
+    this: DomNode<T & HTMLElement>,
+    apply: DomApply = emptyDomApply,
+  ): ManagedDomNode<T & HTMLElement, string> {
+    return ManagedDomNode.from(this.#node, apply);
   }
 
-  move(this: DomNode<T & HTMLElement>): ManagedDomNode<T & HTMLElement> {
-    const managed = this.inplace();
+  move(this: DomNode<T & HTMLElement>): ManagedDomNode<T & HTMLElement>;
+
+  move<const TApply extends DomApply>(
+    this: DomNode<T & HTMLElement>,
+    apply: TApply,
+  ): ManagedDomNode<T & HTMLElement, keyof TApply & string>;
+
+  move(
+    this: DomNode<T & HTMLElement>,
+    apply: DomApply = emptyDomApply,
+  ): ManagedDomNode<T & HTMLElement, string> {
+    const managed = this.inplace(apply);
     managed.remove();
     return managed;
   }
 
   clone(
     this: DomNode<T & HTMLElement>,
+    deep?: boolean,
+  ): ManagedDomNode<T & HTMLElement>;
+
+  clone<const TApply extends DomApply>(
+    this: DomNode<T & HTMLElement>,
+    apply: TApply,
+    deep?: boolean,
+  ): ManagedDomNode<T & HTMLElement, keyof TApply & string>;
+
+  clone(
+    this: DomNode<T & HTMLElement>,
+    applyOrDeep: DomApply | boolean = emptyDomApply,
     deep = true,
-  ): ManagedDomNode<T & HTMLElement> {
-    return ManagedDomNode.from(this.#node.cloneNode(deep) as T & HTMLElement);
+  ): ManagedDomNode<T & HTMLElement, string> {
+    const apply = typeof applyOrDeep === "boolean" ? emptyDomApply : applyOrDeep;
+    const cloneDeep = typeof applyOrDeep === "boolean" ? applyOrDeep : deep;
+    return ManagedDomNode.from(
+      this.#node.cloneNode(cloneDeep) as T & HTMLElement,
+      apply,
+    );
   }
 }
 
+function bindDom<const TDescription extends DomDescription>(
+  description: TDescription,
+  scopes: () => DomNode<ParentNode>[],
+): BoundDom<TDescription> {
+  const boundNode = description.kind === "group"
+    ? null
+    : bindDomNode(description, scopes);
+  const bound = boundNode ?? {};
+  const childScopes = description.kind === "group"
+    ? scopes
+    : () => boundNode?.all() ?? [];
+
+  for (const [name, child] of Object.entries(description.childs)) {
+    if (name in bound) {
+      throw new Error(`Original DOM child name is reserved: ${name}`);
+    }
+    Object.assign(bound, { [name]: bindDom(child, childScopes) });
+  }
+
+  return bound as BoundDom<TDescription>;
+}
+
+function bindDomNode(
+  description: DomDefinitionBase,
+  scopes: () => DomNode<ParentNode>[],
+): BoundDomNode<HTMLElement, DomApply> {
+  const retained: DomNode<HTMLElement>[] = [];
+  const all = () => {
+    const current = scopes().flatMap((scope) => scope.all<HTMLElement>(description.selector));
+    return [
+      ...current,
+      ...retained.filter((node) => !current.some((candidate) => candidate.sameNode(node))),
+    ];
+  };
+  const retain = (nodes: DomNode<HTMLElement>[]) => {
+    for (const node of nodes) {
+      if (!retained.some((candidate) => candidate.sameNode(node))) {
+        retained.push(node);
+      }
+    }
+    return nodes;
+  };
+
+  return {
+    all,
+    clone: () => all()[0]?.clone(description.apply) ?? null,
+    cloneAll: () => all().map((node) => node.clone(description.apply)),
+    inplace: () => retain(all().slice(0, 1))[0]?.inplace(description.apply) ?? null,
+    inplaceAll: () => retain(all()).map((node) => node.inplace(description.apply)),
+    move: () => retain(all().slice(0, 1))[0]?.move(description.apply) ?? null,
+    moveAll: () => retain(all()).map((node) => node.move(description.apply)),
+    one: () => all()[0] ?? null,
+  };
+}
+
 /** A node owned by EhPeek and therefore safe to mount or mutate. */
-export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
+export class ManagedDomNode<
+  T extends HTMLElement = HTMLElement,
+  TApply extends string = never,
+> {
   readonly Component: () => T;
+  readonly #apply: DomApply;
   readonly #node: T;
 
-  private constructor(element: T) {
+  private constructor(element: T, apply: DomApply) {
+    this.#apply = apply;
     this.#node = element;
     this.Component = () => this.#node;
   }
 
   static from<TElement extends HTMLElement>(
     element: TElement,
-  ): ManagedDomNode<TElement> {
+  ): ManagedDomNode<TElement>;
+
+  static from<
+    TElement extends HTMLElement,
+    const TApply extends DomApply,
+  >(
+    element: TElement,
+    apply: TApply,
+  ): ManagedDomNode<TElement, keyof TApply & string>;
+
+  static from<TElement extends HTMLElement>(
+    element: TElement,
+    apply: DomApply = emptyDomApply,
+  ): ManagedDomNode<TElement, string> {
     if (__EHPEEK_DEBUG__) {
       element.classList.add(MANAGED_DOM_NODE_CLASS);
     }
-    return new ManagedDomNode(element);
+    return new ManagedDomNode(element, apply);
   }
 
+  apply(...names: TApply[]): this {
+    const classes = names.map((name) => {
+      const className = this.#apply[name];
+      if (!className) {
+        throw new Error(`Unknown original DOM application: ${name}`);
+      }
+      return className;
+    });
+    this.#node.classList.add(...classes);
+    return this;
+  }
+
+  all<
+    TElement extends HTMLElement,
+    TDomApply extends DomApply,
+    TChilds extends DomChilds,
+  >(
+    source: DomDefinition<TElement, TDomApply, TChilds>,
+  ): ManagedDomNode<TElement, keyof TDomApply & string>[];
+
   all<TElement extends HTMLElement = HTMLElement>(
-    selector: string,
-  ): ManagedDomNode<TElement>[] {
+    source: string,
+  ): ManagedDomNode<TElement>[];
+
+  all<TElement extends HTMLElement = HTMLElement>(
+    source: string | DomDefinition<TElement>,
+  ): ManagedDomNode<TElement, string>[] {
+    const apply = typeof source === "string" ? emptyDomApply : source.apply;
     return Array.from(
-      this.#node.querySelectorAll<TElement>(selector),
-      ManagedDomNode.from,
+      this.#node.querySelectorAll<TElement>(domSelector(source)),
+      (node) => ManagedDomNode.from(node, apply),
     );
   }
 
@@ -486,8 +830,8 @@ export class ManagedDomNode<T extends HTMLElement = HTMLElement> {
     return this.#node.contains(node);
   }
 
-  matches(selector: string): boolean {
-    return this.#node.matches(selector);
+  matches(source: string | DomDefinition): boolean {
+    return this.#node.matches(domSelector(source));
   }
 
   copyAttributesTo(target: ManagedDomNode): void {

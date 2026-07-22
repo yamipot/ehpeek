@@ -17,8 +17,7 @@ import {
   documentBody,
   DomNode,
 } from "./core";
-
-const GALLERY_PAGE_DESCRIPTION_SELECTOR = ".gpc";
+import { domClass } from "./domClass";
 
 export type MyTagsPageData = {
   appearances: MyTagAppearance[];
@@ -32,30 +31,31 @@ export function extractMyTagsPageData(
   tagSet?: string,
 ): MyTagsPageData {
   const page = DomNode.from(root);
-  const tags = page.one<HTMLElement>("#usertags_outer");
+  const source = page.use(domClass.myTags);
+  const tags = source.tags.one();
 
   if (!tags) {
     throw new Error("The My Tags page could not be read.");
   }
 
-  const options = page.all<HTMLOptionElement>("#tagset_outer select option").map((option) => ({
+  const options = source.options.all().map((option) => ({
     label: option.text() || option.inputValue(),
     selected: option.selected(),
     value: option.inputValue(),
   }));
   const activeTagSet = tagSet ?? options.find((option) => option.selected)?.value ?? "1";
-  const defaultColor = page.one<HTMLInputElement>("#tagcolor")?.inputValue().trim() ?? "";
+  const defaultColor = source.defaultColor.one()?.inputValue().trim() ?? "";
   const output: MyTagAppearance[] = [];
 
-  for (const item of tags.all<HTMLElement>(":scope > [id^='usertag_']")) {
-    const preview = item.one<HTMLElement>("[id^='tagpreview_'][title]");
+  for (const item of tags.all(domClass.myTags.tags.items)) {
+    const preview = item.one(domClass.myTags.tags.items.preview);
     const name = normalizeTagName(preview?.attribute("title") ?? "");
 
     if (!preview || !name) {
       continue;
     }
 
-    const itemColor = item.one<HTMLInputElement>("input[id^='tagcolor_']")?.inputValue() ?? "";
+    const itemColor = item.one(domClass.myTags.tags.items.color)?.inputValue() ?? "";
     const backgroundColor = normalizeTagColor(itemColor) || normalizeTagColor(defaultColor);
     const id = item.attribute("id")?.match(/^usertag_(\d+)$/)?.[1] ?? "";
 
@@ -74,7 +74,7 @@ export function extractMyTagsPageData(
 
   return {
     appearances: output,
-    enabled: page.one<HTMLInputElement>("#tagset_enable")?.checked() ?? true,
+    enabled: source.enabled.one()?.checked() ?? true,
     options,
   };
 }
@@ -102,28 +102,27 @@ function readableTagColor(backgroundColor: string): "#000000" | "#ffffff" {
 /** Applies and maintains stored My Tags appearances for the GalleryInfo enhancer lifecycle. */
 export function mutateGalleryMyTags(appearances: MyTagAppearance[]) {
   const byName = new Map(appearances.map((appearance) => [appearance.name, appearance]));
+  const source = DomNode.from(document).use(domClass.gallery);
   const apply = () => {
-    for (const tag of DomNode.from(document).all<HTMLAnchorElement>("#taglist a")) {
+    for (const tag of source.tags.links.all()) {
       const name = galleryTagNameFromUrl(tag.attribute("href") ?? "");
       const appearance = name ? byName.get(normalizeTagName(name)) : undefined;
       if (!appearance?.backgroundColor) {
         continue;
       }
 
-      const container = tag.closest<HTMLElement>("div.gt, div.gtl, div.gtw");
+      const container = tag.closest(domClass.gallery.tagContainer);
       if (!container) {
         continue;
       }
 
-      container.inplace()
+      container.inplace(domClass.gallery.tagContainer.apply)
         .styles({
+          "--ehpeek-my-tag-background": appearance.backgroundColor,
           "--ehpeek-my-tag-color": appearance.color,
-          "background-color": appearance.backgroundColor,
-        }, "important")
-        .addClasses("[&>a]:!text-[var(--ehpeek-my-tag-color)]");
+        })
+        .apply("myTag");
       tag.inplace()
-        .removeStyles("color")
-        .removeClasses("!text-[var(--ehpeek-my-tag-color)]")
         .setAttributes({
           "data-ehpeek-my-tag-id": appearance.id,
           "data-ehpeek-my-tag-set": appearance.tagSet,
@@ -132,7 +131,7 @@ export function mutateGalleryMyTags(appearances: MyTagAppearance[]) {
   };
 
   apply();
-  return DomNode.from(document).one<HTMLElement>("#taglist")?.inplace().observe(apply)
+  return source.tags.inplace()?.observe(apply)
     ?? (() => undefined);
 }
 
@@ -140,11 +139,11 @@ export function mutateGalleryMyTags(appearances: MyTagAppearance[]) {
 export function manageGalleryContinueReadingButtonMount() {
   const managedHost = createManagedElement("div")
     .replaceClasses("box-border w-full px-sm pt-sm pb-sm");
-  const viewerOptions = DomNode.from(document).one<HTMLElement>("#gd5")?.inplace();
+  const viewerOptions = DomNode.from(document).use(domClass.gallery).actions.inplace();
 
   if (viewerOptions) {
     viewerOptions
-      .addClasses("ehpeek-gallery-actions", "!h-auto", "!max-h-none", "overflow-visible")
+      .apply("expand")
       .append(managedHost);
     return managedHost;
   }
@@ -171,9 +170,10 @@ export function manageGalleryPreview(
   baseUrl = window.location.href,
 ) {
   const page = DomNode.from(root);
+  const source = page.use(domClass.gallery.preview);
   const currentUrl = new URL(baseUrl, window.location.href).href;
   const currentIndex = previewPageIndex(currentUrl);
-  const pageDescriptionSource = page.one<HTMLElement>(GALLERY_PAGE_DESCRIPTION_SELECTOR);
+  const pageDescriptionSource = source.description.one();
   const rangeText = pageDescriptionSource?.text() ?? "";
   const rangeMatch = rangeText.match(/([\d,]+)\s*-\s*([\d,]+)\D+([\d,]+)/);
   const rangeValues = rangeMatch?.slice(1).map((value) => Number(value.replace(/,/g, ""))) ?? [];
@@ -205,8 +205,8 @@ export function manageGalleryPreview(
   const pageSize = inferredFullPageSize;
   const maxIndex = Math.max(currentIndex, Math.ceil(totalImages / pageSize) - 1);
   const seen = new Set<string>();
-  const pages = page
-    .all<HTMLAnchorElement>("#gdt a[href], .gdtm a[href], .gdtl a[href], a[href*='/s/']")
+  const pages = source.imageLinks
+    .all()
     .flatMap((link): ReaderPage[] => {
       const url = normalizeUrl(link.attribute("href") || "", currentUrl);
       const imagePage = extractPageType(url);
@@ -214,7 +214,7 @@ export function manageGalleryPreview(
         return [];
       }
       seen.add(url);
-      const size = link.one<HTMLImageElement>("img")?.imageSize();
+      const size = link.one(domClass.common.image)?.imageSize();
       return [{
         aspectRatio: size && size.width > 0 && size.height > 0 ? size.height / size.width : 1.42,
         pageNum: imagePage.pageNum,
@@ -234,9 +234,9 @@ export function manageGalleryPreview(
     startImage,
     totalImages,
   };
-  const thumbsSource = page.one<HTMLElement>("#gdt");
-  const pageBarTopSource = page.one<HTMLElement>(".ptt");
-  const pageBarBottomSource = page.one<HTMLElement>(".ptb");
+  const thumbsSource = source.thumbs.one();
+  const pageBarTopSource = source.pageBarTop.one();
+  const pageBarBottomSource = source.pageBarBottom.one();
   const createPageBarMount = (position: "bottom" | "top") =>
     createManagedElement("div").replaceClasses(
       `w-max max-w-full mx-auto overflow-x-auto touch-pan-y [-webkit-overflow-scrolling:touch] [&[data-dragging=true]]:select-none ${position === "top" ? "mt-2px mb-0" : "mt-0 mb-10px"}`,
@@ -253,12 +253,11 @@ export function manageGalleryPreview(
       ? createManagedElement("div")
       : null,
     pageBarTop: pageBarTopSource ? createPageBarMount("top") : null,
-    thumbImages: thumbsSource?.all<HTMLImageElement>("img").map((image) => image.inplace()) ?? [],
-    thumbLinks: thumbsSource?.all<HTMLAnchorElement>("a[href]").map((link) => link.inplace()) ?? [],
+    thumbImages: source.thumbs.images.inplaceAll(),
     thumbItems: thumbsSource?.children().map((item) =>
       root === document ? item.inplace() : item.move()
     ) ?? [],
-    thumbs: root === document ? thumbsSource?.inplace() ?? null : null,
+    thumbs: root === document ? source.thumbs.inplace() : null,
   };
   if (elems.mount && elems.thumbs) {
     elems.thumbs.before(elems.mount);
@@ -266,26 +265,17 @@ export function manageGalleryPreview(
   const handle = {
     /** Opens thumbnail image links in EhPeek Reader instead of original navigation. */
     interceptPreviewImageOpen(onOpen: (url: string) => void): () => void {
-      elems.thumbLinks.forEach((link) => {
-        link
-          .styles({ "-webkit-tap-highlight-color": "transparent", outline: "none" }, "important")
-          .addClasses("coarse:focus:!outline-none", "coarse:active:!outline-none");
-      });
-      elems.thumbItems.forEach((item) => {
-        item.addClasses(
-          "coarse:hover:!border-[var(--color-site-border)]",
-          "coarse:active:!border-[var(--color-site-border)]",
-        );
-      });
+      elems.thumbs?.apply("suppressTapHighlight");
       const handleClick = (event: MouseEvent) => {
         const link = event.target instanceof Element
-          ? DomNode.from(event.target).closest<HTMLAnchorElement>("a[href]")
+          ? DomNode.from(event.target).closest(domClass.common.links)
           : null;
         const href = link?.attribute("href") ?? "";
         if (
           !link ||
           extractPageType(href).type !== "image" ||
-          (!link.one("img") && !link.closest("#gdt, .gdtm, .gdtl"))
+          (!link.one(domClass.common.image) &&
+            !link.closest(domClass.gallery.preview.imageLinkHost))
         ) {
           return;
         }
@@ -299,11 +289,9 @@ export function manageGalleryPreview(
     },
     /** Makes thumbnail dragging available to the horizontal preview-page gesture. */
     ensurePreviewSwipeInput(): void {
-      elems.thumbs?.addClasses("select-none", "touch-pan-y");
+      elems.thumbs?.apply("swipe");
       for (const image of elems.thumbImages) {
-        image
-          .setAttributes({ draggable: "false" })
-          .addClasses("[-webkit-user-drag:none]");
+        image.setAttributes({ draggable: "false" });
       }
     },
     /** Installs a fetched preview page into the currently visible thumbnail host. */
@@ -316,16 +304,14 @@ export function manageGalleryPreview(
     },
     /** Replaces both original page bars with mounts owned by EhPeek pagination. */
     installPreviewPageBars(): void {
+      DomNode.from(document).use(domClass.page).body.inplace()?.apply("hidePreviewPageBars");
       if (elems.originalPageBarTop && elems.pageBarTop) {
         elems.originalPageBarTop.after(elems.pageBarTop);
-        elems.originalPageBarTop.setHidden(true);
       }
       if (elems.originalPageBarBottom && elems.pageBarBottom) {
         elems.originalPageBarBottom.after(elems.pageBarBottom);
-        elems.originalPageBarBottom.setHidden(true);
       }
       if (elems.originalPageDescription && elems.pageBarDescription && elems.pageBarTop) {
-        elems.originalPageDescription.setHidden(true);
         elems.pageBarTop.before(elems.pageBarDescription);
       }
     },
@@ -356,7 +342,7 @@ export async function loadGalleryPreviewPage(
 
 /** Resolves Reader's gallery identity from the current original image page. */
 export function extractImageGalleryPage(root: ParentNode = document): Extract<PageType, { type: "gallery" }> | null {
-  for (const link of DomNode.from(root).all<HTMLAnchorElement>("a[href]")) {
+  for (const link of DomNode.from(root).use(domClass.common).links.all()) {
     const page = extractPageType(normalizeUrl(link.attribute("href") || ""));
     if (page.type === "gallery") {
       return page;
@@ -369,7 +355,8 @@ export function extractImageGalleryPage(root: ParentNode = document): Extract<Pa
 export async function loadEhImagePage(page: ReaderPage): Promise<LoadedReaderPage> {
   const response = await requestPage(page.url);
   const source = DomNode.from(response.document);
-  const image = source.one<HTMLImageElement>("img#img");
+  const imagePage = source.use(domClass.gallery.imagePage);
+  const image = imagePage.image.one();
   const imageUrl = normalizeUrl(
     image?.attribute("src") || image?.attribute("data-src") || "",
     page.url,
@@ -386,8 +373,8 @@ export async function loadEhImagePage(page: ReaderPage): Promise<LoadedReaderPag
   const info: ImagePageInfo = {
     height: numberAttribute("height"),
     imageUrl,
-    originalImageUrl: source
-      .all<HTMLAnchorElement>("a[href]")
+    originalImageUrl: imagePage.links
+      .all()
       .map((link) => normalizeUrl(link.attribute("href") || "", page.url))
       .find(isFullImageUrl) ?? null,
     width: numberAttribute("width"),
