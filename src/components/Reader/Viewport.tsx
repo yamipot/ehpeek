@@ -4,6 +4,7 @@ import texts from "../../texts.json";
 import { clamp, normalizedAspectRatio, positiveNumber } from "../../utils";
 import { ScrollAnimator, ScrollFlingAnimator, type ScrollMotion } from "../animation";
 import { createPointerGestureElement, type PointerGestureCallbacks } from "../PointerGesture";
+import { Icon } from "../Widgets/Icon";
 
 const FALLBACK_ASPECT_RATIO = 1.42;
 const DEFAULT_DECODED_IMAGE_CACHE_LIMIT = 24;
@@ -627,20 +628,27 @@ function PageSlotPlaceholder(props: {
           </span>
         </Show>
       }>
-        <div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">
-          {props.text}
-        </div>
         <button
           type="button"
-          class="ehpeek-reader-page-reload inline-flex w-64px h-64px items-center justify-center border border-[var(--color-danger-border)] rounded-full bg-[var(--color-danger-soft)] text-[var(--color-danger)] cursor-pointer font-sans textsize-lg font-700 leading-1 active:scale-96 [touch-action:manipulation]"
+          class="ehpeek-reader-page-reload appearance-none inline-flex w-64px h-64px items-center justify-center border border-[var(--color-border)] rounded-md bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-lg font-700 leading-1 hover:bg-[var(--color-badge)] active:scale-96 [touch-action:manipulation]"
+          aria-label={`${texts.reader.reloadPage} ${props.content.pageNum}`}
+          title={texts.reader.reloadPage}
           onPointerDown={stop}
           onClick={(event: MouseEvent) => {
             stop(event);
             props.onReloadPage(props.content.pageNum);
           }}
         >
-          <span aria-hidden="true">↻</span>
+          <Icon name="refresh" size={32} />
         </button>
+        <div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">
+          {texts.reader.failedPrefix}
+        </div>
+        <Show when={props.content.errorMessage}>
+          <div class="max-w-[min(86vw,760px)] opacity-80 break-anywhere textsize-sm font-500 leading-[1.4] [direction:ltr] [unicode-bidi:plaintext]">
+            {props.content.errorMessage}
+          </div>
+        </Show>
       </Show>
     </div>
   );
@@ -741,8 +749,7 @@ function createPagesScroller(element: HTMLElement) {
 
 function slotPlaceholderText(content: SlotContent): string {
   if (content.state === "error") {
-    const suffix = content.errorMessage ? `: ${content.errorMessage}` : "";
-    return `${texts.reader.failedPrefix} ${content.pageNum}${suffix}`;
+    return texts.reader.failedPrefix;
   }
 
   if (content.kind === "end") {

@@ -45,7 +45,8 @@
     "pages": "Pages",
     "endPage": "End",
     "end": "End of gallery. Tap to exit.",
-    "failedPrefix": "Failed"
+    "failedPrefix": "Failed",
+    "reloadPage": "Reload page"
   },
   "favorites": {
     "all": "All"

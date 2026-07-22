@@ -20,6 +20,7 @@ export type IconName =
   | "menu"
   | "panda-peek"
   | "pages"
+  | "refresh"
   | "search"
   | "settings"
   | "star";
@@ -134,6 +135,9 @@ const ICON_DEFINITIONS: Record<IconName, IconDefinition> = {
   },
   pages: {
     paths: ["M3 5h8v14H3z", "M13 5h8v14h-8z"],
+  },
+  refresh: {
+    paths: ["M3 12a9 9 0 1 0 3-6.7L3 8", "M3 3v5h5"],
   },
   search: {
     paths: ["M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z", "m16.2 16.2 4.3 4.3"],
