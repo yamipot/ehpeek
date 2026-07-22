@@ -24,7 +24,7 @@
     "all": "All"
   },
   "gallery": {
-    "favoriteTag": "Favorite",
+    "favoriteTag": "Add My Tag",
     "removeFavoriteTag": "Remove My Tag",
     "tagCollection": "Collection",
     "tagBehavior": "Behavior",

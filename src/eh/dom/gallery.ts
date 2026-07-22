@@ -138,12 +138,13 @@ export function mutateGalleryMyTags(appearances: MyTagAppearance[]) {
 
 /** Returns the original GalleryInfo control used to mount the Continue/Read button. */
 export function manageGalleryContinueReadingButtonMount() {
-  const managedHost = createManagedElement("div");
+  const managedHost = createManagedElement("div")
+    .replaceClasses("box-border w-full px-sm pt-sm pb-sm");
   const viewerOptions = DomNode.from(document).one<HTMLElement>("#gd5")?.inplace();
 
   if (viewerOptions) {
     viewerOptions
-      .addClasses("ehpeek-gallery-actions")
+      .addClasses("ehpeek-gallery-actions", "!h-auto", "!max-h-none", "overflow-visible")
       .append(managedHost);
     return managedHost;
   }
@@ -253,6 +254,7 @@ export function manageGalleryPreview(
       : null,
     pageBarTop: pageBarTopSource ? createPageBarMount("top") : null,
     thumbImages: thumbsSource?.all<HTMLImageElement>("img").map((image) => image.inplace()) ?? [],
+    thumbLinks: thumbsSource?.all<HTMLAnchorElement>("a[href]").map((link) => link.inplace()) ?? [],
     thumbItems: thumbsSource?.children().map((item) =>
       root === document ? item.inplace() : item.move()
     ) ?? [],
@@ -264,6 +266,17 @@ export function manageGalleryPreview(
   const handle = {
     /** Opens thumbnail image links in EhPeek Reader instead of original navigation. */
     interceptPreviewImageOpen(onOpen: (url: string) => void): () => void {
+      elems.thumbLinks.forEach((link) => {
+        link
+          .styles({ "-webkit-tap-highlight-color": "transparent", outline: "none" }, "important")
+          .addClasses("coarse:focus:!outline-none", "coarse:active:!outline-none");
+      });
+      elems.thumbItems.forEach((item) => {
+        item.addClasses(
+          "coarse:hover:!border-[var(--color-site-border)]",
+          "coarse:active:!border-[var(--color-site-border)]",
+        );
+      });
       const handleClick = (event: MouseEvent) => {
         const link = event.target instanceof Element
           ? DomNode.from(event.target).closest<HTMLAnchorElement>("a[href]")

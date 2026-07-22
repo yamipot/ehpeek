@@ -263,14 +263,7 @@ export function GalleryInfoPanel(props: {
               class={`float-right inline-flex min-h-sm items-center justify-center gap-md ml-sm mb-sm rounded-xl border-0 px-lg font-inherit font-700 textsize-sm cursor-pointer transition-[background-color,color] duration-120 ${tagging() ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent" : "bg-[var(--color-site-surface)] ehp-color-site-text"}`}
               aria-pressed={tagging()}
               onClick={() => {
-                const enabled = !tagging();
-                setTagging(enabled);
-                if (enabled && hasNewTag()) {
-                  queueMicrotask(() => {
-                    source.elems.newTag?.scrollIntoView({ block: "nearest" });
-                    source.elems.newTagField?.focus();
-                  });
-                }
+                setTagging((enabled) => !enabled);
               }}
             >
               <span>Tagging</span>

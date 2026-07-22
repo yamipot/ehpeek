@@ -279,11 +279,12 @@ export function mutateSearchGrid(): void {
     source.selectionCell?.inplace().styles({ width: "auto", "margin-left": "6px" }, "important");
     source.thumbnail?.inplace().styles({ width: "100%", height: "auto" }, "important");
     source.image?.inplace().styles({ width: "100%", height: "auto" }, "important");
-    applySearchGridContent(source, contentCell, detail, metadata);
+    applySearchGridContent(source, row, contentCell, detail, metadata);
   }
 
   function applySearchGridContent(
     source: SearchGridRow,
+    row: ManagedDomNode,
     contentCell: ManagedDomNode,
     detail: ManagedDomNode,
     metadata: ManagedDomNode,
@@ -299,7 +300,12 @@ export function mutateSearchGrid(): void {
       galleryLink.before(detail);
       galleryLink.remove();
       detail.replaceChildren(titleLink, metadata, ...tags);
-      makeSearchGridContentClickable(contentCell, titleLink, source.galleryHref, source.titleText);
+      makeSearchGridContentClickable(
+        row,
+        titleLink,
+        source.galleryHref,
+        source.titleText,
+      );
     } else if (title) {
       title.after(metadata);
     }
@@ -399,15 +405,17 @@ export function mutateSearchGrid(): void {
   }
   
   function makeSearchGridContentClickable(
-    contentCell: ManagedDomNode,
+    row: ManagedDomNode,
     galleryLink: ManagedDomNode<HTMLAnchorElement>,
     galleryHref: string,
     title: string,
   ): void {
     const overlay = createManagedElement("a")
       .attribute("href", galleryHref)
-      .attribute("aria-label", title || "Open gallery").replaceClasses("hidden coarse:block absolute inset-0 z-1");
-    contentCell
+      .attribute("aria-label", title || "Open gallery")
+      .replaceClasses("hidden coarse:block absolute inset-0 z-1")
+      .styles({ "grid-column": "1 / 3", "grid-row": "1" });
+    row
       .styles({ position: "relative", cursor: "pointer" }, "important")
       .append(overlay)
       .listen("click", (event) => {

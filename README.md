@@ -12,9 +12,9 @@ A userscript that turns E-H / ExH pages into a touch-optimized gallery reader. I
 - Faster navigation with gestures, enhanced pagination, and browsing history.
 - Reading progress and Continue support across galleries.
 
-For a better experience, EhPeek maintains best-effort compatibility with the following scripts; compatibility with others is not guaranteed:
+EhPeek can work with the following scripts for a better experience and maintains best-effort compatibility with them; compatibility with other scripts is not guaranteed:
 
-- [EhSyringe](https://github.com/EhTagTranslation/EhSyringe)
+- [EhSyringe](https://github.com/EhTagTranslation/EhSyringe) (tag autocomplete, translation)
 
 ## Install
 

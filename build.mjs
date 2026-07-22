@@ -28,6 +28,7 @@ const metadata = [
   `// @license      MIT`,
   `// @namespace    https://github.com/yamipot/ehpeek`,
   `// @homepage     https://github.com/yamipot/ehpeek`,
+  `// @supportURL   https://github.com/yamipot/ehpeek/issues`,
   "// @match        *://exhentai.org/*",
   "// @match        *://exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion/*",
   "// @match        *://e-hentai.org/*",
