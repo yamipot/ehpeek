@@ -37,12 +37,13 @@ export function Icon(props: {
 }) {
   const definition = createMemo(() => ICON_DEFINITIONS[props.name]);
   const filled = createMemo(() => definition().solid || (definition().fillable && props.filled));
+  const size = createMemo(() =>
+    typeof props.size === "number" ? `${props.size}px` : props.size ?? "24px");
 
   return (
     <svg
       class="ehpeek-icon block flex-none"
-      width={props.size ?? 24}
-      height={props.size ?? 24}
+      style={{ width: size(), height: size() }}
       viewBox="0 0 24 24"
       fill={filled() ? "currentColor" : "none"}
       stroke={filled() ? "none" : "currentColor"}
