@@ -167,11 +167,11 @@ export function ReadButton(props: {
 }) {
   const buttonClassName = () =>
     props.variant === "touchGallery"
-      ? "ehpeek-continue-reading ehpeek-touch-gallery-primary-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] textsize-md font-700"
+      ? "ehpeek-continue-reading ehpeek-touch-gallery-primary-button flex min-w-0 w-full h-full min-h-md coarse:min-h-xl flex-col items-center justify-center gap-sm coarse:gap-md py-sm coarse:py-md px-md coarse:px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] textsize-sm coarse:textsize-md font-700"
       : "ehpeek-continue-reading flex box-border w-full max-w-full min-h-sm items-center gap-sm py-sm px-xs border-0 bg-transparent text-[var(--color-site-accent)] hover:bg-[var(--color-site-accent-hover)] shadow-none cursor-pointer text-left font-sans textsize-sm font-700 leading-[1.2]";
   const detailClassName = () =>
     props.variant === "touchGallery"
-      ? "ehpeek-continue-reading-page block mt-2px ehp-color-site-accent textsize-md font-600 opacity-78 normal-case"
+      ? "ehpeek-continue-reading-page block mt-1px coarse:mt-2px ehp-color-site-accent textsize-sm coarse:textsize-md font-600 opacity-78 normal-case"
       : "ehpeek-continue-reading-page inline-block ml-auto opacity-72 textsize-xs font-600 whitespace-nowrap";
 
   return (

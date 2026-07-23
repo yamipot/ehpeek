@@ -5,13 +5,13 @@ import { DomNode } from "../Widgets/ExternalDom";
 import { Icon } from "../Widgets/Icon";
 
 const TOUCH_SEARCH_OPTION_CLASS =
-  "appearance-none inline-flex min-h-md items-center px-md border-0 rounded-md bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]";
+  "appearance-none inline-flex min-h-xs coarse:min-h-md items-center px-sm coarse:px-md border-0 rounded-sm coarse:rounded-md bg-transparent ehp-color-site-accent text-left textsize-sm coarse:textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]";
 const TOUCH_SEARCH_ACTION_CLASS =
-  "appearance-none inline-flex box-border w-60px h-60px items-center justify-center p-0 rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-120 [touch-action:manipulation] active:(scale-96 bg-[var(--color-site-item-hover)])";
+  "appearance-none inline-flex box-border w-sm h-sm coarse:w-60px coarse:h-60px items-center justify-center p-0 rounded-sm coarse:rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-120 [touch-action:manipulation] active:(scale-96 bg-[var(--color-site-item-hover)]) [--ehpeek-touch-search-icon-size:16px] coarse:[--ehpeek-touch-search-icon-size:32px]";
 
 export function TouchSearchPanel(props: { after?: JSX.Element; source: SearchPanelDom }) {
   return (
-    <section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_32px)] max-w-960px flex-col gap-md mx-auto mb-lg p-lg border ehp-color-site-border rounded-lg ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans">
+    <section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_16px)] coarse:w-[calc(100%_-_32px)] max-w-960px flex-col gap-sm coarse:gap-md mx-auto mb-sm coarse:mb-lg p-sm coarse:p-lg border ehp-color-site-border rounded-sm coarse:rounded-lg ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans landscape:max-w-[90dvh]">
       <DomNode node={props.source.elems.searchBox} />
       <DomNode node={props.source.elems.fileSearch} />
       {props.after}
@@ -72,7 +72,7 @@ export function TouchSearchAction(props: { action: "search" | "clear"; source: S
           }
         }}
       >
-        <Icon name={search ? "search" : "close"} size={32} />
+        <Icon name={search ? "search" : "close"} size="var(--ehpeek-touch-search-icon-size)" />
       </button>
       <span class="contents [&>*:not([hidden])]:col-span-full"><DomNode node={original} /></span>
     </>

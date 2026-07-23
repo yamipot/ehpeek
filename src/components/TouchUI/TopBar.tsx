@@ -2,9 +2,11 @@ import { createSignal, onCleanup, onMount, Show, For } from "solid-js";
 import type { TopBarDom } from "../../eh";
 import { Icon } from "../Widgets/Icon";
 
-const TOUCH_TOP_BAR_ICON_SIZE = 41;
+const TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)";
+const TOUCH_TOP_BAR_PROJECT_ICON_SIZE =
+  "var(--ehpeek-touch-top-bar-project-icon-size)";
 const TOUCH_ICON_BUTTON_CLASS =
-  "inline-flex w-68px h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]";
+  "inline-flex w-md h-md coarse:w-68px coarse:h-68px items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:24px] coarse:[--ehpeek-touch-top-bar-icon-size:41px]";
 function TouchTopBarMenu(props: { navItems: TopBarDom["elems"]["navItems"] }) {
   const [open, setOpen] = createSignal(false);
   let root!: HTMLDivElement;
@@ -40,7 +42,7 @@ function TouchTopBarMenu(props: { navItems: TopBarDom["elems"]["navItems"] }) {
         <Icon name="menu" size={TOUCH_TOP_BAR_ICON_SIZE} />
       </button>
       <Show when={open()}>
-        <div class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+8px)] right-0 z-overlay flex w-240px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-24px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">
+        <div class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] coarse:top-[calc(100%+8px)] right-0 z-overlay flex w-180px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-12px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">
           <For each={props.navItems}>{(item) => {
             const Component = item.Component;
             return <Component />;
@@ -57,14 +59,14 @@ export function TouchTopBar(props: {
   onSettingsMenuOpen: () => void;
 }) {
   return (
-    <nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-xl items-center justify-between py-lg pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans">
+    <nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-lg coarse:min-h-xl items-center justify-between py-xs coarse:py-lg pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans">
       <a
-        class={`ehpeek-touch-top-bar-project ${TOUCH_ICON_BUTTON_CLASS}`}
+        class={`ehpeek-touch-top-bar-project ${TOUCH_ICON_BUTTON_CLASS} [--ehpeek-touch-top-bar-project-icon-size:32px] coarse:[--ehpeek-touch-top-bar-project-icon-size:58px]`}
         href={props.source.data.homeHref}
       >
-        <Icon name="panda-peek" size={58} strokeWidth={1.8} />
+        <Icon name="panda-peek" size={TOUCH_TOP_BAR_PROJECT_ICON_SIZE} strokeWidth={1.8} />
       </a>
-      <div class="flex items-center gap-sm">
+      <div class="flex items-center gap-xs coarse:gap-sm">
         <a
           class={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`}
           href={props.source.data.homeHref}

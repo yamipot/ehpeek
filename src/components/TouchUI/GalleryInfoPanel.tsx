@@ -117,27 +117,27 @@ export function GalleryInfoPanel(props: {
   };
 
   return (
-    <section class="ehpeek-touch-gallery flex box-border w-full flex-col mb-md ehp-color-site-text font-sans">
-      <div class="ehpeek-touch-gallery-hero relative grid min-h-[clamp(260px,42vh,340px)] pt-lg pr-[max(16px,env(safe-area-inset-right,0px))] pb-48px pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text">
+    <section class="ehpeek-touch-gallery flex box-border w-full flex-col mb-sm coarse:mb-md ehp-color-site-text font-sans landscape:max-w-[90dvh] landscape:mx-auto">
+      <div class="ehpeek-touch-gallery-hero relative grid min-h-[clamp(130px,21vh,170px)] coarse:min-h-[clamp(260px,42vh,340px)] pt-sm coarse:pt-lg pr-[max(8px,env(safe-area-inset-right,0px))] coarse:pr-[max(16px,env(safe-area-inset-right,0px))] pb-24px coarse:pb-48px pl-[max(8px,env(safe-area-inset-left,0px))] coarse:pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text">
         <div
-          class={`ehpeek-touch-gallery-summary grid gap-18px items-stretch ${hasCover ? "grid-cols-[minmax(120px,38%)_minmax(0,1fr)]" : "grid-cols-1"}`}
+          class={`ehpeek-touch-gallery-summary grid gap-9px coarse:gap-18px items-stretch ${hasCover ? "grid-cols-[minmax(60px,38%)_minmax(0,1fr)] coarse:grid-cols-[minmax(120px,38%)_minmax(0,1fr)]" : "grid-cols-1"}`}
         >
           {hasCover && (
             <div class="ehpeek-touch-gallery-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">
               <DomNode node={source.elems.cover} />
             </div>
           )}
-          <div class="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 flex-col items-start gap-8px pt-2px">
-            <div class="ehpeek-touch-gallery-heading flex min-w-0 w-full flex-none flex-col gap-sm items-start pb-xs">
-              <div class="ehpeek-touch-gallery-title-main line-clamp-4 flex-none overflow-hidden textsize-lg font-400 leading-[1.16] text-left break-anywhere">
+          <div class="ehpeek-touch-gallery-hero-side flex self-stretch min-w-0 flex-col items-start gap-xs coarse:gap-sm pt-1px coarse:pt-2px">
+            <div class="ehpeek-touch-gallery-heading flex min-w-0 w-full flex-none flex-col gap-xs coarse:gap-sm items-start pb-2px coarse:pb-xs">
+              <div class="ehpeek-touch-gallery-title-main line-clamp-4 flex-none overflow-hidden textsize-md coarse:textsize-lg font-400 leading-[1.16] text-left break-anywhere">
                 {source.data.titleMain}
               </div>
-              <div class="ehpeek-touch-gallery-title-sub line-clamp-3 flex-none overflow-hidden opacity-82 textsize-md leading-[1.2] text-left break-anywhere">
+              <div class="ehpeek-touch-gallery-title-sub line-clamp-3 flex-none overflow-hidden opacity-82 textsize-sm coarse:textsize-md leading-[1.2] text-left break-anywhere">
                 {source.data.titleSub}
               </div>
             </div>
             <div
-              class="ehpeek-touch-gallery-category box-border flex-none self-start whitespace-nowrap rounded-xs border border-solid py-6px px-10px text-center textsize-md font-700 leading-[1.1] uppercase"
+              class="ehpeek-touch-gallery-category box-border flex-none self-start whitespace-nowrap rounded-xs border border-solid py-3px coarse:py-6px px-5px coarse:px-10px text-center textsize-sm coarse:textsize-md font-700 leading-[1.1] uppercase"
               style={source.data.categoryAppearance}
             >
               {source.data.category}
@@ -145,7 +145,7 @@ export function GalleryInfoPanel(props: {
             {rating && (
                 <button
                   type="button"
-                  class="ehpeek-touch-gallery-rating flex w-[65%] max-w-full flex-none self-end flex-col items-end gap-4px mt-auto p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-right cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
+                  class="ehpeek-touch-gallery-rating flex w-[65%] max-w-full flex-none self-end flex-col items-end gap-2px coarse:gap-xs mt-auto p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-right cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
                   aria-label="Rate gallery"
                   onClick={() => {
                     setRatingPreview(null);
@@ -159,7 +159,7 @@ export function GalleryInfoPanel(props: {
                   }}
                 >
                   <div
-                    class="ehpeek-touch-gallery-rating-stars relative inline-flex"
+                    class="ehpeek-touch-gallery-rating-stars relative inline-flex [&_.ehpeek-icon]:w-12px [&_.ehpeek-icon]:h-12px coarse:[&_.ehpeek-icon]:w-24px coarse:[&_.ehpeek-icon]:h-24px"
                     onPointerMove={(event: PointerEvent) => {
                       if (event.pointerType !== "mouse") {
                         return;
@@ -191,7 +191,7 @@ export function GalleryInfoPanel(props: {
                       </For>
                     </span>
                   </div>
-                  <div class="ehpeek-touch-gallery-rating-meta flex items-center justify-end gap-6px text-[var(--color-muted)] textsize-md leading-[1.15] whitespace-nowrap">
+                  <div class="ehpeek-touch-gallery-rating-meta flex items-center justify-end gap-3px coarse:gap-6px text-[var(--color-muted)] textsize-sm coarse:textsize-md leading-[1.15] whitespace-nowrap">
                     <span
                       class="ehpeek-touch-gallery-rating-label"
                       aria-live="polite"
@@ -199,7 +199,7 @@ export function GalleryInfoPanel(props: {
                       {ratingLabel()}
                     </span>
                     {ratingCount() && (
-                      <span class="ehpeek-touch-gallery-rating-count flex-none pl-6px border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">
+                      <span class="ehpeek-touch-gallery-rating-count flex-none pl-3px coarse:pl-6px border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">
                         {ratingCount()}
                       </span>
                     )}
@@ -210,16 +210,16 @@ export function GalleryInfoPanel(props: {
         </div>
       </div>
       <div
-        class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-87px mt--18px mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"
+        class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-44px coarse:min-h-87px mt--9px coarse:mt--18px mr-[max(7px,env(safe-area-inset-right,0px))] coarse:mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(7px,env(safe-area-inset-left,0px))] coarse:ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"
         onDragStart={(event: DragEvent) => event.preventDefault()}
       >
         <TouchGalleryFavoriteButton source={source} />
-        <div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-8 border-solid border-l-[var(--color-site-page)]">
+        <div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-4 coarse:border-l-8 border-solid border-l-[var(--color-site-page)]">
           {props.primaryAction}
         </div>
       </div>
-      <div class="ehpeek-touch-gallery-content flex flex-col gap-lg pt-xl pr-[max(16px,env(safe-area-inset-right,0px))] pb-lg pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text">
-        <div class="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-md gap-x-lg items-center textsize-md leading-[1.2] text-center">
+      <div class="ehpeek-touch-gallery-content flex flex-col gap-sm coarse:gap-lg pt-md coarse:pt-xl pr-[max(8px,env(safe-area-inset-right,0px))] coarse:pr-[max(16px,env(safe-area-inset-right,0px))] pb-sm coarse:pb-lg pl-[max(8px,env(safe-area-inset-left,0px))] coarse:pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-page ehp-color-site-text">
+        <div class="ehpeek-touch-gallery-meta grid grid-cols-[repeat(3,minmax(0,1fr))] gap-y-sm coarse:gap-y-md gap-x-sm coarse:gap-x-lg items-center textsize-sm coarse:textsize-md leading-[1.2] text-center">
           <For each={source.data.summary}>{(item) => (
             <div class="ehpeek-touch-gallery-meta-value line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">
               {item.value}
@@ -234,7 +234,7 @@ export function GalleryInfoPanel(props: {
           >
             <button
               type="button"
-              class={`inline-flex self-end min-h-sm items-center justify-center gap-md mb-sm rounded-xl border-0 px-lg font-inherit font-700 textsize-sm cursor-pointer transition-[background-color,color] duration-120 ${tagging() ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent" : "bg-[var(--color-site-surface)] ehp-color-site-text"}`}
+              class={`inline-flex self-end min-h-xs coarse:min-h-sm items-center justify-center gap-sm coarse:gap-md mb-xs coarse:mb-sm rounded-xl border-0 px-md coarse:px-lg font-inherit font-700 textsize-xs coarse:textsize-sm cursor-pointer transition-[background-color,color] duration-120 ${tagging() ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent" : "bg-[var(--color-site-surface)] ehp-color-site-text"}`}
               aria-pressed={tagging()}
               onClick={() => {
                 setTagging((enabled) => !enabled);
@@ -246,7 +246,7 @@ export function GalleryInfoPanel(props: {
                 aria-hidden="true"
               />
             </button>
-            <div class="grid min-w-0 w-full grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-sm gap-y-md">
+            <div class="grid min-w-0 w-full grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-xs coarse:gap-x-sm gap-y-sm coarse:gap-y-md">
               <For each={tagGroups()}>{(group) => (
                 <TouchGalleryTagGroup
                   group={group}
@@ -400,11 +400,11 @@ function TouchGalleryTagGroup(props: {
 }) {
   return (
     <section class="ehpeek-touch-gallery-tag-group contents">
-      <div class="ehpeek-touch-gallery-tag-group-name min-h-sm whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-sm px-md text-center lowercase ehp-color-site-accent textsize-md font-600">
+      <div class="ehpeek-touch-gallery-tag-group-name min-h-xs coarse:min-h-sm whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-xs coarse:py-sm px-sm coarse:px-md text-center lowercase ehp-color-site-accent textsize-sm coarse:textsize-md font-600">
         {props.group.namespace}
       </div>
       <div
-        class="ehpeek-touch-gallery-tags flex flex-wrap gap-sm"
+        class="ehpeek-touch-gallery-tags flex flex-wrap gap-xs coarse:gap-sm"
         onClick={(event: MouseEvent) => {
           if (
             !props.tagging ||
@@ -444,7 +444,7 @@ function TouchGalleryTag(props: {
   return (
     <a
       href={props.tag.url}
-      class="ehpeek-touch-gallery-tag inline-flex flex-none max-w-full min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-text no-underline transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"
+      class="ehpeek-touch-gallery-tag inline-flex flex-none max-w-full min-h-xs coarse:min-h-lg items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-sm coarse:px-lg ehp-color-site-text font-inherit font-700 textsize-sm coarse:textsize-md cursor-pointer select-text no-underline transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"
       style={{
         "background-color": props.tag.appearance.backgroundColor,
         "border-color": props.tag.appearance.borderColor,
@@ -818,7 +818,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
     >
       <button
         type="button"
-        class={`ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-xl flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] textsize-md font-700 normal-case ${favorited() ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`}
+        class={`ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-md coarse:min-h-xl flex-col items-center justify-center gap-sm coarse:gap-md py-sm coarse:py-md px-md coarse:px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] textsize-sm coarse:textsize-md font-700 normal-case ${favorited() ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`}
         style={{ color: favorite().color ?? undefined }}
         aria-haspopup="menu"
         aria-expanded={open()}

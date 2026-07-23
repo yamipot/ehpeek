@@ -46,6 +46,20 @@ body #gdt[class],
   -webkit-overflow-scrolling: touch;
 }
 
+@media (orientation: landscape) and (pointer: fine) {
+  .ehpeek-hide-original-gallery-info,
+  .gpc,
+  body #gdt[class],
+  #cdiv,
+  .ptt,
+  .ptb {
+    width: min(
+      calc(100% - (var(--touch-gallery-gutter) * 2)),
+      90dvh
+    ) !important;
+  }
+}
+
 /* Give original thumbnail cells a consistent mobile-friendly width. */
 #gdt .gdtm,
 #gdt .gdtl,

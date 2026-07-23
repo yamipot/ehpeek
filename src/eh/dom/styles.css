@@ -60,6 +60,15 @@ body.ehpeek-constrain-results-to-viewport {
   overscroll-behavior-x: contain;
 }
 
+@media (orientation: landscape) and (pointer: fine) {
+  .ehpeek-constrain-results-to-viewport .ido,
+  .ehpeek-contain-search-results,
+  .ehpeek-contain-favorites-results {
+    max-width: 90dvh !important;
+    margin-inline: auto !important;
+  }
+}
+
 .ehpeek-enable-search-swipe-input {
   overscroll-behavior-x: contain;
   touch-action: pan-y;
@@ -607,6 +616,11 @@ tr[data-ehpeek-read-history] > td,
   line-height: 1.2 !important;
 }
 
+.ehpeek-layout-top-bar-menu-item {
+  min-height: 44px !important;
+  padding: 12px !important;
+}
+
 .ehpeek-layout-new-tag-form {
   box-sizing: border-box !important;
   display: block !important;
@@ -717,6 +731,78 @@ tr[data-ehpeek-read-history] > td,
 
 .ehpeek-hide-original-preview-page-bars :is(.ptt, .ptb, .gpc) {
   display: none !important;
+}
+
+@media (pointer: fine) {
+  .ehpeek-stack-search-form {
+    gap: 8px !important;
+  }
+
+  .ehpeek-overlay-search-actions {
+    grid-template-columns: minmax(0, 1fr) 32px !important;
+  }
+
+  .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] {
+    grid-template-columns: minmax(0, 1fr) 32px 32px !important;
+  }
+
+  .ehpeek-expand-search-input {
+    height: 32px !important;
+    padding: 0 40px 0 8px !important;
+    border-radius: 3px !important;
+    font-size: var(--font-size-sm) !important;
+  }
+
+  .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] .ehpeek-expand-search-input {
+    padding-right: 72px !important;
+  }
+
+  .ehpeek-layout-search-categories > tbody {
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)) !important;
+  }
+
+  .ehpeek-layout-search-categories [id^="cat_"] {
+    height: 26px !important;
+    padding-inline: 6px !important;
+    border-radius: 3px !important;
+    font-size: var(--font-size-sm) !important;
+  }
+
+  .ehpeek-wrap-search-options {
+    gap: 4px 6px !important;
+  }
+
+  .ehpeek-wrap-search-options > a {
+    min-height: 24px !important;
+    padding-inline: 8px !important;
+    border-radius: 3px !important;
+    font-size: var(--font-size-sm) !important;
+  }
+
+  .ehpeek-reset-search-box-layout .searchadv {
+    padding-top: 8px !important;
+    font-size: var(--font-size-sm) !important;
+  }
+
+  .ehpeek-reset-search-box-layout .searchadv > div,
+  .ehpeek-expand-file-search .searchadv > div {
+    gap: 4px !important;
+  }
+
+  .ehpeek-reset-search-box-layout .searchadv > div > div,
+  .ehpeek-expand-file-search .searchadv > div > div {
+    padding: 4px !important;
+  }
+
+  .ehpeek-expand-file-search {
+    padding: 8px !important;
+    border-radius: 3px !important;
+    font-size: var(--font-size-sm) !important;
+  }
+
+  .ehpeek-expand-file-search form {
+    gap: 4px !important;
+  }
 }
 
 @media (pointer: coarse) {
