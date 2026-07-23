@@ -12,6 +12,18 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
+/* The two columns own vertical scrolling while the outer page stays fixed. */
+html.ehpeek-gallery-wide-layout-root,
+body.ehpeek-gallery-wide-layout-root {
+  height: 100dvh !important;
+  overflow-y: hidden !important;
+}
+
+body.ehpeek-gallery-wide-layout-root {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
 /* Reset the original page shell and apply the active E-H/ExH page palette. */
 body {
   box-sizing: border-box;
@@ -46,6 +58,13 @@ body #gdt[class],
   -webkit-overflow-scrolling: touch;
 }
 
+/* Let the available preview width determine the thumbnail column count. */
+body #gdt[class] {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  align-items: start;
+}
+
 @media (orientation: landscape) {
   .ehpeek-hide-original-gallery-info,
   .gpc,
@@ -65,7 +84,7 @@ body #gdt[class],
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--touch-gallery-gutter);
     width: calc(100% - (var(--touch-gallery-gutter) * 2));
-    height: calc(100dvh - 52px);
+    height: calc(100dvh - 52px - env(safe-area-inset-bottom, 0px));
     margin-inline: auto;
     align-items: start;
     overflow: hidden;
@@ -111,25 +130,24 @@ body #gdt[class],
 
 @media (orientation: landscape) and (pointer: coarse) {
   .ehpeek-touch-gallery-layout {
-    height: calc(100dvh - 100px);
+    height: calc(100dvh - 100px - env(safe-area-inset-bottom, 0px));
   }
 }
 
-/* Give original thumbnail cells a consistent mobile-friendly width. */
+/* Let Grid own cell width instead of retaining E-H's fixed thumbnail width. */
 #gdt .gdtm,
 #gdt .gdtl,
 #gdt > div {
-  display: inline-flex !important;
-  min-width: 132px !important;
+  display: flex !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
   align-items: center !important;
   justify-content: center !important;
-  vertical-align: top;
+  justify-self: center;
 }
 
-/* Center thumbnails inside their enlarged cells. */
 #gdt a {
   display: flex !important;
-  min-height: 150px;
   align-items: center;
   justify-content: center;
 }

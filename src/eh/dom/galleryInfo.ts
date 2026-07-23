@@ -463,7 +463,10 @@ export function mutateGalleryWideLayout(
   preview: GalleryPreviewDom,
   initiallyEnabled: boolean,
 ) {
+  const page = DomNode.from(document).use(domClass.page);
   const source = DomNode.from(document).use(domClass.gallery);
+  const html = page.html.inplace();
+  const body = page.body.inplace();
   const comments = source.comments.inplace();
   const commentsAnchor = source.commentsAnchor.inplace();
   const pageBarTopHost = source.preview.pageBarTop.one()?.parent()?.inplace() ?? null;
@@ -472,7 +475,7 @@ export function mutateGalleryWideLayout(
   const previewMount = preview.elems.mount;
   const thumbs = preview.elems.thumbs;
 
-  if (!comments || !previewMount || !thumbs) {
+  if (!html || !body || !comments || !previewMount || !thumbs) {
     return null;
   }
 
@@ -496,6 +499,9 @@ export function mutateGalleryWideLayout(
         return;
       }
 
+      window.scrollTo(0, 0);
+      html.apply("galleryWideLayout");
+      body.apply("galleryWideLayout");
       const left = createManagedElement("div")
         .replaceClasses("ehpeek-touch-gallery-layout-left");
       const right = createManagedElement("div")
@@ -522,6 +528,8 @@ export function mutateGalleryWideLayout(
       positions = [];
       layout.remove();
       layout = null;
+      html.removeClasses("ehpeek-gallery-wide-layout-root");
+      body.removeClasses("ehpeek-gallery-wide-layout-root");
     }
   };
 

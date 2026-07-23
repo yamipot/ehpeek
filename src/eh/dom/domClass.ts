@@ -30,12 +30,14 @@ const page = {
   html: tag("html", {
     apply: {
       constrainResults: sharedApply.constrainResultsToViewport,
+      galleryWideLayout: "ehpeek-gallery-wide-layout-root",
     },
   }),
   body: tag("body", {
     apply: {
       constrainFavoritesNavigation: "ehpeek-constrain-favorites-navigation",
       constrainResults: sharedApply.constrainResultsToViewport,
+      galleryWideLayout: "ehpeek-gallery-wide-layout-root",
       hidePreviewPageBars: "ehpeek-hide-original-preview-page-bars",
     },
   }),
