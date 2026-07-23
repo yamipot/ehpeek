@@ -1,4 +1,5 @@
 import {
+  createEffect,
   createMemo,
   createSignal,
   For,
@@ -8,6 +9,7 @@ import {
   Show,
   untrack,
 } from "solid-js";
+import { Portal } from "solid-js/web";
 import type {
   GalleryFavoriteOption,
   MyTagMode,
@@ -748,21 +750,32 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
   >("idle");
   const [options, setOptions] = createSignal<GalleryFavoriteOption[]>([]);
   const favorited = () => favorite().favorited;
-  let root!: HTMLDivElement;
 
   onMount(() => {
-    const onClick = (event: MouseEvent) => {
-      if (event.target instanceof Element && root.contains(event.target)) {
-        return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && open()) {
+        setOpen(false);
       }
-
-      setOpen(false);
     };
 
-    document.addEventListener("click", onClick);
+    document.addEventListener("keydown", onKeyDown);
 
     onCleanup(() => {
-      document.removeEventListener("click", onClick);
+      document.removeEventListener("keydown", onKeyDown);
+    });
+  });
+
+  createEffect(() => {
+    if (!open()) {
+      return;
+    }
+    const documentOverflow = document.documentElement.style.overflow;
+    const bodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    onCleanup(() => {
+      document.documentElement.style.overflow = documentOverflow;
+      document.body.style.overflow = bodyOverflow;
     });
   });
 
@@ -812,10 +825,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
   };
 
   return (
-    <div
-      ref={root}
-      class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0"
-    >
+    <div class="ehpeek-touch-gallery-favorite-menu relative z-2 min-w-0">
       <button
         type="button"
         class={`ehpeek-touch-gallery-primary-button ehpeek-touch-gallery-favorite-button flex min-w-0 w-full h-full min-h-[var(--ui-control-size-xl)] flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-prominent)] font-700 normal-case ${favorited() ? "ehpeek-touch-gallery-favorite-on" : "ehpeek-touch-gallery-favorite-off"}`}
@@ -840,24 +850,53 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
         </span>
       </button>
       <Show when={open()}>
-        <div class="ehpeek-touch-gallery-favorite-panel absolute top-[calc(100%+8px)] left-0 z-overlay flex w-[min(86vw,360px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">
-          <Show when={loadingState() === "loading"}>
-            <WelcomeIcon embedded label={texts.reader.loading} showIcon={false} />
-          </Show>
-          <Show when={loadingState() === "failed"}>
-            <TouchGalleryFavoriteStatus text="Failed" />
-          </Show>
-          <Show when={loadingState() === "idle"}>
-            <For each={options()}>
-              {(option) => (
-                <TouchGalleryFavoriteOption
-                  option={option}
-                  onSelect={() => void updateFavorite(option)}
-                />
-              )}
-            </For>
-          </Show>
-        </div>
+        <Portal>
+          <div
+            class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"
+            role="dialog"
+            aria-modal="true"
+            aria-label={favorite().label}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) {
+                setOpen(false);
+              }
+            }}
+          >
+            <div class="ehpeek-touch-gallery-favorite-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-hidden border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl">
+              <div class="flex flex-none items-center justify-between gap-md py-sm pl-lg pr-sm border-0 border-b ehp-color-site-border-subtle-b">
+                <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ehp-color-site-text textsize-md font-700">
+                  {favorite().label}
+                </span>
+                <button
+                  type="button"
+                  class="inline-flex w-40px h-40px coarse:w-48px coarse:h-48px flex-none items-center justify-center p-0 rounded-md border ehp-color-site-border bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer hover:bg-[var(--color-site-item-hover)] active:scale-96"
+                  aria-label={texts.button.close}
+                  title={texts.button.close}
+                  onClick={() => setOpen(false)}
+                >
+                  <Icon name="close" size="1.2em" />
+                </button>
+              </div>
+              <div class="min-h-0 overflow-y-auto overscroll-contain">
+                <Show when={loadingState() === "loading"}>
+                  <WelcomeIcon embedded label={texts.reader.loading} showIcon={false} />
+                </Show>
+                <Show when={loadingState() === "failed"}>
+                  <TouchGalleryFavoriteStatus text="Failed" />
+                </Show>
+                <Show when={loadingState() === "idle"}>
+                  <For each={options()}>
+                    {(option) => (
+                      <TouchGalleryFavoriteOption
+                        option={option}
+                        onSelect={() => void updateFavorite(option)}
+                      />
+                    )}</For>
+                </Show>
+              </div>
+            </div>
+          </div>
+        </Portal>
       </Show>
     </div>
   );
