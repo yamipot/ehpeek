@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260723.1434
+// @version      260723.1506
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -4744,9 +4744,9 @@ Next page`,
   var _tmpl$11 = /* @__PURE__ */ template("<div role=scrollbar><div></div><div><span>"), VARIANT_CLASS = {
     reader: {
       collapsedFillWidth: "w-20px coarse:w-24px",
-      collapsedInteractionWidth: "w-20px coarse:w-24px",
+      collapsedInteractionWidth: "w-20px coarse:w-40px",
       expandedFillWidth: "w-36px coarse:w-48px",
-      expandedInteractionWidth: "w-36px coarse:w-48px",
+      expandedInteractionWidth: "w-36px coarse:w-64px",
       fill: "bg-[var(--color-reader-scrollbar,var(--color-muted))]",
       track: "bg-[var(--color-reader-border,var(--color-border))]",
       trackWidth: "right-4px w-6px"
@@ -6005,7 +6005,7 @@ Next page`,
           get children() {
             return [_tmpl$66(), (() => {
               var _el$19 = _tmpl$73(), _el$20 = _el$19.firstChild;
-              return insert(_el$19, "260723.1434", null), _el$19;
+              return insert(_el$19, "260723.1506", null), _el$19;
             })()];
           }
         }), null), _el$22.$$click = (event) => {
@@ -7090,6 +7090,11 @@ body.ehpeek-constrain-results-to-viewport {
   max-width: 100% !important;
   overflow-x: auto;
   overscroll-behavior-x: contain;
+}
+
+.ehpeek-contain-search-results.gld {
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 .ehpeek-enable-search-swipe-input {
@@ -8269,7 +8274,9 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .\\[accent-color\\:var\\(--color-text\\)\\]{accent-color:var(--color-text);}
 .\\[appearance\\:none\\]{appearance:none;}
 .\\[contain\\:inline-size\\]{contain:inline-size;}
+.\\[container-type\\:size\\]{container-type:size;}
 .\\[direction\\:ltr\\]{direction:ltr;}
+.\\[font-size\\:min\\(25vw\\,35cqi\\,35cqb\\,180px\\)\\]{font-size:min(25vw,35cqi,35cqb,180px);}
 .\\[font-size\\:min\\(var\\(--ui-font-size-xl\\)\\,var\\(--reader-end-font-size\\)\\)\\]{font-size:min(var(--ui-font-size-xl),var(--reader-end-font-size));}
 .\\[font-size\\:var\\(--ui-font-size-md\\)\\]{font-size:var(--ui-font-size-md);}
 .\\[font-size\\:var\\(--ui-font-size-prominent\\)\\]{font-size:var(--ui-font-size-prominent);}
@@ -8639,7 +8646,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .text-right{text-align:right;}
 .align-middle{vertical-align:middle;}
 .\\!text-\\[var\\(--color-site-text\\)\\]{color:var(--color-site-text) !important;}
-.text-\\[clamp\\(88px\\,25vw\\,180px\\)\\]{font-size:clamp(88px,25vw,180px);}
 .text-\\[var\\(--color-danger\\)\\]{color:var(--color-danger);}
 .text-\\[var\\(--color-muted\\)\\]{color:var(--color-muted);}
 .text-\\[var\\(--color-rating-submitted\\)\\]{color:var(--color-rating-submitted);}
@@ -8724,9 +8730,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .duration-160{transition-duration:160ms;}
 .ease-in-out{transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);}
 .will-change-transform{will-change:transform;}
-@media (min-width: 760px){
-.desktop\\:text-\\[clamp\\(72px\\,10vw\\,140px\\)\\]{font-size:clamp(72px,10vw,140px);}
-}
 @media (orientation: landscape){
 .landscape\\:w-\\[min\\(600px\\,calc\\(100vw-24px\\)\\)\\]{width:min(600px,calc(100vw - 24px));}
 }
@@ -8743,7 +8746,9 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .coarse\\:w-\\[calc\\(100vw-32px\\)\\]{width:calc(100vw - 32px);}
 .coarse\\:w-14px{width:14px;}
 .coarse\\:w-24px{width:24px;}
+.coarse\\:w-40px{width:40px;}
 .coarse\\:w-48px{width:48px;}
+.coarse\\:w-64px{width:64px;}
 .coarse\\:w-full{width:100%;}
 .coarse\\:border-spacing-6px{--un-border-spacing-x:6px;--un-border-spacing-y:6px;border-spacing:var(--un-border-spacing-x) var(--un-border-spacing-y);}
 .coarse\\:border-8{border-width:8px;}
@@ -8823,7 +8828,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 `;
 
   // src/components/Reader/Viewport.tsx
-  var _tmpl$41 = /* @__PURE__ */ template("<div tabindex=-1><main>"), _tmpl$213 = /* @__PURE__ */ template('<section><div class="flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden">'), _tmpl$312 = /* @__PURE__ */ template('<button type=button class="ehpeek-reader-page-reload appearance-none inline-flex w-64px h-64px items-center justify-center border border-[var(--color-border)] rounded-md bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-lg font-700 leading-1 hover:bg-[var(--color-badge)] active:scale-96 [touch-action:manipulation]">'), _tmpl$412 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$59 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] opacity-80 break-anywhere textsize-sm font-500 leading-[1.4] [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$69 = /* @__PURE__ */ template("<div>"), _tmpl$76 = /* @__PURE__ */ template('<span class="flex w-full h-full flex-col items-center justify-center gap-xl overflow-hidden"aria-hidden=true><span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]"></span><span class="block w-md h-md flex-none box-border animate-spin rounded-full border-4px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]">'), FALLBACK_ASPECT_RATIO = 1.42, PAGE_SLOT_SPACING = 8, DEFAULT_DECODED_IMAGE_CACHE_LIMIT = 24, DECODED_IMAGE_CACHE_BYTES = 96 * 1024 * 1024, HORIZONTAL_FLING_VELOCITY_MULTIPLIER = 1.4, HORIZONTAL_FLING_MAX_VELOCITY = 1.8;
+  var _tmpl$41 = /* @__PURE__ */ template("<div tabindex=-1><main>"), _tmpl$213 = /* @__PURE__ */ template('<section><div class="flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [container-type:size]">'), _tmpl$312 = /* @__PURE__ */ template('<button type=button class="ehpeek-reader-page-reload appearance-none inline-flex w-64px h-64px items-center justify-center border border-[var(--color-border)] rounded-md bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-lg font-700 leading-1 hover:bg-[var(--color-badge)] active:scale-96 [touch-action:manipulation]">'), _tmpl$412 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$59 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] opacity-80 break-anywhere textsize-sm font-500 leading-[1.4] [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$69 = /* @__PURE__ */ template("<div>"), _tmpl$76 = /* @__PURE__ */ template('<span class="flex w-full h-full flex-col items-center justify-center gap-xl overflow-hidden"aria-hidden=true><span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]"></span><span class="block w-md h-md flex-none box-border animate-spin rounded-full border-4px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]">'), FALLBACK_ASPECT_RATIO = 1.42, PAGE_SLOT_SPACING = 8, DEFAULT_DECODED_IMAGE_CACHE_LIMIT = 24, DECODED_IMAGE_CACHE_BYTES = 96 * 1024 * 1024, HORIZONTAL_FLING_VELOCITY_MULTIPLIER = 1.4, HORIZONTAL_FLING_MAX_VELOCITY = 1.8;
   function pageWindowNumbers(currentPageNum, windowSize) {
     let numbers = [];
     for (let offset = -windowSize; offset <= windowSize; offset += 1)
@@ -9233,7 +9238,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
           })];
         }
       })), createRenderEffect((_p$) => {
-        var _v$9 = props.content.state === "error" ? "flex w-full h-full flex-col items-center justify-center gap-lg bg-[var(--color-reader-surface)] p-xl text-[var(--color-danger)] text-center textsize-md font-700 leading-1" : "relative flex w-full h-full items-center justify-center bg-[var(--color-reader-surface)] text-[var(--color-reader-muted)] text-center " + (props.content.kind === "end" ? "p-[var(--reader-end-padding)] [direction:ltr] [font-size:min(var(--ui-font-size-xl),var(--reader-end-font-size))] font-700 leading-[1.3] [unicode-bidi:plaintext]" : "text-[clamp(88px,25vw,180px)] desktop:text-[clamp(72px,10vw,140px)] font-mono font-850 leading-[1] [font-variant-numeric:tabular-nums]"), _v$0 = props.content.state === "loading" ? "status" : void 0, _v$1 = props.content.state === "loading" ? `${texts_default.reader.loading} ${props.text}` : void 0;
+        var _v$9 = props.content.state === "error" ? "flex w-full h-full flex-col items-center justify-center gap-lg bg-[var(--color-reader-surface)] p-xl text-[var(--color-danger)] text-center textsize-md font-700 leading-1" : "relative flex w-full h-full items-center justify-center bg-[var(--color-reader-surface)] text-[var(--color-reader-muted)] text-center " + (props.content.kind === "end" ? "p-[var(--reader-end-padding)] [direction:ltr] [font-size:min(var(--ui-font-size-xl),var(--reader-end-font-size))] font-700 leading-[1.3] [unicode-bidi:plaintext]" : "[font-size:min(25vw,35cqi,35cqb,180px)] font-mono font-850 leading-[1] [font-variant-numeric:tabular-nums]"), _v$0 = props.content.state === "loading" ? "status" : void 0, _v$1 = props.content.state === "loading" ? `${texts_default.reader.loading} ${props.text}` : void 0;
         return _v$9 !== _p$.e && className(_el$5, _p$.e = _v$9), _v$0 !== _p$.t && setAttribute(_el$5, "role", _p$.t = _v$0), _v$1 !== _p$.a && setAttribute(_el$5, "aria-label", _p$.a = _v$1), _p$;
       }, {
         e: void 0,
