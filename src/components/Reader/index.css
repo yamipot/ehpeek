@@ -74,7 +74,7 @@
 }
 
 [data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-fullscreen-status {
-  top: calc(10px + env(safe-area-inset-top, 0px));
+  top: 0;
   right: max(10px, env(safe-area-inset-right, 0px));
   left: auto;
   transform: scale(var(--ehpeek-reader-fullscreen-ui-scale, 1));
@@ -82,7 +82,7 @@
 }
 
 [data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-page-number {
-  top: calc(10px + env(safe-area-inset-top, 0px));
+  top: 0;
   right: auto;
   left: max(10px, env(safe-area-inset-left, 0px));
   min-width: 0;
@@ -92,7 +92,7 @@
 }
 
 [data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-toolbar {
-  top: calc(42px + env(safe-area-inset-top, 0px));
+  top: calc(max(var(--ui-control-size-xs), env(safe-area-inset-top, 0px)) + 8px);
 }
 
 [data-ehpeek-reader-container="true"]:fullscreen
