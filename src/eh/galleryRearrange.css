@@ -46,7 +46,7 @@ body #gdt[class],
   -webkit-overflow-scrolling: touch;
 }
 
-@media (orientation: landscape) and (pointer: fine) {
+@media (orientation: landscape) {
   .ehpeek-hide-original-gallery-info,
   .gpc,
   body #gdt[class],
@@ -56,7 +56,62 @@ body #gdt[class],
     width: min(
       calc(100% - (var(--touch-gallery-gutter) * 2)),
       90dvh
-    ) !important;
+  ) !important;
+  }
+
+  .ehpeek-touch-gallery-layout {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--touch-gallery-gutter);
+    width: calc(100% - (var(--touch-gallery-gutter) * 2));
+    height: calc(100dvh - 52px);
+    margin-inline: auto;
+    align-items: start;
+    overflow: hidden;
+  }
+
+  .ehpeek-touch-gallery-layout-left,
+  .ehpeek-touch-gallery-layout-right {
+    display: block;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .ehpeek-touch-gallery-layout-left::-webkit-scrollbar,
+  .ehpeek-touch-gallery-layout-right::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ehpeek-touch-gallery-layout :is(
+    .ehpeek-hide-original-gallery-info,
+    .gtb,
+    .contents,
+    .gpc,
+    #cdiv,
+    .ptt,
+    .ptb
+  ) {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body .ehpeek-touch-gallery-layout #gdt[class] {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (orientation: landscape) and (pointer: coarse) {
+  .ehpeek-touch-gallery-layout {
+    height: calc(100dvh - 100px);
   }
 }
 

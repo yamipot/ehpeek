@@ -65,6 +65,7 @@ export const state = {
   },
   touch: {
     enabled: persisted("ehpeek:touch-ui:enabled", touchUiDefault),
+    landscapeColumns: persisted("ehpeek:touch-ui:landscape-columns", true),
   },
 } as const;
 

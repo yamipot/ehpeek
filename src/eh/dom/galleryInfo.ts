@@ -22,7 +22,11 @@ import {
   type ManagedDomElements,
   type ManagedDomNode,
 } from "./core";
-import { extractMyTagsPageData, type GalleryPreviewData } from "./gallery";
+import {
+  extractMyTagsPageData,
+  type GalleryPreviewData,
+  type GalleryPreviewDom,
+} from "./gallery";
 import { domClass } from "./domClass";
 
 /** Extracts Gallery display fields persisted with local reading history. */
@@ -452,6 +456,89 @@ export type GalleryInfoTagGroup = {
   namespace: string;
   tags: Array<GalleryTagData & { contentSource: ManagedDomNode }>;
 };
+
+/** Groups GalleryInfo, Comments, and Preview into independent responsive columns. */
+export function mutateGalleryWideLayout(
+  info: GalleryInfoDom,
+  preview: GalleryPreviewDom,
+  initiallyEnabled: boolean,
+) {
+  const source = DomNode.from(document).use(domClass.gallery);
+  const comments = source.comments.inplace();
+  const commentsAnchor = source.commentsAnchor.inplace();
+  const pageBarTopHost = source.preview.pageBarTop.one()?.parent()?.inplace() ?? null;
+  const pageBarBottomHost =
+    source.preview.pageBarBottom.one()?.parent()?.inplace() ?? null;
+  const previewMount = preview.elems.mount;
+  const thumbs = preview.elems.thumbs;
+
+  if (!comments || !previewMount || !thumbs) {
+    return null;
+  }
+
+  const media = window.matchMedia("(orientation: landscape)");
+  const leftNodes = [info.elems.host, commentsAnchor, comments]
+    .filter((node) => node !== null);
+  const rightNodes = [pageBarTopHost, previewMount, thumbs, pageBarBottomHost]
+    .filter((node) => node !== null);
+  let layout: ManagedDomNode | null = null;
+  let positions: Array<{
+    marker: ManagedDomNode;
+    node: ManagedDomNode;
+  }> = [];
+  let enabled = initiallyEnabled;
+
+  const update = () => {
+    if (enabled && media.matches && !layout) {
+      layout = createAnchor("gallery-wide-layout")
+        ?.replaceClasses("ehpeek-touch-gallery-layout") ?? null;
+      if (!layout) {
+        return;
+      }
+
+      const left = createManagedElement("div")
+        .replaceClasses("ehpeek-touch-gallery-layout-left");
+      const right = createManagedElement("div")
+        .replaceClasses("ehpeek-touch-gallery-layout-right");
+      const nodes = [...leftNodes, ...rightNodes];
+
+      positions = nodes.map((node) => {
+        const marker = createManagedElement("span").setHidden(true);
+        node.before(marker);
+        return { marker, node };
+      });
+      info.elems.host.before(layout);
+      layout.append(left, right);
+      left.append(...leftNodes);
+      right.append(...rightNodes);
+      return;
+    }
+
+    if ((!enabled || !media.matches) && layout) {
+      for (const { marker, node } of positions) {
+        marker.after(node);
+        marker.remove();
+      }
+      positions = [];
+      layout.remove();
+      layout = null;
+    }
+  };
+
+  media.addEventListener("change", update);
+  update();
+
+  return {
+    updateEnabled(value: boolean): void {
+      enabled = value;
+      update();
+    },
+  };
+}
+
+export type GalleryWideLayoutHandle = NonNullable<
+  ReturnType<typeof mutateGalleryWideLayout>
+>;
 
 /** Converts Gallery Comments score details from hover interaction to touch interaction. */
 export function mutateGalleryCommentsTouch() {

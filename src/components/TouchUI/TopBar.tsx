@@ -1,5 +1,13 @@
-import { createSignal, onCleanup, onMount, Show, For } from "solid-js";
+import {
+  createSignal,
+  onCleanup,
+  onMount,
+  Show,
+  For,
+  type Accessor,
+} from "solid-js";
 import type { TopBarDom } from "../../eh";
+import texts from "../../texts.json";
 import { Icon } from "../Widgets/Icon";
 
 const TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)";
@@ -55,17 +63,45 @@ function TouchTopBarMenu(props: { navItems: TopBarDom["elems"]["navItems"] }) {
 
 export function TouchTopBar(props: {
   historyHref: string;
+  landscapeColumns?: {
+    enabled: Accessor<boolean>;
+    onChange: (enabled: boolean) => void;
+  };
   source: TopBarDom;
   onSettingsMenuOpen: () => void;
 }) {
   return (
     <nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full min-h-lg coarse:min-h-xl items-center justify-between py-xs coarse:py-lg pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans">
-      <a
-        class={`ehpeek-touch-top-bar-project ${TOUCH_ICON_BUTTON_CLASS} [--ehpeek-touch-top-bar-project-icon-size:32px] coarse:[--ehpeek-touch-top-bar-project-icon-size:58px]`}
-        href={props.source.data.homeHref}
-      >
-        <Icon name="panda-peek" size={TOUCH_TOP_BAR_PROJECT_ICON_SIZE} strokeWidth={1.8} />
-      </a>
+      <div class="flex items-center gap-xs coarse:gap-sm">
+        <a
+          class={`ehpeek-touch-top-bar-project ${TOUCH_ICON_BUTTON_CLASS} [--ehpeek-touch-top-bar-project-icon-size:32px] coarse:[--ehpeek-touch-top-bar-project-icon-size:58px]`}
+          href={props.source.data.homeHref}
+        >
+          <Icon name="panda-peek" size={TOUCH_TOP_BAR_PROJECT_ICON_SIZE} strokeWidth={1.8} />
+        </a>
+        <Show when={props.landscapeColumns}>
+          {(landscapeColumns) => (
+            <span class="hidden landscape:contents">
+              <button
+                type="button"
+                class={`ehpeek-touch-top-bar-landscape-columns ${TOUCH_ICON_BUTTON_CLASS}`}
+                aria-label={texts.settings.landscapeColumnsLabel}
+                aria-pressed={landscapeColumns().enabled()}
+                title={texts.settings.landscapeColumnsLabel}
+                onClick={() => {
+                  const enabled = !landscapeColumns().enabled();
+                  landscapeColumns().onChange(enabled);
+                }}
+              >
+                <Icon
+                  name={landscapeColumns().enabled() ? "pages" : "page"}
+                  size={TOUCH_TOP_BAR_ICON_SIZE}
+                />
+              </button>
+            </span>
+          )}
+        </Show>
+      </div>
       <div class="flex items-center gap-xs coarse:gap-sm">
         <a
           class={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`}

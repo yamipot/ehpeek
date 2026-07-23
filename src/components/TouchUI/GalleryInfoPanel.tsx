@@ -117,7 +117,7 @@ export function GalleryInfoPanel(props: {
   };
 
   return (
-    <section class="ehpeek-touch-gallery flex box-border w-full flex-col mb-sm coarse:mb-md ehp-color-site-text font-sans landscape:max-w-[90dvh] landscape:mx-auto">
+    <section class="ehpeek-touch-gallery flex box-border w-full flex-col mb-sm coarse:mb-md ehp-color-site-text font-sans">
       <div class="ehpeek-touch-gallery-hero relative grid min-h-[clamp(130px,21vh,170px)] coarse:min-h-[clamp(260px,42vh,340px)] pt-sm coarse:pt-lg pr-[max(8px,env(safe-area-inset-right,0px))] coarse:pr-[max(16px,env(safe-area-inset-right,0px))] pb-24px coarse:pb-48px pl-[max(8px,env(safe-area-inset-left,0px))] coarse:pl-[max(16px,env(safe-area-inset-left,0px))] ehp-color-site-surface ehp-color-site-text">
         <div
           class={`ehpeek-touch-gallery-summary grid gap-9px coarse:gap-18px items-stretch ${hasCover ? "grid-cols-[minmax(60px,38%)_minmax(0,1fr)] coarse:grid-cols-[minmax(120px,38%)_minmax(0,1fr)]" : "grid-cols-1"}`}

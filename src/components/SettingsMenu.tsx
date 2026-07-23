@@ -12,6 +12,7 @@ type SettingsMenuState = {
   myTagsEnabled: boolean;
   readHistoryEnabled: boolean;
   includeUnreadHistoryEnabled: boolean;
+  landscapeColumnsEnabled: boolean;
   searchHistoryEnabled: boolean;
   touchUiEnabled: boolean;
 };
@@ -269,6 +270,12 @@ export function SettingsMenu(props: {
               description={texts.settings.openGalleryInNewTabHelp}
               label={texts.settings.openGalleryInNewTabLabel}
               onChange={(value) => updateDraft("openGalleryInNewTab", value)}
+            />
+            <SwitchButton
+              checked={draft.landscapeColumnsEnabled}
+              description={texts.settings.landscapeColumnsHelp}
+              label={texts.settings.landscapeColumnsLabel}
+              onChange={(value) => updateDraft("landscapeColumnsEnabled", value)}
             />
             <SwitchButton
               checked={draft.includeUnreadHistoryEnabled}

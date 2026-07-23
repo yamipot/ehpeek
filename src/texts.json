@@ -92,6 +92,8 @@
     "readerOptions": "Options",
     "openGalleryInNewTabLabel": "Gallery in New Tab",
     "openGalleryInNewTabHelp": "Opens Gallery links in a new browser tab",
+    "landscapeColumnsLabel": "Two Columns in Landscape",
+    "landscapeColumnsHelp": "Use two columns layout in landscape",
     "enhance": "Enhance",
     "enhanceSearchLabel": "Search Grids",
     "enhanceSearchHelp": "Adds swipe navigation to search pages",

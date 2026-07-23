@@ -60,6 +60,7 @@ function settingsMenuState(defaults = false) {
     myTagsEnabled: read(state.gallery.myTags),
     readHistoryEnabled: read(state.gallery.readHistory),
     includeUnreadHistoryEnabled: read(state.gallery.includeUnreadHistory),
+    landscapeColumnsEnabled: read(state.touch.landscapeColumns),
     searchHistoryEnabled: read(state.search.history),
     touchUiEnabled: read(state.touch.enabled),
   };
@@ -76,12 +77,17 @@ function applySettingsMenuState(
   state.gallery.myTags.set(next.myTagsEnabled);
   state.gallery.readHistory.set(next.readHistoryEnabled);
   state.gallery.includeUnreadHistory.set(next.includeUnreadHistoryEnabled);
+  state.touch.landscapeColumns.set(next.landscapeColumnsEnabled);
   state.search.history.set(next.searchHistoryEnabled);
   state.touch.enabled.set(next.touchUiEnabled);
   window.location.reload();
 }
 
 const gState = (() => {
+  const settings = settingsMenuState();
+  const [landscapeColumnsEnabled, setLandscapeColumnsEnabled] = createSignal(
+    settings.landscapeColumnsEnabled,
+  );
   const [settingsMenuOpen, setSettingsMenuOpen] = createSignal(false);
   const [readProgress, setReadProgress] = createSignal({
     currentPage: 1,
@@ -89,10 +95,13 @@ const gState = (() => {
     totalPages: null as number | null,
   });
   return {
+    galleryWideLayout: null as eh.GalleryWideLayoutHandle | null,
+    landscapeColumnsEnabled,
     readProgress,
     setReadProgress,
-    settings: settingsMenuState(),
+    settings,
     settingsMenuOpen,
+    setLandscapeColumnsEnabled,
     setSettingsMenuOpen,
     thumbsGridsActions: undefined as ThumbsGridsActions | undefined,
   };
@@ -372,6 +381,15 @@ function injectTouchUI(
       topBarDom.elems.mount.mount(() => (
         <TouchTopBar
           historyHref={eh.readHistoryUrl()}
+          landscapeColumns={galleryPage ? {
+            enabled: gState.landscapeColumnsEnabled,
+            onChange: (enabled) => {
+              state.touch.landscapeColumns.set(enabled);
+              gState.settings.landscapeColumnsEnabled = enabled;
+              gState.setLandscapeColumnsEnabled(enabled);
+              gState.galleryWideLayout?.updateEnabled(enabled);
+            },
+          } : undefined}
           source={topBarDom}
           onSettingsMenuOpen={() => {
             gState.setSettingsMenuOpen(true);
@@ -410,6 +428,13 @@ function injectTouchUI(
             }
           />
         ));
+        if (preview) {
+          gState.galleryWideLayout = eh.mutateGalleryWideLayout(
+            galleryInfoDom,
+            preview,
+            gState.landscapeColumnsEnabled(),
+          );
+        }
       }
     });
 

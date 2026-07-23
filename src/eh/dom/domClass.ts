@@ -100,6 +100,7 @@ const gallery = {
       }),
     },
   }),
+  commentsAnchor: anchor('a[name="comments"]'),
   imagePage: {
     image: image("img#img"),
     links: anchor("a[href]"),
