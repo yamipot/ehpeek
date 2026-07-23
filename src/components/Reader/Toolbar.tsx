@@ -28,7 +28,7 @@ export const READER_FLOATING_ACTION_CLASS = [
   READER_BUTTON_CLASS,
   "!min-w-[var(--ui-control-size-lg)] !h-[var(--ui-control-size-lg)] opacity-85 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-160",
 ].join(" ");
-const READER_FLOATING_ICON_ACTION_CLASS = `${READER_FLOATING_ACTION_CLASS} !w-[var(--ui-control-size-lg)] px-0`;
+const READER_FLOATING_ICON_ACTION_CLASS = `${READER_FLOATING_ACTION_CLASS} !w-[calc(var(--ui-control-size-lg)*2)] px-0`;
 const READER_ICON_SIZE = "var(--ui-icon-size-md)";
 const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
   hour: "2-digit",
@@ -136,25 +136,7 @@ export function Toolbar(props: {
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div class="ehpeek-reader-floating-actions grid grid-cols-2 gap-sm">
-          <button
-            type="button"
-            class={READER_FLOATING_ICON_ACTION_CLASS}
-            aria-label={props.fullscreenActive ? texts.reader.exitFullscreen : texts.reader.fullscreen}
-            title={props.fullscreenActive ? texts.reader.exitFullscreen : texts.reader.fullscreen}
-            onClick={() => props.callbacks.onFullscreenClick()}
-          >
-            <Icon name={props.fullscreenActive ? "fullscreen-exit" : "fullscreen"} size={READER_ICON_SIZE} />
-          </button>
-          <button
-            type="button"
-            class={READER_FLOATING_ICON_ACTION_CLASS}
-            aria-label={texts.button.close}
-            title={texts.button.close}
-            onClick={() => props.callbacks.onCloseClick()}
-          >
-            <Icon name="close" size={READER_ICON_SIZE} />
-          </button>
+        <div class="ehpeek-reader-floating-actions flex flex-col gap-sm">
           <button
             type="button"
             class={READER_FLOATING_ICON_ACTION_CLASS}
@@ -163,6 +145,15 @@ export function Toolbar(props: {
             onClick={() => props.callbacks.onOpenScrollPreviewClick()}
           >
             <Icon name="grid" size={READER_ICON_SIZE} />
+          </button>
+          <button
+            type="button"
+            class={READER_FLOATING_ICON_ACTION_CLASS}
+            aria-label={props.fullscreenActive ? texts.reader.exitFullscreen : texts.reader.fullscreen}
+            title={props.fullscreenActive ? texts.reader.exitFullscreen : texts.reader.fullscreen}
+            onClick={() => props.callbacks.onFullscreenClick()}
+          >
+            <Icon name={props.fullscreenActive ? "fullscreen-exit" : "fullscreen"} size={READER_ICON_SIZE} />
           </button>
           <button
             type="button"
@@ -191,15 +182,6 @@ export function Toolbar(props: {
           <button
             type="button"
             class={READER_BUTTON_CLASS}
-            aria-label={texts.help.title}
-            title={texts.help.title}
-            onClick={() => setHelpOpen(true)}
-          >
-            ?
-          </button>
-          <button
-            type="button"
-            class={READER_BUTTON_CLASS}
             onClick={() => props.callbacks.onOpenOriginalPageClick()}
           >
             <Icon name="external-link" size={READER_ICON_SIZE} />
@@ -213,6 +195,24 @@ export function Toolbar(props: {
             onClick={() => setMoreOpen((open) => !open)}
           >
             <Icon name="book-open" size={READER_ICON_SIZE} />
+          </button>
+          <button
+            type="button"
+            class={READER_BUTTON_CLASS}
+            aria-label={texts.help.title}
+            title={texts.help.title}
+            onClick={() => setHelpOpen(true)}
+          >
+            ?
+          </button>
+          <button
+            type="button"
+            class={READER_BUTTON_CLASS}
+            aria-label={texts.button.close}
+            title={texts.button.close}
+            onClick={() => props.callbacks.onCloseClick()}
+          >
+            <Icon name="close" size={READER_ICON_SIZE} />
           </button>
           </div>
           <Show when={moreOpen()}>

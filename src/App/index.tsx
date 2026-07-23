@@ -186,6 +186,9 @@ const readerCallbacks: ReaderCallbacks = {
     gState.scrollPreviewActions?.gotoPage(pageNum);
   },
   onReaderClosed: (currentPage, totalPages) => {
+    if (!gState.settings.readHistoryEnabled) {
+      return;
+    }
     gState.setReadProgress({ currentPage, hasHistory: true, totalPages });
   },
 };
@@ -233,7 +236,9 @@ function openGalleryPage(
 }
 
 function openFromReadButton(previewCache: GalleryPreviewCache): void {
-  const pageNum = gState.readProgress().currentPage;
+  const pageNum = gState.settings.readHistoryEnabled
+    ? gState.readProgress().currentPage
+    : 1;
   const firstPage = previewCache.current().data.pages[0];
   if (firstPage) {
     openGalleryPage(previewCache, firstPage.url, pageNum);
@@ -246,8 +251,10 @@ function GalleryReadButton(props: {
 }) {
   return (
     <ReadButton
-      currentPage={gState.readProgress().currentPage}
-      hasHistory={gState.readProgress().hasHistory}
+      currentPage={gState.settings.readHistoryEnabled
+        ? gState.readProgress().currentPage
+        : 1}
+      hasHistory={gState.settings.readHistoryEnabled && gState.readProgress().hasHistory}
       totalPages={gState.readProgress().totalPages}
       onClick={() => openFromReadButton(props.previewCache)}
       variant={props.variant}
@@ -360,7 +367,6 @@ function injectEnhanceUI(
 
   if (
     !gState.settings.touchUiEnabled &&
-    gState.settings.readHistoryEnabled &&
     galleryPage &&
     preview &&
     previewCache
@@ -385,7 +391,8 @@ function injectEnhanceUI(
             actionsRef={(actions) => {
               gState.scrollPreviewActions = actions;
             }}
-            continuePageNum={gState.readProgress().hasHistory
+            continuePageNum={gState.settings.readHistoryEnabled &&
+                gState.readProgress().hasHistory
               ? gState.readProgress().currentPage
               : null}
             onExitPreview={(previewIndex) => {
@@ -487,7 +494,9 @@ function injectTouchUI(
     if (topBarDom) {
       topBarDom.elems.mount.mount(() => (
         <TouchTopBar
-          historyHref={eh.readHistoryUrl()}
+          historyHref={gState.settings.readHistoryEnabled
+            ? eh.readHistoryUrl()
+            : undefined}
           uiScale={{
             value: gState.uiScale,
             onChange: setCurrentUiScale,
@@ -522,7 +531,7 @@ function injectTouchUI(
           <GalleryInfoPanel
             source={galleryInfoDom}
             primaryAction={
-              gState.settings.readHistoryEnabled && preview && previewCache ? (
+              preview && previewCache ? (
                 <GalleryReadButton
                   previewCache={previewCache}
                   variant="touchGallery"
@@ -648,17 +657,25 @@ async function injectPage(page: eh.PageType): Promise<void> {
     : null;
   if (page.type === "gallery" && galleryPreview) {
     allowFeatureFailure("Gallery Read History", () => {
+      if (!gState.settings.readHistoryEnabled) {
+        gState.setReadProgress({
+          currentPage: 1,
+          hasHistory: false,
+          totalPages: galleryPreview.data.totalImages,
+        });
+        return;
+      }
       const existing = loadReadHistory(page.galleryId, page.token);
       const galleryInfo = eh.extractGalleryHistoryInfo();
       let record = existing;
-      if (gState.settings.readHistoryEnabled && gState.settings.includeUnreadHistoryEnabled) {
+      if (gState.settings.includeUnreadHistoryEnabled) {
         record = recordGalleryVisit(
           page.galleryId,
           page.token,
           galleryPreview.data.totalImages,
           galleryInfo,
         );
-      } else if (gState.settings.readHistoryEnabled && existing) {
+      } else if (existing) {
         record = updateReadHistoryGalleryInfo(page.galleryId, page.token, galleryInfo);
       }
       gState.setReadProgress({

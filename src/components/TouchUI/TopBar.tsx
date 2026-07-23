@@ -151,7 +151,7 @@ function TouchTopBarMenu(props: { navItems: TopBarDom["elems"]["navItems"] }) {
 }
 
 export function TouchTopBar(props: {
-  historyHref: string;
+  historyHref?: string;
   uiScale: {
     value: Accessor<UiScale>;
     onChange: (scale: UiScale) => void;
@@ -187,12 +187,16 @@ export function TouchTopBar(props: {
         >
           <Icon name="heart" size={TOUCH_TOP_BAR_ICON_SIZE} />
         </a>
-        <a
-          class={`ehpeek-touch-top-bar-history ${TOUCH_ICON_BUTTON_CLASS}`}
-          href={props.historyHref}
-        >
-          <Icon name="history" size={TOUCH_TOP_BAR_ICON_SIZE} />
-        </a>
+        <Show when={props.historyHref}>
+          {(historyHref) => (
+            <a
+              class={`ehpeek-touch-top-bar-history ${TOUCH_ICON_BUTTON_CLASS}`}
+              href={historyHref()}
+            >
+              <Icon name="history" size={TOUCH_TOP_BAR_ICON_SIZE} />
+            </a>
+          )}
+        </Show>
         <button
           type="button"
           class={`ehpeek-touch-top-bar-settings ${TOUCH_ICON_BUTTON_CLASS}`}

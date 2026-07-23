@@ -211,12 +211,14 @@ export function SettingsMenu(props: {
               label={texts.settings.touchUiLabel}
               onChange={(value) => updateDraft("touchUiEnabled", value)}
             />
-            <a
-              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center gap-md px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
-              href={props.historyHref}
-            >
-              {texts.settings.historyLabel}
-            </a>
+            <Show when={draft.readHistoryEnabled}>
+              <a
+                class="flex w-full min-h-[var(--ui-control-size-lg)] items-center gap-md px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
+                href={props.historyHref}
+              >
+                {texts.settings.historyLabel}
+              </a>
+            </Show>
             <button
               type="button"
               class="flex w-full min-h-[var(--ui-control-size-lg)] items-center gap-md px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
