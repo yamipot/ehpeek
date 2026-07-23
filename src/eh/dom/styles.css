@@ -60,6 +60,11 @@ body.ehpeek-constrain-results-to-viewport {
   overscroll-behavior-x: contain;
 }
 
+.ehpeek-contain-search-results.gld {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
 .ehpeek-enable-search-swipe-input {
   overscroll-behavior-x: contain;
   touch-action: pan-y;

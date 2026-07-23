@@ -14,9 +14,9 @@ const VARIANT_CLASS: Record<VerticalPositionBarVariant, {
 }> = {
   reader: {
     collapsedFillWidth: "w-20px coarse:w-24px",
-    collapsedInteractionWidth: "w-20px coarse:w-24px",
+    collapsedInteractionWidth: "w-20px coarse:w-40px",
     expandedFillWidth: "w-36px coarse:w-48px",
-    expandedInteractionWidth: "w-36px coarse:w-48px",
+    expandedInteractionWidth: "w-36px coarse:w-64px",
     fill: "bg-[var(--color-reader-scrollbar,var(--color-muted))]",
     track: "bg-[var(--color-reader-border,var(--color-border))]",
     trackWidth: "right-4px w-6px",

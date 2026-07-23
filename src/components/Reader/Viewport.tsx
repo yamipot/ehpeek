@@ -851,7 +851,7 @@ function PageSlotView(props: {
           frame = element;
           props.slot.elements = { node, frame };
         }}
-        class="flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden"
+        class="flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [container-type:size]"
       >
         <Show
           when={image()}
@@ -921,7 +921,7 @@ function PageSlotPlaceholder(props: {
           : "relative flex w-full h-full items-center justify-center bg-[var(--color-reader-surface)] text-[var(--color-reader-muted)] text-center " +
             (props.content.kind === "end"
               ? "p-[var(--reader-end-padding)] [direction:ltr] [font-size:min(var(--ui-font-size-xl),var(--reader-end-font-size))] font-700 leading-[1.3] [unicode-bidi:plaintext]"
-              : "text-[clamp(88px,25vw,180px)] desktop:text-[clamp(72px,10vw,140px)] font-mono font-850 leading-[1] [font-variant-numeric:tabular-nums]")
+              : "[font-size:min(25vw,35cqi,35cqb,180px)] font-mono font-850 leading-[1] [font-variant-numeric:tabular-nums]")
       }
       role={props.content.state === "loading" ? "status" : undefined}
       aria-label={props.content.state === "loading" ? `${texts.reader.loading} ${props.text}` : undefined}
