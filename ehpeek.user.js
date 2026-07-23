@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260723.1349
+// @version      260723.1415
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -3574,6 +3574,9 @@ Next page`,
     page: {
       paths: ["M5 3h14v18H5z"]
     },
+    palette: {
+      paths: ["M12 22a10 10 0 1 1 10-10c0 2.76-2.24 5-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8Z", "M7.5 10.5h.01", "M10.5 7.5h.01", "M14.5 7.5h.01", "M16.5 10.5h.01"]
+    },
     "panda-peek": {
       filledPaths: ["M7.2 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8Z", "M16.8 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8Z", "M7.6 9.8c.5-1.2 1.6-1.8 2.6-1.3s1.3 1.8.8 3-1.6 1.8-2.6 1.3-1.3-1.8-.8-3Z", "M13.8 8.5c1-.5 2.1.1 2.6 1.3s.2 2.5-.8 3-2.1-.1-2.6-1.3-.2-2.5.8-3Z", "M10.9 13.6c0-.6.5-.9 1.1-.9s1.1.3 1.1.9-.5 1-1.1 1-1.1-.4-1.1-1Z", "M5.2 13.7a2.8 1.9 0 1 0 0 3.8 2.8 1.9 0 0 0 0-3.8Z", "M18.8 14.1a2.8 1.9 0 1 0 0 3.8 2.8 1.9 0 0 0 0-3.8Z"],
       paths: ["M5 17c-.8-6.4 2.1-10.8 7-10.8s7.8 4.4 7 10.8", "M12 14.6v.7c0 .7-.6 1.2-1.3 1.2m1.3-1.2c0 .7.6 1.2 1.3 1.2", "M2 17h20"]
@@ -4428,7 +4431,7 @@ Next page`,
   delegateEvents(["click", "pointerdown"]);
 
   // src/components/Reader/Toolbar.tsx
-  var _tmpl$10 = /* @__PURE__ */ template('<div class="flex flex-row gap-md coarse:gap-lg"><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>'), _tmpl$24 = /* @__PURE__ */ template('<div class="ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap"role=status><span>'), _tmpl$34 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 pointer-events-auto"role=dialog aria-modal=true><div class="ehpeek-reader-download-dialog-panel w-full max-w-480px p-lg rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] shadow-xl"><div class="flex items-center justify-between gap-md mb-lg"><div class="font-sans textsize-md font-700"></div><button type=button></button></div><div class="grid gap-md font-sans textsize-md">'), _tmpl$44 = /* @__PURE__ */ template('<div class=contents><div class="fixed z-2 flex justify-end transition-[opacity,transform] duration-160 ease-in-out right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(var(--ui-control-size-lg)*2+44px+env(safe-area-inset-bottom,0px))] [&amp;[data-open=false]]:opacity-0 [&amp;[data-open=false]]:translate-y-[calc(100%+16px)] [&amp;[data-open=false]]:pointer-events-none"><div class="ehpeek-reader-floating-actions grid grid-cols-2 gap-sm"><button type=button></button><button type=button></button><button type=button></button><button type=button></button></div></div><div class="ehpeek-reader-toolbar fixed z-3 flex justify-end pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] right-10px coarse:top-[calc(8px+env(safe-area-inset-top,0px))] coarse:right-8px"><div><div class="flex flex-row gap-md coarse:gap-lg"><button type=button>?</button><button type=button></button><button type=button></button></div></div></div><div class="ehpeek-reader-page-number fixed z-3 pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] right-auto min-w-0 max-w-[calc(100vw-20px)] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap text-left"></div><div class="fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] [&amp;[data-open=false]]:opacity-0 [&amp;[data-open=false]]:translate-y-[calc(100%+16px)] [&amp;[data-open=false]]:pointer-events-none">'), _tmpl$53 = /* @__PURE__ */ template('<div class="ehpeek-reader-control-change fixed z-overlay top-1/2 left-1/2 w-max max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 pointer-events-none rounded-lg bg-[var(--color-badge)] ehp-color-text px-xl py-lg font-sans textsize-lg font-700 leading-[1.3] whitespace-pre-line text-center shadow-xl">'), _tmpl$63 = /* @__PURE__ */ template('<div class="grid gap-md"><button type=button><span class="textsize-md font-700"></span><span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75"></span></button><button type=button><span class="textsize-md font-700"></span><span class="textsize-sm opacity-75">'), READER_BUTTON_CLASS = ["inline-flex min-w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] items-center justify-center px-md py-0 rounded-md large:px-lg large:rounded-lg", "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:opacity-40 disabled:cursor-default"].join(" "), READER_FLOATING_ACTION_CLASS = [READER_BUTTON_CLASS, "!min-w-[var(--ui-control-size-lg)] !h-[var(--ui-control-size-lg)] opacity-85 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-160"].join(" "), READER_FLOATING_ICON_ACTION_CLASS = `${READER_FLOATING_ACTION_CLASS} !w-[var(--ui-control-size-lg)] px-0`, READER_ICON_SIZE = "var(--ui-icon-size-md)", TIME_FORMATTER = new Intl.DateTimeFormat(void 0, {
+  var _tmpl$10 = /* @__PURE__ */ template('<div class="flex flex-row gap-md coarse:gap-lg"><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>'), _tmpl$24 = /* @__PURE__ */ template('<div class="ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap"role=status><span>'), _tmpl$34 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 pointer-events-auto"role=dialog aria-modal=true><div class="ehpeek-reader-download-dialog-panel w-full max-w-480px p-lg rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] shadow-xl"><div class="flex items-center justify-between gap-md mb-lg"><div class="font-sans textsize-md font-700"></div><button type=button></button></div><div class="grid gap-md font-sans textsize-md">'), _tmpl$44 = /* @__PURE__ */ template('<div class=contents><div class="fixed z-2 flex justify-end transition-[opacity,transform] duration-160 ease-in-out right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(var(--ui-control-size-lg)*2+44px+env(safe-area-inset-bottom,0px))] [&amp;[data-open=false]]:opacity-0 [&amp;[data-open=false]]:translate-y-[calc(100%+16px)] [&amp;[data-open=false]]:pointer-events-none"><div class="ehpeek-reader-floating-actions flex flex-col gap-sm"><button type=button></button><button type=button></button><button type=button></button></div></div><div class="ehpeek-reader-toolbar fixed z-3 flex justify-end pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] right-10px coarse:top-[calc(8px+env(safe-area-inset-top,0px))] coarse:right-8px"><div><div class="flex flex-row gap-md coarse:gap-lg"><button type=button></button><button type=button></button><button type=button>?</button><button type=button></button></div></div></div><div class="ehpeek-reader-page-number fixed z-3 pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] right-auto min-w-0 max-w-[calc(100vw-20px)] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap text-left"></div><div class="fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] [&amp;[data-open=false]]:opacity-0 [&amp;[data-open=false]]:translate-y-[calc(100%+16px)] [&amp;[data-open=false]]:pointer-events-none">'), _tmpl$53 = /* @__PURE__ */ template('<div class="ehpeek-reader-control-change fixed z-overlay top-1/2 left-1/2 w-max max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 pointer-events-none rounded-lg bg-[var(--color-badge)] ehp-color-text px-xl py-lg font-sans textsize-lg font-700 leading-[1.3] whitespace-pre-line text-center shadow-xl">'), _tmpl$63 = /* @__PURE__ */ template('<div class="grid gap-md"><button type=button><span class="textsize-md font-700"></span><span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75"></span></button><button type=button><span class="textsize-md font-700"></span><span class="textsize-sm opacity-75">'), READER_BUTTON_CLASS = ["inline-flex min-w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] items-center justify-center px-md py-0 rounded-md large:px-lg large:rounded-lg", "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:opacity-40 disabled:cursor-default"].join(" "), READER_FLOATING_ACTION_CLASS = [READER_BUTTON_CLASS, "!min-w-[var(--ui-control-size-lg)] !h-[var(--ui-control-size-lg)] opacity-85 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-160"].join(" "), READER_FLOATING_ICON_ACTION_CLASS = `${READER_FLOATING_ACTION_CLASS} !w-[calc(var(--ui-control-size-lg)*2)] px-0`, READER_ICON_SIZE = "var(--ui-icon-size-md)", TIME_FORMATTER = new Intl.DateTimeFormat(void 0, {
     hour: "2-digit",
     minute: "2-digit"
   }), DOWNLOAD_OPTION_CLASS = ["flex w-full min-h-lg flex-col items-start justify-center gap-xs px-lg py-md rounded-md", "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer text-left", "hover:bg-[var(--color-badge)] disabled:opacity-40 disabled:cursor-default"].join(" ");
@@ -4453,28 +4456,28 @@ Next page`,
       };
       window.addEventListener("keydown", closeOnEscape, !0), onCleanup(() => window.removeEventListener("keydown", closeOnEscape, !0));
     }), (() => {
-      var _el$ = _tmpl$44(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.nextSibling, _el$6 = _el$5.nextSibling, _el$7 = _el$6.nextSibling, _el$8 = _el$2.nextSibling, _el$9 = _el$8.firstChild, _el$0 = _el$9.firstChild, _el$1 = _el$0.firstChild, _el$10 = _el$1.nextSibling, _el$11 = _el$10.nextSibling, _el$18 = _el$8.nextSibling, _el$21 = _el$18.nextSibling;
-      return addEventListener(_el$2, "wheel", stopEvent), addEventListener(_el$2, "pointerdown", stopEvent, !0), addEventListener(_el$2, "click", stopEvent, !0), _el$4.$$click = () => props.callbacks.onFullscreenClick(), className(_el$4, READER_FLOATING_ICON_ACTION_CLASS), insert(_el$4, createComponent(Icon, {
+      var _el$ = _tmpl$44(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.nextSibling, _el$6 = _el$5.nextSibling, _el$7 = _el$2.nextSibling, _el$8 = _el$7.firstChild, _el$9 = _el$8.firstChild, _el$0 = _el$9.firstChild, _el$1 = _el$0.nextSibling, _el$10 = _el$1.nextSibling, _el$11 = _el$10.nextSibling, _el$18 = _el$7.nextSibling, _el$21 = _el$18.nextSibling;
+      return addEventListener(_el$2, "wheel", stopEvent), addEventListener(_el$2, "pointerdown", stopEvent, !0), addEventListener(_el$2, "click", stopEvent, !0), _el$4.$$click = () => props.callbacks.onOpenScrollPreviewClick(), className(_el$4, READER_FLOATING_ICON_ACTION_CLASS), insert(_el$4, createComponent(Icon, {
+        name: "grid",
+        size: READER_ICON_SIZE
+      })), _el$5.$$click = () => props.callbacks.onFullscreenClick(), className(_el$5, READER_FLOATING_ICON_ACTION_CLASS), insert(_el$5, createComponent(Icon, {
         get name() {
           return props.fullscreenActive ? "fullscreen-exit" : "fullscreen";
         },
         size: READER_ICON_SIZE
-      })), _el$5.$$click = () => props.callbacks.onCloseClick(), className(_el$5, READER_FLOATING_ICON_ACTION_CLASS), insert(_el$5, createComponent(Icon, {
-        name: "close",
-        size: READER_ICON_SIZE
-      })), _el$6.$$click = () => props.callbacks.onOpenScrollPreviewClick(), className(_el$6, READER_FLOATING_ICON_ACTION_CLASS), insert(_el$6, createComponent(Icon, {
-        name: "grid",
-        size: READER_ICON_SIZE
-      })), _el$7.$$click = () => setDownloadDialogPageNum(props.progress.pageNum), className(_el$7, READER_FLOATING_ICON_ACTION_CLASS), insert(_el$7, createComponent(Icon, {
+      })), _el$6.$$click = () => setDownloadDialogPageNum(props.progress.pageNum), className(_el$6, READER_FLOATING_ICON_ACTION_CLASS), insert(_el$6, createComponent(Icon, {
         name: "download",
         size: READER_ICON_SIZE
-      })), addEventListener(_el$8, "wheel", stopEvent), addEventListener(_el$8, "pointerdown", stopEvent, !0), addEventListener(_el$8, "click", stopEvent, !0), _el$1.$$click = () => setHelpOpen(!0), className(_el$1, READER_BUTTON_CLASS), _el$10.$$click = () => props.callbacks.onOpenOriginalPageClick(), className(_el$10, READER_BUTTON_CLASS), insert(_el$10, createComponent(Icon, {
+      })), addEventListener(_el$7, "wheel", stopEvent), addEventListener(_el$7, "pointerdown", stopEvent, !0), addEventListener(_el$7, "click", stopEvent, !0), _el$0.$$click = () => props.callbacks.onOpenOriginalPageClick(), className(_el$0, READER_BUTTON_CLASS), insert(_el$0, createComponent(Icon, {
         name: "external-link",
         size: READER_ICON_SIZE
-      })), _el$11.$$click = () => setMoreOpen((open) => !open), className(_el$11, READER_BUTTON_CLASS), insert(_el$11, createComponent(Icon, {
+      })), _el$1.$$click = () => setMoreOpen((open) => !open), className(_el$1, READER_BUTTON_CLASS), insert(_el$1, createComponent(Icon, {
         name: "book-open",
         size: READER_ICON_SIZE
-      })), insert(_el$9, createComponent(Show, {
+      })), _el$10.$$click = () => setHelpOpen(!0), className(_el$10, READER_BUTTON_CLASS), _el$11.$$click = () => props.callbacks.onCloseClick(), className(_el$11, READER_BUTTON_CLASS), insert(_el$11, createComponent(Icon, {
+        name: "close",
+        size: READER_ICON_SIZE
+      })), insert(_el$8, createComponent(Show, {
         get when() {
           return moreOpen();
         },
@@ -4621,8 +4624,8 @@ Next page`,
           });
         }
       }), null), createRenderEffect((_p$) => {
-        var _v$11 = String(props.open), _v$12 = props.fullscreenActive ? texts_default.reader.exitFullscreen : texts_default.reader.fullscreen, _v$13 = props.fullscreenActive ? texts_default.reader.exitFullscreen : texts_default.reader.fullscreen, _v$14 = texts_default.button.close, _v$15 = texts_default.button.close, _v$16 = texts_default.gallery.scrollPreview, _v$17 = texts_default.gallery.scrollPreview, _v$18 = props.downloadInfos.length === 0, _v$19 = texts_default.reader.download, _v$20 = texts_default.reader.download, _v$21 = `ehpeek-reader-toolbar-buttons flex flex-col items-end gap-md coarse:gap-lg pointer-events-auto${props.open ? "" : " !hidden"}`, _v$22 = texts_default.help.title, _v$23 = texts_default.help.title, _v$24 = texts_default.reader.readingOptions, _v$25 = texts_default.reader.readingOptions, _v$26 = moreOpen(), _v$27 = props.controls.navigationMode === "scroll" && !props.open && !props.fullscreenActive, _v$28 = String(props.open);
-        return _v$11 !== _p$.e && setAttribute(_el$2, "data-open", _p$.e = _v$11), _v$12 !== _p$.t && setAttribute(_el$4, "aria-label", _p$.t = _v$12), _v$13 !== _p$.a && setAttribute(_el$4, "title", _p$.a = _v$13), _v$14 !== _p$.o && setAttribute(_el$5, "aria-label", _p$.o = _v$14), _v$15 !== _p$.i && setAttribute(_el$5, "title", _p$.i = _v$15), _v$16 !== _p$.n && setAttribute(_el$6, "aria-label", _p$.n = _v$16), _v$17 !== _p$.s && setAttribute(_el$6, "title", _p$.s = _v$17), _v$18 !== _p$.h && (_el$7.disabled = _p$.h = _v$18), _v$19 !== _p$.r && setAttribute(_el$7, "aria-label", _p$.r = _v$19), _v$20 !== _p$.d && setAttribute(_el$7, "title", _p$.d = _v$20), _v$21 !== _p$.l && className(_el$9, _p$.l = _v$21), _v$22 !== _p$.u && setAttribute(_el$1, "aria-label", _p$.u = _v$22), _v$23 !== _p$.c && setAttribute(_el$1, "title", _p$.c = _v$23), _v$24 !== _p$.w && setAttribute(_el$11, "aria-label", _p$.w = _v$24), _v$25 !== _p$.m && setAttribute(_el$11, "title", _p$.m = _v$25), _v$26 !== _p$.f && setAttribute(_el$11, "aria-expanded", _p$.f = _v$26), _v$27 !== _p$.y && (_el$18.hidden = _p$.y = _v$27), _v$28 !== _p$.g && setAttribute(_el$21, "data-open", _p$.g = _v$28), _p$;
+        var _v$11 = String(props.open), _v$12 = texts_default.gallery.scrollPreview, _v$13 = texts_default.gallery.scrollPreview, _v$14 = props.fullscreenActive ? texts_default.reader.exitFullscreen : texts_default.reader.fullscreen, _v$15 = props.fullscreenActive ? texts_default.reader.exitFullscreen : texts_default.reader.fullscreen, _v$16 = props.downloadInfos.length === 0, _v$17 = texts_default.reader.download, _v$18 = texts_default.reader.download, _v$19 = `ehpeek-reader-toolbar-buttons flex flex-col items-end gap-md coarse:gap-lg pointer-events-auto${props.open ? "" : " !hidden"}`, _v$20 = texts_default.reader.readingOptions, _v$21 = texts_default.reader.readingOptions, _v$22 = moreOpen(), _v$23 = texts_default.help.title, _v$24 = texts_default.help.title, _v$25 = texts_default.button.close, _v$26 = texts_default.button.close, _v$27 = props.controls.navigationMode === "scroll" && !props.open && !props.fullscreenActive, _v$28 = String(props.open);
+        return _v$11 !== _p$.e && setAttribute(_el$2, "data-open", _p$.e = _v$11), _v$12 !== _p$.t && setAttribute(_el$4, "aria-label", _p$.t = _v$12), _v$13 !== _p$.a && setAttribute(_el$4, "title", _p$.a = _v$13), _v$14 !== _p$.o && setAttribute(_el$5, "aria-label", _p$.o = _v$14), _v$15 !== _p$.i && setAttribute(_el$5, "title", _p$.i = _v$15), _v$16 !== _p$.n && (_el$6.disabled = _p$.n = _v$16), _v$17 !== _p$.s && setAttribute(_el$6, "aria-label", _p$.s = _v$17), _v$18 !== _p$.h && setAttribute(_el$6, "title", _p$.h = _v$18), _v$19 !== _p$.r && className(_el$8, _p$.r = _v$19), _v$20 !== _p$.d && setAttribute(_el$1, "aria-label", _p$.d = _v$20), _v$21 !== _p$.l && setAttribute(_el$1, "title", _p$.l = _v$21), _v$22 !== _p$.u && setAttribute(_el$1, "aria-expanded", _p$.u = _v$22), _v$23 !== _p$.c && setAttribute(_el$10, "aria-label", _p$.c = _v$23), _v$24 !== _p$.w && setAttribute(_el$10, "title", _p$.w = _v$24), _v$25 !== _p$.m && setAttribute(_el$11, "aria-label", _p$.m = _v$25), _v$26 !== _p$.f && setAttribute(_el$11, "title", _p$.f = _v$26), _v$27 !== _p$.y && (_el$18.hidden = _p$.y = _v$27), _v$28 !== _p$.g && setAttribute(_el$21, "data-open", _p$.g = _v$28), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -4939,10 +4942,11 @@ Next page`,
               transform: overlay.style.transform
             }, {
               opacity: 0.7,
-              transform: `translate3d(${direction * 100}vw, 0, 0) scale(0.97)`
+              transform: `translate3d(${direction * 100}vw, 0, 0) scale(var(--ehpeek-reader-fullscreen-ui-scale, 1)) scale(0.97)`
             }], {
               duration: 180,
-              easing: "cubic-bezier(0.2, 0.8, 0.2, 1)"
+              easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+              fill: "forwards"
             }).finished.then(() => onClose(previewIndex));
             return;
           }
@@ -4951,7 +4955,7 @@ Next page`,
             transform: overlay.style.transform
           }, {
             opacity: 1,
-            transform: "translate3d(0, 0, 0) scale(1)"
+            transform: "translate3d(0, 0, 0) scale(var(--ehpeek-reader-fullscreen-ui-scale, 1))"
           }], {
             duration: 180,
             easing: "cubic-bezier(0.2, 0.8, 0.2, 1)"
@@ -5091,7 +5095,7 @@ Next page`,
           return screenEndPageNum() - screenStartPageNum() + 1;
         }
       }), null), createRenderEffect((_p$) => {
-        var _v$ = `${1 - Math.min(0.15, Math.abs(horizontalDragOffset()) / Math.max(1, window.innerWidth) * 0.15)}`, _v$2 = `translate3d(${horizontalDragOffset()}px, 0, 0) scale(${1 - Math.min(0.03, Math.abs(horizontalDragOffset()) / Math.max(1, window.innerWidth) * 0.03)})`, _v$3 = props.highlightedPageNum === null, _v$4 = texts_default.button.close, _v$5 = texts_default.button.close, _v$6 = `${totalHeight()}px`, _v$7 = `repeat(${layout().columns}, minmax(0, 1fr))`, _v$8 = `${visibleStartRow() * layout().rowHeight}px`;
+        var _v$ = `${1 - Math.min(0.15, Math.abs(horizontalDragOffset()) / Math.max(1, window.innerWidth) * 0.15)}`, _v$2 = `translate3d(${horizontalDragOffset()}px, 0, 0) scale(var(--ehpeek-reader-fullscreen-ui-scale, 1)) scale(${1 - Math.min(0.03, Math.abs(horizontalDragOffset()) / Math.max(1, window.innerWidth) * 0.03)})`, _v$3 = props.highlightedPageNum === null, _v$4 = texts_default.button.close, _v$5 = texts_default.button.close, _v$6 = `${totalHeight()}px`, _v$7 = `repeat(${layout().columns}, minmax(0, 1fr))`, _v$8 = `${visibleStartRow() * layout().rowHeight}px`;
         return _v$ !== _p$.e && setStyleProperty(_el$3, "opacity", _p$.e = _v$), _v$2 !== _p$.t && setStyleProperty(_el$3, "transform", _p$.t = _v$2), _v$3 !== _p$.a && (_el$8.disabled = _p$.a = _v$3), _v$4 !== _p$.o && setAttribute(_el$9, "aria-label", _p$.o = _v$4), _v$5 !== _p$.i && setAttribute(_el$9, "title", _p$.i = _v$5), _v$6 !== _p$.n && setStyleProperty(_el$10, "height", _p$.n = _v$6), _v$7 !== _p$.s && setStyleProperty(_el$11, "grid-template-columns", _p$.s = _v$7), _v$8 !== _p$.h && setStyleProperty(_el$11, "top", _p$.h = _v$8), _p$;
       }, {
         e: void 0,
@@ -5877,10 +5881,15 @@ Next page`,
                 return texts_default.settings.touchUiLabel;
               },
               onChange: (value) => updateDraft("touchUiEnabled", value)
+            }), createComponent(Show, {
+              get when() {
+                return draft.readHistoryEnabled;
+              },
+              get children() {
+                var _el$15 = _tmpl$47();
+                return insert(_el$15, () => texts_default.settings.historyLabel), createRenderEffect(() => setAttribute(_el$15, "href", props.historyHref)), _el$15;
+              }
             }), (() => {
-              var _el$15 = _tmpl$47();
-              return insert(_el$15, () => texts_default.settings.historyLabel), createRenderEffect(() => setAttribute(_el$15, "href", props.historyHref)), _el$15;
-            })(), (() => {
               var _el$16 = _tmpl$56(), _el$17 = _el$16.firstChild;
               return _el$16.$$click = () => setHelpOpen(!0), insert(_el$17, () => texts_default.help.title), _el$16;
             })()];
@@ -5994,7 +6003,7 @@ Next page`,
           get children() {
             return [_tmpl$66(), (() => {
               var _el$19 = _tmpl$73(), _el$20 = _el$19.firstChild;
-              return insert(_el$19, "260723.1349", null), _el$19;
+              return insert(_el$19, "260723.1415", null), _el$19;
             })()];
           }
         }), null), _el$22.$$click = (event) => {
@@ -6795,8 +6804,8 @@ Next page`,
   delegateEvents(["click"]);
 
   // src/components/TouchUI/SearchPanel.tsx
-  var _tmpl$31 = /* @__PURE__ */ template('<section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_16px)] large:w-[calc(100%_-_32px)] max-w-960px flex-col gap-sm large:gap-md mx-auto mb-sm large:mb-lg p-sm large:p-lg border ehp-color-site-border rounded-sm large:rounded-lg ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans">'), _tmpl$211 = /* @__PURE__ */ template('<button type=button class="appearance-none inline-flex min-h-[var(--ui-control-size-xs)] items-center px-sm large:px-md border-0 rounded-sm large:rounded-md bg-transparent ehp-color-site-accent text-left textsize-sm font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]">'), _tmpl$310 = /* @__PURE__ */ template("<button>"), _tmpl$410 = /* @__PURE__ */ template('<span class="contents [&amp;>*:not([hidden])]:col-span-full">');
-  var TOUCH_SEARCH_ACTION_CLASS = "appearance-none inline-flex box-border w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 rounded-sm large:rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-120 [touch-action:manipulation] active:scale-96 active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-search-icon-size:var(--ui-icon-size-sm)]";
+  var _tmpl$31 = /* @__PURE__ */ template('<section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_16px)] large:w-[calc(100%_-_32px)] max-w-960px flex-col gap-sm large:gap-md mx-auto mb-sm large:mb-lg p-sm large:p-lg border ehp-color-site-border rounded-sm large:rounded-lg ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans">'), _tmpl$211 = /* @__PURE__ */ template('<button type=button class="appearance-none inline-flex min-h-[var(--ui-control-size-sm)] items-center px-md border-0 rounded-sm large:rounded-md bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]">'), _tmpl$310 = /* @__PURE__ */ template("<button>"), _tmpl$410 = /* @__PURE__ */ template('<span class="contents [&amp;>*:not([hidden])]:col-span-full">');
+  var TOUCH_SEARCH_ACTION_CLASS = "appearance-none inline-flex box-border w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] items-center justify-center p-0 rounded-sm large:rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-120 [touch-action:manipulation] active:scale-96 active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-search-icon-size:var(--ui-icon-size-md)]";
   function TouchSearchPanel(props) {
     return (() => {
       var _el$ = _tmpl$31();
@@ -6863,7 +6872,7 @@ Next page`,
   delegateEvents(["click"]);
 
   // src/components/TouchUI/TopBar.tsx
-  var _tmpl$40 = /* @__PURE__ */ template('<div class="absolute top-[calc(100%+4px)] left-0 z-overlay flex gap-xs p-xs overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"role=menu><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$212 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-ui-menu relative"><button type=button class="ehpeek-touch-top-bar-ui-menu-button inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$311 = /* @__PURE__ */ template('<button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$411 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-180px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-12px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$58 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu relative"><button type=button class="ehpeek-touch-top-bar-menu-button inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$68 = /* @__PURE__ */ template('<nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full h-[var(--ui-control-size-xl)] items-center justify-between pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans"><div class="flex items-center gap-xs"><a class="ehpeek-touch-top-bar-project inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)] [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]"></a></div><div class="flex items-center gap-xs"><a class="ehpeek-touch-top-bar-home inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><a class="ehpeek-touch-top-bar-favorites inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><a class="ehpeek-touch-top-bar-history inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><button type=button class="ehpeek-touch-top-bar-settings inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)", TOUCH_TOP_BAR_PROJECT_ICON_SIZE = "var(--ehpeek-touch-top-bar-project-icon-size)", TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE = "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
+  var _tmpl$40 = /* @__PURE__ */ template('<div class="absolute top-[calc(100%+4px)] left-0 z-overlay flex gap-xs p-xs overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"role=menu><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$212 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-ui-menu relative"><button type=button class="ehpeek-touch-top-bar-ui-menu-button inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$311 = /* @__PURE__ */ template('<button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$411 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-180px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-12px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$58 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu relative"><button type=button class="ehpeek-touch-top-bar-menu-button inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$68 = /* @__PURE__ */ template('<nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full h-[var(--ui-control-size-xl)] items-center justify-between pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans"><div class="flex items-center gap-xs"><a class="ehpeek-touch-top-bar-project inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)] [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]"></a></div><div class="flex items-center gap-xs"><a class="ehpeek-touch-top-bar-home inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><a class="ehpeek-touch-top-bar-favorites inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><button type=button class="ehpeek-touch-top-bar-settings inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$75 = /* @__PURE__ */ template('<a class="ehpeek-touch-top-bar-history inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)", TOUCH_TOP_BAR_PROJECT_ICON_SIZE = "var(--ehpeek-touch-top-bar-project-icon-size)", TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE = "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
   var NEXT_UI_SCALE = {
     small: "medium",
     medium: "large",
@@ -6881,8 +6890,9 @@ Next page`,
       return typeof _ref$ == "function" ? use(_ref$, _el$) : root = _el$, _el$2.$$click = (event) => {
         event.stopPropagation(), setOpen((value) => !value);
       }, insert(_el$2, createComponent(Icon, {
-        name: "viewport",
-        size: TOUCH_TOP_BAR_ICON_SIZE
+        name: "palette",
+        size: TOUCH_TOP_BAR_ICON_SIZE,
+        strokeWidth: 1.75
       })), insert(_el$, createComponent(Show, {
         get when() {
           return open();
@@ -6967,7 +6977,7 @@ Next page`,
   }
   function TouchTopBar(props) {
     return (() => {
-      var _el$9 = _tmpl$68(), _el$0 = _el$9.firstChild, _el$1 = _el$0.firstChild, _el$10 = _el$0.nextSibling, _el$11 = _el$10.firstChild, _el$12 = _el$11.nextSibling, _el$13 = _el$12.nextSibling, _el$14 = _el$13.nextSibling;
+      var _el$9 = _tmpl$68(), _el$0 = _el$9.firstChild, _el$1 = _el$0.firstChild, _el$10 = _el$0.nextSibling, _el$11 = _el$10.firstChild, _el$12 = _el$11.nextSibling, _el$13 = _el$12.nextSibling;
       return insert(_el$1, createComponent(Icon, {
         name: "panda-peek",
         size: TOUCH_TOP_BAR_PROJECT_ICON_SIZE,
@@ -6980,17 +6990,25 @@ Next page`,
           return props.columns;
         }
       }), null), insert(_el$11, createComponent(Icon, {
-        name: "home",
+        name: "search",
         size: TOUCH_TOP_BAR_ICON_SIZE
       })), insert(_el$12, createComponent(Icon, {
         name: "heart",
         size: TOUCH_TOP_BAR_ICON_SIZE
-      })), insert(_el$13, createComponent(Icon, {
-        name: "history",
-        size: TOUCH_TOP_BAR_ICON_SIZE
-      })), _el$14.$$click = (event) => {
+      })), insert(_el$10, createComponent(Show, {
+        get when() {
+          return props.historyHref;
+        },
+        children: (historyHref) => (() => {
+          var _el$14 = _tmpl$75();
+          return insert(_el$14, createComponent(Icon, {
+            name: "history",
+            size: TOUCH_TOP_BAR_ICON_SIZE
+          })), createRenderEffect(() => setAttribute(_el$14, "href", historyHref())), _el$14;
+        })()
+      }), _el$13), _el$13.$$click = (event) => {
         event.stopPropagation(), props.onSettingsMenuOpen();
-      }, insert(_el$14, createComponent(Icon, {
+      }, insert(_el$13, createComponent(Icon, {
         name: "settings",
         size: TOUCH_TOP_BAR_ICON_SIZE
       })), insert(_el$10, createComponent(TouchTopBarMenu, {
@@ -6998,13 +7016,12 @@ Next page`,
           return props.source.elems.navItems;
         }
       }), null), createRenderEffect((_p$) => {
-        var _v$9 = props.source.data.homeHref, _v$0 = props.source.data.homeHref, _v$1 = props.source.data.favoritesHref, _v$10 = props.historyHref;
-        return _v$9 !== _p$.e && setAttribute(_el$1, "href", _p$.e = _v$9), _v$0 !== _p$.t && setAttribute(_el$11, "href", _p$.t = _v$0), _v$1 !== _p$.a && setAttribute(_el$12, "href", _p$.a = _v$1), _v$10 !== _p$.o && setAttribute(_el$13, "href", _p$.o = _v$10), _p$;
+        var _v$9 = props.source.data.homeHref, _v$0 = props.source.data.homeHref, _v$1 = props.source.data.favoritesHref;
+        return _v$9 !== _p$.e && setAttribute(_el$1, "href", _p$.e = _v$9), _v$0 !== _p$.t && setAttribute(_el$11, "href", _p$.t = _v$0), _v$1 !== _p$.a && setAttribute(_el$12, "href", _p$.a = _v$1), _p$;
       }, {
         e: void 0,
         t: void 0,
-        a: void 0,
-        o: void 0
+        a: void 0
       }), _el$9;
     })();
   }
@@ -7770,33 +7787,33 @@ tr[data-ehpeek-read-history] > td,
   }
 
   .ehpeek-overlay-search-actions {
-    grid-template-columns: minmax(0, 1fr) 32px !important;
+    grid-template-columns: minmax(0, 1fr) 40px !important;
   }
 
   .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] {
-    grid-template-columns: minmax(0, 1fr) 32px 32px !important;
+    grid-template-columns: minmax(0, 1fr) 40px 40px !important;
   }
 
   .ehpeek-expand-search-input {
-    height: 32px !important;
-    padding: 0 40px 0 8px !important;
-    border-radius: 3px !important;
-    font-size: var(--ui-font-size-sm) !important;
+    height: 40px !important;
+    padding: 0 48px 0 10px !important;
+    border-radius: 4px !important;
+    font-size: var(--ui-font-size-md) !important;
   }
 
   .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] .ehpeek-expand-search-input {
-    padding-right: 72px !important;
+    padding-right: 88px !important;
   }
 
   .ehpeek-layout-search-categories > tbody {
-    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)) !important;
   }
 
   .ehpeek-layout-search-categories [id^="cat_"] {
-    height: 26px !important;
-    padding-inline: 6px !important;
-    border-radius: 3px !important;
-    font-size: var(--ui-font-size-sm) !important;
+    height: 32px !important;
+    padding-inline: 8px !important;
+    border-radius: 4px !important;
+    font-size: var(--ui-font-size-md) !important;
   }
 
   .ehpeek-wrap-search-options {
@@ -7804,15 +7821,15 @@ tr[data-ehpeek-read-history] > td,
   }
 
   .ehpeek-wrap-search-options > a {
-    min-height: 24px !important;
-    padding-inline: 8px !important;
-    border-radius: 3px !important;
-    font-size: var(--ui-font-size-sm) !important;
+    min-height: 32px !important;
+    padding-inline: 10px !important;
+    border-radius: 4px !important;
+    font-size: var(--ui-font-size-md) !important;
   }
 
   .ehpeek-reset-search-box-layout .searchadv {
     padding-top: 8px !important;
-    font-size: var(--ui-font-size-sm) !important;
+    font-size: var(--ui-font-size-md) !important;
   }
 
   .ehpeek-reset-search-box-layout .searchadv > div,
@@ -8173,7 +8190,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .p-xs{padding:4px;}
 :root[data-ehpeek-ui-scale="large"] .large\\:px-lg,
 .px-lg{padding-left:16px;padding-right:16px;}
-:root[data-ehpeek-ui-scale="large"] .large\\:px-md,
 .px-md{padding-left:12px;padding-right:12px;}
 .px-sm{padding-left:8px;padding-right:8px;}
 .px-xl{padding-left:24px;padding-right:24px;}
@@ -8239,7 +8255,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 /* layer: default */
 .\\[--ehpeek-position-bar-thumb-max\\:calc\\(var\\(--ui-control-size-xl\\)\\*4\\)\\]{--ehpeek-position-bar-thumb-max:calc(var(--ui-control-size-xl) * 4);}
 .\\[--ehpeek-position-bar-thumb-min\\:calc\\(var\\(--ui-control-size-md\\)\\*1\\.5\\)\\]{--ehpeek-position-bar-thumb-min:calc(var(--ui-control-size-md) * 1.5);}
-.\\[--ehpeek-touch-search-icon-size\\:var\\(--ui-icon-size-sm\\)\\]{--ehpeek-touch-search-icon-size:var(--ui-icon-size-sm);}
+.\\[--ehpeek-touch-search-icon-size\\:var\\(--ui-icon-size-md\\)\\]{--ehpeek-touch-search-icon-size:var(--ui-icon-size-md);}
 .\\[--ehpeek-touch-top-bar-icon-size\\:var\\(--ui-control-size-xs\\)\\]{--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs);}
 .\\[--ehpeek-touch-top-bar-project-icon-size\\:var\\(--ui-control-size-sm\\)\\]{--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm);}
 .\\[--progress-bar-fill\\:0\\%\\]{--progress-bar-fill:0%;}
@@ -8363,7 +8379,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 :root[data-ehpeek-ui-scale="large"] .large\\:w-\\[calc\\(100\\%_-_32px\\)\\]{width:calc(100% - 32px);}
 .\\!h-\\[var\\(--ui-control-size-lg\\)\\]{height:var(--ui-control-size-lg) !important;}
 .\\!min-w-\\[var\\(--ui-control-size-lg\\)\\]{min-width:var(--ui-control-size-lg) !important;}
-.\\!w-\\[var\\(--ui-control-size-lg\\)\\]{width:var(--ui-control-size-lg) !important;}
+.\\!w-\\[calc\\(var\\(--ui-control-size-lg\\)\\*2\\)\\]{width:calc(var(--ui-control-size-lg) * 2) !important;}
 .\\[\\&_\\.ehpeek-icon\\]\\:h-\\[var\\(--ui-icon-size-lg\\)\\] .ehpeek-icon{height:var(--ui-icon-size-lg);}
 .\\[\\&_\\.ehpeek-icon\\]\\:w-\\[var\\(--ui-icon-size-lg\\)\\] .ehpeek-icon{width:var(--ui-icon-size-lg);}
 .h-\\[100dvh\\]{height:100dvh;}
@@ -8371,7 +8387,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .h-\\[var\\(--reader-frame-height\\)\\]{height:var(--reader-frame-height);}
 .h-\\[var\\(--reader-page-height\\)\\]{height:var(--reader-page-height);}
 .h-\\[var\\(--ui-control-size-md\\)\\]{height:var(--ui-control-size-md);}
-.h-\\[var\\(--ui-control-size-sm\\)\\]{height:var(--ui-control-size-sm);}
 .h-\\[var\\(--ui-control-size-xl\\)\\]{height:var(--ui-control-size-xl);}
 .h-\\[var\\(--ui-icon-size-md\\)\\]{height:var(--ui-icon-size-md);}
 .h-\\[var\\(--ui-icon-size-sm\\)\\]{height:var(--ui-icon-size-sm);}
@@ -8804,7 +8819,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 `;
 
   // src/components/Reader/Viewport.tsx
-  var _tmpl$41 = /* @__PURE__ */ template("<div tabindex=-1><main>"), _tmpl$213 = /* @__PURE__ */ template('<section><div class="flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden">'), _tmpl$312 = /* @__PURE__ */ template('<button type=button class="ehpeek-reader-page-reload appearance-none inline-flex w-64px h-64px items-center justify-center border border-[var(--color-border)] rounded-md bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-lg font-700 leading-1 hover:bg-[var(--color-badge)] active:scale-96 [touch-action:manipulation]">'), _tmpl$412 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$59 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] opacity-80 break-anywhere textsize-sm font-500 leading-[1.4] [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$69 = /* @__PURE__ */ template("<div>"), _tmpl$75 = /* @__PURE__ */ template('<span class="flex w-full h-full flex-col items-center justify-center gap-xl overflow-hidden"aria-hidden=true><span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]"></span><span class="block w-md h-md flex-none box-border animate-spin rounded-full border-4px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]">'), FALLBACK_ASPECT_RATIO = 1.42, PAGE_SLOT_SPACING = 8, DEFAULT_DECODED_IMAGE_CACHE_LIMIT = 24, DECODED_IMAGE_CACHE_BYTES = 96 * 1024 * 1024, HORIZONTAL_FLING_VELOCITY_MULTIPLIER = 1.2, HORIZONTAL_FLING_MAX_VELOCITY = 1.6;
+  var _tmpl$41 = /* @__PURE__ */ template("<div tabindex=-1><main>"), _tmpl$213 = /* @__PURE__ */ template('<section><div class="flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden">'), _tmpl$312 = /* @__PURE__ */ template('<button type=button class="ehpeek-reader-page-reload appearance-none inline-flex w-64px h-64px items-center justify-center border border-[var(--color-border)] rounded-md bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-lg font-700 leading-1 hover:bg-[var(--color-badge)] active:scale-96 [touch-action:manipulation]">'), _tmpl$412 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$59 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] opacity-80 break-anywhere textsize-sm font-500 leading-[1.4] [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$69 = /* @__PURE__ */ template("<div>"), _tmpl$76 = /* @__PURE__ */ template('<span class="flex w-full h-full flex-col items-center justify-center gap-xl overflow-hidden"aria-hidden=true><span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]"></span><span class="block w-md h-md flex-none box-border animate-spin rounded-full border-4px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]">'), FALLBACK_ASPECT_RATIO = 1.42, PAGE_SLOT_SPACING = 8, DEFAULT_DECODED_IMAGE_CACHE_LIMIT = 24, DECODED_IMAGE_CACHE_BYTES = 96 * 1024 * 1024, HORIZONTAL_FLING_VELOCITY_MULTIPLIER = 1.2, HORIZONTAL_FLING_MAX_VELOCITY = 1.6;
   function pageWindowNumbers(currentPageNum, windowSize) {
     let numbers = [];
     for (let offset = -windowSize; offset <= windowSize; offset += 1)
@@ -9180,7 +9195,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
               return props.text;
             },
             get children() {
-              var _el$9 = _tmpl$75(), _el$0 = _el$9.firstChild;
+              var _el$9 = _tmpl$76(), _el$0 = _el$9.firstChild;
               return insert(_el$0, () => props.text), _el$9;
             }
           });
@@ -10815,7 +10830,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
       gState.scrollPreviewActions?.gotoPage(pageNum);
     },
     onReaderClosed: (currentPage, totalPages) => {
-      gState.setReadProgress({
+      gState.settings.readHistoryEnabled && gState.setReadProgress({
         currentPage,
         hasHistory: !0,
         totalPages
@@ -10840,16 +10855,16 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
     preferredPageNum !== void 0 && gotoActiveReaderPage(preferredPageNum) || (state.reader.enabled.value ? openReaderFromUserAction(startPageUrl, readerCallbacks, previewCache, readerViewport, preferredPageNum) : preferredPageNum !== void 0 && openOriginalReader(preferredPageNum, previewCache).catch(reportReaderOpenError));
   }
   function openFromReadButton(previewCache) {
-    let pageNum = gState.readProgress().currentPage, firstPage = previewCache.current().data.pages[0];
+    let pageNum = gState.settings.readHistoryEnabled ? gState.readProgress().currentPage : 1, firstPage = previewCache.current().data.pages[0];
     firstPage && openGalleryPage(previewCache, firstPage.url, pageNum);
   }
   function GalleryReadButton(props) {
     return createComponent(ReadButton, {
       get currentPage() {
-        return gState.readProgress().currentPage;
+        return memo(() => !!gState.settings.readHistoryEnabled)() ? gState.readProgress().currentPage : 1;
       },
       get hasHistory() {
-        return gState.readProgress().hasHistory;
+        return memo(() => !!gState.settings.readHistoryEnabled)() && gState.readProgress().hasHistory;
       },
       get totalPages() {
         return gState.readProgress().totalPages;
@@ -10914,7 +10929,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
           event.preventDefault(), event.stopPropagation(), gState.setSettingsMenuOpen(!0);
         }, insert(_el$, () => texts_default.settings.menuLabel), _el$;
       })());
-    }), !gState.settings.touchUiEnabled && gState.settings.readHistoryEnabled && galleryPage && preview && previewCache && allowFeatureFailure("Desktop Read button", () => {
+    }), !gState.settings.touchUiEnabled && galleryPage && preview && previewCache && allowFeatureFailure("Desktop Read button", () => {
       manageGalleryContinueReadingButtonMount().mount(() => createComponent(GalleryReadButton, {
         previewCache,
         variant: "gallery"
@@ -10925,7 +10940,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
           gState.scrollPreviewActions = actions;
         },
         get continuePageNum() {
-          return memo(() => !!gState.readProgress().hasHistory)() ? gState.readProgress().currentPage : null;
+          return memo(() => !!(gState.settings.readHistoryEnabled && gState.readProgress().hasHistory))() ? gState.readProgress().currentPage : null;
         },
         onExitPreview: (previewIndex) => {
           previewIndex !== previewCache.current().data.currentIndex && (gState.settings.enhanceThumbsGridsEnabled ? previewCache.select(previewIndex).catch(reportReaderOpenError) : window.location.assign(previewUrlForIndex(previewIndex, previewCache.current().data.currentUrl)));
@@ -10966,7 +10981,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
       let topBarDom = manageTopBar();
       topBarDom && topBarDom.elems.mount.mount(() => createComponent(TouchTopBar, {
         get historyHref() {
-          return readHistoryUrl();
+          return memo(() => !!gState.settings.readHistoryEnabled)() ? readHistoryUrl() : void 0;
         },
         get uiScale() {
           return {
@@ -10993,7 +11008,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
       galleryInfoDom && (galleryInfoDom.handle.installGalleryInfoPanel(), galleryInfoDom.elems.mount.mount(() => createComponent(GalleryInfoPanel, {
         source: galleryInfoDom,
         get primaryAction() {
-          return memo(() => !!(gState.settings.readHistoryEnabled && preview && previewCache))() ? createComponent(GalleryReadButton, {
+          return preview && previewCache ? createComponent(GalleryReadButton, {
             previewCache,
             variant: "touchGallery"
           }) : void 0;
@@ -11052,8 +11067,16 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
     });
     let galleryPreview = galleryPage ? allowFeatureFailure("Gallery Preview", () => manageGalleryPreview()) : null, galleryPreviewCache = galleryPreview ? allowFeatureFailure("Gallery Preview cache", () => createGalleryPreviewCache(galleryPreview)) : null;
     page2.type === "gallery" && galleryPreview && allowFeatureFailure("Gallery Read History", () => {
+      if (!gState.settings.readHistoryEnabled) {
+        gState.setReadProgress({
+          currentPage: 1,
+          hasHistory: !1,
+          totalPages: galleryPreview.data.totalImages
+        });
+        return;
+      }
       let existing = loadReadHistory(page2.galleryId, page2.token), galleryInfo = extractGalleryHistoryInfo(), record = existing;
-      gState.settings.readHistoryEnabled && gState.settings.includeUnreadHistoryEnabled ? record = recordGalleryVisit(page2.galleryId, page2.token, galleryPreview.data.totalImages, galleryInfo) : gState.settings.readHistoryEnabled && existing && (record = updateReadHistoryGalleryInfo(page2.galleryId, page2.token, galleryInfo)), gState.setReadProgress({
+      gState.settings.includeUnreadHistoryEnabled ? record = recordGalleryVisit(page2.galleryId, page2.token, galleryPreview.data.totalImages, galleryInfo) : existing && (record = updateReadHistoryGalleryInfo(page2.galleryId, page2.token, galleryInfo)), gState.setReadProgress({
         currentPage: record?.pageNum && record.pageNum > 0 ? record.pageNum : 1,
         hasHistory: !!(record && record.pageNum > 0),
         totalPages: record?.totalPages ?? galleryPreview.data.totalImages
