@@ -491,9 +491,14 @@ function wireReaderCallbacks(
 
   function wireScrollViewport(): {
     callbacks: ViewportCanvasCallbacks;
+    endPinch: () => void;
+    movePinch: (scale: number) => void;
     open: () => void;
+    pinching: () => boolean;
+    startPinch: () => boolean;
   } {
     let adjustmentStartSizeScale = state.scrollViewport.sizeScale();
+    let pinchStartScale: number | null = null;
     const updateImageScale = (scale: number | null): void => {
       if (scale === null) {
         state.scrollViewport.setSizeScale(null);
@@ -508,6 +513,24 @@ function wireReaderCallbacks(
     };
 
     return {
+      startPinch: () => {
+        const scalePercent = state.scrollViewport.scalePercent();
+        if (scalePercent === null) {
+          return false;
+        }
+        pinchStartScale = scalePercent / 100;
+        return true;
+      },
+      movePinch: (scale) => {
+        if (pinchStartScale === null) {
+          return;
+        }
+        updateImageScale(clamp(pinchStartScale * scale, 0.1, 5));
+      },
+      endPinch: () => {
+        pinchStartScale = null;
+      },
+      pinching: () => pinchStartScale !== null,
       open: () => {
         adjustmentStartSizeScale = state.scrollViewport.sizeScale();
         state.scrollViewport.setAdjusting(true);
@@ -999,6 +1022,9 @@ function wireReaderCallbacks(
       cancelPendingTap();
       viewportActions.stopMotion();
       viewportActions.cancelDrag();
+      if (!pagedMode() && state.overlay.image() === null) {
+        return scrollViewport.startPinch();
+      }
       if (state.overlay.image() !== null) {
         zoomOverlay.startPinch({ centerX: info.clientX, centerY: info.clientY });
         return true;
@@ -1012,12 +1038,24 @@ function wireReaderCallbacks(
       zoomOverlay.reset({ centerX: info.clientX, centerY: info.clientY, scale: zoomScale });
       return true;
     };
-    gesture.onPinchMove = (info: { clientX: number; clientY: number; scale: number }) => zoomOverlay.movePinch({
-      centerX: info.clientX,
-      centerY: info.clientY,
-      scale: info.scale,
-    });
-    gesture.onPinchEnd = () => zoomOverlay.endPinch();
+    gesture.onPinchMove = (info: { clientX: number; clientY: number; scale: number }) => {
+      if (scrollViewport.pinching()) {
+        scrollViewport.movePinch(info.scale);
+        return;
+      }
+      zoomOverlay.movePinch({
+        centerX: info.clientX,
+        centerY: info.clientY,
+        scale: info.scale,
+      });
+    };
+    gesture.onPinchEnd = () => {
+      if (scrollViewport.pinching()) {
+        scrollViewport.endPinch();
+        return;
+      }
+      zoomOverlay.endPinch();
+    };
     gesture.shouldCaptureDrag = (event) => {
       if (isPageReloadButtonTarget(event)) {
         return false;
