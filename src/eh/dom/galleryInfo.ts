@@ -457,6 +457,20 @@ export type GalleryInfoTagGroup = {
   tags: Array<GalleryTagData & { contentSource: ManagedDomNode }>;
 };
 
+/** Marks the original Gallery page as owned by the TouchUI layout. */
+export function mutateGalleryTouchLayout(): void {
+  const page = DomNode.from(document).use(domClass.page);
+  const html = page.html.inplace();
+  const body = page.body.inplace();
+
+  if (!html || !body) {
+    throw new Error("Gallery page layout is unavailable.");
+  }
+
+  html.apply("galleryTouchLayout");
+  body.apply("galleryTouchLayout");
+}
+
 /** Groups GalleryInfo, Comments, and Preview into independent responsive columns. */
 export function mutateGalleryWideLayout(
   info: GalleryInfoDom,
@@ -467,6 +481,7 @@ export function mutateGalleryWideLayout(
   const source = DomNode.from(document).use(domClass.gallery);
   const html = page.html.inplace();
   const body = page.body.inplace();
+  const footer = page.footer.inplace();
   const comments = source.comments.inplace();
   const commentsAnchor = source.commentsAnchor.inplace();
   const pageBarTopHost = source.preview.pageBarTop.one()?.parent()?.inplace() ?? null;
@@ -506,7 +521,8 @@ export function mutateGalleryWideLayout(
         .replaceClasses("ehpeek-touch-gallery-layout-left");
       const right = createManagedElement("div")
         .replaceClasses("ehpeek-touch-gallery-layout-right");
-      const nodes = [...leftNodes, ...rightNodes];
+      const nodes = [...leftNodes, ...rightNodes, footer]
+        .filter((node) => node !== null);
 
       positions = nodes.map((node) => {
         const marker = createManagedElement("span").setHidden(true);
@@ -514,7 +530,7 @@ export function mutateGalleryWideLayout(
         return { marker, node };
       });
       info.elems.host.before(layout);
-      layout.append(left, right);
+      layout.append(left, right, ...(footer ? [footer] : []));
       left.append(...leftNodes);
       right.append(...rightNodes);
       return;

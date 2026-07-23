@@ -27,9 +27,11 @@ export const sharedApply = {
 } as const;
 
 const page = {
+  footer: query("body > .dp"),
   html: tag("html", {
     apply: {
       constrainResults: sharedApply.constrainResultsToViewport,
+      galleryTouchLayout: "ehpeek-touch-gallery-page",
       galleryWideLayout: "ehpeek-gallery-wide-layout-root",
     },
   }),
@@ -37,6 +39,7 @@ const page = {
     apply: {
       constrainFavoritesNavigation: "ehpeek-constrain-favorites-navigation",
       constrainResults: sharedApply.constrainResultsToViewport,
+      galleryTouchLayout: "ehpeek-touch-gallery-page",
       galleryWideLayout: "ehpeek-gallery-wide-layout-root",
       hidePreviewPageBars: "ehpeek-hide-original-preview-page-bars",
     },

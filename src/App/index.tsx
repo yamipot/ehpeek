@@ -29,7 +29,6 @@ import * as eh from "../eh";
 import { state } from "../state";
 import texts from "../texts.json";
 import { registerGlobalStyle } from "../utils";
-import galleryRearrange from "../eh/galleryRearrange.css";
 import ehDomCss from "../eh/dom/styles.css";
 import unoCss from "ehpeek:uno.css";
 import themeCss from "../theme.css";
@@ -408,10 +407,7 @@ function injectTouchUI(
 
   if (galleryPage) {
     allowFeatureFailure("Touch GalleryInfo", () => {
-      registerGlobalStyle(
-        "ehpeek-touch-gallery-page-rearrange-style",
-        galleryRearrange,
-      );
+      eh.mutateGalleryTouchLayout();
       const galleryInfoDom = eh.manageGalleryInfo(preview?.data ?? null);
       if (galleryInfoDom) {
         galleryInfoDom.handle.installGalleryInfoPanel();

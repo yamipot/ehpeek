@@ -819,3 +819,254 @@ tr[data-ehpeek-read-history] > td,
     outline: none !important;
   }
 }
+
+/* The root state scopes original Gallery layout overrides to TouchUI pages. */
+.ehpeek-touch-gallery-page {
+  --touch-gallery-gutter: clamp(16px, 2.5vw, 36px);
+}
+
+html.ehpeek-touch-gallery-page,
+body.ehpeek-touch-gallery-page {
+  min-width: 0 !important;
+  overflow-x: hidden !important;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+html.ehpeek-touch-gallery-page.ehpeek-gallery-wide-layout-root,
+body.ehpeek-touch-gallery-page.ehpeek-gallery-wide-layout-root {
+  height: 100dvh !important;
+  overflow-y: hidden !important;
+}
+
+body.ehpeek-touch-gallery-page.ehpeek-gallery-wide-layout-root {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+body.ehpeek-touch-gallery-page {
+  box-sizing: border-box;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  background: var(--color-site-page) !important;
+  font-size: var(--font-size-sm) !important;
+  line-height: 1.35 !important;
+}
+
+body.ehpeek-touch-gallery-page :is(
+  .ehpeek-hide-original-gallery-info,
+  .gpc,
+  #gdt[class],
+  #cdiv,
+  .ptt,
+  .ptb
+) {
+  box-sizing: border-box !important;
+  width: calc(100% - (var(--touch-gallery-gutter) * 2)) !important;
+  max-width: none !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+body.ehpeek-touch-gallery-page :is(#gdt[class], .ptt, .ptb) {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.ehpeek-touch-gallery-page #gdt[class] {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  align-items: start;
+}
+
+body.ehpeek-touch-gallery-page #gdt :is(.gdtm, .gdtl),
+body.ehpeek-touch-gallery-page #gdt > div {
+  display: flex !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  justify-self: center;
+}
+
+body.ehpeek-touch-gallery-page #gdt a {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+body.ehpeek-touch-gallery-page #cdiv {
+  font-size: var(--font-size-md) !important;
+  line-height: 1.5 !important;
+}
+
+body.ehpeek-touch-gallery-page #cdiv .c6 {
+  font-size: var(--font-size-md) !important;
+  line-height: 1.5 !important;
+  overflow-wrap: anywhere;
+}
+
+body.ehpeek-touch-gallery-page :is(
+  #cdiv .c3,
+  #cdiv .c4,
+  #cdiv .c5,
+  #cdiv .c7,
+  #formdiv
+) {
+  font-size: var(--font-size-sm) !important;
+  line-height: 1.4 !important;
+}
+
+body.ehpeek-touch-gallery-page #postnewcomment {
+  margin: 16px 0 !important;
+  font-size: 0 !important;
+}
+
+body.ehpeek-touch-gallery-page #postnewcomment a {
+  display: inline-flex !important;
+  min-height: 52px;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--color-site-border);
+  border-radius: 6px;
+  background: var(--color-site-elevated);
+  color: var(--color-site-accent);
+  font-size: var(--font-size-md);
+  text-decoration: none;
+}
+
+body.ehpeek-touch-gallery-page #cdiv form {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+body.ehpeek-touch-gallery-page :is(#cdiv textarea, #commenttext) {
+  display: block !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-height: 160px !important;
+  flex: 1 0 100%;
+  padding: 16px !important;
+  border-radius: 6px !important;
+  font: inherit !important;
+  font-size: var(--font-size-md) !important;
+  line-height: 1.5 !important;
+}
+
+body.ehpeek-touch-gallery-page #cdiv :is(
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="text"],
+  select
+) {
+  box-sizing: border-box !important;
+  min-height: 52px !important;
+  padding: 12px 16px !important;
+  border-radius: 6px !important;
+  font: inherit !important;
+  font-size: var(--font-size-md) !important;
+}
+
+body.ehpeek-touch-gallery-page #cdiv :is(
+  button,
+  input[type="button"],
+  input[type="submit"]
+) {
+  flex: 1 1 180px;
+  cursor: pointer;
+}
+
+body.ehpeek-touch-gallery-page #cdiv input[type="text"] {
+  min-width: min(100%, 240px);
+}
+
+@media (orientation: landscape) {
+  body.ehpeek-touch-gallery-page :is(
+    .ehpeek-hide-original-gallery-info,
+    .gpc,
+    #gdt[class],
+    #cdiv,
+    .ptt,
+    .ptb
+  ) {
+    width: min(
+      calc(100% - (var(--touch-gallery-gutter) * 2)),
+      90dvh
+    ) !important;
+  }
+
+  body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr) auto;
+    column-gap: var(--touch-gallery-gutter);
+    width: calc(100% - (var(--touch-gallery-gutter) * 2));
+    height: calc(100dvh - 52px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    margin-inline: auto;
+    align-items: start;
+    overflow: hidden;
+  }
+
+  body.ehpeek-touch-gallery-page :is(
+    .ehpeek-touch-gallery-layout-left,
+    .ehpeek-touch-gallery-layout-right
+  ) {
+    grid-row: 1;
+    display: block;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  body.ehpeek-touch-gallery-page :is(
+    .ehpeek-touch-gallery-layout-left,
+    .ehpeek-touch-gallery-layout-right
+  )::-webkit-scrollbar {
+    display: none;
+  }
+
+  body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout :is(
+    .ehpeek-hide-original-gallery-info,
+    .gtb,
+    .contents,
+    .gpc,
+    #cdiv,
+    .ptt,
+    .ptb
+  ) {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout #gdt[class] {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
+    box-sizing: border-box;
+    grid-row: 2;
+    grid-column: 1 / -1;
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (orientation: landscape) and (pointer: coarse) {
+  body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout {
+    height: calc(100dvh - 100px);
+  }
+}
