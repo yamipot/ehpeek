@@ -63,7 +63,12 @@ export type ReaderCallbacks = {
   onOpenScrollPreview: (pageNum: number) => void;
 };
 
+export type ReaderActions = {
+  gotoPage: (pageNum: number) => void;
+};
+
 export function Reader(props: {
+  actionsRef: (actions: ReaderActions) => void;
   callbacks: ReaderCallbacks;
   options: ReaderOptions;
   previewCache: GalleryPreviewCache;
@@ -82,6 +87,9 @@ export function Reader(props: {
     previewCache,
     callbacks,
   );
+  untrack(() => props.actionsRef({
+    gotoPage: readerCallbacks.gotoPage,
+  }));
   let previousFullscreenActive = untrack(() => props.fullscreenActive);
 
   createEffect(() => {
@@ -472,6 +480,7 @@ function wireReaderCallbacks(
       document.removeEventListener("keydown", onKeydown, true);
       window.removeEventListener("resize", updateReaderViewportSize);
     },
+    gotoPage: (pageNum: number) => setCurrentPageNumber(pageNum, true),
     realignCurrentPage: () => {
       scrollToCurrentPage();
     },

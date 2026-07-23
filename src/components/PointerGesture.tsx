@@ -92,12 +92,16 @@ class PointerGesture {
     return this.drag?.active === true;
   }
 
-  cancel(): void {
-    if (!this.drag) {
+  cancel(preservePinchPointers = false): void {
+    const drag = this.drag;
+    if (!drag) {
       return;
     }
 
-    this.releaseCapture(this.drag);
+    this.releaseCapture(drag);
+    if (!preservePinchPointers) {
+      this.pinchPointers.delete(drag.pointerId);
+    }
 
     this.drag = null;
     this.setDragging(false);
@@ -125,6 +129,9 @@ class PointerGesture {
     this.clearClickSuppression();
     event.preventDefault();
     event.stopImmediatePropagation();
+  };
+  private onClickSuppressionPointerDown = (): void => {
+    this.clearClickSuppression();
   };
 
   private onContextMenu = (): void => {
@@ -410,7 +417,7 @@ class PointerGesture {
       return false;
     }
 
-    this.cancel();
+    this.cancel(true);
     this.pinch = {
       startDistance: snapshot.distance,
     };
@@ -576,6 +583,8 @@ class PointerGesture {
     this.suppressClick = true;
     this.suppressClickPoint = { clientX, clientY };
     window.addEventListener("click", this.onClick, true);
+    window.addEventListener("mousedown", this.onClickSuppressionPointerDown, true);
+    window.addEventListener("pointerdown", this.onClickSuppressionPointerDown, true);
 
     if (this.suppressClickTimer !== null) {
       window.clearTimeout(this.suppressClickTimer);
@@ -590,6 +599,8 @@ class PointerGesture {
     this.suppressClick = false;
     this.suppressClickPoint = null;
     window.removeEventListener("click", this.onClick, true);
+    window.removeEventListener("mousedown", this.onClickSuppressionPointerDown, true);
+    window.removeEventListener("pointerdown", this.onClickSuppressionPointerDown, true);
     if (this.suppressClickTimer !== null) {
       window.clearTimeout(this.suppressClickTimer);
       this.suppressClickTimer = null;

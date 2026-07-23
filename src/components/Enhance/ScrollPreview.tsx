@@ -43,10 +43,12 @@ type PreviewSlot = {
 
 export type ScrollPreviewActions = {
   gotoPreview: (previewIndex: number) => void;
+  gotoPage: (pageNum: number) => void;
 };
 
 export function ScrollPreview(props: {
   actionsRef: (actions: ScrollPreviewActions) => void;
+  continuePageNum: number | null;
   onExitPreview: (previewIndex: number) => void;
   onLoadError: (error: unknown) => void;
   onOpenChange: (open: boolean) => void;
@@ -59,6 +61,8 @@ export function ScrollPreview(props: {
   const [targetPreviewIndex, setTargetPreviewIndex] = createSignal(
     untrack(() => previewCache.current().data.currentIndex),
   );
+  const [highlightedPageNum, setHighlightedPageNum] = createSignal<number | null>(null);
+  const [targetPageNum, setTargetPageNum] = createSignal<number | null>(null);
   const updateOpen = (next: boolean): void => {
     if (next) {
       setPortalMount(
@@ -74,7 +78,15 @@ export function ScrollPreview(props: {
   createEffect(() => {
     props.actionsRef({
       gotoPreview: (previewIndex) => {
+        setHighlightedPageNum(null);
+        setTargetPageNum(null);
         setTargetPreviewIndex(previewIndex);
+        updateOpen(true);
+      },
+      gotoPage: (pageNum) => {
+        setHighlightedPageNum(pageNum);
+        setTargetPageNum(pageNum);
+        setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
         updateOpen(true);
       },
     });
@@ -88,6 +100,8 @@ export function ScrollPreview(props: {
           type="button"
           class="inline-flex min-h-md coarse:min-h-56px items-center justify-center gap-sm px-lg py-sm rounded-md border border-[var(--color-site-border)] bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-md font-700 cursor-pointer hover:bg-[var(--color-site-item-hover)] active:scale-98"
           onClick={() => {
+            setHighlightedPageNum(props.continuePageNum);
+            setTargetPageNum(null);
             setTargetPreviewIndex(previewCache.current().data.currentIndex);
             updateOpen(true);
           }}
@@ -99,13 +113,18 @@ export function ScrollPreview(props: {
       <Show when={open()}>
         <Portal mount={portalMount()}>
           <ScrollPreviewOverlay
+            highlightedPageNum={highlightedPageNum()}
             onClose={(previewIndex) => {
               updateOpen(false);
               props.onExitPreview(previewIndex);
             }}
             onLoadError={props.onLoadError}
-            onOpenPage={props.onOpenPage}
+            onOpenPage={(pageUrl, pageNum) => {
+              updateOpen(false);
+              props.onOpenPage(pageUrl, pageNum);
+            }}
             previewCache={previewCache}
+            targetPageNum={targetPageNum()}
             targetPreviewIndex={targetPreviewIndex()}
           />
         </Portal>
@@ -115,10 +134,12 @@ export function ScrollPreview(props: {
 }
 
 function ScrollPreviewOverlay(props: {
+  highlightedPageNum: number | null;
   onClose: (previewIndex: number) => void;
   onLoadError: (error: unknown) => void;
   onOpenPage: (pageUrl: string, pageNum: number) => void;
   previewCache: GalleryPreviewCache;
+  targetPageNum: number | null;
   targetPreviewIndex: number;
 }) {
   const previewCache = untrack(() => props.previewCache);
@@ -321,11 +342,16 @@ function ScrollPreviewOverlay(props: {
 
   createEffect(() => {
     const previewIndex = props.targetPreviewIndex;
+    const pageNum = props.targetPageNum;
     if (!initialized) {
       return;
     }
     if (scroller.isConnected) {
-      scrollToPreview(previewIndex, untrack(layout));
+      if (pageNum === null) {
+        scrollToPreview(previewIndex, untrack(layout));
+      } else {
+        scrollToPage(pageNum, untrack(layout));
+      }
     }
   });
 
@@ -351,15 +377,16 @@ function ScrollPreviewOverlay(props: {
       if (!scroller.isConnected) {
         return;
       }
-      const targetPageIndex = initialized
-        ? anchorPageIndex
-        : props.targetPreviewIndex * initialPreview.data.pageSize;
       if (initialized) {
-        scroller.scrollTop = Math.floor(targetPageIndex / next.columns) * next.rowHeight;
+        scroller.scrollTop = Math.floor(anchorPageIndex / next.columns) * next.rowHeight;
         setScrollTop(scroller.scrollTop);
       } else {
         initialized = true;
-        scrollToPreview(props.targetPreviewIndex, next);
+        if (props.targetPageNum === null) {
+          scrollToPreview(props.targetPreviewIndex, next);
+        } else {
+          scrollToPage(props.targetPageNum, next);
+        }
       }
       setPreviewLoadReady(true);
     }));
@@ -390,7 +417,19 @@ function ScrollPreviewOverlay(props: {
   return (
     <section class="fixed inset-0 z-[1300] box-border flex w-full h-[100dvh] flex-col overflow-hidden bg-[var(--color-site-page)] ehp-color-site-text">
       <div class="flex flex-none items-center justify-between gap-md bg-[var(--color-site-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b ehp-color-site-border-subtle-b font-sans textsize-sm">
-        <span class="font-700">{texts.gallery.scrollPreview}</span>
+        <button
+          type="button"
+          class="inline-flex min-h-40px coarse:min-h-48px flex-none items-center justify-center px-md py-xs rounded-md border ehp-color-site-border bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer hover:bg-[var(--color-site-item-hover)] active:scale-96 disabled:(opacity-40 cursor-default)"
+          disabled={props.highlightedPageNum === null}
+          onClick={() => {
+            if (props.highlightedPageNum !== null) {
+              flingAnimator.cancel();
+              scrollToPage(props.highlightedPageNum);
+            }
+          }}
+        >
+          {texts.button.current}
+        </button>
         <span class="flex items-center gap-sm opacity-75">
           <Show when={loadingCount() > 0}>
             <span class="block w-16px h-16px box-border animate-spin rounded-full border-2px border-solid ehp-color-site-border border-t-[var(--color-site-accent)]" />
@@ -435,6 +474,7 @@ function ScrollPreviewOverlay(props: {
                   decodeCache={decodeCache}
                   failed={failedPreviewIndexes().has(previewCache.previewIndexForPage(slot.pageNum))}
                   height={layout().tileHeight}
+                  highlighted={slot.pageNum === props.highlightedPageNum}
                   item={slot.item}
                   pageNum={slot.pageNum}
                   onOpenPage={props.onOpenPage}
@@ -467,6 +507,7 @@ function PreviewTile(props: {
   decodeCache: PreviewDecodeCache;
   failed: boolean;
   height: number;
+  highlighted: boolean;
   item: GalleryPreviewItem | null;
   pageNum: number;
   onOpenPage: (pageUrl: string, pageNum: number) => void;
@@ -540,15 +581,19 @@ function PreviewTile(props: {
               href={item.pageUrl}
               draggable={false}
               aria-label={`Page ${item.pageNum}`}
+              aria-current={props.highlighted ? "page" : undefined}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 props.onOpenPage(item.pageUrl, item.pageNum);
               }}
             />
-            <span class="absolute right-xs bottom-xs min-w-28px px-xs py-2px rounded-xs bg-black/70 text-white text-center font-sans textsize-xs leading-[1.2]">
-              {item.pageNum}
-            </span>
+            <Show when={props.highlighted}>
+              <span
+                class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 coarse:border-8 border-solid border-[var(--color-danger)]"
+                aria-hidden="true"
+              />
+            </Show>
           </>
         )}
       </Show>

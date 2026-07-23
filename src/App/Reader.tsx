@@ -1,5 +1,6 @@
 import {
   Reader,
+  type ReaderActions as ReaderComponentActions,
   type ReaderCallbacks as ReaderComponentCallbacks,
   type ReaderOptions,
 } from "../components/Reader";
@@ -22,11 +23,20 @@ export type ReaderCallbacks = {
   enhanceThumbsGridsEnabled: boolean;
   readHistoryEnabled: boolean;
   onGotoPreviewIndex: (previewIndex: number) => void;
-  onOpenScrollPreview: (previewIndex: number) => void;
+  onOpenScrollPreview: (pageNum: number) => void;
   onReaderClosed: (currentPage: number, totalPages: number | null) => void;
 };
 
 let activeReaderClose: (() => void) | undefined;
+let activeReaderActions: ReaderComponentActions | undefined;
+
+export function gotoActiveReaderPage(pageNum: number): boolean {
+  if (!activeReaderActions) {
+    return false;
+  }
+  activeReaderActions.gotoPage(pageNum);
+  return true;
+}
 
 export function openReaderFromUserAction(
   startPageUrl: string,
@@ -196,7 +206,7 @@ async function openReader(
       window.location.assign(page.url);
     },
     onOpenScrollPreview: (pageNum) => {
-      callbacks.onOpenScrollPreview(previewCache.previewIndexForPage(pageNum));
+      callbacks.onOpenScrollPreview(pageNum);
     },
   }, viewport.lockScroll, fullscreen, onExit, host);
 }
@@ -222,6 +232,7 @@ function mountReader(
   let historyEntry = true;
   let closeRequested = false;
   let closing = false;
+  let mountedReaderActions: ReaderComponentActions | undefined;
   const close = () => requestClose();
 
   function requestClose(): void {
@@ -261,6 +272,9 @@ function mountReader(
     if (activeReaderClose === close) {
       activeReaderClose = undefined;
     }
+    if (activeReaderActions === mountedReaderActions) {
+      activeReaderActions = undefined;
+    }
     onExit();
   }
 
@@ -282,6 +296,10 @@ function mountReader(
       const [fullscreenActive, updateFullscreenActive] = createSignal(fullscreen.active());
       setFullscreenActive = updateFullscreenActive;
       return <Reader
+        actionsRef={(actions) => {
+          mountedReaderActions = actions;
+          activeReaderActions = actions;
+        }}
         callbacks={{
           ...callbacks,
           onClosed: requestClose,

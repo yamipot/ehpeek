@@ -37,6 +37,7 @@ import ehDomCss from "../eh/dom/styles.css";
 import unoCss from "ehpeek:uno.css";
 import themeCss from "../theme.css";
 import {
+  gotoActiveReaderPage,
   openReaderFromHash,
   openReaderFromUserAction,
   openOriginalReader,
@@ -178,8 +179,8 @@ const readerCallbacks: ReaderCallbacks = {
       gState.thumbsGridsActions?.gotoPreview(previewIndex);
     }
   },
-  onOpenScrollPreview: (previewIndex) => {
-    gState.scrollPreviewActions?.gotoPreview(previewIndex);
+  onOpenScrollPreview: (pageNum) => {
+    gState.scrollPreviewActions?.gotoPage(pageNum);
   },
   onReaderClosed: (currentPage, totalPages) => {
     gState.setReadProgress({ currentPage, hasHistory: true, totalPages });
@@ -212,6 +213,9 @@ function openGalleryPage(
   startPageUrl: string,
   preferredPageNum?: number,
 ): void {
+  if (preferredPageNum !== undefined && gotoActiveReaderPage(preferredPageNum)) {
+    return;
+  }
   if (state.reader.enabled.value) {
     openReaderFromUserAction(
       startPageUrl,
@@ -378,6 +382,9 @@ function injectEnhanceUI(
             actionsRef={(actions) => {
               gState.scrollPreviewActions = actions;
             }}
+            continuePageNum={gState.readProgress().hasHistory
+              ? gState.readProgress().currentPage
+              : null}
             onExitPreview={(previewIndex) => {
               if (previewIndex === previewCache.current().data.currentIndex) {
                 return;
