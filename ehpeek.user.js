@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260724.1258
+// @version      260724.1327
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -4915,7 +4915,7 @@ Next page`,
   };
 
   // src/components/Enhance/ScrollPreview.tsx
-  var _tmpl$12 = /* @__PURE__ */ template('<div class="flex w-full justify-center my-sm"><button type=button class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98">'), _tmpl$26 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-xs)] h-[var(--ui-icon-size-xs)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$35 = /* @__PURE__ */ template('<div class="flex min-h-[var(--ui-control-size-xs)] flex-none items-center justify-center gap-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs"><span class="inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75"></span><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">'), _tmpl$45 = /* @__PURE__ */ template('<div><section class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]"><div class="relative min-h-0 w-full flex-1"><div class="absolute box-border bg-[var(--color-surface)] cursor-grab [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"><div class=relative>'), _tmpl$54 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$64 = /* @__PURE__ */ template('<div class="flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-border)] textsize-sm"><span class="flex items-center gap-sm opacity-75"></span><div class="flex flex-none gap-sm"><button type=button></button><button type=button></button><button type=button><span aria-hidden=true>X'), _tmpl$72 = /* @__PURE__ */ template("<div class=absolute>"), _tmpl$82 = /* @__PURE__ */ template('<div class="relative flex w-full min-w-0 items-start overflow-hidden rounded-sm bg-[var(--color-background)]">'), _tmpl$92 = /* @__PURE__ */ template('<button type=button class="flex w-full h-full flex-col items-center justify-center gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"><span>'), _tmpl$0 = /* @__PURE__ */ template('<span class="pointer-events-none block flex-none"role=img>'), _tmpl$1 = /* @__PURE__ */ template('<a class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline">'), _tmpl$102 = /* @__PURE__ */ template('<span class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 coarse:border-8 border-solid border-[var(--color-danger)]"aria-hidden=true>'), _tmpl$112 = /* @__PURE__ */ template('<img class="pointer-events-none block max-w-full max-h-full object-contain select-none [-webkit-user-drag:none]"alt decoding=async>'), GRID_GAP = 8, MAX_TILE_WIDTH = 220, MIN_TILE_HEIGHT = 170, MAX_TILE_HEIGHT = 290, MAX_CROSS_COUNT = 12, OVERSCAN_ROWS = 4, PREVIEW_CONCURRENT_LOADS = 2, PREVIEW_LOAD_RADIUS = 2, DECODE_CACHE_BYTES = 64 * 1024 * 1024, DECODE_CACHE_ITEMS = 160, NEXT_SCROLL_PREVIEW_DIRECTION = {
+  var _tmpl$12 = /* @__PURE__ */ template('<div class="flex w-full justify-center my-sm"><button type=button class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98">'), _tmpl$26 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-xs)] h-[var(--ui-icon-size-xs)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$35 = /* @__PURE__ */ template('<div class="flex min-h-[var(--ui-control-size-xs)] flex-none items-center justify-center gap-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs"><span class="inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75"></span><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">'), _tmpl$45 = /* @__PURE__ */ template('<div><section class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]"><div class="relative min-h-0 w-full flex-1"><div class="absolute box-border bg-[var(--color-surface)] cursor-grab [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"><div class=relative>'), _tmpl$54 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$64 = /* @__PURE__ */ template('<div class="flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-border)] textsize-sm"><span class="flex items-center gap-sm opacity-75"></span><div class="flex flex-none gap-sm"><button type=button></button><button type=button></button><button type=button><span aria-hidden=true>X'), _tmpl$72 = /* @__PURE__ */ template("<div class=absolute>"), _tmpl$82 = /* @__PURE__ */ template('<div class="relative flex w-full min-w-0 items-start overflow-hidden rounded-sm bg-[var(--color-background)]">'), _tmpl$92 = /* @__PURE__ */ template('<button type=button class="flex w-full h-full flex-col items-center justify-center gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"><span>'), _tmpl$0 = /* @__PURE__ */ template('<span class="pointer-events-none block flex-none"role=img>'), _tmpl$1 = /* @__PURE__ */ template('<a class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline">'), _tmpl$102 = /* @__PURE__ */ template('<span class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 coarse:border-8 border-solid border-[var(--color-danger)]"aria-hidden=true>'), _tmpl$112 = /* @__PURE__ */ template('<img class="pointer-events-none block max-w-full max-h-full object-contain select-none [-webkit-user-drag:none]"alt decoding=async>'), GRID_GAP = 8, FALLBACK_TILE_ASPECT_RATIO = 1.42, HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6, MAX_TILE_WIDTH = 220, MIN_TILE_HEIGHT = 170, MAX_TILE_HEIGHT = 290, MAX_CROSS_COUNT = 12, OVERSCAN_ROWS = 4, PREVIEW_CONCURRENT_LOADS = 2, PREVIEW_LOAD_RADIUS = 2, DECODE_CACHE_BYTES = 64 * 1024 * 1024, DECODE_CACHE_ITEMS = 160, SMALL_GALLERY_SINGLE_LINE_LIMIT = 3, NEXT_SCROLL_PREVIEW_DIRECTION = {
     ltr: "rtl",
     rtl: "ttb",
     ttb: "ltr"
@@ -5066,7 +5066,7 @@ Next page`,
     })];
   }
   function ScrollPreviewPanel(props) {
-    let previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? texts_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? texts_default.gallery.scrollPreviewDirectionRtl : texts_default.gallery.scrollPreviewDirectionLtr, decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS), flingAnimator = new ScrollFlingAnimator(), previewLoadQueue = new PriorityLoadQueue(PREVIEW_CONCURRENT_LOADS), requestedPreviewIndexes = /* @__PURE__ */ new Set(), [failedPreviewIndexes, setFailedPreviewIndexes] = createSignal(/* @__PURE__ */ new Set()), [crossCountOverride, setCrossCountOverride] = createSignal(null), [embeddedPanelHeight, setEmbeddedPanelHeight] = createSignal(null), [exitDragOffset, setExitDragOffset] = createSignal(0), [loadingCount, setLoadingCount] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), [layout, setLayout] = createSignal({
+    let previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, tileAspectRatio = dominantAspectRatio(initialPreview.data.previewItems), readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? texts_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? texts_default.gallery.scrollPreviewDirectionRtl : texts_default.gallery.scrollPreviewDirectionLtr, decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS), flingAnimator = new ScrollFlingAnimator(), previewLoadQueue = new PriorityLoadQueue(PREVIEW_CONCURRENT_LOADS), requestedPreviewIndexes = /* @__PURE__ */ new Set(), [failedPreviewIndexes, setFailedPreviewIndexes] = createSignal(/* @__PURE__ */ new Set()), [crossCountOverride, setCrossCountOverride] = createSignal(null), [embeddedPanelHeight, setEmbeddedPanelHeight] = createSignal(null), [exitDragOffset, setExitDragOffset] = createSignal(0), [loadingCount, setLoadingCount] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), [layout, setLayout] = createSignal({
       crossCount: 1,
       horizontal,
       mainStride: horizontal ? MAX_TILE_WIDTH + GRID_GAP : MIN_TILE_HEIGHT + GRID_GAP,
@@ -5151,7 +5151,7 @@ Next page`,
         dragDirection = null, flingAnimator.start({
           axis: horizontal ? "x" : "y",
           scroller,
-          initialVelocity: -(horizontal ? info.velocityX : info.velocityY),
+          initialVelocity: -(horizontal ? info.velocityX * HORIZONTAL_FLING_VELOCITY_FACTOR : info.velocityY),
           setScrollPosition: (position) => {
             horizontal ? scroller.scrollLeft = position : scroller.scrollTop = position;
           },
@@ -5206,12 +5206,12 @@ Next page`,
     });
     let updateLayout = () => {
       setPreviewLoadReady(!1);
-      let width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), anchorPageNum = initialized ? centeredPageNum() : null, itemsPerRow = Math.max(1, Math.ceil((width + GRID_GAP) / (MAX_TILE_WIDTH + GRID_GAP))), itemWidth = Math.max(1, (width - GRID_GAP * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.round(clamp(itemWidth * 1.42, MIN_TILE_HEIGHT, MAX_TILE_HEIGHT)), panelChromeHeight = Math.max(0, overlay.clientHeight - height), targetContentHeight = Math.max(itemHeight, window.innerHeight * 0.55 - panelChromeHeight), embeddedRows = Math.max(1, Math.ceil((targetContentHeight + GRID_GAP) / (itemHeight + GRID_GAP))), automaticCrossCount = horizontal ? props.embedded ? embeddedRows : Math.max(1, Math.ceil((height + GRID_GAP) / (MAX_TILE_HEIGHT + GRID_GAP))) : itemsPerRow, crossCount = crossCountOverride() ?? automaticCrossCount;
+      let width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), anchorPageNum = initialized ? centeredPageNum() : null, itemsPerRow = Math.max(1, Math.ceil((width + GRID_GAP) / (MAX_TILE_WIDTH + GRID_GAP))), itemWidth = Math.max(1, (width - GRID_GAP * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.round(clamp(itemWidth * tileAspectRatio, MIN_TILE_HEIGHT, MAX_TILE_HEIGHT)), panelChromeHeight = Math.max(0, overlay.clientHeight - height), targetContentHeight = Math.max(itemHeight, window.innerHeight * 0.55 - panelChromeHeight), embeddedRows = Math.max(1, Math.ceil((targetContentHeight + GRID_GAP) / (itemHeight + GRID_GAP))), singleLine = totalImages <= SMALL_GALLERY_SINGLE_LINE_LIMIT, automaticCrossCount = singleLine ? horizontal ? 1 : totalImages : horizontal ? props.embedded ? embeddedRows : Math.max(1, Math.ceil((height + GRID_GAP) / (MAX_TILE_HEIGHT + GRID_GAP))) : itemsPerRow, crossCount = clamp(singleLine ? automaticCrossCount : crossCountOverride() ?? automaticCrossCount, 1, totalImages);
       if (props.embedded && !props.fillContainer && horizontal && crossCountOverride() === null) {
-        let contentHeight = embeddedRows * itemHeight + GRID_GAP * (embeddedRows - 1), panelHeight = Math.round(panelChromeHeight + contentHeight);
+        let contentHeight = crossCount * itemHeight + GRID_GAP * (crossCount - 1), panelHeight = Math.round(panelChromeHeight + contentHeight);
         setEmbeddedPanelHeight((current) => current === panelHeight ? current : panelHeight);
       }
-      let tileWidth = horizontal ? itemWidth : Math.max(1, (width - GRID_GAP * (crossCount - 1)) / crossCount), tileHeight = horizontal ? Math.max(1, (height - GRID_GAP * (crossCount - 1)) / crossCount) : Math.round(clamp(tileWidth * 1.42, MIN_TILE_HEIGHT, MAX_TILE_HEIGHT)), next = {
+      let availableTileHeight = Math.max(1, (height - GRID_GAP * (crossCount - 1)) / crossCount), tileHeight = horizontal ? Math.min(itemHeight, availableTileHeight) : Math.round(clamp(Math.max(1, (width - GRID_GAP * (crossCount - 1)) / crossCount) * tileAspectRatio, MIN_TILE_HEIGHT, MAX_TILE_HEIGHT)), tileWidth = horizontal ? clamp(tileHeight / tileAspectRatio, 1, MAX_TILE_WIDTH) : Math.max(1, (width - GRID_GAP * (crossCount - 1)) / crossCount), next = {
         crossCount,
         horizontal,
         mainStride: (horizontal ? tileWidth : tileHeight) + GRID_GAP,
@@ -5426,6 +5426,20 @@ Next page`,
         h: void 0
       }), _el$3;
     })();
+  }
+  function dominantAspectRatio(items) {
+    let buckets = /* @__PURE__ */ new Map(), dominant = {
+      count: 0,
+      total: FALLBACK_TILE_ASPECT_RATIO
+    };
+    for (let item of items) {
+      let ratio = clamp(normalizedAspectRatio(item.aspectRatio, FALLBACK_TILE_ASPECT_RATIO), 0.5, 3), key = Math.round(ratio * 10), bucket = buckets.get(key) ?? {
+        count: 0,
+        total: 0
+      };
+      bucket.count += 1, bucket.total += ratio, buckets.set(key, bucket), bucket.count > dominant.count && (dominant = bucket);
+    }
+    return dominant.total / Math.max(1, dominant.count);
   }
   function PreviewTile(props) {
     let releaseDecodedImage = null;
@@ -6355,7 +6369,7 @@ Next page`,
           get children() {
             return [_tmpl$66(), (() => {
               var _el$19 = _tmpl$73(), _el$20 = _el$19.firstChild;
-              return insert(_el$19, "260724.1258", null), _el$19;
+              return insert(_el$19, "260724.1327", null), _el$19;
             })()];
           }
         }), null), _el$22.$$click = (event) => {
@@ -11065,34 +11079,51 @@ html:fullscreen .ehpeek-touch-top-bar {
     };
   }
   function captureFullscreenSnapshot() {
+    let viewport = document.querySelector(
+      'meta[name="viewport"]'
+    );
     return {
       scale: Math.max(0.01, window.visualViewport?.scale ?? 1),
       scrollX: window.scrollX,
-      scrollY: window.scrollY
+      scrollY: window.scrollY,
+      viewport: viewport ? {
+        content: viewport.getAttribute("content"),
+        element: viewport
+      } : null
     };
   }
   async function restorePageViewport(snapshot) {
-    await nextAnimationFrame(), await nextAnimationFrame(), window.scrollTo(snapshot.scrollX, snapshot.scrollY);
+    let currentViewport = document.querySelector(
+      'meta[name="viewport"]'
+    ), viewport = snapshot?.viewport ?? (currentViewport ? {
+      content: currentViewport.getAttribute("content"),
+      element: currentViewport
+    } : null);
+    viewport?.element.isConnected && (viewport.element.removeAttribute("content"), viewport.content !== null && viewport.element.setAttribute("content", viewport.content)), await nextAnimationFrame(), await nextAnimationFrame(), snapshot && window.scrollTo(snapshot.scrollX, snapshot.scrollY);
   }
   var readerViewport = {
     createFullscreen: createReaderFullscreen,
     lockScroll: lockPageScroll
   };
   function createReaderFullscreen(target) {
-    let snapshot = null, active = () => {
+    let snapshot = null, restorePromise = null, restoreViewport = !1, active = () => {
       let fullscreenElement = document.fullscreenElement;
       return fullscreenElement === target || fullscreenElement instanceof HTMLElement && fullscreenElement.contains(target);
-    }, restore = async () => {
+    }, restore = () => {
+      if (restorePromise)
+        return restorePromise;
       target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
       let captured = snapshot;
-      snapshot = null, captured && await restorePageViewport(captured);
+      return snapshot = null, !captured && !restoreViewport ? Promise.resolve() : (restoreViewport = !1, restorePromise = restorePageViewport(captured).finally(() => {
+        restorePromise = null;
+      }), restorePromise);
     };
     return {
       active,
       enter: async () => {
         if (document.fullscreenElement || !document.fullscreenEnabled)
           return;
-        snapshot = captureFullscreenSnapshot();
+        snapshot = captureFullscreenSnapshot(), restoreViewport = !0;
         let scaleBefore = snapshot.scale;
         try {
           await target.requestFullscreen(), await nextAnimationFrame();
@@ -11106,13 +11137,13 @@ html:fullscreen .ehpeek-touch-top-bar {
         }
       },
       exit: async () => {
-        active() && await document.exitFullscreen(), target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
+        active() && (restoreViewport = !0, await document.exitFullscreen(), await restore()), target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
       },
       restore,
       subscribe: (callback) => {
-        let onChange = () => {
+        let previousActive = active(), onChange = () => {
           let fullscreenActive = active();
-          fullscreenActive || (target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY)), callback(fullscreenActive);
+          previousActive && !fullscreenActive && (restoreViewport = !0, restore()), previousActive = fullscreenActive, fullscreenActive || (target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY)), callback(fullscreenActive);
         };
         return document.addEventListener("fullscreenchange", onChange), () => document.removeEventListener("fullscreenchange", onChange);
       }
