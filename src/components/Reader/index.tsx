@@ -1,5 +1,6 @@
 import { createEffect, onCleanup, onMount, Show, untrack } from "solid-js";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
+import { observeFullscreenUiSizing } from "../../fullscreenUi";
 import texts from "../../texts.json";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
 import {
@@ -90,6 +91,7 @@ export function Reader(props: {
   untrack(() => props.actionsRef({
     gotoPage: readerCallbacks.gotoPage,
   }));
+  let root!: HTMLDivElement;
   let previousFullscreenActive = untrack(() => props.fullscreenActive);
 
   createEffect(() => {
@@ -104,9 +106,11 @@ export function Reader(props: {
   });
 
   onMount(() => {
+    const stopFullscreenUiSizing = observeFullscreenUiSizing(root);
     readerCallbacks.init();
 
     onCleanup(() => {
+      stopFullscreenUiSizing();
       readerCallbacks.cleanup();
       session.dispose();
     });
@@ -114,8 +118,9 @@ export function Reader(props: {
 
   return (
     <div
+      ref={root}
       id={VIEWER_ID}
-      class="ehpeek-fullscreen-root fixed inset-0 z-reader overflow-hidden ehp-color-reader font-sans textsize-sm leading-[1.4]"
+      class="fixed inset-0 z-reader overflow-hidden ehp-color-reader font-sans textsize-sm leading-[1.4]"
       data-navigation-mode={readerState.ctrls.value().navigationMode}
       data-page-layout={readerState.ctrls.value().pageLayout}
       data-read-direction={readerState.ctrls.value().direction}

@@ -50,6 +50,12 @@ export type ReaderViewport = typeof readerViewport;
 
 function createReaderFullscreen(target: HTMLElement) {
   let snapshot: FullscreenSnapshot | null = null;
+  const active = () => {
+    const fullscreenElement = document.fullscreenElement;
+    return fullscreenElement === target ||
+      (fullscreenElement instanceof HTMLElement &&
+        fullscreenElement.contains(target));
+  };
 
   const restore = async (): Promise<void> => {
     target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY);
@@ -63,7 +69,7 @@ function createReaderFullscreen(target: HTMLElement) {
   };
 
   return {
-    active: () => document.fullscreenElement === target,
+    active,
     enter: async (): Promise<void> => {
       if (document.fullscreenElement || !document.fullscreenEnabled) {
         return;
@@ -86,7 +92,7 @@ function createReaderFullscreen(target: HTMLElement) {
       }
     },
     exit: async (): Promise<void> => {
-      if (document.fullscreenElement === target) {
+      if (active()) {
         await document.exitFullscreen();
       }
       target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY);
@@ -95,12 +101,12 @@ function createReaderFullscreen(target: HTMLElement) {
     restore,
     subscribe: (callback: (active: boolean) => void): (() => void) => {
       const onChange = () => {
-        const active = document.fullscreenElement === target;
-        if (!active) {
+        const fullscreenActive = active();
+        if (!fullscreenActive) {
           target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY);
           target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
         }
-        callback(active);
+        callback(fullscreenActive);
       };
       document.addEventListener("fullscreenchange", onChange);
       return () => document.removeEventListener("fullscreenchange", onChange);

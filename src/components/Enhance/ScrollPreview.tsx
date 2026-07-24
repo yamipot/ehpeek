@@ -11,6 +11,7 @@ import {
 import { Portal } from "solid-js/web";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
 import type { GalleryPreviewDom, GalleryPreviewItem } from "../../eh";
+import { observeFullscreenUiSizing } from "../../fullscreenUi";
 import type { ReadDirection } from "../../state";
 import texts from "../../texts.json";
 import { clamp } from "../../utils";
@@ -702,7 +703,11 @@ function ScrollPreviewPanel(props: {
     }
   });
 
+  let fullscreenRoot!: HTMLDivElement;
   onMount(() => {
+    const stopFullscreenUiSizing = props.embedded
+      ? undefined
+      : observeFullscreenUiSizing(fullscreenRoot);
     const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
     if (!props.embedded) {
@@ -713,6 +718,7 @@ function ScrollPreviewPanel(props: {
     resizeObserver.observe(scroller);
     updateLayout();
     onCleanup(() => {
+      stopFullscreenUiSizing?.();
       disposed = true;
       flingAnimator.cancel();
       previewLoadQueue.dispose();
@@ -730,9 +736,10 @@ function ScrollPreviewPanel(props: {
 
   return (
     <div
+      ref={fullscreenRoot}
       classList={{
         "contents": props.embedded,
-        "ehpeek-fullscreen-root fixed inset-0 z-[1300]": !props.embedded,
+        "fixed inset-0 z-[1300]": !props.embedded,
       }}
     >
       <section

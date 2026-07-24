@@ -274,7 +274,10 @@ function mountReader(
   }
 
   if (!host.isConnected) {
-    document.body.append(host);
+    const fullscreenElement = document.fullscreenElement;
+    (fullscreenElement instanceof HTMLElement
+      ? fullscreenElement
+      : document.body).append(host);
   }
   window.addEventListener("popstate", onPopState);
   window.history.pushState({ ehpeekReader: true }, "", window.location.href);
