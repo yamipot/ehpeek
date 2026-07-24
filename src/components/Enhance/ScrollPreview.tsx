@@ -11,7 +11,10 @@ import {
 import { Portal } from "solid-js/web";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
 import type { GalleryPreviewDom, GalleryPreviewItem } from "../../eh";
-import { observeFullscreenUiSizing } from "../../fullscreenUi";
+import {
+  fullscreenUiScale,
+  observeFullscreenUiSizing,
+} from "../../fullscreenUi";
 import type { ReadDirection } from "../../state";
 import texts from "../../texts.json";
 import { clamp, normalizedAspectRatio } from "../../utils";
@@ -45,6 +48,7 @@ const NEXT_SCROLL_PREVIEW_DIRECTION: Record<ReadDirection, ReadDirection> = {
 
 type PreviewLayout = {
   crossCount: number;
+  gap: number;
   horizontal: boolean;
   mainStride: number;
   tileHeight: number;
@@ -304,6 +308,7 @@ function ScrollPreviewPanel(props: {
   const [scrollOffset, setScrollOffset] = createSignal(0);
   const [layout, setLayout] = createSignal<PreviewLayout>({
     crossCount: 1,
+    gap: GRID_GAP,
     horizontal,
     mainStride: horizontal ? MAX_TILE_WIDTH + GRID_GAP : MIN_TILE_HEIGHT + GRID_GAP,
     tileHeight: MIN_TILE_HEIGHT,
@@ -323,7 +328,7 @@ function ScrollPreviewPanel(props: {
 
   const totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount));
   const totalMainSize = createMemo(() =>
-    Math.max(1, totalGroups() * layout().mainStride - GRID_GAP)
+    Math.max(1, totalGroups() * layout().mainStride - layout().gap)
   );
   const mainViewportSize = createMemo(() =>
     horizontal ? layout().viewportWidth : layout().viewportHeight
@@ -628,20 +633,25 @@ function ScrollPreviewPanel(props: {
     setPreviewLoadReady(false);
     const width = Math.max(1, scroller.clientWidth);
     const height = Math.max(1, scroller.clientHeight);
+    const scale = props.embedded ? 1 : fullscreenUiScale();
+    const gap = GRID_GAP * scale;
+    const maxTileWidth = MAX_TILE_WIDTH * scale;
+    const minTileHeight = MIN_TILE_HEIGHT * scale;
+    const maxTileHeight = MAX_TILE_HEIGHT * scale;
     const anchorPageNum = initialized ? centeredPageNum() : null;
     const itemsPerRow = Math.max(
       1,
-      Math.ceil((width + GRID_GAP) / (MAX_TILE_WIDTH + GRID_GAP)),
+      Math.ceil((width + gap) / (maxTileWidth + gap)),
     );
     const itemWidth = Math.max(
       1,
-      (width - GRID_GAP * (itemsPerRow - 1)) / itemsPerRow,
+      (width - gap * (itemsPerRow - 1)) / itemsPerRow,
     );
     const itemHeight = Math.round(
       clamp(
         itemWidth * tileAspectRatio,
-        MIN_TILE_HEIGHT,
-        MAX_TILE_HEIGHT,
+        minTileHeight,
+        maxTileHeight,
       ),
     );
     const panelChromeHeight = Math.max(0, overlay.clientHeight - height);
@@ -652,7 +662,7 @@ function ScrollPreviewPanel(props: {
     const embeddedRows = Math.max(
       1,
       Math.ceil(
-        (targetContentHeight + GRID_GAP) / (itemHeight + GRID_GAP),
+        (targetContentHeight + gap) / (itemHeight + gap),
       ),
     );
     const singleLine = totalImages <= SMALL_GALLERY_SINGLE_LINE_LIMIT;
@@ -663,7 +673,7 @@ function ScrollPreviewPanel(props: {
       : horizontal
         ? props.embedded
           ? embeddedRows
-          : Math.max(1, Math.ceil((height + GRID_GAP) / (MAX_TILE_HEIGHT + GRID_GAP)))
+          : Math.max(1, Math.ceil((height + gap) / (maxTileHeight + gap)))
         : itemsPerRow;
     const crossCount = clamp(
       singleLine
@@ -679,32 +689,33 @@ function ScrollPreviewPanel(props: {
       crossCountOverride() === null
     ) {
       const contentHeight =
-        crossCount * itemHeight + GRID_GAP * (crossCount - 1);
+        crossCount * itemHeight + gap * (crossCount - 1);
       const panelHeight = Math.round(panelChromeHeight + contentHeight);
       setEmbeddedPanelHeight((current) =>
         current === panelHeight ? current : panelHeight);
     }
     const availableTileHeight = Math.max(
       1,
-      (height - GRID_GAP * (crossCount - 1)) / crossCount,
+      (height - gap * (crossCount - 1)) / crossCount,
     );
     const tileHeight = horizontal
       ? Math.min(itemHeight, availableTileHeight)
       : Math.round(
         clamp(
-          Math.max(1, (width - GRID_GAP * (crossCount - 1)) / crossCount) *
+          Math.max(1, (width - gap * (crossCount - 1)) / crossCount) *
             tileAspectRatio,
-          MIN_TILE_HEIGHT,
-          MAX_TILE_HEIGHT,
+          minTileHeight,
+          maxTileHeight,
         ),
       );
     const tileWidth = horizontal
-      ? clamp(tileHeight / tileAspectRatio, 1, MAX_TILE_WIDTH)
-      : Math.max(1, (width - GRID_GAP * (crossCount - 1)) / crossCount);
+      ? clamp(tileHeight / tileAspectRatio, 1, maxTileWidth)
+      : Math.max(1, (width - gap * (crossCount - 1)) / crossCount);
     const next = {
       crossCount,
+      gap,
       horizontal,
-      mainStride: (horizontal ? tileWidth : tileHeight) + GRID_GAP,
+      mainStride: (horizontal ? tileWidth : tileHeight) + gap,
       tileHeight,
       tileWidth,
       viewportHeight: height,
@@ -922,14 +933,14 @@ function ScrollPreviewPanel(props: {
               const crossIndex = () => itemIndex() % layout().crossCount;
               const left = () => {
                 if (!horizontal) {
-                  return crossIndex() * (layout().tileWidth + GRID_GAP);
+                  return crossIndex() * (layout().tileWidth + layout().gap);
                 }
                 return rightToLeft
                   ? mainCanvasSize() - layout().tileWidth - group() * layout().mainStride
                   : group() * layout().mainStride;
               };
               const top = () => horizontal
-                ? crossIndex() * (layout().tileHeight + GRID_GAP)
+                ? crossIndex() * (layout().tileHeight + layout().gap)
                 : group() * layout().mainStride;
               return (
                 <div

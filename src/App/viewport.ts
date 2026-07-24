@@ -1,11 +1,10 @@
 type FullscreenSnapshot = {
+  content: string | null;
+  created: boolean;
+  meta: HTMLMetaElement;
   scale: number;
   scrollX: number;
   scrollY: number;
-  viewport: {
-    content: string | null;
-    element: HTMLMetaElement;
-  } | null;
 };
 
 const FULLSCREEN_SCALE_PROPERTY = "--ehpeek-fullscreen-scale";
@@ -27,49 +26,45 @@ function lockPageScroll(): () => void {
   };
 }
 
-/** Captures the page state that fullscreen temporarily changes. */
-function captureFullscreenSnapshot(): FullscreenSnapshot {
-  const viewport = document.querySelector<HTMLMetaElement>(
+/** Locks the current page scale before fullscreen changes the visual viewport. */
+function prepareFullscreenSnapshot(): FullscreenSnapshot {
+  const existing = document.querySelector<HTMLMetaElement>(
     'meta[name="viewport"]',
   );
-  return {
-    scale: Math.max(0.01, window.visualViewport?.scale ?? 1),
+  const meta = existing ?? document.createElement("meta");
+  const scale = Math.max(0.1, window.visualViewport?.scale ?? 1);
+  const snapshot = {
+    content: existing?.getAttribute("content") ?? null,
+    created: !existing,
+    meta,
+    scale,
     scrollX: window.scrollX,
     scrollY: window.scrollY,
-    viewport: viewport
-      ? {
-        content: viewport.getAttribute("content"),
-        element: viewport,
-      }
-      : null,
   };
+
+  if (!existing) {
+    meta.name = "viewport";
+    document.head.append(meta);
+  }
+  meta.content = lockedViewportContent(snapshot.content, scale);
+  return snapshot;
 }
 
 /** Restores the original page position after leaving fullscreen. */
 async function restorePageViewport(
-  snapshot: FullscreenSnapshot | null,
+  snapshot: FullscreenSnapshot,
 ): Promise<void> {
-  const currentViewport = document.querySelector<HTMLMetaElement>(
-    'meta[name="viewport"]',
-  );
-  const viewport = snapshot?.viewport ??
-    (currentViewport
-      ? {
-        content: currentViewport.getAttribute("content"),
-        element: currentViewport,
-      }
-      : null);
-  if (viewport?.element.isConnected) {
-    viewport.element.removeAttribute("content");
-    if (viewport.content !== null) {
-      viewport.element.setAttribute("content", viewport.content);
-    }
+  await nextAnimationFrame();
+  if (snapshot.created) {
+    snapshot.meta.remove();
+  } else if (snapshot.content === null) {
+    snapshot.meta.removeAttribute("content");
+  } else {
+    snapshot.meta.content = snapshot.content;
   }
   await nextAnimationFrame();
   await nextAnimationFrame();
-  if (snapshot) {
-    window.scrollTo(snapshot.scrollX, snapshot.scrollY);
-  }
+  window.scrollTo(snapshot.scrollX, snapshot.scrollY);
 }
 
 export const readerViewport = {
@@ -82,7 +77,6 @@ export type ReaderViewport = typeof readerViewport;
 function createReaderFullscreen(target: HTMLElement) {
   let snapshot: FullscreenSnapshot | null = null;
   let restorePromise: Promise<void> | null = null;
-  let restoreViewport = false;
   const active = () => {
     const fullscreenElement = document.fullscreenElement;
     return fullscreenElement === target ||
@@ -98,13 +92,14 @@ function createReaderFullscreen(target: HTMLElement) {
     target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
     const captured = snapshot;
     snapshot = null;
-    if (!captured && !restoreViewport) {
+    if (!captured) {
       return Promise.resolve();
     }
-    restoreViewport = false;
-    restorePromise = restorePageViewport(captured).finally(() => {
-      restorePromise = null;
-    });
+    restorePromise = waitForViewportSettled()
+      .then(() => restorePageViewport(captured))
+      .finally(() => {
+        restorePromise = null;
+      });
     return restorePromise;
   };
 
@@ -114,8 +109,8 @@ function createReaderFullscreen(target: HTMLElement) {
       if (document.fullscreenElement || !document.fullscreenEnabled) {
         return;
       }
-      snapshot = captureFullscreenSnapshot();
-      restoreViewport = true;
+      await restorePromise;
+      snapshot = prepareFullscreenSnapshot();
       const scaleBefore = snapshot.scale;
       try {
         await target.requestFullscreen();
@@ -134,7 +129,6 @@ function createReaderFullscreen(target: HTMLElement) {
     },
     exit: async (): Promise<void> => {
       if (active()) {
-        restoreViewport = true;
         await document.exitFullscreen();
         await restore();
       }
@@ -143,17 +137,12 @@ function createReaderFullscreen(target: HTMLElement) {
     },
     restore,
     subscribe: (callback: (active: boolean) => void): (() => void) => {
-      let previousActive = active();
       const onChange = () => {
         const fullscreenActive = active();
-        if (previousActive && !fullscreenActive) {
-          restoreViewport = true;
-          void restore();
-        }
-        previousActive = fullscreenActive;
         if (!fullscreenActive) {
           target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY);
           target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
+          void restore();
         }
         callback(fullscreenActive);
       };
@@ -167,4 +156,47 @@ function nextAnimationFrame(): Promise<void> {
   return new Promise((resolve) => {
     window.requestAnimationFrame(() => resolve());
   });
+}
+
+function lockedViewportContent(content: string | null, scale: number): string {
+  const preserved = (content ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(
+      (item) =>
+        item &&
+        !/^(?:initial-scale|minimum-scale|maximum-scale|user-scalable|viewport-fit)\s*=/i.test(item),
+    );
+  const value = String(Math.round(scale * 1000) / 1000);
+  return [
+    ...preserved,
+    `initial-scale=${value}`,
+    `minimum-scale=${value}`,
+    `maximum-scale=${value}`,
+    "user-scalable=no",
+    "viewport-fit=cover",
+  ].join(", ");
+}
+
+async function waitForViewportSettled(): Promise<void> {
+  await nextAnimationFrame();
+  await new Promise<void>((resolve) => {
+    const viewport = window.visualViewport;
+    let quietTimer = window.setTimeout(finish, 80);
+    const timeoutTimer = window.setTimeout(finish, 500);
+    const onResize = () => {
+      window.clearTimeout(quietTimer);
+      quietTimer = window.setTimeout(finish, 80);
+    };
+
+    function finish(): void {
+      viewport?.removeEventListener("resize", onResize);
+      window.clearTimeout(quietTimer);
+      window.clearTimeout(timeoutTimer);
+      resolve();
+    }
+
+    viewport?.addEventListener("resize", onResize);
+  });
+  await nextAnimationFrame();
 }

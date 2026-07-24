@@ -30,6 +30,7 @@ export type ReaderCallbacks = {
 
 let activeReaderClose: (() => void) | undefined;
 let activeReaderActions: ReaderComponentActions | undefined;
+let readerHistoryId = 0;
 
 export function gotoActiveReaderPage(pageNum: number): boolean {
   if (!activeReaderActions) {
@@ -224,15 +225,23 @@ function mountReader(
   let unlockPageScroll = lockPageScroll();
   let setFullscreenActive = (_active: boolean): void => undefined;
   let keepReaderOpen = false;
+  let historyEntry = false;
+  let closeRequested = false;
   let closing = false;
   let mountedReaderActions: ReaderComponentActions | undefined;
+  const historyId = ++readerHistoryId;
   const close = () => requestClose();
 
   function requestClose(): void {
-    if (closing) {
+    if (closing || closeRequested) {
       return;
     }
     eh.clearPeekLocation();
+    if (historyEntry) {
+      closeRequested = true;
+      window.history.back();
+      return;
+    }
     void onClosed();
   }
 
@@ -240,10 +249,14 @@ function mountReader(
     if (
       event.state !== null &&
       typeof event.state === "object" &&
-      (event.state as { ehpeekReader?: unknown }).ehpeekReader === true
+      (event.state as { ehpeekReader?: unknown }).ehpeekReader === historyId
     ) {
+      if (closeRequested) {
+        window.history.back();
+      }
       return;
     }
+    historyEntry = false;
     void onClosed();
   };
 
@@ -280,7 +293,8 @@ function mountReader(
       : document.body).append(host);
   }
   window.addEventListener("popstate", onPopState);
-  window.history.pushState({ ehpeekReader: true }, "", window.location.href);
+  window.history.pushState({ ehpeekReader: historyId }, "", window.location.href);
+  historyEntry = true;
   activeReaderClose = close;
   const unsubscribeFullscreen = fullscreen.subscribe((active) => {
     setFullscreenActive(active);

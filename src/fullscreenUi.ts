@@ -1,6 +1,17 @@
 const FULLSCREEN_SCALE_PROPERTY = "--ehpeek-fullscreen-scale";
 const UI_TOKEN_PROPERTY = /^--ui-/;
 
+export function fullscreenUiScale(): number {
+  const fullscreenElement = document.fullscreenElement;
+  if (!(fullscreenElement instanceof HTMLElement)) {
+    return 1;
+  }
+  const factor = Number.parseFloat(
+    fullscreenElement.style.getPropertyValue(FULLSCREEN_SCALE_PROPERTY),
+  );
+  return Number.isFinite(factor) && factor > 0 && factor < 1 ? factor : 1;
+}
+
 /** Keeps component-owned fullscreen UI in visual viewport coordinates. */
 export function observeFullscreenUiSizing(target: HTMLElement): () => void {
   const applied = new Set<string>();
@@ -13,15 +24,8 @@ export function observeFullscreenUiSizing(target: HTMLElement): () => void {
     }
     applied.clear();
 
-    const fullscreenElement = document.fullscreenElement;
-    if (!(fullscreenElement instanceof HTMLElement)) {
-      return;
-    }
-
-    const factor = Number.parseFloat(
-      fullscreenElement.style.getPropertyValue(FULLSCREEN_SCALE_PROPERTY),
-    );
-    if (!Number.isFinite(factor) || factor >= 1) {
+    const factor = fullscreenUiScale();
+    if (factor === 1) {
       return;
     }
 
