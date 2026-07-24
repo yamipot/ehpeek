@@ -56,15 +56,8 @@ export function openReaderFromUserAction(
     fullscreenLaunch,
   ).catch(async (error: unknown) => {
     if (fullscreenLaunch) {
-      const fullscreenEntered = await fullscreenLaunch.result;
-      if (document.fullscreenElement === fullscreenLaunch.host) {
-        await document.exitFullscreen().catch((fullscreenError: unknown) => {
-          console.warn("[ehpeek] Failed to exit fullscreen", fullscreenError);
-        });
-      }
-      if (fullscreenEntered) {
-        await fullscreenLaunch.fullscreen.exit();
-      }
+      await fullscreenLaunch.result;
+      await fullscreenLaunch.fullscreen.exit();
       fullscreenLaunch.host.remove();
       await fullscreenLaunch.fullscreen.restore();
     }

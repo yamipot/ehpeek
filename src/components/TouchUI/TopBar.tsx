@@ -25,6 +25,11 @@ const NEXT_UI_SCALE: Record<UiScale, UiScale> = {
 };
 
 function TouchTopBarUiMenu(props: {
+  fullscreen: {
+    enter: () => Promise<void>;
+    exit: () => Promise<void>;
+    restore: () => Promise<void>;
+  };
   uiScale: {
     value: Accessor<UiScale>;
     onChange: (scale: UiScale) => void;
@@ -49,7 +54,11 @@ function TouchTopBarUiMenu(props: {
 
     document.addEventListener("click", onClick);
     const onFullscreenChange = () => {
-      setFullscreenActive(Boolean(document.fullscreenElement));
+      const active = Boolean(document.fullscreenElement);
+      setFullscreenActive(active);
+      if (!active) {
+        void props.fullscreen.restore();
+      }
     };
     document.addEventListener("fullscreenchange", onFullscreenChange);
     onCleanup(() => {
@@ -101,8 +110,8 @@ function TouchTopBarUiMenu(props: {
               : texts.reader.fullscreen}
             onClick={() => {
               const request = fullscreenActive()
-                ? document.exitFullscreen()
-                : document.documentElement.requestFullscreen();
+                ? props.fullscreen.exit()
+                : props.fullscreen.enter();
               void request.catch((error: unknown) => {
                 console.warn("[ehpeek] Fullscreen request failed", error);
               });
@@ -185,6 +194,11 @@ function TouchTopBarMenu(props: { navItems: TopBarDom["elems"]["navItems"] }) {
 }
 
 export function TouchTopBar(props: {
+  fullscreen: {
+    enter: () => Promise<void>;
+    exit: () => Promise<void>;
+    restore: () => Promise<void>;
+  };
   historyHref?: string;
   uiScale: {
     value: Accessor<UiScale>;
@@ -206,7 +220,11 @@ export function TouchTopBar(props: {
         >
           <Icon name="panda-peek" size={TOUCH_TOP_BAR_PROJECT_ICON_SIZE} strokeWidth={1.8} />
         </a>
-        <TouchTopBarUiMenu uiScale={props.uiScale} columns={props.columns} />
+        <TouchTopBarUiMenu
+          fullscreen={props.fullscreen}
+          uiScale={props.uiScale}
+          columns={props.columns}
+        />
       </div>
       <div class="flex items-center gap-xs">
         <a

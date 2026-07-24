@@ -479,7 +479,7 @@ function ScrollPreviewPanel(props: {
                 },
                 {
                   opacity: 0.7,
-                  transform: `translate3d(${translation}, 0) scale(var(--ehpeek-reader-fullscreen-ui-scale, 1)) scale(0.97)`,
+                  transform: `translate3d(${translation}, 0) scale(0.97)`,
                 },
               ],
               {
@@ -498,7 +498,7 @@ function ScrollPreviewPanel(props: {
               },
               {
                 opacity: 1,
-                transform: "translate3d(0, 0, 0) scale(var(--ehpeek-reader-fullscreen-ui-scale, 1))",
+                transform: "translate3d(0, 0, 0)",
               },
             ],
             { duration: 180, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
@@ -729,39 +729,44 @@ function ScrollPreviewPanel(props: {
   });
 
   return (
-    <section
-      ref={overlay}
-      class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]"
+    <div
       classList={{
-        "fixed inset-0 z-[1300] h-[100dvh] bg-[var(--color-background)]":
-          !props.embedded,
-        "border ehp-color-site-border rounded-sm bg-[var(--color-site-elevated)]":
-          props.embedded,
-        "relative h-[55dvh]":
-          props.embedded && !props.fillContainer,
-        "relative h-full": props.embedded && props.fillContainer,
-        "w-full": !props.embedded || props.fillContainer,
-        "[width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90dvh)] mx-auto":
-          props.embedded && !props.fillContainer,
-      }}
-      style={{
-        height: props.embedded &&
-            !props.fillContainer &&
-            horizontal &&
-            embeddedPanelHeight() !== null
-          ? `${embeddedPanelHeight()}px`
-          : undefined,
-        opacity: props.embedded
-          ? "1"
-          : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`,
-        transform: props.embedded
-          ? "none"
-          : `translate3d(${horizontal ? 0 : exitDragOffset()}px, ${horizontal ? exitDragOffset() : 0}px, 0) scale(var(--ehpeek-reader-fullscreen-ui-scale, 1)) scale(${1 - Math.min(0.03, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.03)})`,
+        "contents": props.embedded,
+        "ehpeek-fullscreen-root fixed inset-0 z-[1300]": !props.embedded,
       }}
     >
-      <Show
-        when={props.embedded}
-        fallback={
+      <section
+        ref={overlay}
+        class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]"
+        classList={{
+          "absolute inset-0 bg-[var(--color-background)]": !props.embedded,
+          "border ehp-color-site-border rounded-sm bg-[var(--color-site-elevated)]":
+            props.embedded,
+          "relative h-[55dvh]":
+            props.embedded && !props.fillContainer,
+          "relative h-full": props.embedded && props.fillContainer,
+          "w-full": !props.embedded || props.fillContainer,
+          "[width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90dvh)] mx-auto":
+            props.embedded && !props.fillContainer,
+        }}
+        style={{
+          height: props.embedded &&
+              !props.fillContainer &&
+              horizontal &&
+              embeddedPanelHeight() !== null
+            ? `${embeddedPanelHeight()}px`
+            : undefined,
+          opacity: props.embedded
+            ? "1"
+            : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`,
+          transform: props.embedded
+            ? "none"
+            : `translate3d(${horizontal ? 0 : exitDragOffset()}px, ${horizontal ? exitDragOffset() : 0}px, 0) scale(${1 - Math.min(0.03, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.03)})`,
+        }}
+      >
+        <Show
+          when={props.embedded}
+          fallback={
           <div class="flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-border)] textsize-sm">
             <span class="flex items-center gap-sm opacity-75">
               <Show when={loadingCount() > 0}>
@@ -807,7 +812,7 @@ function ScrollPreviewPanel(props: {
             </div>
           </div>
         }
-      >
+        >
         <div class="flex min-h-[var(--ui-control-size-xs)] flex-none items-center justify-center gap-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs">
           <span class="inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75">
             <Show when={loadingCount() > 0}>
@@ -834,8 +839,8 @@ function ScrollPreviewPanel(props: {
             <Icon name="fullscreen" size="var(--ui-icon-size-xs)" />
           </button>
         </div>
-      </Show>
-      <div class="relative min-h-0 w-full flex-1">
+        </Show>
+        <div class="relative min-h-0 w-full flex-1">
         <div
           ref={scroller}
           class="absolute box-border bg-[var(--color-surface)] cursor-grab [&[data-dragging=true]]:(cursor-grabbing select-none) [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"
@@ -945,8 +950,9 @@ function ScrollPreviewPanel(props: {
             visibleValueCount={screenEndPageNum() - screenStartPageNum() + 1}
           />
         </Show>
-      </div>
-    </section>
+        </div>
+      </section>
+    </div>
   );
 }
 

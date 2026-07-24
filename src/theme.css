@@ -68,3 +68,12 @@
   --color-site-accent: #f0b35a;
   --color-site-border: #8d7454;
 }
+
+html:fullscreen > body,
+html:fullscreen > :not(body) .ehpeek-fullscreen-root,
+[data-ehpeek-reader-container="true"]:fullscreen > .ehpeek-fullscreen-root {
+  width: calc(100% * var(--ehpeek-fullscreen-scale-inverse, 1));
+  height: calc(100% * var(--ehpeek-fullscreen-scale-inverse, 1));
+  transform: scale(var(--ehpeek-fullscreen-scale, 1));
+  transform-origin: top left;
+}

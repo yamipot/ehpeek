@@ -115,7 +115,7 @@ export function Reader(props: {
   return (
     <div
       id={VIEWER_ID}
-      class="fixed inset-0 z-reader overflow-hidden ehp-color-reader font-sans textsize-sm leading-[1.4]"
+      class="ehpeek-fullscreen-root fixed inset-0 z-reader overflow-hidden ehp-color-reader font-sans textsize-sm leading-[1.4]"
       data-navigation-mode={readerState.ctrls.value().navigationMode}
       data-page-layout={readerState.ctrls.value().pageLayout}
       data-read-direction={readerState.ctrls.value().direction}

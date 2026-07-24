@@ -32,62 +32,11 @@
   background: var(--color-reader-background);
 }
 
-[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-toolbar-buttons {
-  transform: scale(var(--ehpeek-reader-fullscreen-ui-scale, 1));
-  transform-origin: top right;
-}
-
-[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-floating-actions {
-  transform: scale(var(--ehpeek-reader-fullscreen-ui-scale, 1));
-  transform-origin: bottom right;
-}
-
-[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-scroll-preview {
-  width: calc(100% * var(--ehpeek-reader-fullscreen-ui-scale-inverse, 1));
-  height: calc(100dvh * var(--ehpeek-reader-fullscreen-ui-scale-inverse, 1));
-  transform: scale(var(--ehpeek-reader-fullscreen-ui-scale, 1));
-  transform-origin: top left;
-}
-
-[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-download-dialog-panel,
-[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-help-panel,
-[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-page-reload {
-  transform: scale(var(--ehpeek-reader-fullscreen-ui-scale, 1));
-  transform-origin: center;
-}
-
-[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-control-change {
-  transform: translate(-50%, -50%) scale(var(--ehpeek-reader-fullscreen-ui-scale, 1));
-  transform-origin: center;
-}
-
-[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-viewport-toolbar {
-  transform: translateX(-50%) scale(var(--ehpeek-reader-fullscreen-ui-scale, 1));
-  transform-origin: bottom center;
-}
-
-[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-scrollbar {
-  transform: scaleX(var(--ehpeek-reader-fullscreen-ui-scale, 1));
-  transform-origin: right center;
-}
-
-[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-scrollbar {
-  --ehpeek-position-bar-thumb-min:
-    calc(var(--ui-control-size-md) * 1.5 * var(--ehpeek-reader-fullscreen-ui-scale, 1));
-  --ehpeek-position-bar-thumb-max:
-    calc(var(--ui-control-size-xl) * 4 * var(--ehpeek-reader-fullscreen-ui-scale, 1));
-}
-
-[data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-progress {
-  font-size: var(--ehpeek-reader-fullscreen-progress-size, var(--ui-font-size-lg));
-}
-
 [data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-fullscreen-status {
   top: 0;
   right: max(10px, env(safe-area-inset-right, 0px));
   left: auto;
-  transform: scale(var(--ehpeek-reader-fullscreen-ui-scale, 1)) translateY(50%);
-  transform-origin: top right;
+  transform: translateY(50%);
 }
 
 [data-ehpeek-reader-container="true"]:fullscreen .ehpeek-reader-page-number {
@@ -95,8 +44,7 @@
   right: auto;
   left: max(10px, env(safe-area-inset-left, 0px));
   min-width: 0;
-  transform: scale(var(--ehpeek-reader-fullscreen-ui-scale, 1)) translateY(50%);
-  transform-origin: top left;
+  transform: translateY(50%);
   text-align: left;
 }
 
