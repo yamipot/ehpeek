@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260724.1327
+// @version      260724.1425
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -1753,7 +1753,8 @@
     hideOriginalSearchAction: "ehpeek-hide-original-search-action",
     searchGrid: "ehpeek-layout-search-grid",
     searchResultColumns: "ehpeek-search-result-columns",
-    stackSearchGridTags: "ehpeek-stack-search-grid-tags"
+    stackSearchGridTags: "ehpeek-stack-search-grid-tags",
+    tallSearchGridCover: "ehpeek-contain-tall-search-grid-cover"
   }, page = {
     footer: query("body > .dp"),
     html: tag("html", {
@@ -3017,6 +3018,7 @@ Next page`,
       metadata,
       row: row2,
       tags: [historyActions],
+      tallCover: !1,
       title,
       titleText: titleText ?? "",
       withoutCover: !image2
@@ -3196,7 +3198,7 @@ Next page`,
       let thumbnailCell = row2.one(domClass.search.results.rows.cover), contentCell = row2.one(domClass.search.results.rows.content), detail = contentCell?.one(domClass.search.results.rows.content.detail), metadata = contentCell?.one(domClass.search.results.rows.content.metadata);
       if (!thumbnailCell || !contentCell || !detail || !metadata)
         return null;
-      let title = detail.one(domClass.search.results.rows.content.detail.title), parent = detail.parent(), galleryLink = parent?.matches(domClass.common.links) ? parent : null, tags = detail.children().filter((element) => !title?.sameNode(element));
+      let title = detail.one(domClass.search.results.rows.content.detail.title), parent = detail.parent(), galleryLink = parent?.matches(domClass.common.links) ? parent : null, tags = detail.children().filter((element) => !title?.sameNode(element)), coverSize = thumbnailCell.one(domClass.common.image)?.imageSize();
       return {
         detail: detail.inplace(),
         galleryHref: galleryLink?.attribute("href") ?? null,
@@ -3204,6 +3206,7 @@ Next page`,
         metadata: metadata.inplace(),
         row: row2.inplace(),
         tags: tags.map((item) => item.inplace()),
+        tallCover: !!(coverSize && coverSize.width > 0 && coverSize.height / coverSize.width > 4),
         title: title?.inplace() ?? null,
         titleText: title?.text() ?? "",
         withoutCover: !1
@@ -3213,7 +3216,10 @@ Next page`,
   function manageEhPeekGrid(resultList, rows) {
     resultList.addClasses(sharedApply.searchGrid);
     for (let row2 of rows)
-      row2.row.addClasses(...row2.withoutCover ? [sharedApply.coverlessSearchGrid] : []), manageEhPeekGridContent(row2);
+      row2.row.addClasses(
+        ...row2.withoutCover ? [sharedApply.coverlessSearchGrid] : [],
+        ...row2.tallCover ? [sharedApply.tallSearchGridCover] : []
+      ), manageEhPeekGridContent(row2);
     function manageEhPeekGridContent(source) {
       let { detail, galleryLink, metadata, row: row2, tags, title } = source;
       if (galleryLink && title && source.galleryHref) {
@@ -4248,18 +4254,22 @@ Next page`,
 
   // src/fullscreenUi.ts
   var FULLSCREEN_SCALE_PROPERTY = "--ehpeek-fullscreen-scale", UI_TOKEN_PROPERTY = /^--ui-/;
+  function fullscreenUiScale() {
+    let fullscreenElement = document.fullscreenElement;
+    if (!(fullscreenElement instanceof HTMLElement))
+      return 1;
+    let factor = Number.parseFloat(
+      fullscreenElement.style.getPropertyValue(FULLSCREEN_SCALE_PROPERTY)
+    );
+    return Number.isFinite(factor) && factor > 0 && factor < 1 ? factor : 1;
+  }
   function observeFullscreenUiSizing(target) {
     let applied = /* @__PURE__ */ new Set(), fullscreenObserver = null, frame = null, sync = () => {
       for (let property of applied)
         target.style.removeProperty(property);
       applied.clear();
-      let fullscreenElement = document.fullscreenElement;
-      if (!(fullscreenElement instanceof HTMLElement))
-        return;
-      let factor = Number.parseFloat(
-        fullscreenElement.style.getPropertyValue(FULLSCREEN_SCALE_PROPERTY)
-      );
-      if (!Number.isFinite(factor) || factor >= 1)
+      let factor = fullscreenUiScale();
+      if (factor === 1)
         return;
       let source = document.documentElement.style;
       for (let index = 0; index < source.length; index += 1) {
@@ -5068,13 +5078,14 @@ Next page`,
   function ScrollPreviewPanel(props) {
     let previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, tileAspectRatio = dominantAspectRatio(initialPreview.data.previewItems), readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? texts_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? texts_default.gallery.scrollPreviewDirectionRtl : texts_default.gallery.scrollPreviewDirectionLtr, decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS), flingAnimator = new ScrollFlingAnimator(), previewLoadQueue = new PriorityLoadQueue(PREVIEW_CONCURRENT_LOADS), requestedPreviewIndexes = /* @__PURE__ */ new Set(), [failedPreviewIndexes, setFailedPreviewIndexes] = createSignal(/* @__PURE__ */ new Set()), [crossCountOverride, setCrossCountOverride] = createSignal(null), [embeddedPanelHeight, setEmbeddedPanelHeight] = createSignal(null), [exitDragOffset, setExitDragOffset] = createSignal(0), [loadingCount, setLoadingCount] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), [layout, setLayout] = createSignal({
       crossCount: 1,
+      gap: GRID_GAP,
       horizontal,
       mainStride: horizontal ? MAX_TILE_WIDTH + GRID_GAP : MIN_TILE_HEIGHT + GRID_GAP,
       tileHeight: MIN_TILE_HEIGHT,
       tileWidth: MAX_TILE_WIDTH,
       viewportHeight: 1,
       viewportWidth: 1
-    }), scroller, overlay, dragDirection = null, dragStartPosition = null, pinchStartCrossCount = 1, scrollFrame = null, loadToken = 0, initialized = !1, disposed = !1, totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount)), totalMainSize = createMemo(() => Math.max(1, totalGroups() * layout().mainStride - GRID_GAP)), mainViewportSize = createMemo(() => horizontal ? layout().viewportWidth : layout().viewportHeight), mainCanvasSize = createMemo(() => Math.max(totalMainSize(), mainViewportSize())), visibleStartGroup = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS, 0, Math.max(0, totalGroups() - 1))), visibleEndGroup = createMemo(() => clamp(Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS, visibleStartGroup(), Math.max(0, totalGroups() - 1))), visibleStartPageNum = createMemo(() => visibleStartGroup() * layout().crossCount + 1), visibleEndPageNum = createMemo(() => Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)), screenStartPageNum = createMemo(() => Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1), screenEndPageNum = createMemo(() => {
+    }), scroller, overlay, dragDirection = null, dragStartPosition = null, pinchStartCrossCount = 1, scrollFrame = null, loadToken = 0, initialized = !1, disposed = !1, totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount)), totalMainSize = createMemo(() => Math.max(1, totalGroups() * layout().mainStride - layout().gap)), mainViewportSize = createMemo(() => horizontal ? layout().viewportWidth : layout().viewportHeight), mainCanvasSize = createMemo(() => Math.max(totalMainSize(), mainViewportSize())), visibleStartGroup = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS, 0, Math.max(0, totalGroups() - 1))), visibleEndGroup = createMemo(() => clamp(Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS, visibleStartGroup(), Math.max(0, totalGroups() - 1))), visibleStartPageNum = createMemo(() => visibleStartGroup() * layout().crossCount + 1), visibleEndPageNum = createMemo(() => Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)), screenStartPageNum = createMemo(() => Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1), screenEndPageNum = createMemo(() => {
       let end = Math.max(scrollOffset(), scrollOffset() + mainViewportSize() - 1), endGroup = Math.floor(end / layout().mainStride);
       return Math.min(totalImages, (endGroup + 1) * layout().crossCount);
     }), visibleSlots = createMemo(() => {
@@ -5206,15 +5217,16 @@ Next page`,
     });
     let updateLayout = () => {
       setPreviewLoadReady(!1);
-      let width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), anchorPageNum = initialized ? centeredPageNum() : null, itemsPerRow = Math.max(1, Math.ceil((width + GRID_GAP) / (MAX_TILE_WIDTH + GRID_GAP))), itemWidth = Math.max(1, (width - GRID_GAP * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.round(clamp(itemWidth * tileAspectRatio, MIN_TILE_HEIGHT, MAX_TILE_HEIGHT)), panelChromeHeight = Math.max(0, overlay.clientHeight - height), targetContentHeight = Math.max(itemHeight, window.innerHeight * 0.55 - panelChromeHeight), embeddedRows = Math.max(1, Math.ceil((targetContentHeight + GRID_GAP) / (itemHeight + GRID_GAP))), singleLine = totalImages <= SMALL_GALLERY_SINGLE_LINE_LIMIT, automaticCrossCount = singleLine ? horizontal ? 1 : totalImages : horizontal ? props.embedded ? embeddedRows : Math.max(1, Math.ceil((height + GRID_GAP) / (MAX_TILE_HEIGHT + GRID_GAP))) : itemsPerRow, crossCount = clamp(singleLine ? automaticCrossCount : crossCountOverride() ?? automaticCrossCount, 1, totalImages);
+      let width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), scale = props.embedded ? 1 : fullscreenUiScale(), gap = GRID_GAP * scale, maxTileWidth = MAX_TILE_WIDTH * scale, minTileHeight = MIN_TILE_HEIGHT * scale, maxTileHeight = MAX_TILE_HEIGHT * scale, anchorPageNum = initialized ? centeredPageNum() : null, itemsPerRow = Math.max(1, Math.ceil((width + gap) / (maxTileWidth + gap))), itemWidth = Math.max(1, (width - gap * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.round(clamp(itemWidth * tileAspectRatio, minTileHeight, maxTileHeight)), panelChromeHeight = Math.max(0, overlay.clientHeight - height), targetContentHeight = Math.max(itemHeight, window.innerHeight * 0.55 - panelChromeHeight), embeddedRows = Math.max(1, Math.ceil((targetContentHeight + gap) / (itemHeight + gap))), singleLine = totalImages <= SMALL_GALLERY_SINGLE_LINE_LIMIT, automaticCrossCount = singleLine ? horizontal ? 1 : totalImages : horizontal ? props.embedded ? embeddedRows : Math.max(1, Math.ceil((height + gap) / (maxTileHeight + gap))) : itemsPerRow, crossCount = clamp(singleLine ? automaticCrossCount : crossCountOverride() ?? automaticCrossCount, 1, totalImages);
       if (props.embedded && !props.fillContainer && horizontal && crossCountOverride() === null) {
-        let contentHeight = crossCount * itemHeight + GRID_GAP * (crossCount - 1), panelHeight = Math.round(panelChromeHeight + contentHeight);
+        let contentHeight = crossCount * itemHeight + gap * (crossCount - 1), panelHeight = Math.round(panelChromeHeight + contentHeight);
         setEmbeddedPanelHeight((current) => current === panelHeight ? current : panelHeight);
       }
-      let availableTileHeight = Math.max(1, (height - GRID_GAP * (crossCount - 1)) / crossCount), tileHeight = horizontal ? Math.min(itemHeight, availableTileHeight) : Math.round(clamp(Math.max(1, (width - GRID_GAP * (crossCount - 1)) / crossCount) * tileAspectRatio, MIN_TILE_HEIGHT, MAX_TILE_HEIGHT)), tileWidth = horizontal ? clamp(tileHeight / tileAspectRatio, 1, MAX_TILE_WIDTH) : Math.max(1, (width - GRID_GAP * (crossCount - 1)) / crossCount), next = {
+      let availableTileHeight = Math.max(1, (height - gap * (crossCount - 1)) / crossCount), tileHeight = horizontal ? Math.min(itemHeight, availableTileHeight) : Math.round(clamp(Math.max(1, (width - gap * (crossCount - 1)) / crossCount) * tileAspectRatio, minTileHeight, maxTileHeight)), tileWidth = horizontal ? clamp(tileHeight / tileAspectRatio, 1, maxTileWidth) : Math.max(1, (width - gap * (crossCount - 1)) / crossCount), next = {
         crossCount,
+        gap,
         horizontal,
-        mainStride: (horizontal ? tileWidth : tileHeight) + GRID_GAP,
+        mainStride: (horizontal ? tileWidth : tileHeight) + gap,
         tileHeight,
         tileWidth,
         viewportHeight: height,
@@ -5302,7 +5314,7 @@ Next page`,
           return visibleSlots();
         },
         children: (slot) => {
-          let itemIndex = () => slot.pageNum - 1, group = () => Math.floor(itemIndex() / layout().crossCount), crossIndex = () => itemIndex() % layout().crossCount, left = () => horizontal ? rightToLeft ? mainCanvasSize() - layout().tileWidth - group() * layout().mainStride : group() * layout().mainStride : crossIndex() * (layout().tileWidth + GRID_GAP), top = () => horizontal ? crossIndex() * (layout().tileHeight + GRID_GAP) : group() * layout().mainStride;
+          let itemIndex = () => slot.pageNum - 1, group = () => Math.floor(itemIndex() / layout().crossCount), crossIndex = () => itemIndex() % layout().crossCount, left = () => horizontal ? rightToLeft ? mainCanvasSize() - layout().tileWidth - group() * layout().mainStride : group() * layout().mainStride : crossIndex() * (layout().tileWidth + layout().gap), top = () => horizontal ? crossIndex() * (layout().tileHeight + layout().gap) : group() * layout().mainStride;
           return (() => {
             var _el$18 = _tmpl$72();
             return insert(_el$18, createComponent(PreviewTile, {
@@ -6369,7 +6381,7 @@ Next page`,
           get children() {
             return [_tmpl$66(), (() => {
               var _el$19 = _tmpl$73(), _el$20 = _el$19.firstChild;
-              return insert(_el$19, "260724.1327", null), _el$19;
+              return insert(_el$19, "260724.1425", null), _el$19;
             })()];
           }
         }), null), _el$22.$$click = (event) => {
@@ -7646,6 +7658,20 @@ body.ehpeek-constrain-results-to-viewport {
 .ehpeek-layout-search-grid > tbody > tr > .gl1e img {
   width: 100% !important;
   height: auto !important;
+}
+
+.ehpeek-layout-search-grid > tbody > tr.ehpeek-contain-tall-search-grid-cover > .gl1e > div {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  height: min(375px, 55dvh) !important;
+}
+
+.ehpeek-layout-search-grid > tbody > tr.ehpeek-contain-tall-search-grid-cover > .gl1e img {
+  width: auto !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
 }
 
 .ehpeek-layout-search-grid .gl4e {
@@ -10819,7 +10845,7 @@ html:fullscreen .ehpeek-touch-top-bar {
   }
 
   // src/App/Reader.tsx
-  var activeReaderClose, activeReaderActions;
+  var activeReaderClose, activeReaderActions, readerHistoryId = 0;
   function gotoActiveReaderPage(pageNum) {
     return activeReaderActions ? (activeReaderActions.gotoPage(pageNum), !0) : !1;
   }
@@ -10894,12 +10920,22 @@ html:fullscreen .ehpeek-touch-top-bar {
     activeReaderClose?.();
     let disposeRoot = () => {
     }, unlockPageScroll = lockPageScroll2(), setFullscreenActive = (_active) => {
-    }, keepReaderOpen = !1, closing = !1, mountedReaderActions, close = () => requestClose();
+    }, keepReaderOpen = !1, historyEntry = !1, closeRequested = !1, closing = !1, mountedReaderActions, historyId = ++readerHistoryId, close = () => requestClose();
     function requestClose() {
-      closing || (clearPeekLocation(), onClosed());
+      if (!(closing || closeRequested)) {
+        if (clearPeekLocation(), historyEntry) {
+          closeRequested = !0, window.history.back();
+          return;
+        }
+        onClosed();
+      }
     }
     let onPopState = (event) => {
-      event.state !== null && typeof event.state == "object" && event.state.ehpeekReader === !0 || onClosed();
+      if (event.state !== null && typeof event.state == "object" && event.state.ehpeekReader === historyId) {
+        closeRequested && window.history.back();
+        return;
+      }
+      historyEntry = !1, onClosed();
     };
     async function onClosed() {
       closing || (closing = !0, await fullscreen.exit().catch((error) => {
@@ -10915,8 +10951,8 @@ html:fullscreen .ehpeek-touch-top-bar {
       (fullscreenElement instanceof HTMLElement ? fullscreenElement : document.body).append(host);
     }
     window.addEventListener("popstate", onPopState), window.history.pushState({
-      ehpeekReader: !0
-    }, "", window.location.href), activeReaderClose = close;
+      ehpeekReader: historyId
+    }, "", window.location.href), historyEntry = !0, activeReaderClose = close;
     let unsubscribeFullscreen = fullscreen.subscribe((active) => {
       setFullscreenActive(active), !active && !keepReaderOpen && callbacks.exitReaderOnFullscreenExit && requestClose(), keepReaderOpen = !1;
     });
@@ -11078,35 +11114,28 @@ html:fullscreen .ehpeek-touch-top-bar {
       documentElement.style.overflow = documentOverflow, body.style.overflow = bodyOverflow;
     };
   }
-  function captureFullscreenSnapshot() {
-    let viewport = document.querySelector(
+  function prepareFullscreenSnapshot() {
+    let existing = document.querySelector(
       'meta[name="viewport"]'
-    );
-    return {
-      scale: Math.max(0.01, window.visualViewport?.scale ?? 1),
+    ), meta = existing ?? document.createElement("meta"), scale = Math.max(0.1, window.visualViewport?.scale ?? 1), snapshot = {
+      content: existing?.getAttribute("content") ?? null,
+      created: !existing,
+      meta,
+      scale,
       scrollX: window.scrollX,
-      scrollY: window.scrollY,
-      viewport: viewport ? {
-        content: viewport.getAttribute("content"),
-        element: viewport
-      } : null
+      scrollY: window.scrollY
     };
+    return existing || (meta.name = "viewport", document.head.append(meta)), meta.content = lockedViewportContent(snapshot.content, scale), snapshot;
   }
   async function restorePageViewport(snapshot) {
-    let currentViewport = document.querySelector(
-      'meta[name="viewport"]'
-    ), viewport = snapshot?.viewport ?? (currentViewport ? {
-      content: currentViewport.getAttribute("content"),
-      element: currentViewport
-    } : null);
-    viewport?.element.isConnected && (viewport.element.removeAttribute("content"), viewport.content !== null && viewport.element.setAttribute("content", viewport.content)), await nextAnimationFrame(), await nextAnimationFrame(), snapshot && window.scrollTo(snapshot.scrollX, snapshot.scrollY);
+    await nextAnimationFrame(), snapshot.created ? snapshot.meta.remove() : snapshot.content === null ? snapshot.meta.removeAttribute("content") : snapshot.meta.content = snapshot.content, await nextAnimationFrame(), await nextAnimationFrame(), window.scrollTo(snapshot.scrollX, snapshot.scrollY);
   }
   var readerViewport = {
     createFullscreen: createReaderFullscreen,
     lockScroll: lockPageScroll
   };
   function createReaderFullscreen(target) {
-    let snapshot = null, restorePromise = null, restoreViewport = !1, active = () => {
+    let snapshot = null, restorePromise = null, active = () => {
       let fullscreenElement = document.fullscreenElement;
       return fullscreenElement === target || fullscreenElement instanceof HTMLElement && fullscreenElement.contains(target);
     }, restore = () => {
@@ -11114,16 +11143,16 @@ html:fullscreen .ehpeek-touch-top-bar {
         return restorePromise;
       target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
       let captured = snapshot;
-      return snapshot = null, !captured && !restoreViewport ? Promise.resolve() : (restoreViewport = !1, restorePromise = restorePageViewport(captured).finally(() => {
+      return snapshot = null, captured ? (restorePromise = waitForViewportSettled().then(() => restorePageViewport(captured)).finally(() => {
         restorePromise = null;
-      }), restorePromise);
+      }), restorePromise) : Promise.resolve();
     };
     return {
       active,
       enter: async () => {
         if (document.fullscreenElement || !document.fullscreenEnabled)
           return;
-        snapshot = captureFullscreenSnapshot(), restoreViewport = !0;
+        await restorePromise, snapshot = prepareFullscreenSnapshot();
         let scaleBefore = snapshot.scale;
         try {
           await target.requestFullscreen(), await nextAnimationFrame();
@@ -11137,13 +11166,13 @@ html:fullscreen .ehpeek-touch-top-bar {
         }
       },
       exit: async () => {
-        active() && (restoreViewport = !0, await document.exitFullscreen(), await restore()), target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
+        active() && (await document.exitFullscreen(), await restore()), target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
       },
       restore,
       subscribe: (callback) => {
-        let previousActive = active(), onChange = () => {
+        let onChange = () => {
           let fullscreenActive = active();
-          previousActive && !fullscreenActive && (restoreViewport = !0, restore()), previousActive = fullscreenActive, fullscreenActive || (target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY)), callback(fullscreenActive);
+          fullscreenActive || (target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY), restore()), callback(fullscreenActive);
         };
         return document.addEventListener("fullscreenchange", onChange), () => document.removeEventListener("fullscreenchange", onChange);
       }
@@ -11153,6 +11182,30 @@ html:fullscreen .ehpeek-touch-top-bar {
     return new Promise((resolve) => {
       window.requestAnimationFrame(() => resolve());
     });
+  }
+  function lockedViewportContent(content, scale) {
+    let preserved = (content ?? "").split(",").map((item) => item.trim()).filter(
+      (item) => item && !/^(?:initial-scale|minimum-scale|maximum-scale|user-scalable|viewport-fit)\s*=/i.test(item)
+    ), value = String(Math.round(scale * 1e3) / 1e3);
+    return [
+      ...preserved,
+      `initial-scale=${value}`,
+      `minimum-scale=${value}`,
+      `maximum-scale=${value}`,
+      "user-scalable=no",
+      "viewport-fit=cover"
+    ].join(", ");
+  }
+  async function waitForViewportSettled() {
+    await nextAnimationFrame(), await new Promise((resolve) => {
+      let viewport = window.visualViewport, quietTimer = window.setTimeout(finish, 80), timeoutTimer = window.setTimeout(finish, 500), onResize = () => {
+        window.clearTimeout(quietTimer), quietTimer = window.setTimeout(finish, 80);
+      };
+      function finish() {
+        viewport?.removeEventListener("resize", onResize), window.clearTimeout(quietTimer), window.clearTimeout(timeoutTimer), resolve();
+      }
+      viewport?.addEventListener("resize", onResize);
+    }), await nextAnimationFrame();
   }
 
   // src/App/index.tsx
