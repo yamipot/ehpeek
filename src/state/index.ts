@@ -42,6 +42,7 @@ export const state = {
   },
   reader: {
     enabled: persisted("ehpeek:reader:enabled", true),
+    exitOnFullscreenExit: persisted("ehpeek:reader:exit-on-fullscreen-exit", false),
     fullscreen: persisted("ehpeek:reader:fullscreen", prefersTouchFullscreen()),
     navigationMode: persisted<NavigationMode>("ehpeek:reader:navigation-mode", "scroll"),
     scrollDirection: persisted<ReadDirection>("ehpeek:reader:scroll-direction", "ttb"),
@@ -53,6 +54,15 @@ export const state = {
   },
   gallery: {
     enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", true),
+    replacePreviewWithScroll: persisted("ehpeek:scroll-preview:replace-original", false),
+    embeddedScrollPreviewDirection: persisted<ReadDirection>(
+      "ehpeek:gallery-scroll-preview:direction",
+      "rtl",
+    ),
+    scrollPreviewDirection: persisted<ReadDirection>(
+      "ehpeek:scroll-preview:direction",
+      "ttb",
+    ),
     myTags: persisted("ehpeek:my-tags:enabled", true),
     myTagAppearances: localJson("ehpeek:my-tags", [], isMyTagAppearance),
     myTagSets: localJson("ehpeek:my-tag-sets", [], isMyTagSetOption),

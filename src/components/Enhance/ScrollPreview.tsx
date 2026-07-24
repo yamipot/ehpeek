@@ -11,6 +11,7 @@ import {
 import { Portal } from "solid-js/web";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
 import type { GalleryPreviewDom, GalleryPreviewItem } from "../../eh";
+import type { ReadDirection } from "../../state";
 import texts from "../../texts.json";
 import { clamp } from "../../utils";
 import { ScrollFlingAnimator } from "../animation";
@@ -19,24 +20,33 @@ import {
   READER_FLOATING_ACTION_CLASS,
 } from "../Reader/Toolbar";
 import { Icon } from "../Widgets/Icon";
+import { PositionBar } from "../Widgets/PositionBar";
 import { PriorityLoadQueue } from "../Widgets/PriorityLoadQueue";
-import { VerticalPositionBar } from "../Widgets/VerticalPositionBar";
 
 const GRID_GAP = 8;
 const MAX_TILE_WIDTH = 220;
 const MIN_TILE_HEIGHT = 170;
 const MAX_TILE_HEIGHT = 290;
+const MAX_CROSS_COUNT = 12;
 const OVERSCAN_ROWS = 4;
 const PREVIEW_CONCURRENT_LOADS = 2;
 const PREVIEW_LOAD_RADIUS = 2;
 const DECODE_CACHE_BYTES = 64 * 1024 * 1024;
 const DECODE_CACHE_ITEMS = 160;
+const NEXT_SCROLL_PREVIEW_DIRECTION: Record<ReadDirection, ReadDirection> = {
+  ltr: "rtl",
+  rtl: "ttb",
+  ttb: "ltr",
+};
 
 type PreviewLayout = {
-  columns: number;
-  rowHeight: number;
+  crossCount: number;
+  horizontal: boolean;
+  mainStride: number;
   tileHeight: number;
-  width: number;
+  tileWidth: number;
+  viewportHeight: number;
+  viewportWidth: number;
 };
 
 type PreviewSlot = {
@@ -52,16 +62,27 @@ export type ScrollPreviewActions = {
 export function ScrollPreview(props: {
   actionsRef: (actions: ScrollPreviewActions) => void;
   continuePageNum: number | null;
+  embeddedDirection: ReadDirection;
+  fillEmbeddedContainer: () => boolean;
   onExitPreview: (previewIndex: number) => void;
   onLoadError: (error: unknown) => void;
   onOpenChange: (open: boolean) => void;
   onOpenPage: (pageUrl: string, pageNum: number) => void;
+  onEmbeddedDirectionChange: (direction: ReadDirection) => void;
+  onReadDirectionChange: (direction: ReadDirection) => void;
   previewCache: GalleryPreviewCache;
+  readDirection: ReadDirection;
+  replaceOriginalPreview: boolean;
 }) {
   const previewCache = untrack(() => props.previewCache);
   const onExitPreview = untrack(() => props.onExitPreview);
   const onOpenPage = untrack(() => props.onOpenPage);
   const [open, setOpen] = createSignal(false);
+  const [readDirection, setReadDirection] = createSignal(
+    untrack(() => props.readDirection),
+  );
+  const [embeddedReadDirection, setEmbeddedReadDirection] =
+    createSignal<ReadDirection>(untrack(() => props.embeddedDirection));
   const [portalMount, setPortalMount] = createSignal<HTMLElement>(document.body);
   const [targetPreviewIndex, setTargetPreviewIndex] = createSignal(
     untrack(() => previewCache.current().data.currentIndex),
@@ -133,7 +154,19 @@ export function ScrollPreview(props: {
   });
   onMount(() => {
     window.addEventListener("popstate", onPopState);
-    onCleanup(() => window.removeEventListener("popstate", onPopState));
+    const onFullscreenChange = () => {
+      const fullscreenElement = document.fullscreenElement;
+      setPortalMount(
+        fullscreenElement instanceof HTMLElement
+          ? fullscreenElement
+          : document.body,
+      );
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    onCleanup(() => {
+      window.removeEventListener("popstate", onPopState);
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+    });
   });
   onCleanup(() => {
     if (open()) {
@@ -143,50 +176,92 @@ export function ScrollPreview(props: {
 
   return (
     <>
-      <div class="flex w-full justify-center my-sm">
-        <button
-          type="button"
-          class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98"
-          onClick={() => {
-            setHighlightedPageNum(props.continuePageNum);
-            setTargetPageNum(null);
-            setTargetPreviewIndex(previewCache.current().data.currentIndex);
-            openPreview();
-          }}
-        >
-          <Icon name="grid" size="var(--ui-icon-size-sm)" />
-          {texts.gallery.scrollPreview}
-        </button>
-      </div>
-      <Show when={open()}>
-        <Portal mount={portalMount()}>
-          <ScrollPreviewOverlay
+      <Show when={props.replaceOriginalPreview}>
+        <Show when={embeddedReadDirection()} keyed>{(direction) => (
+          <ScrollPreviewPanel
+            embedded
             highlightedPageNum={highlightedPageNum()}
-            onClose={(previewIndex) => {
-              requestClose(() => onExitPreview(previewIndex));
+            onDirectionChange={(next, pageNum) => {
+              setTargetPageNum(pageNum);
+              setEmbeddedReadDirection(next);
+              props.onEmbeddedDirectionChange(next);
             }}
             onLoadError={props.onLoadError}
-            onOpenPage={(pageUrl, pageNum) => {
-              requestClose(() => onOpenPage(pageUrl, pageNum));
+            onOpenOverlay={(pageNum) => {
+              setTargetPageNum(pageNum);
+              setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
+              openPreview();
             }}
+            onOpenPage={props.onOpenPage}
             previewCache={previewCache}
+            readDirection={direction}
             targetPageNum={targetPageNum()}
             targetPreviewIndex={targetPreviewIndex()}
+            fillContainer={props.fillEmbeddedContainer()}
           />
+        )}</Show>
+      </Show>
+      <Show when={!props.replaceOriginalPreview}>
+        <div class="flex w-full justify-center my-sm">
+          <button
+            type="button"
+            class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98"
+            onClick={() => {
+              setHighlightedPageNum(props.continuePageNum);
+              setTargetPageNum(null);
+              setTargetPreviewIndex(previewCache.current().data.currentIndex);
+              openPreview();
+            }}
+          >
+            <Icon name="grid" size="var(--ui-icon-size-sm)" />
+            {texts.gallery.scrollPreview}
+          </button>
+        </div>
+      </Show>
+      <Show when={open()}>
+        <Portal mount={portalMount()}>
+          <Show when={readDirection()} keyed>{(direction) => (
+            <ScrollPreviewPanel
+              embedded={false}
+              highlightedPageNum={highlightedPageNum()}
+              onClose={(previewIndex) => {
+                requestClose(() => onExitPreview(previewIndex));
+              }}
+              onDirectionChange={(next, pageNum) => {
+                setTargetPageNum(pageNum);
+                setReadDirection(next);
+                props.onReadDirectionChange(next);
+              }}
+              onLoadError={props.onLoadError}
+              onOpenPage={(pageUrl, pageNum) => {
+                requestClose(() => onOpenPage(pageUrl, pageNum));
+              }}
+              previewCache={previewCache}
+              readDirection={direction}
+              targetPageNum={targetPageNum()}
+              targetPreviewIndex={targetPreviewIndex()}
+              fillContainer={false}
+            />
+          )}</Show>
         </Portal>
       </Show>
     </>
   );
 }
 
-function ScrollPreviewOverlay(props: {
+function ScrollPreviewPanel(props: {
+  embedded: boolean;
   highlightedPageNum: number | null;
-  onClose: (previewIndex: number) => void;
+  onClose?: (previewIndex: number) => void;
+  onDirectionChange?: (direction: ReadDirection, pageNum: number) => void;
   onLoadError: (error: unknown) => void;
+  onOpenOverlay?: (pageNum: number) => void;
   onOpenPage: (pageUrl: string, pageNum: number) => void;
   previewCache: GalleryPreviewCache;
+  readDirection: ReadDirection;
   targetPageNum: number | null;
   targetPreviewIndex: number;
+  fillContainer: boolean;
 }) {
   const previewCache = untrack(() => props.previewCache);
   const onClose = untrack(() => props.onClose);
@@ -194,6 +269,19 @@ function ScrollPreviewOverlay(props: {
   const initialPreview = untrack(() => previewCache.current());
   const totalImages = initialPreview.data.totalImages;
   const maxPreviewIndex = initialPreview.data.maxIndex;
+  const readDirection = untrack(() => props.readDirection);
+  const horizontal = readDirection !== "ttb";
+  const rightToLeft = readDirection === "rtl";
+  const directionIcon = readDirection === "ttb"
+    ? "arrow-down"
+    : readDirection === "rtl"
+      ? "arrow-left"
+      : "arrow-right";
+  const directionLabel = readDirection === "ttb"
+    ? texts.gallery.scrollPreviewDirectionTtb
+    : readDirection === "rtl"
+      ? texts.gallery.scrollPreviewDirectionRtl
+      : texts.gallery.scrollPreviewDirectionLtr;
   const decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS);
   const flingAnimator = new ScrollFlingAnimator();
   const previewLoadQueue = new PriorityLoadQueue<number, GalleryPreviewDom>(
@@ -201,57 +289,68 @@ function ScrollPreviewOverlay(props: {
   );
   const requestedPreviewIndexes = new Set<number>();
   const [failedPreviewIndexes, setFailedPreviewIndexes] = createSignal<Set<number>>(new Set());
-  const [horizontalDragOffset, setHorizontalDragOffset] = createSignal(0);
+  const [crossCountOverride, setCrossCountOverride] = createSignal<number | null>(null);
+  const [embeddedPanelHeight, setEmbeddedPanelHeight] = createSignal<number | null>(null);
+  const [exitDragOffset, setExitDragOffset] = createSignal(0);
   const [loadingCount, setLoadingCount] = createSignal(0);
   const [previewLoadReady, setPreviewLoadReady] = createSignal(false);
-  const [scrollTop, setScrollTop] = createSignal(0);
-  const [viewportHeight, setViewportHeight] = createSignal(1);
+  const [scrollOffset, setScrollOffset] = createSignal(0);
   const [layout, setLayout] = createSignal<PreviewLayout>({
-    columns: 1,
-    rowHeight: MIN_TILE_HEIGHT + GRID_GAP,
+    crossCount: 1,
+    horizontal,
+    mainStride: horizontal ? MAX_TILE_WIDTH + GRID_GAP : MIN_TILE_HEIGHT + GRID_GAP,
     tileHeight: MIN_TILE_HEIGHT,
-    width: 1,
+    tileWidth: MAX_TILE_WIDTH,
+    viewportHeight: 1,
+    viewportWidth: 1,
   });
   let scroller!: HTMLDivElement;
   let overlay!: HTMLElement;
-  let dragDirection: "horizontal" | "vertical" | null = null;
-  let dragStartScrollTop: number | null = null;
+  let dragDirection: "exit" | "scroll" | null = null;
+  let dragStartPosition: number | null = null;
+  let pinchStartCrossCount = 1;
   let scrollFrame: number | null = null;
   let loadToken = 0;
   let initialized = false;
   let disposed = false;
 
-  const totalRows = createMemo(() => Math.ceil(totalImages / layout().columns));
-  const totalHeight = createMemo(() =>
-    Math.max(1, totalRows() * layout().rowHeight - GRID_GAP)
+  const totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount));
+  const totalMainSize = createMemo(() =>
+    Math.max(1, totalGroups() * layout().mainStride - GRID_GAP)
   );
-  const visibleStartRow = createMemo(() =>
+  const mainViewportSize = createMemo(() =>
+    horizontal ? layout().viewportWidth : layout().viewportHeight
+  );
+  const mainCanvasSize = createMemo(() =>
+    Math.max(totalMainSize(), mainViewportSize())
+  );
+  const visibleStartGroup = createMemo(() =>
     clamp(
-      Math.floor(scrollTop() / layout().rowHeight) - OVERSCAN_ROWS,
+      Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS,
       0,
-      Math.max(0, totalRows() - 1),
+      Math.max(0, totalGroups() - 1),
     )
   );
-  const visibleEndRow = createMemo(() =>
+  const visibleEndGroup = createMemo(() =>
     clamp(
-      Math.ceil((scrollTop() + viewportHeight()) / layout().rowHeight) + OVERSCAN_ROWS,
-      visibleStartRow(),
-      Math.max(0, totalRows() - 1),
+      Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS,
+      visibleStartGroup(),
+      Math.max(0, totalGroups() - 1),
     )
   );
   const visibleStartPageNum = createMemo(() =>
-    visibleStartRow() * layout().columns + 1
+    visibleStartGroup() * layout().crossCount + 1
   );
   const visibleEndPageNum = createMemo(() =>
-    Math.min(totalImages, (visibleEndRow() + 1) * layout().columns)
+    Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)
   );
   const screenStartPageNum = createMemo(() =>
-    Math.floor(scrollTop() / layout().rowHeight) * layout().columns + 1
+    Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1
   );
   const screenEndPageNum = createMemo(() => {
-    const bottom = Math.max(scrollTop(), scrollTop() + viewportHeight() - 1);
-    const endRow = Math.floor(bottom / layout().rowHeight);
-    return Math.min(totalImages, (endRow + 1) * layout().columns);
+    const end = Math.max(scrollOffset(), scrollOffset() + mainViewportSize() - 1);
+    const endGroup = Math.floor(end / layout().mainStride);
+    return Math.min(totalImages, (endGroup + 1) * layout().crossCount);
   });
   const visibleSlots = createMemo<PreviewSlot[]>(() => {
     previewCache.previewDataVersion();
@@ -266,11 +365,11 @@ function ScrollPreviewOverlay(props: {
   });
   const centeredPageNum = (): number => {
     const currentLayout = layout();
-    const centerRow = Math.floor(
-      (scrollTop() + viewportHeight() / 2) / currentLayout.rowHeight,
+    const centerGroup = Math.floor(
+      (scrollOffset() + mainViewportSize() / 2) / currentLayout.mainStride,
     );
     return clamp(
-      centerRow * currentLayout.columns + Math.floor(currentLayout.columns / 2) + 1,
+      centerGroup * currentLayout.crossCount + Math.floor(currentLayout.crossCount / 2) + 1,
       1,
       totalImages,
     );
@@ -278,59 +377,100 @@ function ScrollPreviewOverlay(props: {
   const centeredPreviewIndex = (): number =>
     previewCache.previewIndexForPage(centeredPageNum());
   const scrollPositionPage = (): number => {
-    const maxScrollTop = Math.max(0, totalHeight() - viewportHeight());
-    if (maxScrollTop === 0 || totalImages <= 1) {
+    const maxOffset = Math.max(0, totalMainSize() - mainViewportSize());
+    if (maxOffset === 0 || totalImages <= 1) {
       return 1;
     }
     return Math.round(
-      1 + clamp(scrollTop() / maxScrollTop, 0, 1) * (totalImages - 1),
+      1 + clamp(scrollOffset() / maxOffset, 0, 1) * (totalImages - 1),
     );
+  };
+  const maxScrollOffset = (): number =>
+    Math.max(0, totalMainSize() - mainViewportSize());
+  const readScrollOffset = (): number => {
+    if (!horizontal) {
+      return scroller.scrollTop;
+    }
+    return rightToLeft
+      ? maxScrollOffset() - scroller.scrollLeft
+      : scroller.scrollLeft;
+  };
+  const updateScrollOffset = (value: number): void => {
+    const next = clamp(value, 0, maxScrollOffset());
+    if (horizontal) {
+      scroller.scrollLeft = rightToLeft ? maxScrollOffset() - next : next;
+    } else {
+      scroller.scrollTop = next;
+    }
+    setScrollOffset(next);
   };
   const scrollToPositionPage = (pageNum: number): void => {
     flingAnimator.cancel();
-    const maxScrollTop = Math.max(0, totalHeight() - scroller.clientHeight);
     const ratio = totalImages <= 1
       ? 0
       : (clamp(pageNum, 1, totalImages) - 1) / (totalImages - 1);
-    scroller.scrollTop = ratio * maxScrollTop;
-    setScrollTop(scroller.scrollTop);
+    updateScrollOffset(ratio * maxScrollOffset());
+  };
+  const requestDirectionChange = (): void => {
+    if (!window.confirm(texts.gallery.confirmScrollPreviewDirection)) {
+      return;
+    }
+    props.onDirectionChange?.(
+      NEXT_SCROLL_PREVIEW_DIRECTION[readDirection],
+      centeredPageNum(),
+    );
   };
   createPointerGestureElement(
     () => scroller ?? null,
     () => ({
-      dragAxis: "any",
+      dragAxis: props.embedded
+        ? horizontal
+          ? "x"
+          : "y"
+        : "any",
       onStart: () => {
         flingAnimator.cancel();
         dragDirection = null;
-        dragStartScrollTop = scroller.scrollTop;
+        dragStartPosition = horizontal ? scroller.scrollLeft : scroller.scrollTop;
       },
       onMove: (info) => {
         if (dragDirection === null) {
-          dragDirection = Math.abs(info.dx) > Math.abs(info.dy)
-            ? "horizontal"
-            : "vertical";
+          const mainDelta = horizontal ? Math.abs(info.dx) : Math.abs(info.dy);
+          const exitDelta = horizontal ? Math.abs(info.dy) : Math.abs(info.dx);
+          dragDirection = props.embedded || mainDelta >= exitDelta
+            ? "scroll"
+            : "exit";
         }
-        if (dragDirection === "horizontal") {
-          setHorizontalDragOffset(info.dx);
+        if (dragDirection === "exit") {
+          setExitDragOffset(horizontal ? info.dy : info.dx);
           return;
         }
-        if (dragStartScrollTop === null) {
+        if (dragStartPosition === null) {
           return;
         }
-        scroller.scrollTop = dragStartScrollTop - info.dy;
+        if (horizontal) {
+          scroller.scrollLeft = dragStartPosition - info.dx;
+        } else {
+          scroller.scrollTop = dragStartPosition - info.dy;
+        }
       },
       onEnd: (info) => {
-        dragStartScrollTop = null;
-        if (dragDirection === "horizontal") {
-          const offset = horizontalDragOffset();
-          const exit = Math.abs(offset) >= overlay.clientWidth * 0.2 ||
-            Math.abs(info.velocityX) >= 0.6;
+        dragStartPosition = null;
+        if (dragDirection === "exit") {
+          const offset = exitDragOffset();
+          const exitSize = horizontal ? overlay.clientHeight : overlay.clientWidth;
+          const exitVelocity = horizontal ? info.velocityY : info.velocityX;
+          const exit = Math.abs(offset) >= exitSize * 0.2 ||
+            Math.abs(exitVelocity) >= 0.6;
           dragDirection = null;
           if (exit) {
             const direction = offset === 0
-              ? Math.sign(info.velocityX) || 1
+              ? Math.sign(exitVelocity) || 1
               : Math.sign(offset);
             const previewIndex = centeredPreviewIndex();
+            const translation = horizontal
+              ? `0, ${direction * 100}vh`
+              : `${direction * 100}vw, 0`;
             void overlay.animate(
               [
                 {
@@ -339,7 +479,7 @@ function ScrollPreviewOverlay(props: {
                 },
                 {
                   opacity: 0.7,
-                  transform: `translate3d(${direction * 100}vw, 0, 0) scale(var(--ehpeek-reader-fullscreen-ui-scale, 1)) scale(0.97)`,
+                  transform: `translate3d(${translation}, 0) scale(var(--ehpeek-reader-fullscreen-ui-scale, 1)) scale(0.97)`,
                 },
               ],
               {
@@ -347,7 +487,7 @@ function ScrollPreviewOverlay(props: {
                 easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
                 fill: "forwards",
               },
-            ).finished.then(() => onClose(previewIndex));
+            ).finished.then(() => onClose?.(previewIndex));
             return;
           }
           void overlay.animate(
@@ -362,20 +502,34 @@ function ScrollPreviewOverlay(props: {
               },
             ],
             { duration: 180, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
-          ).finished.then(() => setHorizontalDragOffset(0));
+          ).finished.then(() => setExitDragOffset(0));
           return;
         }
         dragDirection = null;
         flingAnimator.start({
-          axis: "y",
+          axis: horizontal ? "x" : "y",
           scroller,
-          initialVelocity: -info.velocityY,
+          initialVelocity: -(horizontal ? info.velocityX : info.velocityY),
           setScrollPosition: (position) => {
-            scroller.scrollTop = position;
+            if (horizontal) {
+              scroller.scrollLeft = position;
+            } else {
+              scroller.scrollTop = position;
+            }
           },
           canRun: () => !disposed && scroller.isConnected,
-          onStop: () => setScrollTop(scroller.scrollTop),
+          onStop: () => setScrollOffset(readScrollOffset()),
         });
+      },
+      onPinchStart: () => {
+        flingAnimator.cancel();
+        pinchStartCrossCount = layout().crossCount;
+        return true;
+      },
+      onPinchMove: (info) => {
+        setCrossCountOverride(
+          clamp(Math.round(pinchStartCrossCount / info.scale), 1, MAX_CROSS_COUNT),
+        );
       },
     }),
   );
@@ -431,15 +585,16 @@ function ScrollPreviewOverlay(props: {
   });
 
   const scrollToPage = (pageNum: number, currentLayout = untrack(layout)): void => {
-    const row = Math.floor((clamp(pageNum, 1, totalImages) - 1) / currentLayout.columns);
-    const centeredTop = row * currentLayout.rowHeight -
-      (scroller.clientHeight - currentLayout.tileHeight) / 2;
-    scroller.scrollTop = clamp(
-      centeredTop,
-      0,
-      Math.max(0, totalHeight() - scroller.clientHeight),
+    const group = Math.floor(
+      (clamp(pageNum, 1, totalImages) - 1) / currentLayout.crossCount,
     );
-    setScrollTop(scroller.scrollTop);
+    const tileMainSize = currentLayout.horizontal
+      ? currentLayout.tileWidth
+      : currentLayout.tileHeight;
+    updateScrollOffset(
+      group * currentLayout.mainStride -
+        (mainViewportSize() - tileMainSize) / 2,
+    );
   };
   const scrollToPreview = (previewIndex: number, currentLayout: PreviewLayout): void => {
     scrollToPage(previewIndex * initialPreview.data.pageSize + 1, currentLayout);
@@ -464,27 +619,70 @@ function ScrollPreviewOverlay(props: {
     setPreviewLoadReady(false);
     const width = Math.max(1, scroller.clientWidth);
     const height = Math.max(1, scroller.clientHeight);
-    const previous = untrack(layout);
-    const anchorPageIndex = Math.floor(untrack(scrollTop) / previous.rowHeight) * previous.columns;
-    const columns = Math.max(1, Math.ceil((width + GRID_GAP) / (MAX_TILE_WIDTH + GRID_GAP)));
-    const tileWidth = Math.max(1, (width - GRID_GAP * (columns - 1)) / columns);
-    const tileHeight = Math.round(clamp(tileWidth * 1.42, MIN_TILE_HEIGHT, MAX_TILE_HEIGHT));
+    const anchorPageNum = initialized ? centeredPageNum() : null;
+    const itemsPerRow = Math.max(
+      1,
+      Math.ceil((width + GRID_GAP) / (MAX_TILE_WIDTH + GRID_GAP)),
+    );
+    const itemWidth = Math.max(
+      1,
+      (width - GRID_GAP * (itemsPerRow - 1)) / itemsPerRow,
+    );
+    const itemHeight = Math.round(
+      clamp(itemWidth * 1.42, MIN_TILE_HEIGHT, MAX_TILE_HEIGHT),
+    );
+    const panelChromeHeight = Math.max(0, overlay.clientHeight - height);
+    const targetContentHeight = Math.max(
+      itemHeight,
+      window.innerHeight * 0.55 - panelChromeHeight,
+    );
+    const embeddedRows = Math.max(
+      1,
+      Math.ceil(
+        (targetContentHeight + GRID_GAP) / (itemHeight + GRID_GAP),
+      ),
+    );
+    const automaticCrossCount = horizontal
+      ? props.embedded
+        ? embeddedRows
+        : Math.max(1, Math.ceil((height + GRID_GAP) / (MAX_TILE_HEIGHT + GRID_GAP)))
+      : itemsPerRow;
+    const crossCount = crossCountOverride() ?? automaticCrossCount;
+    if (
+      props.embedded &&
+      !props.fillContainer &&
+      horizontal &&
+      crossCountOverride() === null
+    ) {
+      const contentHeight =
+        embeddedRows * itemHeight + GRID_GAP * (embeddedRows - 1);
+      const panelHeight = Math.round(panelChromeHeight + contentHeight);
+      setEmbeddedPanelHeight((current) =>
+        current === panelHeight ? current : panelHeight);
+    }
+    const tileWidth = horizontal
+      ? itemWidth
+      : Math.max(1, (width - GRID_GAP * (crossCount - 1)) / crossCount);
+    const tileHeight = horizontal
+      ? Math.max(1, (height - GRID_GAP * (crossCount - 1)) / crossCount)
+      : Math.round(clamp(tileWidth * 1.42, MIN_TILE_HEIGHT, MAX_TILE_HEIGHT));
     const next = {
-      columns,
-      rowHeight: tileHeight + GRID_GAP,
+      crossCount,
+      horizontal,
+      mainStride: (horizontal ? tileWidth : tileHeight) + GRID_GAP,
       tileHeight,
-      width,
+      tileWidth,
+      viewportHeight: height,
+      viewportWidth: width,
     };
     setLayout(next);
-    setViewportHeight(height);
 
     queueMicrotask(() => untrack(() => {
       if (!scroller.isConnected) {
         return;
       }
       if (initialized) {
-        scroller.scrollTop = Math.floor(anchorPageIndex / next.columns) * next.rowHeight;
-        setScrollTop(scroller.scrollTop);
+        scrollToPage(anchorPageNum ?? centeredPageNum(), next);
       } else {
         initialized = true;
         if (props.targetPageNum === null) {
@@ -497,11 +695,20 @@ function ScrollPreviewOverlay(props: {
     }));
   };
 
+  createEffect(() => {
+    crossCountOverride();
+    if (initialized) {
+      updateLayout();
+    }
+  });
+
   onMount(() => {
     const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
+    if (!props.embedded) {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    }
     const resizeObserver = new ResizeObserver(updateLayout);
     resizeObserver.observe(scroller);
     updateLayout();
@@ -510,8 +717,10 @@ function ScrollPreviewOverlay(props: {
       flingAnimator.cancel();
       previewLoadQueue.dispose();
       resizeObserver.disconnect();
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousHtmlOverflow;
+      if (!props.embedded) {
+        document.body.style.overflow = previousBodyOverflow;
+        document.documentElement.style.overflow = previousHtmlOverflow;
+      }
       decodeCache.dispose();
       if (scrollFrame !== null) {
         window.cancelAnimationFrame(scrollFrame);
@@ -522,69 +731,172 @@ function ScrollPreviewOverlay(props: {
   return (
     <section
       ref={overlay}
-      class="ehpeek-scroll-preview fixed inset-0 z-[1300] box-border flex w-full h-[100dvh] flex-col overflow-hidden bg-[var(--color-background)] text-[var(--color-text)] font-sans textsize-md leading-[1.4]"
+      class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]"
+      classList={{
+        "fixed inset-0 z-[1300] h-[100dvh] bg-[var(--color-background)]":
+          !props.embedded,
+        "border ehp-color-site-border rounded-sm bg-[var(--color-site-elevated)]":
+          props.embedded,
+        "relative h-[55dvh]":
+          props.embedded && !props.fillContainer,
+        "relative h-full": props.embedded && props.fillContainer,
+        "w-full": !props.embedded || props.fillContainer,
+        "[width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90dvh)] mx-auto":
+          props.embedded && !props.fillContainer,
+      }}
       style={{
-        opacity: `${1 - Math.min(0.15, Math.abs(horizontalDragOffset()) / Math.max(1, window.innerWidth) * 0.15)}`,
-        transform: `translate3d(${horizontalDragOffset()}px, 0, 0) scale(var(--ehpeek-reader-fullscreen-ui-scale, 1)) scale(${1 - Math.min(0.03, Math.abs(horizontalDragOffset()) / Math.max(1, window.innerWidth) * 0.03)})`,
+        height: props.embedded &&
+            !props.fillContainer &&
+            horizontal &&
+            embeddedPanelHeight() !== null
+          ? `${embeddedPanelHeight()}px`
+          : undefined,
+        opacity: props.embedded
+          ? "1"
+          : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`,
+        transform: props.embedded
+          ? "none"
+          : `translate3d(${horizontal ? 0 : exitDragOffset()}px, ${horizontal ? exitDragOffset() : 0}px, 0) scale(var(--ehpeek-reader-fullscreen-ui-scale, 1)) scale(${1 - Math.min(0.03, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.03)})`,
       }}
     >
-      <div class="flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-border)] textsize-sm">
-        <span class="flex items-center gap-sm opacity-75">
-          <Show when={loadingCount() > 0}>
-            <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
-          </Show>
-          {`${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`}
-        </span>
-        <div class="flex flex-none gap-sm">
+      <Show
+        when={props.embedded}
+        fallback={
+          <div class="flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-border)] textsize-sm">
+            <span class="flex items-center gap-sm opacity-75">
+              <Show when={loadingCount() > 0}>
+                <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
+              </Show>
+              {`${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`}
+            </span>
+            <div class="flex flex-none gap-sm">
+              <button
+                type="button"
+                class={READER_FLOATING_ACTION_CLASS}
+                disabled={props.highlightedPageNum === null}
+                onClick={() => {
+                  if (props.highlightedPageNum !== null) {
+                    flingAnimator.cancel();
+                    scrollToPage(props.highlightedPageNum);
+                  }
+                }}
+              >
+                {texts.button.current}
+              </button>
+              <button
+                type="button"
+                class={READER_FLOATING_ACTION_CLASS}
+                aria-label={directionLabel}
+                title={directionLabel}
+                onClick={requestDirectionChange}
+              >
+                <Icon
+                  name={directionIcon}
+                  size="var(--ui-icon-size-md)"
+                />
+              </button>
+              <button
+                type="button"
+                class={READER_FLOATING_ACTION_CLASS}
+                aria-label={texts.button.close}
+                title={texts.button.close}
+                onClick={() => onClose?.(centeredPreviewIndex())}
+              >
+                <span aria-hidden="true">X</span>
+              </button>
+            </div>
+          </div>
+        }
+      >
+        <div class="flex min-h-[var(--ui-control-size-xs)] flex-none items-center justify-center gap-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs">
+          <span class="inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75">
+            <Show when={loadingCount() > 0}>
+              <span class="block w-[var(--ui-icon-size-xs)] h-[var(--ui-icon-size-xs)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
+            </Show>
+            {`${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`}
+          </span>
           <button
             type="button"
-            class={READER_FLOATING_ACTION_CLASS}
-            disabled={props.highlightedPageNum === null}
-            onClick={() => {
-              if (props.highlightedPageNum !== null) {
-                flingAnimator.cancel();
-                scrollToPage(props.highlightedPageNum);
-              }
-            }}
+            class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"
+            aria-label={directionLabel}
+            title={directionLabel}
+            onClick={requestDirectionChange}
           >
-            {texts.button.current}
+            <Icon name={directionIcon} size="var(--ui-icon-size-xs)" />
           </button>
           <button
             type="button"
-            class={READER_FLOATING_ACTION_CLASS}
-            aria-label={texts.button.close}
-            title={texts.button.close}
-            onClick={() => onClose(centeredPreviewIndex())}
+            class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"
+            aria-label={texts.gallery.openScrollPreview}
+            title={texts.gallery.openScrollPreview}
+            onClick={() => props.onOpenOverlay?.(centeredPageNum())}
           >
-            <span aria-hidden="true">X</span>
+            <Icon name="fullscreen" size="var(--ui-icon-size-xs)" />
           </button>
         </div>
-      </div>
+      </Show>
       <div class="relative min-h-0 w-full flex-1">
         <div
           ref={scroller}
-          class="absolute inset-0 box-border overflow-y-auto overflow-x-hidden overscroll-contain bg-[var(--color-surface)] cursor-grab [touch-action:none] [&[data-dragging=true]]:(cursor-grabbing select-none) [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]"
+          class="absolute box-border bg-[var(--color-surface)] cursor-grab [&[data-dragging=true]]:(cursor-grabbing select-none) [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"
+          classList={{
+            "inset-0": !props.embedded,
+            "top-0 right-xs left-xs": props.embedded,
+            "bottom-[calc(var(--ui-control-size-xs)/2)]":
+              props.embedded && horizontal,
+            "bottom-xs": props.embedded && !horizontal,
+            "overflow-x-auto overflow-y-hidden": horizontal,
+            "overflow-y-auto overflow-x-hidden": !horizontal,
+            "overscroll-auto": props.embedded,
+            "[touch-action:pan-x]": props.embedded && !horizontal,
+            "[touch-action:pan-y]": props.embedded && horizontal,
+            "overscroll-contain [touch-action:none]": !props.embedded,
+          }}
           onScroll={() => {
             if (scrollFrame !== null) {
               return;
             }
             scrollFrame = window.requestAnimationFrame(() => {
               scrollFrame = null;
-              setScrollTop(scroller.scrollTop);
+              setScrollOffset(untrack(readScrollOffset));
             });
           }}
           onWheel={() => flingAnimator.cancel()}
         >
-          <div class="relative w-full" style={{ height: `${totalHeight()}px` }}>
-            <div
-              class="absolute left-0 right-0 grid gap-8px p-0"
-              style={{
-                "grid-template-columns": `repeat(${layout().columns}, minmax(0, 1fr))`,
-                top: `${visibleStartRow() * layout().rowHeight}px`,
-              }}
-            >
-              <For each={visibleSlots()}>{(slot) => (
+          <div
+            class="relative"
+            style={{
+              height: horizontal ? "100%" : `${totalMainSize()}px`,
+              width: horizontal ? `${mainCanvasSize()}px` : "100%",
+            }}
+          >
+            <For each={visibleSlots()}>{(slot) => {
+              const itemIndex = () => slot.pageNum - 1;
+              const group = () => Math.floor(itemIndex() / layout().crossCount);
+              const crossIndex = () => itemIndex() % layout().crossCount;
+              const left = () => {
+                if (!horizontal) {
+                  return crossIndex() * (layout().tileWidth + GRID_GAP);
+                }
+                return rightToLeft
+                  ? mainCanvasSize() - layout().tileWidth - group() * layout().mainStride
+                  : group() * layout().mainStride;
+              };
+              const top = () => horizontal
+                ? crossIndex() * (layout().tileHeight + GRID_GAP)
+                : group() * layout().mainStride;
+              return (
+                <div
+                  class="absolute"
+                  style={{
+                    height: `${layout().tileHeight}px`,
+                    left: `${left()}px`,
+                    top: `${top()}px`,
+                    width: `${layout().tileWidth}px`,
+                  }}
+                >
                 <PreviewTile
+                  alignment={rightToLeft ? "right" : horizontal ? "left" : "center"}
                   decodeCache={decodeCache}
                   failed={failedPreviewIndexes().has(previewCache.previewIndexForPage(slot.pageNum))}
                   height={layout().tileHeight}
@@ -599,27 +911,47 @@ function ScrollPreviewOverlay(props: {
                       retryIndex,
                     );
                   }}
+                  width={layout().tileWidth}
                 />
-              )}</For>
-            </div>
+                </div>
+              );
+            }}</For>
           </div>
         </div>
-        <VerticalPositionBar
-          ariaLabel={texts.gallery.scrollPreview}
-          currentValue={scrollPositionPage()}
-          expanded
-          maxValue={totalImages}
-          onInput={scrollToPositionPage}
-          position="absolute"
-          variant="reader"
-          visibleValueCount={screenEndPageNum() - screenStartPageNum() + 1}
-        />
+        <Show when={!horizontal}>
+          <PositionBar
+            ariaLabel={texts.gallery.scrollPreview}
+            axis="vertical"
+            currentValue={scrollPositionPage()}
+            expanded
+            maxValue={totalImages}
+            onInput={scrollToPositionPage}
+            position="absolute"
+            trackVisible={false}
+            variant={props.embedded ? "site" : "reader"}
+            visibleValueCount={screenEndPageNum() - screenStartPageNum() + 1}
+          />
+        </Show>
+        <Show when={horizontal}>
+          <PositionBar
+            ariaLabel={texts.gallery.scrollPreview}
+            axis="horizontal"
+            currentValue={scrollPositionPage()}
+            maxValue={totalImages}
+            onInput={scrollToPositionPage}
+            reversed={rightToLeft}
+            trackVisible={false}
+            variant={props.embedded ? "site" : "reader"}
+            visibleValueCount={screenEndPageNum() - screenStartPageNum() + 1}
+          />
+        </Show>
       </div>
     </section>
   );
 }
 
 function PreviewTile(props: {
+  alignment: "center" | "left" | "right";
   decodeCache: PreviewDecodeCache;
   failed: boolean;
   height: number;
@@ -628,6 +960,7 @@ function PreviewTile(props: {
   pageNum: number;
   onOpenPage: (pageUrl: string, pageNum: number) => void;
   onRetry: () => void;
+  width: number;
 }) {
   let releaseDecodedImage: (() => void) | null = null;
 
@@ -641,7 +974,12 @@ function PreviewTile(props: {
 
   return (
     <div
-      class="relative flex min-w-0 items-center justify-center overflow-hidden rounded-sm bg-[var(--color-background)]"
+      class="relative flex w-full min-w-0 items-start overflow-hidden rounded-sm bg-[var(--color-background)]"
+      classList={{
+        "justify-center": props.alignment === "center",
+        "justify-start": props.alignment === "left",
+        "justify-end": props.alignment === "right",
+      }}
       style={{ height: `${props.height}px` }}
     >
       <Show
@@ -679,13 +1017,23 @@ function PreviewTile(props: {
               }
             >
               <span
-                class="pointer-events-none block flex-none max-w-full max-h-full"
+                class="pointer-events-none block flex-none"
                 style={{
                   "background-image": `url(${JSON.stringify(item.thumbnail.url)})`,
                   "background-position": item.thumbnail.backgroundPosition,
                   "background-repeat": item.thumbnail.backgroundRepeat,
                   "background-size": item.thumbnail.backgroundSize,
                   height: `${item.thumbnail.height}px`,
+                  transform: `scale(${Math.min(
+                    1,
+                    props.width / item.thumbnail.width,
+                    props.height / item.thumbnail.height,
+                  )})`,
+                  "transform-origin": props.alignment === "right"
+                    ? "right top"
+                    : props.alignment === "left"
+                      ? "left top"
+                      : "center top",
                   width: `${item.thumbnail.width}px`,
                 }}
                 role="img"

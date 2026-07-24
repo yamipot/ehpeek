@@ -6,7 +6,9 @@ import { InteractionHelp } from "./InteractionHelp";
 type SettingsMenuState = {
   openGalleryInNewTab: boolean;
   readerEnabled: boolean;
+  exitReaderOnFullscreenExit: boolean;
   readerFullscreenEnabled: boolean;
+  replacePreviewWithScroll: boolean;
   enhanceThumbsGridsEnabled: boolean;
   enhanceSearchGridsEnabled: boolean;
   myTagsEnabled: boolean;
@@ -241,6 +243,12 @@ export function SettingsMenu(props: {
               onChange={(value) => updateDraft("enhanceThumbsGridsEnabled", value)}
             />
             <SwitchButton
+              checked={draft.replacePreviewWithScroll}
+              description={texts.settings.replacePreviewWithScrollHelp}
+              label={texts.settings.replacePreviewWithScrollLabel}
+              onChange={(value) => updateDraft("replacePreviewWithScroll", value)}
+            />
+            <SwitchButton
               checked={draft.myTagsEnabled}
               description={texts.settings.myTagsHelp}
               label={texts.settings.myTagsLabel}
@@ -265,6 +273,12 @@ export function SettingsMenu(props: {
               description={texts.settings.readerFullscreenHelp}
               label={texts.settings.readerFullscreenLabel}
               onChange={(value) => updateDraft("readerFullscreenEnabled", value)}
+            />
+            <SwitchButton
+              checked={draft.exitReaderOnFullscreenExit}
+              description={texts.settings.exitReaderOnFullscreenExitHelp}
+              label={texts.settings.exitReaderOnFullscreenExitLabel}
+              onChange={(value) => updateDraft("exitReaderOnFullscreenExit", value)}
             />
             <SwitchButton
               checked={draft.openGalleryInNewTab}

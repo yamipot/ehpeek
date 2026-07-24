@@ -35,6 +35,9 @@ function TouchTopBarUiMenu(props: {
   };
 }) {
   const [open, setOpen] = createSignal(false);
+  const [fullscreenActive, setFullscreenActive] = createSignal(
+    Boolean(document.fullscreenElement),
+  );
   let root!: HTMLDivElement;
 
   onMount(() => {
@@ -45,7 +48,14 @@ function TouchTopBarUiMenu(props: {
     };
 
     document.addEventListener("click", onClick);
-    onCleanup(() => document.removeEventListener("click", onClick));
+    const onFullscreenChange = () => {
+      setFullscreenActive(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    onCleanup(() => {
+      document.removeEventListener("click", onClick);
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+    });
   });
 
   return (
@@ -78,6 +88,30 @@ function TouchTopBarUiMenu(props: {
               props.uiScale.onChange(NEXT_UI_SCALE[props.uiScale.value()])}
           >
             <Icon name="viewport" size={TOUCH_TOP_BAR_ICON_SIZE} />
+          </button>
+          <button
+            type="button"
+            class={TOUCH_ICON_BUTTON_CLASS}
+            disabled={!fullscreenActive() && !document.fullscreenEnabled}
+            aria-label={fullscreenActive()
+              ? texts.reader.exitFullscreen
+              : texts.reader.fullscreen}
+            title={fullscreenActive()
+              ? texts.reader.exitFullscreen
+              : texts.reader.fullscreen}
+            onClick={() => {
+              const request = fullscreenActive()
+                ? document.exitFullscreen()
+                : document.documentElement.requestFullscreen();
+              void request.catch((error: unknown) => {
+                console.warn("[ehpeek] Fullscreen request failed", error);
+              });
+            }}
+          >
+            <Icon
+              name={fullscreenActive() ? "fullscreen-exit" : "fullscreen"}
+              size={TOUCH_TOP_BAR_ICON_SIZE}
+            />
           </button>
           <Show when={props.columns}>
             {(columns) => (

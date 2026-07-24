@@ -1,5 +1,5 @@
 import type { ToolbarCallbacks } from "./Toolbar";
-import { VerticalPositionBar } from "../Widgets/VerticalPositionBar";
+import { PositionBar } from "../Widgets/PositionBar";
 
 export function ReaderScrollBar(props: {
   callbacks: Pick<
@@ -12,8 +12,9 @@ export function ReaderScrollBar(props: {
   visible: boolean;
 }) {
   return (
-    <VerticalPositionBar
+    <PositionBar
       ariaLabel="Reader position"
+      axis="vertical"
       class="ehpeek-reader-scrollbar"
       currentValue={props.currentPage}
       expanded={props.expanded}

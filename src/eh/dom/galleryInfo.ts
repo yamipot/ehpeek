@@ -476,6 +476,7 @@ export function mutateGalleryWideLayout(
   info: GalleryInfoDom,
   preview: GalleryPreviewDom,
   initiallyEnabled: boolean,
+  replacesOriginalPreview: boolean,
 ) {
   const page = DomNode.from(document).use(domClass.page);
   const source = DomNode.from(document).use(domClass.gallery);
@@ -496,8 +497,11 @@ export function mutateGalleryWideLayout(
 
   const leftNodes = [info.elems.host, commentsAnchor, comments]
     .filter((node) => node !== null);
-  const rightNodes = [pageBarTopHost, previewMount, thumbs, pageBarBottomHost]
-    .filter((node) => node !== null);
+  const rightNodes = (
+    replacesOriginalPreview
+      ? [previewMount]
+      : [pageBarTopHost, previewMount, thumbs, pageBarBottomHost]
+  ).filter((node) => node !== null);
   let layout: ManagedDomNode | null = null;
   let positions: Array<{
     marker: ManagedDomNode;

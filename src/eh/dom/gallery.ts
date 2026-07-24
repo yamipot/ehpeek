@@ -340,6 +340,13 @@ export function manageGalleryPreview(
     updatePreviewLoading(loading: boolean): void {
       elems.thumbs?.attribute("aria-busy", String(loading));
     },
+    /** Removes the original Preview UI after its data has been detached for Scroll Preview. */
+    removeOriginalPreview(): void {
+      elems.originalPageBarTop?.remove();
+      elems.originalPageBarBottom?.remove();
+      elems.originalPageDescription?.remove();
+      elems.thumbs?.remove();
+    },
     /** Replaces both original page bars with mounts owned by EhPeek pagination. */
     installPreviewPageBars(): void {
       DomNode.from(document).use(domClass.page).body.inplace()?.apply("hidePreviewPageBars");

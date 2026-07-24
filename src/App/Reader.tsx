@@ -21,6 +21,7 @@ type ReaderFullscreenLaunch = {
 
 export type ReaderCallbacks = {
   enhanceThumbsGridsEnabled: boolean;
+  exitReaderOnFullscreenExit: boolean;
   readHistoryEnabled: boolean;
   onGotoPreviewIndex: (previewIndex: number) => void;
   onOpenScrollPreview: (pageNum: number) => void;
@@ -188,6 +189,7 @@ async function openReader(
     initialPageNum: startPageNum,
     totalPages,
   }, previewCache, {
+    exitReaderOnFullscreenExit: callbacks.exitReaderOnFullscreenExit,
     onActivePageChange: (page) => {
       if (page.pageNum) {
         lastPageNum = page.pageNum;
@@ -217,7 +219,7 @@ function mountReader(
   callbacks: Pick<
     ReaderComponentCallbacks,
     "onActivePageChange" | "onOpenOriginalPage" | "onOpenScrollPreview"
-  >,
+  > & Pick<ReaderCallbacks, "exitReaderOnFullscreenExit">,
   lockPageScroll: () => () => void,
   fullscreen: ReaderFullscreenController,
   onExit: () => void,
@@ -286,7 +288,7 @@ function mountReader(
   activeReaderClose = close;
   const unsubscribeFullscreen = fullscreen.subscribe((active) => {
     setFullscreenActive(active);
-    if (!active && !keepReaderOpen) {
+    if (!active && !keepReaderOpen && callbacks.exitReaderOnFullscreenExit) {
       requestClose();
     }
     keepReaderOpen = false;

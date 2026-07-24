@@ -60,7 +60,9 @@ function settingsMenuState(defaults = false) {
   return {
     openGalleryInNewTab: read(state.app.openGalleryInNewTab),
     readerEnabled: read(state.reader.enabled),
+    exitReaderOnFullscreenExit: read(state.reader.exitOnFullscreenExit),
     readerFullscreenEnabled: read(state.reader.fullscreen),
+    replacePreviewWithScroll: read(state.gallery.replacePreviewWithScroll),
     enhanceThumbsGridsEnabled: read(state.gallery.enhanceThumbs),
     enhanceSearchGridsEnabled: read(state.search.enhance),
     myTagsEnabled: read(state.gallery.myTags),
@@ -76,7 +78,9 @@ function applySettingsMenuState(
 ): void {
   state.app.openGalleryInNewTab.set(next.openGalleryInNewTab);
   state.reader.enabled.set(next.readerEnabled);
+  state.reader.exitOnFullscreenExit.set(next.exitReaderOnFullscreenExit);
   state.reader.fullscreen.set(next.readerFullscreenEnabled);
+  state.gallery.replacePreviewWithScroll.set(next.replacePreviewWithScroll);
   state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled);
   state.search.enhance.set(next.enhanceSearchGridsEnabled);
   state.gallery.myTags.set(next.myTagsEnabled);
@@ -139,10 +143,10 @@ function updateColumnsLayout(): void {
     return;
   }
   const enabled = currentColumnsEnabled();
-  gState.setColumnsEnabled(enabled);
   gState.galleryWideLayout?.updateEnabled(enabled);
   gState.readHistoryPage?.handle.updateResultColumns(enabled);
   gState.searchResults?.handle.updateResultColumns(enabled);
+  gState.setColumnsEnabled(enabled);
 }
 
 function setCurrentColumnsEnabled(enabled: boolean): void {
@@ -150,10 +154,10 @@ function setCurrentColumnsEnabled(enabled: boolean): void {
     ? state.touch.landscapeColumns
     : state.touch.portraitColumns;
   setting.set(enabled);
-  gState.setColumnsEnabled(enabled);
   gState.galleryWideLayout?.updateEnabled(enabled);
   gState.readHistoryPage?.handle.updateResultColumns(enabled);
   gState.searchResults?.handle.updateResultColumns(enabled);
+  gState.setColumnsEnabled(enabled);
 }
 
 function setCurrentUiScale(scale: UiScale): void {
@@ -173,8 +177,11 @@ registerGlobalStyle("ehpeek-dom-style", ehDomCss);
 
 const readerCallbacks: ReaderCallbacks = {
   get enhanceThumbsGridsEnabled() {
-    return gState.settings.enhanceThumbsGridsEnabled || gState.scrollPreviewOpen;
+    return gState.settings.enhanceThumbsGridsEnabled ||
+      gState.settings.replacePreviewWithScroll ||
+      gState.scrollPreviewOpen;
   },
+  exitReaderOnFullscreenExit: gState.settings.exitReaderOnFullscreenExit,
   readHistoryEnabled: gState.settings.readHistoryEnabled,
   onGotoPreviewIndex: (previewIndex) => {
     if (gState.scrollPreviewOpen) {
@@ -382,10 +389,14 @@ function injectEnhanceUI(
 
   if (
     galleryPage &&
+    preview &&
     previewCache &&
     previewMount
   ) {
     allowFeatureFailure("Gallery Preview enhancements", () => {
+      if (gState.settings.replacePreviewWithScroll) {
+        preview.handle.removeOriginalPreview();
+      }
       previewMount.mount(() => (
         <>
           <ScrollPreview
@@ -396,11 +407,16 @@ function injectEnhanceUI(
                 gState.readProgress().hasHistory
               ? gState.readProgress().currentPage
               : null}
+            embeddedDirection={state.gallery.embeddedScrollPreviewDirection.value}
+            fillEmbeddedContainer={gState.columnsEnabled}
             onExitPreview={(previewIndex) => {
               if (previewIndex === previewCache.current().data.currentIndex) {
                 return;
               }
-              if (gState.settings.enhanceThumbsGridsEnabled) {
+              if (
+                gState.settings.enhanceThumbsGridsEnabled ||
+                gState.settings.replacePreviewWithScroll
+              ) {
                 void previewCache.select(previewIndex).catch(reportReaderOpenError);
               } else {
                 window.location.assign(
@@ -413,9 +429,18 @@ function injectEnhanceUI(
               gState.scrollPreviewOpen = open;
             }}
             onOpenPage={(pageUrl, pageNum) => openGalleryPage(previewCache, pageUrl, pageNum)}
+            onEmbeddedDirectionChange={(direction) => {
+              state.gallery.embeddedScrollPreviewDirection.set(direction);
+            }}
+            onReadDirectionChange={(direction) => {
+              state.gallery.scrollPreviewDirection.set(direction);
+            }}
             previewCache={previewCache}
+            readDirection={state.gallery.scrollPreviewDirection.value}
+            replaceOriginalPreview={gState.settings.replacePreviewWithScroll}
           />
-          {gState.settings.enhanceThumbsGridsEnabled ? (
+          {gState.settings.enhanceThumbsGridsEnabled &&
+          !gState.settings.replacePreviewWithScroll ? (
             <ThumbsGrids
               actionsRef={(actions) => {
                 gState.thumbsGridsActions = actions;
@@ -546,6 +571,7 @@ function injectTouchUI(
             galleryInfoDom,
             preview,
             gState.columnsEnabled(),
+            gState.settings.replacePreviewWithScroll,
           );
         }
       }
