@@ -14,7 +14,7 @@ import type { GalleryPreviewDom, GalleryPreviewItem } from "../../eh";
 import { observeFullscreenUiSizing } from "../../fullscreenUi";
 import type { ReadDirection } from "../../state";
 import texts from "../../texts.json";
-import { clamp } from "../../utils";
+import { clamp, normalizedAspectRatio } from "../../utils";
 import { ScrollFlingAnimator } from "../animation";
 import { createPointerGestureElement } from "../PointerGesture";
 import {
@@ -25,6 +25,8 @@ import { PositionBar } from "../Widgets/PositionBar";
 import { PriorityLoadQueue } from "../Widgets/PriorityLoadQueue";
 
 const GRID_GAP = 8;
+const FALLBACK_TILE_ASPECT_RATIO = 1.42;
+const HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6;
 const MAX_TILE_WIDTH = 220;
 const MIN_TILE_HEIGHT = 170;
 const MAX_TILE_HEIGHT = 290;
@@ -34,6 +36,7 @@ const PREVIEW_CONCURRENT_LOADS = 2;
 const PREVIEW_LOAD_RADIUS = 2;
 const DECODE_CACHE_BYTES = 64 * 1024 * 1024;
 const DECODE_CACHE_ITEMS = 160;
+const SMALL_GALLERY_SINGLE_LINE_LIMIT = 3;
 const NEXT_SCROLL_PREVIEW_DIRECTION: Record<ReadDirection, ReadDirection> = {
   ltr: "rtl",
   rtl: "ttb",
@@ -270,6 +273,9 @@ function ScrollPreviewPanel(props: {
   const initialPreview = untrack(() => previewCache.current());
   const totalImages = initialPreview.data.totalImages;
   const maxPreviewIndex = initialPreview.data.maxIndex;
+  const tileAspectRatio = dominantAspectRatio(
+    initialPreview.data.previewItems,
+  );
   const readDirection = untrack(() => props.readDirection);
   const horizontal = readDirection !== "ttb";
   const rightToLeft = readDirection === "rtl";
@@ -510,7 +516,9 @@ function ScrollPreviewPanel(props: {
         flingAnimator.start({
           axis: horizontal ? "x" : "y",
           scroller,
-          initialVelocity: -(horizontal ? info.velocityX : info.velocityY),
+          initialVelocity: -(horizontal
+            ? info.velocityX * HORIZONTAL_FLING_VELOCITY_FACTOR
+            : info.velocityY),
           setScrollPosition: (position) => {
             if (horizontal) {
               scroller.scrollLeft = position;
@@ -630,7 +638,11 @@ function ScrollPreviewPanel(props: {
       (width - GRID_GAP * (itemsPerRow - 1)) / itemsPerRow,
     );
     const itemHeight = Math.round(
-      clamp(itemWidth * 1.42, MIN_TILE_HEIGHT, MAX_TILE_HEIGHT),
+      clamp(
+        itemWidth * tileAspectRatio,
+        MIN_TILE_HEIGHT,
+        MAX_TILE_HEIGHT,
+      ),
     );
     const panelChromeHeight = Math.max(0, overlay.clientHeight - height);
     const targetContentHeight = Math.max(
@@ -643,12 +655,23 @@ function ScrollPreviewPanel(props: {
         (targetContentHeight + GRID_GAP) / (itemHeight + GRID_GAP),
       ),
     );
-    const automaticCrossCount = horizontal
-      ? props.embedded
-        ? embeddedRows
-        : Math.max(1, Math.ceil((height + GRID_GAP) / (MAX_TILE_HEIGHT + GRID_GAP)))
-      : itemsPerRow;
-    const crossCount = crossCountOverride() ?? automaticCrossCount;
+    const singleLine = totalImages <= SMALL_GALLERY_SINGLE_LINE_LIMIT;
+    const automaticCrossCount = singleLine
+      ? horizontal
+        ? 1
+        : totalImages
+      : horizontal
+        ? props.embedded
+          ? embeddedRows
+          : Math.max(1, Math.ceil((height + GRID_GAP) / (MAX_TILE_HEIGHT + GRID_GAP)))
+        : itemsPerRow;
+    const crossCount = clamp(
+      singleLine
+        ? automaticCrossCount
+        : crossCountOverride() ?? automaticCrossCount,
+      1,
+      totalImages,
+    );
     if (
       props.embedded &&
       !props.fillContainer &&
@@ -656,17 +679,28 @@ function ScrollPreviewPanel(props: {
       crossCountOverride() === null
     ) {
       const contentHeight =
-        embeddedRows * itemHeight + GRID_GAP * (embeddedRows - 1);
+        crossCount * itemHeight + GRID_GAP * (crossCount - 1);
       const panelHeight = Math.round(panelChromeHeight + contentHeight);
       setEmbeddedPanelHeight((current) =>
         current === panelHeight ? current : panelHeight);
     }
-    const tileWidth = horizontal
-      ? itemWidth
-      : Math.max(1, (width - GRID_GAP * (crossCount - 1)) / crossCount);
+    const availableTileHeight = Math.max(
+      1,
+      (height - GRID_GAP * (crossCount - 1)) / crossCount,
+    );
     const tileHeight = horizontal
-      ? Math.max(1, (height - GRID_GAP * (crossCount - 1)) / crossCount)
-      : Math.round(clamp(tileWidth * 1.42, MIN_TILE_HEIGHT, MAX_TILE_HEIGHT));
+      ? Math.min(itemHeight, availableTileHeight)
+      : Math.round(
+        clamp(
+          Math.max(1, (width - GRID_GAP * (crossCount - 1)) / crossCount) *
+            tileAspectRatio,
+          MIN_TILE_HEIGHT,
+          MAX_TILE_HEIGHT,
+        ),
+      );
+    const tileWidth = horizontal
+      ? clamp(tileHeight / tileAspectRatio, 1, MAX_TILE_WIDTH)
+      : Math.max(1, (width - GRID_GAP * (crossCount - 1)) / crossCount);
     const next = {
       crossCount,
       horizontal,
@@ -961,6 +995,29 @@ function ScrollPreviewPanel(props: {
       </section>
     </div>
   );
+}
+
+function dominantAspectRatio(items: GalleryPreviewItem[]): number {
+  const buckets = new Map<number, { count: number; total: number }>();
+  let dominant = { count: 0, total: FALLBACK_TILE_ASPECT_RATIO };
+
+  for (const item of items) {
+    const ratio = clamp(
+      normalizedAspectRatio(item.aspectRatio, FALLBACK_TILE_ASPECT_RATIO),
+      0.5,
+      3,
+    );
+    const key = Math.round(ratio * 10);
+    const bucket = buckets.get(key) ?? { count: 0, total: 0 };
+    bucket.count += 1;
+    bucket.total += ratio;
+    buckets.set(key, bucket);
+    if (bucket.count > dominant.count) {
+      dominant = bucket;
+    }
+  }
+
+  return dominant.total / Math.max(1, dominant.count);
 }
 
 function PreviewTile(props: {

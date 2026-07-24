@@ -2,6 +2,10 @@ type FullscreenSnapshot = {
   scale: number;
   scrollX: number;
   scrollY: number;
+  viewport: {
+    content: string | null;
+    element: HTMLMetaElement;
+  } | null;
 };
 
 const FULLSCREEN_SCALE_PROPERTY = "--ehpeek-fullscreen-scale";
@@ -25,20 +29,47 @@ function lockPageScroll(): () => void {
 
 /** Captures the page state that fullscreen temporarily changes. */
 function captureFullscreenSnapshot(): FullscreenSnapshot {
+  const viewport = document.querySelector<HTMLMetaElement>(
+    'meta[name="viewport"]',
+  );
   return {
     scale: Math.max(0.01, window.visualViewport?.scale ?? 1),
     scrollX: window.scrollX,
     scrollY: window.scrollY,
+    viewport: viewport
+      ? {
+        content: viewport.getAttribute("content"),
+        element: viewport,
+      }
+      : null,
   };
 }
 
 /** Restores the original page position after leaving fullscreen. */
 async function restorePageViewport(
-  snapshot: FullscreenSnapshot,
+  snapshot: FullscreenSnapshot | null,
 ): Promise<void> {
+  const currentViewport = document.querySelector<HTMLMetaElement>(
+    'meta[name="viewport"]',
+  );
+  const viewport = snapshot?.viewport ??
+    (currentViewport
+      ? {
+        content: currentViewport.getAttribute("content"),
+        element: currentViewport,
+      }
+      : null);
+  if (viewport?.element.isConnected) {
+    viewport.element.removeAttribute("content");
+    if (viewport.content !== null) {
+      viewport.element.setAttribute("content", viewport.content);
+    }
+  }
   await nextAnimationFrame();
   await nextAnimationFrame();
-  window.scrollTo(snapshot.scrollX, snapshot.scrollY);
+  if (snapshot) {
+    window.scrollTo(snapshot.scrollX, snapshot.scrollY);
+  }
 }
 
 export const readerViewport = {
@@ -50,6 +81,8 @@ export type ReaderViewport = typeof readerViewport;
 
 function createReaderFullscreen(target: HTMLElement) {
   let snapshot: FullscreenSnapshot | null = null;
+  let restorePromise: Promise<void> | null = null;
+  let restoreViewport = false;
   const active = () => {
     const fullscreenElement = document.fullscreenElement;
     return fullscreenElement === target ||
@@ -57,15 +90,22 @@ function createReaderFullscreen(target: HTMLElement) {
         fullscreenElement.contains(target));
   };
 
-  const restore = async (): Promise<void> => {
+  const restore = (): Promise<void> => {
+    if (restorePromise) {
+      return restorePromise;
+    }
     target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY);
     target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
     const captured = snapshot;
     snapshot = null;
-    if (!captured) {
-      return;
+    if (!captured && !restoreViewport) {
+      return Promise.resolve();
     }
-    await restorePageViewport(captured);
+    restoreViewport = false;
+    restorePromise = restorePageViewport(captured).finally(() => {
+      restorePromise = null;
+    });
+    return restorePromise;
   };
 
   return {
@@ -75,6 +115,7 @@ function createReaderFullscreen(target: HTMLElement) {
         return;
       }
       snapshot = captureFullscreenSnapshot();
+      restoreViewport = true;
       const scaleBefore = snapshot.scale;
       try {
         await target.requestFullscreen();
@@ -93,15 +134,23 @@ function createReaderFullscreen(target: HTMLElement) {
     },
     exit: async (): Promise<void> => {
       if (active()) {
+        restoreViewport = true;
         await document.exitFullscreen();
+        await restore();
       }
       target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY);
       target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
     },
     restore,
     subscribe: (callback: (active: boolean) => void): (() => void) => {
+      let previousActive = active();
       const onChange = () => {
         const fullscreenActive = active();
+        if (previousActive && !fullscreenActive) {
+          restoreViewport = true;
+          void restore();
+        }
+        previousActive = fullscreenActive;
         if (!fullscreenActive) {
           target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY);
           target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
