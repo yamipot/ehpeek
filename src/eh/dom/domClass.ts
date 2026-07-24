@@ -25,6 +25,7 @@ export const sharedApply = {
   searchGrid: "ehpeek-layout-search-grid",
   searchResultColumns: "ehpeek-search-result-columns",
   stackSearchGridTags: "ehpeek-stack-search-grid-tags",
+  tallSearchGridCover: "ehpeek-contain-tall-search-grid-cover",
 } as const;
 
 const page = {

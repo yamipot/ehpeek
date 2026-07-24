@@ -23,6 +23,7 @@ type EhPeekGridRow = {
   metadata: ManagedDomNode<HTMLElement>;
   row: ManagedDomNode<HTMLTableRowElement>;
   tags: ManagedDomNode<HTMLElement>[];
+  tallCover: boolean;
   title: ManagedDomNode<HTMLElement> | null;
   titleText: string;
   withoutCover: boolean;
@@ -140,6 +141,7 @@ function createReadHistoryGridRow(
     metadata,
     row,
     tags: [historyActions],
+    tallCover: false,
     title,
     titleText: titleText ?? "",
     withoutCover: !image,
@@ -465,6 +467,7 @@ export function manageSearchGrids(): void {
     const parent = detail.parent();
     const galleryLink = parent?.matches(domClass.common.links) ? parent : null;
     const tags = detail.children().filter((element) => !title?.sameNode(element));
+    const coverSize = thumbnailCell.one(domClass.common.image)?.imageSize();
 
     return {
       detail: detail.inplace(),
@@ -473,6 +476,11 @@ export function manageSearchGrids(): void {
       metadata: metadata.inplace(),
       row: row.inplace(),
       tags: tags.map((item) => item.inplace()),
+      tallCover: Boolean(
+        coverSize &&
+        coverSize.width > 0 &&
+        coverSize.height / coverSize.width > 4,
+      ),
       title: title?.inplace() ?? null,
       titleText: title?.text() ?? "",
       withoutCover: false,
@@ -488,7 +496,10 @@ function manageEhPeekGrid(
   resultList.addClasses(sharedApply.searchGrid);
 
   for (const row of rows) {
-    row.row.addClasses(...(row.withoutCover ? [sharedApply.coverlessSearchGrid] : []));
+    row.row.addClasses(
+      ...(row.withoutCover ? [sharedApply.coverlessSearchGrid] : []),
+      ...(row.tallCover ? [sharedApply.tallSearchGridCover] : []),
+    );
     manageEhPeekGridContent(row);
   }
 

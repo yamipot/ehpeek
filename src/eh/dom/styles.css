@@ -217,6 +217,20 @@ body.ehpeek-constrain-results-to-viewport {
   height: auto !important;
 }
 
+.ehpeek-layout-search-grid > tbody > tr.ehpeek-contain-tall-search-grid-cover > .gl1e > div {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  height: min(375px, 55dvh) !important;
+}
+
+.ehpeek-layout-search-grid > tbody > tr.ehpeek-contain-tall-search-grid-cover > .gl1e img {
+  width: auto !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
 .ehpeek-layout-search-grid .gl4e {
   box-sizing: border-box !important;
   display: flex !important;
