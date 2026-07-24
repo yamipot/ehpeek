@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260724.1202
+// @version      260724.1258
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -4246,6 +4246,51 @@ Next page`,
     })];
   }
 
+  // src/fullscreenUi.ts
+  var FULLSCREEN_SCALE_PROPERTY = "--ehpeek-fullscreen-scale", UI_TOKEN_PROPERTY = /^--ui-/;
+  function observeFullscreenUiSizing(target) {
+    let applied = /* @__PURE__ */ new Set(), fullscreenObserver = null, frame = null, sync = () => {
+      for (let property of applied)
+        target.style.removeProperty(property);
+      applied.clear();
+      let fullscreenElement = document.fullscreenElement;
+      if (!(fullscreenElement instanceof HTMLElement))
+        return;
+      let factor = Number.parseFloat(
+        fullscreenElement.style.getPropertyValue(FULLSCREEN_SCALE_PROPERTY)
+      );
+      if (!Number.isFinite(factor) || factor >= 1)
+        return;
+      let source = document.documentElement.style;
+      for (let index = 0; index < source.length; index += 1) {
+        let property = source.item(index);
+        if (!UI_TOKEN_PROPERTY.test(property))
+          continue;
+        let value = source.getPropertyValue(property).trim(), match = /^([\d.]+)px$/.exec(value);
+        match && (target.style.setProperty(property, `${Number(match[1]) * factor}px`), applied.add(property));
+      }
+    }, scheduleSync = () => {
+      frame === null && (frame = window.requestAnimationFrame(() => {
+        frame = null, sync();
+      }));
+    }, observeFullscreenElement = () => {
+      fullscreenObserver?.disconnect(), fullscreenObserver = null;
+      let fullscreenElement = document.fullscreenElement;
+      fullscreenElement instanceof HTMLElement && (fullscreenObserver = new MutationObserver(scheduleSync), fullscreenObserver.observe(fullscreenElement, {
+        attributeFilter: ["style"],
+        attributes: !0
+      })), scheduleSync();
+    }, rootObserver = new MutationObserver(scheduleSync);
+    return rootObserver.observe(document.documentElement, {
+      attributeFilter: ["style"],
+      attributes: !0
+    }), document.addEventListener("fullscreenchange", observeFullscreenElement), observeFullscreenElement(), () => {
+      document.removeEventListener("fullscreenchange", observeFullscreenElement), rootObserver.disconnect(), fullscreenObserver?.disconnect(), frame !== null && window.cancelAnimationFrame(frame);
+      for (let property of applied)
+        target.style.removeProperty(property);
+    };
+  }
+
   // src/components/animation.ts
   var SCROLL_ANIMATION_MS = 180, SCROLL_EASING_POWER = 3, ANIMATION_FRAME_MIN_DELTA_MS = 1, ANIMATION_FRAME_MAX_DELTA_MS = 32, SCROLL_FLING_MIN_VELOCITY = 0.35, SCROLL_FLING_STOP_VELOCITY = 0.02, SCROLL_FLING_DECAY = 45e-4, ScrollAnimator = class {
     constructor(axis) {
@@ -5179,18 +5224,22 @@ Next page`,
         scroller.isConnected && (initialized ? scrollToPage(anchorPageNum ?? centeredPageNum(), next) : (initialized = !0, props.targetPageNum === null ? scrollToPreview(props.targetPreviewIndex, next) : scrollToPage(props.targetPageNum, next)), setPreviewLoadReady(!0));
       }));
     };
-    return createEffect(() => {
+    createEffect(() => {
       crossCountOverride(), initialized && updateLayout();
-    }), onMount(() => {
-      let previousBodyOverflow = document.body.style.overflow, previousHtmlOverflow = document.documentElement.style.overflow;
+    });
+    let fullscreenRoot;
+    return onMount(() => {
+      let stopFullscreenUiSizing = props.embedded ? void 0 : observeFullscreenUiSizing(fullscreenRoot), previousBodyOverflow = document.body.style.overflow, previousHtmlOverflow = document.documentElement.style.overflow;
       props.embedded || (document.body.style.overflow = "hidden", document.documentElement.style.overflow = "hidden");
       let resizeObserver = new ResizeObserver(updateLayout);
       resizeObserver.observe(scroller), updateLayout(), onCleanup(() => {
-        disposed = !0, flingAnimator.cancel(), previewLoadQueue.dispose(), resizeObserver.disconnect(), props.embedded || (document.body.style.overflow = previousBodyOverflow, document.documentElement.style.overflow = previousHtmlOverflow), decodeCache.dispose(), scrollFrame !== null && window.cancelAnimationFrame(scrollFrame);
+        stopFullscreenUiSizing?.(), disposed = !0, flingAnimator.cancel(), previewLoadQueue.dispose(), resizeObserver.disconnect(), props.embedded || (document.body.style.overflow = previousBodyOverflow, document.documentElement.style.overflow = previousHtmlOverflow), decodeCache.dispose(), scrollFrame !== null && window.cancelAnimationFrame(scrollFrame);
       });
     }), (() => {
-      var _el$3 = _tmpl$45(), _el$4 = _el$3.firstChild, _el$0 = _el$4.firstChild, _el$1 = _el$0.firstChild, _el$10 = _el$1.firstChild, _ref$ = overlay;
-      typeof _ref$ == "function" ? use(_ref$, _el$4) : overlay = _el$4, insert(_el$4, createComponent(Show, {
+      var _el$3 = _tmpl$45(), _el$4 = _el$3.firstChild, _el$0 = _el$4.firstChild, _el$1 = _el$0.firstChild, _el$10 = _el$1.firstChild, _ref$ = fullscreenRoot;
+      typeof _ref$ == "function" ? use(_ref$, _el$3) : fullscreenRoot = _el$3;
+      var _ref$2 = overlay;
+      typeof _ref$2 == "function" ? use(_ref$2, _el$4) : overlay = _el$4, insert(_el$4, createComponent(Show, {
         get when() {
           return props.embedded;
         },
@@ -5247,8 +5296,8 @@ Next page`,
           scrollFrame = null, setScrollOffset(untrack(readScrollOffset));
         }));
       });
-      var _ref$2 = scroller;
-      return typeof _ref$2 == "function" ? use(_ref$2, _el$1) : scroller = _el$1, insert(_el$10, createComponent(For, {
+      var _ref$3 = scroller;
+      return typeof _ref$3 == "function" ? use(_ref$3, _el$1) : scroller = _el$1, insert(_el$10, createComponent(For, {
         get each() {
           return visibleSlots();
         },
@@ -5345,7 +5394,7 @@ Next page`,
       }), null), createRenderEffect((_p$) => {
         var _v$3 = {
           contents: props.embedded,
-          "ehpeek-fullscreen-root fixed inset-0 z-[1300]": !props.embedded
+          "fixed inset-0 z-[1300]": !props.embedded
         }, _v$4 = {
           "absolute inset-0 bg-[var(--color-background)]": !props.embedded,
           "border ehp-color-site-border rounded-sm bg-[var(--color-site-elevated)]": props.embedded,
@@ -6306,7 +6355,7 @@ Next page`,
           get children() {
             return [_tmpl$66(), (() => {
               var _el$19 = _tmpl$73(), _el$20 = _el$19.firstChild;
-              return insert(_el$19, "260724.1202", null), _el$19;
+              return insert(_el$19, "260724.1258", null), _el$19;
             })()];
           }
         }), null), _el$22.$$click = (event) => {
@@ -9185,13 +9234,16 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
   --color-site-border: #8d7454;
 }
 
-html:fullscreen > body,
-html:fullscreen > :not(body) .ehpeek-fullscreen-root,
-[data-ehpeek-reader-container="true"]:fullscreen > .ehpeek-fullscreen-root {
+html:fullscreen > body {
   width: calc(100% * var(--ehpeek-fullscreen-scale-inverse, 1));
   height: calc(100% * var(--ehpeek-fullscreen-scale-inverse, 1));
   transform: scale(var(--ehpeek-fullscreen-scale, 1));
   transform-origin: top left;
+}
+
+html:fullscreen .ehpeek-touch-top-bar {
+  height: calc(var(--ui-control-size-xl) + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
 }
 `;
 
@@ -10125,7 +10177,7 @@ html:fullscreen > :not(body) .ehpeek-fullscreen-root,
 `;
 
   // src/components/Reader/index.tsx
-  var _tmpl$60 = /* @__PURE__ */ template("<header class=contents>"), _tmpl$216 = /* @__PURE__ */ template('<div id=ehpeek-reader class="ehpeek-fullscreen-root fixed inset-0 z-reader overflow-hidden ehp-color-reader font-sans textsize-sm leading-[1.4]">');
+  var _tmpl$60 = /* @__PURE__ */ template("<header class=contents>"), _tmpl$216 = /* @__PURE__ */ template('<div id=ehpeek-reader class="fixed inset-0 z-reader overflow-hidden ehp-color-reader font-sans textsize-sm leading-[1.4]">');
   registerGlobalStyle("ehpeek-reader-style", Reader_default);
   var DEFAULT_WINDOW_SIZE2 = 10, PAGED_SWIPE_THRESHOLD = 24, PAGED_WHEEL_THRESHOLD = 8, HORIZONTAL_SCROLL_WHEEL_FACTOR = 0.5, PROGRESS_IDLE_COMMIT_MS = 180, LOADED_IMAGE_INFO_CACHE_LIMIT = 160, SCROLL_GESTURE_IDLE_MS = 160, SCROLL_BAR_IDLE_MS = 900, SCROLL_BAR_SHOW_DISTANCE = 48, SCROLL_BAR_EXPAND_VIEWPORTS = 2, DOUBLE_TAP_MS = 340, DOUBLE_TAP_DISTANCE = 36, TAP_CANCEL_DISTANCE = 8, FALLBACK_ASPECT_RATIO2 = 1.42;
   function Reader(props) {
@@ -10133,19 +10185,20 @@ html:fullscreen > :not(body) .ehpeek-fullscreen-root,
     untrack(() => props.actionsRef({
       gotoPage: readerCallbacks2.gotoPage
     }));
-    let previousFullscreenActive = untrack(() => props.fullscreenActive);
+    let root, previousFullscreenActive = untrack(() => props.fullscreenActive);
     return createEffect(() => {
       let fullscreenActive = props.fullscreenActive;
       fullscreenActive !== previousFullscreenActive && (previousFullscreenActive = fullscreenActive, session.requestAnimationFrame(() => {
         session.requestAnimationFrame(readerCallbacks2.realignCurrentPage);
       }));
     }), onMount(() => {
+      let stopFullscreenUiSizing = observeFullscreenUiSizing(root);
       readerCallbacks2.init(), onCleanup(() => {
-        readerCallbacks2.cleanup(), session.dispose();
+        stopFullscreenUiSizing(), readerCallbacks2.cleanup(), session.dispose();
       });
     }), (() => {
-      var _el$ = _tmpl$216();
-      return insert(_el$, createComponent(Show, {
+      var _el$ = _tmpl$216(), _ref$ = root;
+      return typeof _ref$ == "function" ? use(_ref$, _el$) : root = _el$, insert(_el$, createComponent(Show, {
         get when() {
           return !readerState.scrollViewport.adjusting();
         },
@@ -10843,7 +10896,11 @@ html:fullscreen > :not(body) .ehpeek-fullscreen-root,
         console.warn("[ehpeek] Failed to restore page viewport", error);
       }), activeReaderClose === close && (activeReaderClose = void 0), activeReaderActions === mountedReaderActions && (activeReaderActions = void 0), onExit());
     }
-    host.isConnected || document.body.append(host), window.addEventListener("popstate", onPopState), window.history.pushState({
+    if (!host.isConnected) {
+      let fullscreenElement = document.fullscreenElement;
+      (fullscreenElement instanceof HTMLElement ? fullscreenElement : document.body).append(host);
+    }
+    window.addEventListener("popstate", onPopState), window.history.pushState({
       ehpeekReader: !0
     }, "", window.location.href), activeReaderClose = close;
     let unsubscribeFullscreen = fullscreen.subscribe((active) => {
@@ -11000,7 +11057,7 @@ html:fullscreen > :not(body) .ehpeek-fullscreen-root,
   }
 
   // src/App/viewport.ts
-  var FULLSCREEN_SCALE_PROPERTY = "--ehpeek-fullscreen-scale", FULLSCREEN_SCALE_INVERSE_PROPERTY = "--ehpeek-fullscreen-scale-inverse";
+  var FULLSCREEN_SCALE_PROPERTY2 = "--ehpeek-fullscreen-scale", FULLSCREEN_SCALE_INVERSE_PROPERTY = "--ehpeek-fullscreen-scale-inverse";
   function lockPageScroll() {
     let documentElement = document.documentElement, body = document.body, documentOverflow = documentElement.style.overflow, bodyOverflow = body.style.overflow;
     return documentElement.style.overflow = "hidden", body.style.overflow = "hidden", () => {
@@ -11022,13 +11079,16 @@ html:fullscreen > :not(body) .ehpeek-fullscreen-root,
     lockScroll: lockPageScroll
   };
   function createReaderFullscreen(target) {
-    let snapshot = null, restore = async () => {
-      target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
+    let snapshot = null, active = () => {
+      let fullscreenElement = document.fullscreenElement;
+      return fullscreenElement === target || fullscreenElement instanceof HTMLElement && fullscreenElement.contains(target);
+    }, restore = async () => {
+      target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
       let captured = snapshot;
       snapshot = null, captured && await restorePageViewport(captured);
     };
     return {
-      active: () => document.fullscreenElement === target,
+      active,
       enter: async () => {
         if (document.fullscreenElement || !document.fullscreenEnabled)
           return;
@@ -11037,7 +11097,7 @@ html:fullscreen > :not(body) .ehpeek-fullscreen-root,
         try {
           await target.requestFullscreen(), await nextAnimationFrame();
           let scaleAfter = Math.max(0.01, window.visualViewport?.scale ?? 1), scale = Math.min(1, Math.max(0.1, scaleBefore / scaleAfter));
-          target.style.setProperty(FULLSCREEN_SCALE_PROPERTY, String(scale)), target.style.setProperty(
+          target.style.setProperty(FULLSCREEN_SCALE_PROPERTY2, String(scale)), target.style.setProperty(
             FULLSCREEN_SCALE_INVERSE_PROPERTY,
             String(1 / scale)
           );
@@ -11046,13 +11106,13 @@ html:fullscreen > :not(body) .ehpeek-fullscreen-root,
         }
       },
       exit: async () => {
-        document.fullscreenElement === target && await document.exitFullscreen(), target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
+        active() && await document.exitFullscreen(), target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
       },
       restore,
       subscribe: (callback) => {
         let onChange = () => {
-          let active = document.fullscreenElement === target;
-          active || (target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY)), callback(active);
+          let fullscreenActive = active();
+          fullscreenActive || (target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY2), target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY)), callback(fullscreenActive);
         };
         return document.addEventListener("fullscreenchange", onChange), () => document.removeEventListener("fullscreenchange", onChange);
       }
