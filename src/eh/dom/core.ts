@@ -623,6 +623,15 @@ export class ManagedDomNode<
     return this.#node.getAttribute(name);
   }
 
+  imageSize(this: ManagedDomNode<HTMLImageElement>): { height: number; width: number } {
+    return {
+      height: this.#node.naturalHeight || this.#node.height ||
+        Number(this.#node.getAttribute("height") || ""),
+      width: this.#node.naturalWidth || this.#node.width ||
+        Number(this.#node.getAttribute("width") || ""),
+    };
+  }
+
   setAttributes(values: Readonly<Record<string, string>>): this {
     for (const [name, value] of Object.entries(values)) {
       this.#node.setAttribute(name, value);

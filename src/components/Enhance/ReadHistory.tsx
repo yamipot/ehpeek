@@ -4,6 +4,9 @@ import * as eh from "../../eh";
 import { readHistoryUrl } from "../../eh/url";
 import {
   clearReadHistory,
+  exportReadHistory,
+  importReadHistory,
+  loadReadHistoryRecords,
   READ_HISTORY_LIMIT,
   removeReadHistory,
 } from "../../state/readHistory";
@@ -22,6 +25,8 @@ export function ReadHistoryPage(props: {
   const [pageIndex, setPageIndex] = createSignal(
     Math.min(props.initialPageIndex, untrack(pageCount) - 1),
   );
+  const [transferStatus, setTransferStatus] = createSignal("");
+  let historyFileInput!: HTMLInputElement;
   const pageItems = createMemo(() => {
     const start = pageIndex() * props.pageSize;
     return items().slice(start, start + props.pageSize);
@@ -59,7 +64,41 @@ export function ReadHistoryPage(props: {
     clearReadHistory();
     setItems([]);
     setPageIndex(0);
+    setTransferStatus("");
     window.history.replaceState(window.history.state, "", readHistoryUrl());
+  };
+  const importHistoryFile = async (file: File): Promise<void> => {
+    try {
+      const count = importReadHistory(await file.text());
+      setItems(loadReadHistoryRecords().map((record) => ({
+        currentPage: record.pageNum,
+        galleryId: record.galleryId,
+        info: record.gallery,
+        token: record.token,
+        totalPages: record.totalPages,
+        updatedAt: record.updatedAt,
+      })));
+      setPageIndex(0);
+      setTransferStatus(
+        texts.history.imported.replace("{count}", String(count)),
+      );
+      window.history.replaceState(window.history.state, "", readHistoryUrl());
+    } catch {
+      setTransferStatus(texts.history.importFailed);
+    }
+  };
+  const exportHistoryFile = () => {
+    const url = URL.createObjectURL(new Blob(
+      [exportReadHistory()],
+      { type: "application/json" },
+    ));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download =
+      `ehpeek-history-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setTransferStatus(texts.history.exported);
   };
   const removeHistoryItem = (item: eh.ReadHistoryPageItem) => {
     if (!window.confirm(texts.history.removeConfirm)) {
@@ -102,24 +141,58 @@ export function ReadHistoryPage(props: {
   const navigation = (showHeader: boolean) => (
     <nav class="flex flex-col items-center gap-sm border-0 border-y border-solid ehp-color-site-border-subtle-b p-md">
       {showHeader && (
-        <div class="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-sm">
-          <span />
+        <>
           <span class="text-center textsize-md font-600 ehp-color-site-text">
             {visibleRange()}
             <span class="block">
               {texts.history.limit.replace("{limit}", String(READ_HISTORY_LIMIT))}
             </span>
           </span>
-          {items().length > 0 && (
+          <div class="flex flex-wrap items-center justify-center gap-sm">
+            <input
+              ref={historyFileInput}
+              class="hidden"
+              type="file"
+              accept="application/json,.json"
+              onChange={(event: Event) => {
+                const input = event.currentTarget as HTMLInputElement;
+                const file = input.files?.[0];
+                input.value = "";
+                if (file) {
+                  void importHistoryFile(file);
+                }
+              }}
+            />
             <button
               type="button"
-              class="min-h-xs justify-self-end px-sm coarse:min-h-sm coarse:px-md rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
-              onClick={clearHistory}
+              class="min-h-xs px-sm coarse:min-h-sm coarse:px-md rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
+              onClick={() => historyFileInput.click()}
             >
-              {texts.button.clearHistory}
+              {texts.button.importHistory}
             </button>
+            <button
+              type="button"
+              class="min-h-xs px-sm coarse:min-h-sm coarse:px-md rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
+              onClick={exportHistoryFile}
+            >
+              {texts.button.exportHistory}
+            </button>
+            {items().length > 0 && (
+              <button
+                type="button"
+                class="min-h-xs px-sm coarse:min-h-sm coarse:px-md rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
+                onClick={clearHistory}
+              >
+                {texts.button.clearHistory}
+              </button>
+            )}
+          </div>
+          {transferStatus() && (
+            <span class="textsize-sm ehp-color-site-text opacity-75">
+              {transferStatus()}
+            </span>
           )}
-        </div>
+        </>
       )}
       {pageCount() > 1 && (
         <ScrollPageBar
@@ -143,12 +216,12 @@ export function ReadHistoryPage(props: {
         )}
         target={() => props.source.elems.resultList.Component()}
       />
+      {navigation(true)}
       {items().length === 0 && (
         <div class="p-xl text-center textsize-md ehp-color-site-text opacity-72">
           {texts.history.empty}
         </div>
       )}
-      {items().length > 0 && navigation(true)}
       {pageCount() > 1 && (
         <Portal mount={props.source.elems.navigationBottomMount.Component()}>
           {navigation(false)}

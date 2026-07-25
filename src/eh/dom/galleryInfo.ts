@@ -67,12 +67,30 @@ export function extractGalleryHistoryInfo(): GalleryHistoryInfo {
     categoryClass,
     coverUrl: coverUrl || undefined,
     language: rows[3] || undefined,
-    posted: rows[0] || undefined,
+    postedAt: parseGalleryPostedAt(rows[0]),
     rating: ratingMatch && Number.isFinite(rating) ? rating : undefined,
     title: source.titleMain.one()?.text() || undefined,
     titleSub: source.titleSub.one()?.text() || undefined,
     uploader: source.uploader.one()?.text() || undefined,
   };
+}
+
+function parseGalleryPostedAt(value: string | undefined): number | undefined {
+  const match = value?.match(
+    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/,
+  );
+  if (!match) {
+    return undefined;
+  }
+  const [, year, month, day, hour, minute, second = "0"] = match;
+  return Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+  );
 }
 
 /** Manages E-H's gallery header for GalleryInfoPanel. */

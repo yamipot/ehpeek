@@ -17,13 +17,13 @@ import {
 import { domClass, sharedApply } from "./domClass";
 
 type EhPeekGridRow = {
+  coverImage: ManagedDomNode<HTMLImageElement> | null;
   detail: ManagedDomNode<HTMLElement>;
   galleryHref: string | null;
   galleryLink: ManagedDomNode<HTMLElement> | null;
   metadata: ManagedDomNode<HTMLElement>;
   row: ManagedDomNode<HTMLTableRowElement>;
   tags: ManagedDomNode<HTMLElement>[];
-  tallCover: boolean;
   title: ManagedDomNode<HTMLElement> | null;
   titleText: string;
   withoutCover: boolean;
@@ -64,7 +64,9 @@ function createReadHistoryGridRow(
     category.setTextUnlessInput(info.category);
     metadataItems.push(category);
   }
-  appendMetadata(info?.posted);
+  appendMetadata(info?.postedAt === undefined
+    ? undefined
+    : new Date(info.postedAt).toISOString().slice(0, 16).replace("T", " "));
   if (info?.rating !== undefined) {
     const rounded = Math.round(info.rating * 2) / 2;
     const rating = createManagedElement("div").replaceClasses("ir").styles({
@@ -135,13 +137,13 @@ function createReadHistoryGridRow(
   row.append(thumbnailCell, contentCell);
 
   return {
+    coverImage: image,
     detail,
     galleryHref,
     galleryLink,
     metadata,
     row,
     tags: [historyActions],
-    tallCover: false,
     title,
     titleText: titleText ?? "",
     withoutCover: !image,
@@ -467,20 +469,16 @@ export function manageSearchGrids(): void {
     const parent = detail.parent();
     const galleryLink = parent?.matches(domClass.common.links) ? parent : null;
     const tags = detail.children().filter((element) => !title?.sameNode(element));
-    const coverSize = thumbnailCell.one(domClass.common.image)?.imageSize();
+    const coverImage = thumbnailCell.one(domClass.common.image);
 
     return {
+      coverImage: coverImage?.inplace() ?? null,
       detail: detail.inplace(),
       galleryHref: galleryLink?.attribute("href") ?? null,
       galleryLink: galleryLink?.inplace() ?? null,
       metadata: metadata.inplace(),
       row: row.inplace(),
       tags: tags.map((item) => item.inplace()),
-      tallCover: Boolean(
-        coverSize &&
-        coverSize.width > 0 &&
-        coverSize.height / coverSize.width > 4,
-      ),
       title: title?.inplace() ?? null,
       titleText: title?.text() ?? "",
       withoutCover: false,
@@ -498,9 +496,26 @@ function manageEhPeekGrid(
   for (const row of rows) {
     row.row.addClasses(
       ...(row.withoutCover ? [sharedApply.coverlessSearchGrid] : []),
-      ...(row.tallCover ? [sharedApply.tallSearchGridCover] : []),
     );
+    manageSearchGridCover(row);
     manageEhPeekGridContent(row);
+  }
+
+  function manageSearchGridCover(source: EhPeekGridRow): void {
+    if (!source.coverImage) {
+      return;
+    }
+    const update = () => {
+      const size = source.coverImage?.imageSize();
+      const tall = Boolean(size && size.width > 0 && size.height / size.width > 4);
+      if (tall) {
+        source.row.addClasses(sharedApply.tallSearchGridCover);
+      } else {
+        source.row.removeClasses(sharedApply.tallSearchGridCover);
+      }
+    };
+    update();
+    source.coverImage.listen("load", update, { once: true });
   }
 
   function manageEhPeekGridContent(source: EhPeekGridRow): void {

@@ -7,6 +7,8 @@
     "confirm": "Confirm",
     "current": "Current",
     "default": "Default",
+    "exportHistory": "Export History",
+    "importHistory": "Import History",
     "removeHistory": "Delete History"
   },
   "help": {
@@ -63,6 +65,9 @@
   "history": {
     "clearConfirm": "Clear all reading history?",
     "empty": "No reading history",
+    "exported": "History exported",
+    "importFailed": "History import failed",
+    "imported": "Imported {count} histories",
     "limit": "(max {limit})",
     "visitedLabel": "[VISITED]",
     "range": "{start}-{end} in {total} histories",

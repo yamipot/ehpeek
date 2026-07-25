@@ -165,9 +165,19 @@ body.ehpeek-constrain-results-to-viewport {
 
 .ehpeek-layout-search-grid.ehpeek-search-result-columns > tbody {
   display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
+  box-sizing: border-box !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  min-width: 0 !important;
+  width: 100% !important;
   gap: 8px;
+}
+
+.ehpeek-layout-search-grid.ehpeek-search-result-columns > tbody > tr {
+  box-sizing: border-box !important;
+  height: 100%;
+  min-width: 0 !important;
+  max-width: 100% !important;
 }
 
 .ehpeek-layout-search-grid > tbody > tr {

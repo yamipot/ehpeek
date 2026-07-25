@@ -52,7 +52,7 @@ export type GalleryHistoryInfo = {
   categoryClass?: string;
   coverUrl?: string;
   language?: string;
-  posted?: string;
+  postedAt?: number;
   rating?: number;
   title?: string;
   titleSub?: string;

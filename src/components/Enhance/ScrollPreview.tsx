@@ -39,7 +39,6 @@ const PREVIEW_CONCURRENT_LOADS = 2;
 const PREVIEW_LOAD_RADIUS = 2;
 const DECODE_CACHE_BYTES = 64 * 1024 * 1024;
 const DECODE_CACHE_ITEMS = 160;
-const SMALL_GALLERY_SINGLE_LINE_LIMIT = 3;
 const NEXT_SCROLL_PREVIEW_DIRECTION: Record<ReadDirection, ReadDirection> = {
   ltr: "rtl",
   rtl: "ttb",
@@ -665,20 +664,14 @@ function ScrollPreviewPanel(props: {
         (targetContentHeight + gap) / (itemHeight + gap),
       ),
     );
-    const singleLine = totalImages <= SMALL_GALLERY_SINGLE_LINE_LIMIT;
-    const automaticCrossCount = singleLine
-      ? horizontal
-        ? 1
-        : totalImages
-      : horizontal
-        ? props.embedded
-          ? embeddedRows
-          : Math.max(1, Math.ceil((height + gap) / (maxTileHeight + gap)))
-        : itemsPerRow;
+    const availableRows = props.embedded
+      ? embeddedRows
+      : Math.max(1, Math.ceil((height + gap) / (maxTileHeight + gap)));
+    const automaticCrossCount = horizontal
+      ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow))
+      : Math.min(itemsPerRow, totalImages);
     const crossCount = clamp(
-      singleLine
-        ? automaticCrossCount
-        : crossCountOverride() ?? automaticCrossCount,
+      crossCountOverride() ?? automaticCrossCount,
       1,
       totalImages,
     );
