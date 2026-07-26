@@ -1,4 +1,38 @@
-import { createMemo, For } from "solid-js";
+import type { LucideIcon } from "lucide-solid";
+import ArrowDown from "lucide-solid/icons/arrow-down";
+import ArrowLeft from "lucide-solid/icons/arrow-left";
+import ArrowRight from "lucide-solid/icons/arrow-right";
+import ArrowUp from "lucide-solid/icons/arrow-up";
+import BookOpen from "lucide-solid/icons/book-open";
+import Check from "lucide-solid/icons/check";
+import ChevronLeft from "lucide-solid/icons/chevron-left";
+import ChevronRight from "lucide-solid/icons/chevron-right";
+import Columns2 from "lucide-solid/icons/columns-2";
+import Download from "lucide-solid/icons/download";
+import EllipsisVertical from "lucide-solid/icons/ellipsis-vertical";
+import ExternalLink from "lucide-solid/icons/external-link";
+import File from "lucide-solid/icons/file";
+import Grid2X2 from "lucide-solid/icons/grid-2x2";
+import Heart from "lucide-solid/icons/heart";
+import History from "lucide-solid/icons/history";
+import House from "lucide-solid/icons/house";
+import Info from "lucide-solid/icons/info";
+import Maximize from "lucide-solid/icons/maximize";
+import Minimize from "lucide-solid/icons/minimize";
+import MoveHorizontal from "lucide-solid/icons/move-horizontal";
+import MoveVertical from "lucide-solid/icons/move-vertical";
+import Palette from "lucide-solid/icons/palette";
+import Pencil from "lucide-solid/icons/pencil";
+import RefreshCw from "lucide-solid/icons/refresh-cw";
+import Rows3 from "lucide-solid/icons/rows-3";
+import ScanLine from "lucide-solid/icons/scan-line";
+import Search from "lucide-solid/icons/search";
+import Settings from "lucide-solid/icons/settings";
+import Sparkles from "lucide-solid/icons/sparkles";
+import Star from "lucide-solid/icons/star";
+import X from "lucide-solid/icons/x";
+import { createMemo, For, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
 
 export type IconName =
   | "arrow-left"
@@ -41,169 +75,107 @@ export function Icon(props: {
   size?: number | string;
   strokeWidth?: number;
 }) {
-  const definition = createMemo(() => ICON_DEFINITIONS[props.name]);
-  const filled = createMemo(() => definition().solid || (definition().fillable && props.filled));
+  const component = createMemo(() =>
+    props.name === "panda-peek" ? undefined : LUCIDE_ICONS[props.name],
+  );
+  const filled = createMemo(() => props.filled && FILLABLE_ICONS.has(props.name));
   const size = createMemo(() =>
-    typeof props.size === "number" ? `${props.size}px` : props.size ?? "24px");
+    typeof props.size === "number" ? `${props.size}px` : props.size ?? "24px",
+  );
 
   return (
-    <svg
-      class="ehpeek-icon block flex-none"
-      style={{ width: size(), height: size() }}
-      viewBox="0 0 24 24"
-      fill={filled() ? "currentColor" : "none"}
-      stroke={filled() ? "none" : "currentColor"}
-      stroke-width={props.strokeWidth ?? 2}
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      data-icon-name={props.name}
-      aria-hidden="true"
-    >
-      <For each={definition().filledPaths}>{(path) => <path d={path} fill="currentColor" stroke="none" />}</For>
-      <For each={definition().paths}>{(path) => <path d={path} />}</For>
-    </svg>
+    <>
+      <Dynamic
+        component={component()}
+        class="ehpeek-icon block flex-none"
+        size={size()}
+        style={{ width: size(), height: size() }}
+        color="currentColor"
+        fill={filled() ? "currentColor" : "none"}
+        stroke={filled() ? "none" : "currentColor"}
+        strokeWidth={props.strokeWidth ?? 2}
+        data-icon-name={props.name}
+      />
+      <Show when={props.name === "panda-peek"}>
+        <PandaPeekIcon size={size()} strokeWidth={props.strokeWidth ?? 2} />
+      </Show>
+    </>
   );
 }
 
-type IconDefinition = {
-  fillable?: boolean;
-  filledPaths?: readonly string[];
-  paths: readonly string[];
-  solid?: boolean;
+type LucideIconName = Exclude<IconName, "panda-peek">;
+
+const LUCIDE_ICONS: Record<LucideIconName, LucideIcon> = {
+  "arrow-left": ArrowLeft,
+  "arrow-right": ArrowRight,
+  "arrow-down": ArrowDown,
+  "arrow-up": ArrowUp,
+  "arrows-horizontal": MoveHorizontal,
+  "arrows-vertical": MoveVertical,
+  "book-open": BookOpen,
+  check: Check,
+  "chevron-left": ChevronLeft,
+  "chevron-right": ChevronRight,
+  close: X,
+  download: Download,
+  edit: Pencil,
+  "external-link": ExternalLink,
+  fullscreen: Maximize,
+  "fullscreen-exit": Minimize,
+  grid: Grid2X2,
+  heart: Heart,
+  history: History,
+  home: House,
+  info: Info,
+  menu: EllipsisVertical,
+  page: File,
+  palette: Palette,
+  pages: Columns2,
+  refresh: RefreshCw,
+  search: Search,
+  settings: Settings,
+  sparkles: Sparkles,
+  "scroll-continuous": Rows3,
+  star: Star,
+  viewport: ScanLine,
 };
 
-const ICON_DEFINITIONS: Record<IconName, IconDefinition> = {
-  "arrow-left": {
-    paths: ["M19 12H5", "m12 19-7-7 7-7"],
-  },
-  "arrow-right": {
-    paths: ["M5 12h14", "m12 5 7 7-7 7"],
-  },
-  "arrow-down": {
-    paths: ["M12 5v14", "m5 12 7 7 7-7"],
-  },
-  "arrow-up": {
-    paths: ["m5 12 7-7 7 7", "M12 5v14"],
-  },
-  "arrows-horizontal": {
-    paths: ["M3 12h18", "m7 8-4 4 4 4", "m17 8 4 4-4 4"],
-  },
-  "arrows-vertical": {
-    paths: ["M12 3v18", "m8 7 4-4 4 4", "m8 17 4 4 4-4"],
-  },
-  "book-open": {
-    paths: [
-      "M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2Z",
-      "M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7Z",
-    ],
-  },
-  check: {
-    paths: ["m5 12.5 4.25 4.25L19.5 6.5"],
-  },
-  "chevron-left": {
-    paths: ["m15 18-6-6 6-6"],
-  },
-  "chevron-right": {
-    paths: ["m9 18 6-6-6-6"],
-  },
-  close: {
-    paths: ["M6 6l12 12", "M18 6 6 18"],
-  },
-  download: {
-    paths: ["M12 3v12", "m7 10 5 5 5-5", "M5 21h14"],
-  },
-  edit: {
-    paths: ["M4 20h4L19 9l-4-4L4 16v4Z", "m13.5-13.5 4 4"],
-  },
-  "external-link": {
-    paths: ["M14 4h6v6", "m20 4-9 9", "M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"],
-  },
-  fullscreen: {
-    paths: ["M8 3H3v5", "M16 3h5v5", "M3 16v5h5", "M21 16v5h-5"],
-  },
-  "fullscreen-exit": {
-    paths: ["M8 3v5H3", "M16 3v5h5", "M3 16h5v5", "M21 16h-5v5"],
-  },
-  grid: {
-    paths: ["M3 3h8v8H3z", "M13 3h8v8h-8z", "M3 13h8v8H3z", "M13 13h8v8h-8z"],
-  },
-  heart: {
-    fillable: true,
-    paths: ["M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"],
-  },
-  history: {
-    paths: ["M3 12a9 9 0 1 0 3-6.7", "M3 4v5h5", "M12 7v5l3 2"],
-  },
-  home: {
-    paths: ["m3 10.5 9-7.5 9 7.5", "M5.5 9v11h13V9", "M9.5 20v-6h5v6"],
-  },
-  info: {
-    paths: ["M12 11v6", "M12 7h.01", "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"],
-  },
-  menu: {
-    paths: [
-      "M12 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z",
-    ],
-    solid: true,
-  },
-  page: {
-    paths: ["M5 3h14v18H5z"],
-  },
-  palette: {
-    paths: [
-      "M12 22a10 10 0 1 1 10-10c0 2.76-2.24 5-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8Z",
-      "M7.5 10.5h.01",
-      "M10.5 7.5h.01",
-      "M14.5 7.5h.01",
-      "M16.5 10.5h.01",
-    ],
-  },
-  "panda-peek": {
-    filledPaths: [
-      "M7.2 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8Z",
-      "M16.8 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8Z",
-      "M7.6 9.8c.5-1.2 1.6-1.8 2.6-1.3s1.3 1.8.8 3-1.6 1.8-2.6 1.3-1.3-1.8-.8-3Z",
-      "M13.8 8.5c1-.5 2.1.1 2.6 1.3s.2 2.5-.8 3-2.1-.1-2.6-1.3-.2-2.5.8-3Z",
-      "M10.9 13.6c0-.6.5-.9 1.1-.9s1.1.3 1.1.9-.5 1-1.1 1-1.1-.4-1.1-1Z",
-      "M5.2 13.7a2.8 1.9 0 1 0 0 3.8 2.8 1.9 0 0 0 0-3.8Z",
-      "M18.8 14.1a2.8 1.9 0 1 0 0 3.8 2.8 1.9 0 0 0 0-3.8Z",
-    ],
-    paths: [
-      "M5 17c-.8-6.4 2.1-10.8 7-10.8s7.8 4.4 7 10.8",
-      "M12 14.6v.7c0 .7-.6 1.2-1.3 1.2m1.3-1.2c0 .7.6 1.2 1.3 1.2",
-      "M2 17h20",
-    ],
-  },
-  pages: {
-    paths: ["M3 5h8v14H3z", "M13 5h8v14h-8z"],
-  },
-  refresh: {
-    paths: ["M3 12a9 9 0 1 0 3-6.7L3 8", "M3 3v5h5"],
-  },
-  search: {
-    paths: ["M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z", "m16.2 16.2 4.3 4.3"],
-  },
-  "scroll-continuous": {
-    paths: ["M5 3h14v5H5z", "M5 9.5h14v5H5z", "M5 16h14v5H5z"],
-  },
-  settings: {
-    paths: [
-      "M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4A2 2 0 0 0 4 9.9l.2.1a2 2 0 0 1 1 1.7v.6a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.6a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2Z",
-      "M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
-    ],
-  },
-  sparkles: {
-    paths: [
-      "m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2Z",
-      "m19 14 .7 2.3L22 17l-2.3.7L19 20l-.7-2.3L16 17l2.3-.7Z",
-      "m5 13 .7 2.3L8 16l-2.3.7L5 19l-.7-2.3L2 16l2.3-.7Z",
-    ],
-  },
-  star: {
-    fillable: true,
-    paths: ["m12 2.75 2.85 5.77 6.37.93-4.61 4.49 1.09 6.34L12 17.24 6.3 20.23l1.09-6.34-4.61-4.49 6.37-.93Z"],
-  },
-  viewport: {
-    paths: ["M8 4H4v4", "M16 4h4v4", "M20 16v4h-4", "M8 20H4v-4", "M8 12h8"],
-  },
-};
+const FILLABLE_ICONS = new Set<IconName>(["heart", "star"]);
+
+const PANDA_FILLED_PATHS = [
+  "M7.2 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8Z",
+  "M16.8 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8Z",
+  "M7.6 9.8c.5-1.2 1.6-1.8 2.6-1.3s1.3 1.8.8 3-1.6 1.8-2.6 1.3-1.3-1.8-.8-3Z",
+  "M13.8 8.5c1-.5 2.1.1 2.6 1.3s.2 2.5-.8 3-2.1-.1-2.6-1.3-.2-2.5.8-3Z",
+  "M10.9 13.6c0-.6.5-.9 1.1-.9s1.1.3 1.1.9-.5 1-1.1 1-1.1-.4-1.1-1Z",
+  "M5.2 13.7a2.8 1.9 0 1 0 0 3.8 2.8 1.9 0 0 0 0-3.8Z",
+  "M18.8 14.1a2.8 1.9 0 1 0 0 3.8 2.8 1.9 0 0 0 0-3.8Z",
+] as const;
+
+const PANDA_PATHS = [
+  "M5 17c-.8-6.4 2.1-10.8 7-10.8s7.8 4.4 7 10.8",
+  "M12 14.6v.7c0 .7-.6 1.2-1.3 1.2m1.3-1.2c0 .7.6 1.2 1.3 1.2",
+  "M2 17h20",
+] as const;
+
+function PandaPeekIcon(props: { size: string; strokeWidth: number }) {
+  return (
+    <svg
+      class="ehpeek-icon block flex-none"
+      style={{ width: props.size, height: props.size }}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width={props.strokeWidth}
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      data-icon-name="panda-peek"
+      aria-hidden="true"
+    >
+      <For each={PANDA_FILLED_PATHS}>
+        {(path) => <path d={path} fill="currentColor" stroke="none" />}
+      </For>
+      <For each={PANDA_PATHS}>{(path) => <path d={path} />}</For>
+    </svg>
+  );
+}

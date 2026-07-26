@@ -60,8 +60,11 @@ export function GalleryInfoPanel(props: {
   const displayedRating = createMemo(() => ratingPreview() ?? ratingValue());
   const ratingLabel = createMemo(() => {
     const preview = ratingPreview();
-    return preview !== null
-      ? `Rate as ${preview.toFixed(1)} stars`
+    if (preview !== null) {
+      return `Rate as ${preview.toFixed(1)} stars`;
+    }
+    return ratingSubmitted()
+      ? `Rated ${ratingValue().toFixed(1)} stars`
       : ratingValueLabel();
   });
 
@@ -308,7 +311,7 @@ export function GalleryInfoPanel(props: {
                 </For>
               </span>
               <span
-                class={`absolute top-0 left-0 flex gap-1px overflow-hidden pointer-events-none ${ratingSubmitted() ? "text-[var(--color-rating-submitted)]" : "ehp-color-site-accent"}`}
+                class={`absolute top-0 left-0 flex gap-1px overflow-hidden pointer-events-none ${ratingSubmitted() || ratingPreview() !== null ? "text-[var(--color-rating-submitted)]" : "ehp-color-site-accent"}`}
                 aria-hidden="true"
                 style={{ width: `${(displayedRating() / 5) * 100}%` }}
               >
@@ -317,12 +320,20 @@ export function GalleryInfoPanel(props: {
                 </For>
               </span>
             </button>
+            <div
+              class="text-center textsize-md font-700"
+              aria-live="polite"
+            >
+              {ratingLabel()}
+            </div>
             <div class="grid grid-cols-2 gap-sm pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
               <button
                 type="button"
                 class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108`}
+                disabled={ratingPreview() === null}
                 onClick={() => {
-                  if (submitRating(displayedRating())) {
+                  const value = ratingPreview();
+                  if (value !== null && submitRating(value)) {
                     setRatingPickerOpen(false);
                   }
                 }}

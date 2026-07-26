@@ -861,7 +861,7 @@ function ScrollPreviewPanel(props: {
         <div class="flex min-h-[var(--ui-control-size-xs)] flex-none items-center justify-center gap-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs">
           <span class="inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75">
             <Show when={loadingCount() > 0}>
-              <span class="block w-[var(--ui-icon-size-xs)] h-[var(--ui-icon-size-xs)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
+              <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
             </Show>
             {`${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`}
           </span>
@@ -872,7 +872,7 @@ function ScrollPreviewPanel(props: {
             title={directionLabel}
             onClick={requestDirectionChange}
           >
-            <Icon name={directionIcon} size="var(--ui-icon-size-xs)" />
+            <Icon name={directionIcon} size="var(--ui-icon-size-sm)" />
           </button>
           <button
             type="button"
@@ -881,7 +881,7 @@ function ScrollPreviewPanel(props: {
             title={texts.gallery.openScrollPreview}
             onClick={() => props.onOpenOverlay?.(centeredPageNum())}
           >
-            <Icon name="fullscreen" size="var(--ui-icon-size-xs)" />
+            <Icon name="fullscreen" size="var(--ui-icon-size-sm)" />
           </button>
         </div>
         </Show>
