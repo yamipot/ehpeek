@@ -27,6 +27,7 @@ import { PriorityLoadQueue } from "../Widgets/PriorityLoadQueue";
 const GRID_GAP = 8;
 const HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6;
 const MAX_TILE_WIDTH = 220;
+const REFERENCE_PORTRAIT_ASPECT_RATIO = 7 / 5;
 const MAX_CROSS_COUNT = 12;
 const OVERSCAN_ROWS = 4;
 const PREVIEW_CONCURRENT_LOADS = 2;
@@ -703,8 +704,20 @@ function ScrollPreviewPanel(props: {
     const height = Math.max(1, scroller.clientHeight);
     const scale = props.embedded ? 1 : fullscreenUiScale();
     const gap = GRID_GAP * scale;
-    const maxTileWidth = MAX_TILE_WIDTH * scale;
     const aspectRatio = tileAspectRatio();
+    const baseMaxTileWidth = MAX_TILE_WIDTH * scale;
+    const referenceItemsPerRow = Math.max(
+      1,
+      Math.ceil((width + gap) / (baseMaxTileWidth + gap)),
+    );
+    const referenceItemWidth = Math.max(
+      1,
+      (width - gap * (referenceItemsPerRow - 1)) / referenceItemsPerRow,
+    );
+    const maxTileWidth = props.embedded
+      ? referenceItemWidth *
+        Math.sqrt(REFERENCE_PORTRAIT_ASPECT_RATIO / aspectRatio)
+      : baseMaxTileWidth;
     const anchorPageNum = initialized
       ? pinchAnchorPageNum ?? preferredLayoutAnchorPageNum()
       : null;

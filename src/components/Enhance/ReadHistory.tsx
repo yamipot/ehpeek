@@ -260,11 +260,13 @@ export function ReadButton(props: {
       {props.hasHistory
         ? texts.reader.continueReading
         : texts.reader.startReading}
-      <span class={detailClassName()}>
-        {props.totalPages
-          ? `${props.currentPage}/${props.totalPages}`
-          : String(props.currentPage)}
-      </span>
+      {props.hasHistory && (
+        <span class={detailClassName()}>
+          {props.totalPages
+            ? `${props.currentPage}/${props.totalPages}`
+            : String(props.currentPage)}
+        </span>
+      )}
     </button>
   );
 }
