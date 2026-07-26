@@ -225,7 +225,6 @@ function createReaderFullscreen(target: HTMLElement) {
     target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY);
     target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
     const captured = snapshot;
-    snapshot = null;
     if (!captured) {
       return Promise.resolve();
     }
