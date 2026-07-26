@@ -24,6 +24,7 @@ export default defineConfig({
     "z-ui": "z-1000",
     "z-overlay": "z-1100",
     "z-reader": "z-1200",
+    "z-dialog": "z-1400",
     ...pixelShortcuts(["w", "h", "min-h"], { xs: 24, sm: 32, md: 40, lg: 52, xl: 80 }),
     ...pixelShortcuts(
       ["p", "px", "py", "pt", "pr", "pb", "pl", "m", "mx", "my", "mt", "mr", "mb", "ml", "gap", "gap-x", "gap-y"],

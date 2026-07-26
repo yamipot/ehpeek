@@ -57,7 +57,7 @@ export function Dialog(props: {
         : document.body}
     >
       <div
-        class="fixed inset-0 z-overlay flex items-center justify-center overflow-hidden p-lg bg-black/65 pointer-events-auto font-sans"
+        class="fixed inset-0 z-dialog flex items-center justify-center overflow-hidden p-lg bg-black/65 pointer-events-auto font-sans"
         role="dialog"
         aria-modal="true"
         aria-label={props.label}
