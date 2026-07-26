@@ -178,7 +178,11 @@ const gallery = {
     }),
     titleMain: id("gn"),
     titleSub: id("gj"),
-    uploader: query("#gdn a, #gdn"),
+    uploader: id("gdn", {
+      childs: {
+        link: anchor("a[href]"),
+      },
+    }),
   },
   preview: {
     description: cls("gpc"),

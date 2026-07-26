@@ -144,11 +144,22 @@ export function GalleryInfoPanel(props: {
                 {source.data.titleSub}
               </div>
             </div>
-            <div
-              class="ehpeek-touch-gallery-category box-border flex-none self-start whitespace-nowrap rounded-xs border border-solid py-3px large:py-6px px-5px large:px-10px text-center textsize-md font-700 leading-[1.1] uppercase"
-              style={source.data.categoryAppearance}
-            >
-              {source.data.category}
+            <div class="flex min-w-0 max-w-full flex-none items-center gap-sm large:gap-md">
+              <a
+                class="ehpeek-touch-gallery-category box-border flex-none whitespace-nowrap rounded-xs border border-solid py-3px large:py-6px px-5px large:px-10px text-center textsize-md font-700 leading-[1.1] uppercase no-underline hover:no-underline active:no-underline"
+                href={source.data.categoryUrl ?? undefined}
+                style={source.data.categoryAppearance}
+              >
+                {source.data.category}
+              </a>
+              {source.data.uploader && (
+                <a
+                  class="ehpeek-touch-gallery-uploader min-w-0 overflow-hidden text-ellipsis whitespace-nowrap opacity-82 textsize-md font-700 leading-[1.1] no-underline hover:underline active:underline"
+                  href={source.data.uploaderUrl}
+                >
+                  {source.data.uploader}
+                </a>
+              )}
             </div>
             {rating && (
                 <button

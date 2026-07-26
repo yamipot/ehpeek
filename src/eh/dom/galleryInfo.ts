@@ -30,6 +30,19 @@ import {
 } from "./gallery";
 import { domClass } from "./domClass";
 
+const GALLERY_CATEGORY_FLAGS = {
+  ct1: 1,
+  ct2: 2,
+  ct3: 4,
+  ct4: 8,
+  ct5: 16,
+  ct6: 32,
+  ct7: 64,
+  ct8: 128,
+  ct9: 256,
+  cta: 512,
+} as const;
+
 /** Extracts Gallery display fields persisted with local reading history. */
 export function extractGalleryHistoryInfo(): GalleryHistoryInfo {
   const page = DomNode.from(document);
@@ -151,6 +164,25 @@ export function manageGalleryInfo(
       "border-color": style?.borderColor ?? "",
       color: style?.color ?? "",
     };
+  };
+
+  const readCategoryUrl = (
+    node: DomNode<HTMLElement> | null,
+  ): string | null => {
+    const categoryClass = node
+      ?.attribute("class")
+      ?.split(/\s+/)
+      .find((className): className is keyof typeof GALLERY_CATEGORY_FLAGS =>
+        className in GALLERY_CATEGORY_FLAGS);
+    if (!categoryClass) {
+      return null;
+    }
+    const url = new URL("/", window.location.href);
+    url.searchParams.set(
+      "f_cats",
+      String(1023 - GALLERY_CATEGORY_FLAGS[categoryClass]),
+    );
+    return url.href;
   };
 
   const readCoverUrl = (
@@ -322,6 +354,7 @@ export function manageGalleryInfo(
   const ratingImage = source.rating.image.one();
   const ratingLabel = source.rating.label.one();
   const ratingActions = source.rating.actions.all();
+  const uploader = source.uploader.link.one();
   const newTagButton =
     source.newTag.button.one();
   const newTagField = source.newTag.field.one();
@@ -339,6 +372,7 @@ export function manageGalleryInfo(
   const data = {
     category: category?.text() ?? "",
     categoryAppearance: readCategory(categoryStyle),
+    categoryUrl: readCategoryUrl(categoryStyle),
     favorite: readFavorite(favorite, scripts),
     rating: readRating(ratingCount, ratingImage, ratingLabel, scripts),
     summary: [
@@ -356,6 +390,8 @@ export function manageGalleryInfo(
     tagGroups,
     titleMain: source.titleMain.one()?.text() ?? "",
     titleSub: source.titleSub.one()?.text() ?? "",
+    uploader: uploader?.text() ?? "",
+    uploaderUrl: uploader?.attribute("href") ?? "",
   };
 
   const coverUrl = readCoverUrl(cover, coverSource);
