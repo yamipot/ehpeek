@@ -419,6 +419,132 @@ body.ehpeek-constrain-results-to-viewport {
   line-height: 1.2 !important;
 }
 
+.ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite {
+  --ehpeek-lite-cover-width: 23.8095%;
+}
+
+.ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite > tbody > tr {
+  aspect-ratio: 3 / 1;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}
+
+.ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite
+  > tbody
+  > tr:not(.ehpeek-expand-coverless-search-grid) {
+  grid-template-columns:
+    var(--ehpeek-lite-cover-width)
+    minmax(0, 1fr) !important;
+}
+
+.ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite
+  > tbody
+  > tr:has(> .glfe) {
+  grid-template-columns:
+    var(--ehpeek-lite-cover-width)
+    minmax(0, 1fr)
+    auto !important;
+}
+
+.ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite
+  > tbody
+  > tr
+  > .gl1e {
+  box-sizing: border-box !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite
+  > tbody
+  > tr
+  > .gl1e
+  > div,
+.ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite
+  > tbody
+  > tr
+  > .gl1e
+  a {
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite
+  > tbody
+  > tr
+  > .gl1e
+  img {
+  top: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: top center !important;
+}
+
+.ehpeek-layout-search-grid-lite > tbody > tr > .gl2e,
+.ehpeek-layout-search-grid-lite .gl4e {
+  overflow: hidden !important;
+}
+
+.ehpeek-layout-search-grid-lite .gl4e {
+  gap: 6px !important;
+  height: 100% !important;
+  padding-block: 4px !important;
+}
+
+.ehpeek-layout-search-grid-lite .glink {
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ehpeek-layout-search-grid-lite .ehpeek-stack-search-grid-tags {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 6px !important;
+}
+
+.ehpeek-layout-search-grid-lite
+  .ehpeek-stack-search-grid-tags:not(
+    :has(:is(.gt, .gtl, .gtw)[style*="background"])
+  ) {
+  display: none !important;
+}
+
+.ehpeek-layout-search-grid-lite
+  .ehpeek-stack-search-grid-tags
+  :is(table, tbody, tr, td) {
+  display: contents !important;
+}
+
+.ehpeek-layout-search-grid-lite .ehpeek-stack-search-grid-tags .tc,
+.ehpeek-layout-search-grid-lite
+  .ehpeek-stack-search-grid-tags
+  :is(.gt, .gtl, .gtw) {
+  display: none !important;
+}
+
+.ehpeek-layout-search-grid-lite
+  .ehpeek-stack-search-grid-tags
+  :is(.gt, .gtl, .gtw)[style*="background"] {
+  display: inline-flex !important;
+  align-items: center;
+}
+
+.ehpeek-layout-search-grid-lite [data-ehpeek-lite-prefix]::before {
+  content: attr(data-ehpeek-lite-prefix) ":";
+}
+
 .ehpeek-cover-search-grid-row {
   grid-column: 1 / 3;
   grid-row: 1;

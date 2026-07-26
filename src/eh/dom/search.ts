@@ -5,7 +5,7 @@ import type {
   ReadHistoryPageItem,
   TouchFavoritesCategorySelectInfo,
 } from "../types";
-import type { GalleryTitlePreference } from "../../state";
+import type { GalleryTitlePreference, SearchGridMode } from "../../state";
 import {
   anyDomNode,
   createAnchor,
@@ -405,7 +405,11 @@ function manageReadHistoryGrids(
       row: createReadHistoryGridRow(item, options.titlePreference),
     }));
     body.replaceChildren(...visibleRows.map(({ row }) => row.row));
-    manageEhPeekGrid(resultList, visibleRows.map(({ row }) => row));
+    manageEhPeekGrid(
+      resultList,
+      visibleRows.map(({ row }) => row),
+      "ehpeek-lite",
+    );
   };
   updateItems(options.items);
 
@@ -448,7 +452,7 @@ function manageReadHistoryGrids(
 }
 
 /** Manages the original Search rows with the EhPeek result layout. */
-export function manageSearchGrids(): void {
+export function manageSearchGrids(mode: SearchGridMode): void {
   const page = DomNode.from(document);
   const source = page.use(domClass.search);
   const resultList = source.results.one();
@@ -464,6 +468,7 @@ export function manageSearchGrids(): void {
   manageEhPeekGrid(
     resultList.inplace(),
     rows,
+    mode,
   );
 
   function manageSearchGridRow(row: DomNode<HTMLTableRowElement>): EhPeekGridRow | null {
@@ -529,8 +534,25 @@ export function manageSearchGrids(): void {
 function manageEhPeekGrid(
   resultList: ManagedDomNode<HTMLElement>,
   rows: EhPeekGridRow[],
+  mode: SearchGridMode = "ehpeek",
 ): void {
+  const liteTagPrefixes: Record<string, string> = {
+    artist: "a",
+    character: "c",
+    female: "f",
+    group: "g",
+    language: "l",
+    male: "m",
+    mixed: "x",
+    other: "o",
+    parody: "p",
+    reclass: "r",
+    temp: "t",
+  };
   resultList.addClasses(sharedApply.searchGrid);
+  if (mode === "ehpeek-lite") {
+    resultList.addClasses(sharedApply.liteSearchGrid);
+  }
 
   for (const row of rows) {
     row.row.addClasses(
@@ -579,6 +601,23 @@ function manageEhPeekGrid(
     if (source.stackTags) {
       for (const tag of tags) {
         tag.addClasses(sharedApply.stackSearchGridTags);
+        if (mode === "ehpeek-lite") {
+          markLiteSearchTags(tag);
+        }
+      }
+    }
+  }
+
+  function markLiteSearchTags(container: ManagedDomNode): void {
+    for (const tag of container.all(
+      ':is(.gt, .gtl, .gtw)[title*=":"]',
+    )) {
+      const namespace = tag.readAttribute("title")?.split(":", 1)[0]?.trim();
+      const prefix = namespace
+        ? liteTagPrefixes[namespace.toLowerCase()]
+        : null;
+      if (prefix) {
+        tag.attribute("data-ehpeek-lite-prefix", prefix);
       }
     }
   }
@@ -651,25 +690,27 @@ export function mutateSearchReadHistoryAppearance(
 
 /** Adds the local EhPeek grid choice to Search's original display-mode selector. */
 export function mutateSearchGridModeSelect(
-  selected: boolean,
-  onEhPeekSelect: () => void,
+  selected: SearchGridMode | null,
+  onEhPeekSelect: (mode: SearchGridMode) => void,
   onOriginalSelect: () => void,
 ) {
   const selects = DomNode.from(document).use(domClass.search).displayMode.all();
 
   for (const source of selects) {
     const select = source.inplace();
-    let option = source.all(domClass.search.displayMode.options)
-      .find((item) => item.inputValue() === "ehpeek")?.inplace() ?? null;
-
-    if (!option) {
-      option = createManagedElement("option")
-        .attribute("value", "ehpeek");
-      option.setTextUnlessInput("EhPeek");
-      select.append(option);
+    for (const { label, value } of [
+      { label: "EhPeek", value: "ehpeek" },
+      { label: "EhPeekLite", value: "ehpeek-lite" },
+    ] satisfies Array<{ label: string; value: SearchGridMode }>) {
+      let option = source.all(domClass.search.displayMode.options)
+        .find((item) => item.inputValue() === value)?.inplace() ?? null;
+      if (!option) {
+        option = createManagedElement("option").attribute("value", value);
+        option.setTextUnlessInput(label);
+        select.append(option);
+      }
+      option.setSelected(selected === value);
     }
-
-    option.setSelected(selected);
 
     if (source.attribute("data-ehpeek-grid-mode") === "true") {
       continue;
@@ -677,14 +718,15 @@ export function mutateSearchGridModeSelect(
 
     select.attribute("data-ehpeek-grid-mode", "true");
     select.listen("change", (event) => {
-      if (select.inputValue() !== "ehpeek") {
+      const value = select.inputValue();
+      if (value !== "ehpeek" && value !== "ehpeek-lite") {
         onOriginalSelect();
         return;
       }
 
       event.preventDefault();
       event.stopImmediatePropagation();
-      onEhPeekSelect();
+      onEhPeekSelect(value);
     }, true);
   }
 }

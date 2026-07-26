@@ -22,6 +22,7 @@ export const sharedApply = {
   constrainResultsToViewport: "ehpeek-constrain-results-to-viewport",
   galleryTagMenuItem: "ehpeek-layout-gallery-tag-menu-item",
   hideOriginalSearchAction: "ehpeek-hide-original-search-action",
+  liteSearchGrid: "ehpeek-layout-search-grid-lite",
   searchGrid: "ehpeek-layout-search-grid",
   searchResultColumns: "ehpeek-search-result-columns",
   stackSearchGridTags: "ehpeek-stack-search-grid-tags",

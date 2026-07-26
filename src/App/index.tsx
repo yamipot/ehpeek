@@ -308,14 +308,14 @@ function injectEnhanceUI(
   const updateSearchGridModeSelector = () => {
     eh.mutateSearchGridModeSelect(
       state.search.grid.value,
-      () => {
-        state.search.grid.set(true);
+      (mode) => {
+        state.search.grid.set(mode);
         window.location.assign(
           new URL("/?inline_set=dm_e", window.location.href).href,
         );
       },
       () => {
-        state.search.grid.set(false);
+        state.search.grid.set(null);
       },
     );
   };
@@ -333,9 +333,12 @@ function injectEnhanceUI(
       updateSearchGridModeSelector();
     });
   }
-  const searchGridEnabled = Boolean(searchPage && state.search.grid.value);
-  if (searchGridEnabled) {
-    allowFeatureFailure("Search grid", () => eh.manageSearchGrids());
+  const searchGridMode = searchPage ? state.search.grid.value : null;
+  if (searchGridMode) {
+    allowFeatureFailure(
+      "Search grid",
+      () => eh.manageSearchGrids(searchGridMode),
+    );
   }
   const updateSearchReadHistoryAppearance = () => {
     if (!searchPage || !gState.settings.readHistoryEnabled) {
@@ -485,8 +488,8 @@ function injectEnhanceUI(
                 source.handle.ensureGalleryLinksOpenInNewTab();
               }
               touchResultsDom?.handle.updateTouchResultsLayout();
-              if (searchGridEnabled) {
-                eh.manageSearchGrids();
+              if (searchGridMode) {
+                eh.manageSearchGrids(searchGridMode);
               }
               updateSearchReadHistoryAppearance();
             });

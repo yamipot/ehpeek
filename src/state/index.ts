@@ -5,6 +5,7 @@ export type RightTapAction = "previous" | "next";
 export type ReaderScrollSizeScale = number | "one-to-one" | null;
 export type GalleryTitlePreference = "main" | "sub";
 export type UiScale = "small" | "medium" | "large";
+export type SearchGridMode = "ehpeek" | "ehpeek-lite";
 export type MyTagAppearance = {
   backgroundColor: string;
   color: string;
@@ -81,7 +82,10 @@ export const state = {
   },
   search: {
     enhance: persisted("ehpeek:enhance-search:enabled", true),
-    grid: localSelection("ehpeek:search-grid", "ehpeek"),
+    grid: localOptionalEnum<SearchGridMode>(
+      "ehpeek:search-grid",
+      ["ehpeek", "ehpeek-lite"],
+    ),
     history: persisted("ehpeek:search-history:enabled", true),
     searchHistory: persisted<string[]>("ehpeek:search:history", []),
   },
@@ -140,15 +144,21 @@ export function normalizeReaderScrollSizeScale(scale: number): number {
   return Number.isFinite(scale) ? Math.min(100, Math.max(0.001, scale)) : 1;
 }
 
-function localSelection(key: string, selectedValue: string): StateValue<boolean> {
-  const read = () => window.localStorage.getItem(key) === selectedValue;
-  const item: StateValue<boolean> = {
-    defaultValue: false,
+function localOptionalEnum<T extends string>(
+  key: string,
+  values: readonly T[],
+): StateValue<T | null> {
+  const read = () => {
+    const value = window.localStorage.getItem(key);
+    return values.includes(value as T) ? value as T : null;
+  };
+  const item: StateValue<T | null> = {
+    defaultValue: null,
     value: read(),
     set(value) {
       item.value = value;
-      if (value) {
-        window.localStorage.setItem(key, selectedValue);
+      if (value !== null) {
+        window.localStorage.setItem(key, value);
       } else {
         window.localStorage.removeItem(key);
       }
