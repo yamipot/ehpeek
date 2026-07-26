@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260726.1102
+// @version      260726.1122
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -4417,15 +4417,13 @@ Next page`,
       __publicField(this, "pinchPointers", /* @__PURE__ */ new Map());
       __publicField(this, "drag", null);
       __publicField(this, "suppressClick", !1);
-      __publicField(this, "suppressClickPoint", null);
       __publicField(this, "suppressClickTimer", null);
       __publicField(this, "pinch", null);
       __publicField(this, "onDragStart", (event) => {
         this.drag?.canDrag && event.preventDefault();
       });
       __publicField(this, "onClick", (event) => {
-        let point = this.suppressClickPoint, targetInside = event.target instanceof Node && this.target.contains(event.target), nearReleasePoint = point !== null && Math.hypot(event.clientX - point.clientX, event.clientY - point.clientY) <= 24;
-        !this.suppressClick || !targetInside && !nearReleasePoint || (this.clearClickSuppression(), event.preventDefault(), event.stopImmediatePropagation());
+        this.suppressClick && (this.clearClickSuppression(), event.preventDefault(), event.stopImmediatePropagation());
       });
       __publicField(this, "onClickSuppressionPointerDown", () => {
         this.clearClickSuppression();
@@ -4563,7 +4561,7 @@ Next page`,
           }, event);
           return;
         }
-        this.suppressNextClick(info.clientX, info.clientY), this.callbacks().onEnd?.(info, event);
+        this.suppressNextClick(), this.callbacks().onEnd?.(info, event);
       }
     }
     addPointerListeners() {
@@ -4640,16 +4638,13 @@ Next page`,
       let elapsed = Math.max(1, event.timeStamp - drag.lastMoveTime);
       drag.velocityX = (clientX - drag.lastClientX) / elapsed, drag.velocityY = (clientY - drag.lastClientY) / elapsed, drag.lastClientX = clientX, drag.lastClientY = clientY, drag.lastMoveTime = event.timeStamp;
     }
-    suppressNextClick(clientX, clientY) {
-      this.suppressClick = !0, this.suppressClickPoint = {
-        clientX,
-        clientY
-      }, window.addEventListener("click", this.onClick, !0), window.addEventListener("mousedown", this.onClickSuppressionPointerDown, !0), window.addEventListener("pointerdown", this.onClickSuppressionPointerDown, !0), this.suppressClickTimer !== null && window.clearTimeout(this.suppressClickTimer), this.suppressClickTimer = window.setTimeout(() => {
+    suppressNextClick() {
+      this.suppressClick = !0, this.target.addEventListener("click", this.onClick, !0), this.target.addEventListener("mousedown", this.onClickSuppressionPointerDown, !0), this.target.addEventListener("pointerdown", this.onClickSuppressionPointerDown, !0), this.suppressClickTimer !== null && window.clearTimeout(this.suppressClickTimer), this.suppressClickTimer = window.setTimeout(() => {
         this.clearClickSuppression();
       }, 400);
     }
     clearClickSuppression() {
-      this.suppressClick = !1, this.suppressClickPoint = null, window.removeEventListener("click", this.onClick, !0), window.removeEventListener("mousedown", this.onClickSuppressionPointerDown, !0), window.removeEventListener("pointerdown", this.onClickSuppressionPointerDown, !0), this.suppressClickTimer !== null && (window.clearTimeout(this.suppressClickTimer), this.suppressClickTimer = null);
+      this.suppressClick = !1, this.target.removeEventListener("click", this.onClick, !0), this.target.removeEventListener("mousedown", this.onClickSuppressionPointerDown, !0), this.target.removeEventListener("pointerdown", this.onClickSuppressionPointerDown, !0), this.suppressClickTimer !== null && (window.clearTimeout(this.suppressClickTimer), this.suppressClickTimer = null);
     }
     setDragging(dragging) {
       this.target.dataset.dragging = String(dragging);
@@ -7389,7 +7384,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260726.1102", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260726.1122", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
