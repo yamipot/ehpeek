@@ -23,6 +23,7 @@ export const sharedApply = {
   constrainResultsToViewport: "ehpeek-constrain-results-to-viewport",
   galleryTagMenuItem: "ehpeek-layout-gallery-tag-menu-item",
   hideOriginalSearchAction: "ehpeek-hide-original-search-action",
+  historyLabel: "ehpeek-prefix-read-history-label",
   liteSearchGrid: "ehpeek-layout-search-grid-lite",
   searchGrid: "ehpeek-layout-search-grid",
   searchResultColumns: "ehpeek-search-result-columns",
@@ -336,7 +337,7 @@ const search = {
                   }),
                   title: query(":scope > .glink", {
                     apply: {
-                      history: "ehpeek-prefix-read-history-label",
+                      history: sharedApply.historyLabel,
                     },
                   }),
                 },

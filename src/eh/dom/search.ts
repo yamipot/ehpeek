@@ -86,16 +86,9 @@ function createReadHistoryGridRow(
     "ehpeek-search-meta-pages",
   );
 
-  const progress = item.currentPage > 0
-    ? item.totalPages
-      ? `${item.currentPage}/${item.totalPages}`
-      : String(item.currentPage)
-    : texts.history.unread;
-  const historyStatus = createManagedElement("div")
-    .replaceClasses(
-      "px-sm py-xs rounded-sm border border-[var(--color-site-border-subtle)] bg-transparent textsize-md font-700 leading-[1.2] whitespace-nowrap",
-    );
-  historyStatus.setTextUnlessInput(progress);
+  const historyLabel = item.currentPage > 0
+    ? `${item.currentPage} / ${item.totalPages ?? "?"}`
+    : texts.history.visitedLabel;
   const removeButton = createManagedElement("button")
     .setAttributes({ type: "button", "data-ehpeek-remove-history": "true" })
     .replaceClasses(
@@ -104,7 +97,7 @@ function createReadHistoryGridRow(
   removeButton.setTextUnlessInput(texts.button.removeHistory);
   const historyActions = createManagedElement("div")
     .replaceClasses("ehpeek-read-history-actions box-border flex items-center justify-end gap-md pr-sm pb-xs")
-    .append(historyStatus, removeButton);
+    .append(removeButton);
   const titleText = titlePreference === "sub"
     ? info?.titleSub || info?.title
     : info?.title || info?.titleSub;
@@ -112,7 +105,9 @@ function createReadHistoryGridRow(
     `/g/${item.galleryId}/${item.token}/`,
     window.location.href,
   ).href;
-  const row = createManagedElement("tr");
+  const row = createManagedElement("tr").setAttributes({
+    "data-ehpeek-read-history": item.currentPage > 0 ? "reading" : "visited",
+  });
   const thumbnailCell = createManagedElement("td").replaceClasses("gl1e");
   const thumbnail = createManagedElement("div");
   const image = info?.coverUrl
@@ -134,7 +129,9 @@ function createReadHistoryGridRow(
   const contentCell = createManagedElement("td").replaceClasses("gl2e");
   const galleryLink = createManagedElement("a").attribute("href", galleryHref);
   const detail = createManagedElement("div").replaceClasses("gl4e h-full");
-  const title = createManagedElement("div").replaceClasses("glink");
+  const title = createManagedElement("div")
+    .replaceClasses(`glink ${sharedApply.historyLabel}`)
+    .setAttributes({ "data-ehpeek-history-label": historyLabel });
   title.setTextUnlessInput(titleText ?? "");
   title.setHidden(!titleText);
   const metadata = createManagedElement("div").replaceClasses("gl3e");
@@ -540,17 +537,9 @@ function manageEhPeekGrid(
   mode: SearchGridMode = "ehpeek",
 ): void {
   const liteTagPrefixes: Record<string, string> = {
-    artist: "a",
-    character: "c",
     female: "f",
-    group: "g",
-    language: "l",
     male: "m",
     mixed: "x",
-    other: "o",
-    parody: "p",
-    reclass: "r",
-    temp: "t",
   };
   resultList.addClasses(sharedApply.searchGrid);
   if (mode === "ehpeek-lite") {
@@ -651,7 +640,10 @@ function manageEhPeekGrid(
 
 /** Tints Search result surfaces according to their stored reading progress across display modes. */
 export function mutateSearchReadHistoryAppearance(
-  readPageForGallery: (galleryId: number, token: string) => number | null,
+  readProgressForGallery: (
+    galleryId: number,
+    token: string,
+  ) => { pageNum: number; totalPages?: number } | null,
 ): void {
   const source = DomNode.from(document).use(domClass.search);
   const resultList = source.results.one();
@@ -671,8 +663,8 @@ export function mutateSearchReadHistoryAppearance(
       continue;
     }
 
-    const pageNum = readPageForGallery(identity.galleryId, identity.token);
-    if (pageNum === null) {
+    const progress = readProgressForGallery(identity.galleryId, identity.token);
+    if (!progress) {
       continue;
     }
 
@@ -680,13 +672,13 @@ export function mutateSearchReadHistoryAppearance(
     title
       .inplace(domClass.search.results.titles.apply)
       .setAttributes({
-        "data-ehpeek-history-label": pageNum > 0
-          ? texts.history.readingLabel
+        "data-ehpeek-history-label": progress.pageNum > 0
+          ? `${progress.pageNum} / ${progress.totalPages ?? "?"}`
           : texts.history.visitedLabel,
       })
       .apply("history");
     item.inplace().setAttributes({
-      "data-ehpeek-read-history": pageNum > 0 ? "reading" : "visited",
+      "data-ehpeek-read-history": progress.pageNum > 0 ? "reading" : "visited",
     });
   }
 }

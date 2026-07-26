@@ -344,9 +344,7 @@ function injectEnhanceUI(
     if (!searchPage || !gState.settings.readHistoryEnabled) {
       return;
     }
-    eh.mutateSearchReadHistoryAppearance(
-      (galleryId, token) => loadReadHistory(galleryId, token)?.pageNum ?? null,
-    );
+    eh.mutateSearchReadHistoryAppearance(loadReadHistory);
   };
   allowFeatureFailure("Search Read History appearance", updateSearchReadHistoryAppearance);
 

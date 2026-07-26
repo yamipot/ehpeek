@@ -70,11 +70,9 @@
     "importFailed": "History import failed",
     "imported": "Imported {count} histories",
     "limit": "(max {limit})",
-    "visitedLabel": "[VISITED]",
+    "visitedLabel": "VISITED",
     "range": "{start}-{end} in {total} histories",
-    "readingLabel": "[READING]",
-    "removeConfirm": "Remove this gallery from Read History?",
-    "unread": "Unread"
+    "removeConfirm": "Remove this gallery from Read History?"
   },
   "gallery": {
     "scrollPreview": "Scroll Preview",
