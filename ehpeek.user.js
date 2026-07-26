@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260726.1046
+// @version      260726.1102
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -4991,7 +4991,7 @@ Next page`,
   }
 
   // src/App/viewport.ts
-  var FULLSCREEN_SCALE_PROPERTY = "--ehpeek-fullscreen-scale", FULLSCREEN_SCALE_INVERSE_PROPERTY = "--ehpeek-fullscreen-scale-inverse", UI_TOKEN_PROPERTY = /^--ui-/;
+  var FULLSCREEN_SCALE_PROPERTY = "--ehpeek-fullscreen-scale", FULLSCREEN_SCALE_INVERSE_PROPERTY = "--ehpeek-fullscreen-scale-inverse", FULLSCREEN_UI_ATTRIBUTE = "data-ehpeek-fullscreen-ui", FULLSCREEN_UI_TOKEN_PREFIX = "--ehpeek-fullscreen-", UI_TOKEN_PROPERTY = /^--ui-/;
   function lockPageScroll() {
     let documentElement = document.documentElement, body = document.body, documentOverflow = documentElement.style.overflow, bodyOverflow = body.style.overflow;
     return documentElement.style.overflow = "hidden", body.style.overflow = "hidden", () => {
@@ -5027,22 +5027,35 @@ Next page`,
     );
     return Number.isFinite(factor) && factor > 0 && factor < 1 ? factor : 1;
   }
-  function observeFullscreenUiSizing(target) {
-    let applied = /* @__PURE__ */ new Set(), fullscreenObserver = null, frame = null, sync = () => {
-      for (let property of applied)
-        target.style.removeProperty(property);
-      applied.clear();
-      let factor = fullscreenUiScale();
-      if (factor === 1)
+  function observeFullscreenUiSizing() {
+    let target = null, applied = /* @__PURE__ */ new Set(), fullscreenObserver = null, frame = null, clear = () => {
+      if (target) {
+        target.removeAttribute(FULLSCREEN_UI_ATTRIBUTE);
+        for (let property of applied)
+          target.style.removeProperty(property);
+        target = null, applied = /* @__PURE__ */ new Set();
+      }
+    }, sync = () => {
+      let fullscreenElement = document.fullscreenElement;
+      if (!(fullscreenElement instanceof HTMLElement)) {
+        clear();
         return;
-      let source = document.documentElement.style;
+      }
+      target !== fullscreenElement && (clear(), target = fullscreenElement);
+      let factor = fullscreenUiScale(), source = document.documentElement.style, next = /* @__PURE__ */ new Set();
       for (let index = 0; index < source.length; index += 1) {
         let property = source.item(index);
         if (!UI_TOKEN_PROPERTY.test(property))
           continue;
         let value = source.getPropertyValue(property).trim(), match = /^([\d.]+)px$/.exec(value);
-        match && (target.style.setProperty(property, `${Number(match[1]) * factor}px`), applied.add(property));
+        if (!match)
+          continue;
+        let fullscreenProperty = `${FULLSCREEN_UI_TOKEN_PREFIX}${property.slice(2)}`, scaledValue = `${Number(match[1]) * factor}px`;
+        target.style.getPropertyValue(fullscreenProperty) !== scaledValue && target.style.setProperty(fullscreenProperty, scaledValue), next.add(fullscreenProperty);
       }
+      for (let property of applied)
+        next.has(property) || target.style.removeProperty(property);
+      target.setAttribute(FULLSCREEN_UI_ATTRIBUTE, ""), applied = next;
     }, scheduleSync = () => {
       frame === null && (frame = window.requestAnimationFrame(() => {
         frame = null, sync();
@@ -5059,9 +5072,7 @@ Next page`,
       attributeFilter: ["style"],
       attributes: !0
     }), document.addEventListener("fullscreenchange", observeFullscreenElement), observeFullscreenElement(), () => {
-      document.removeEventListener("fullscreenchange", observeFullscreenElement), rootObserver.disconnect(), fullscreenObserver?.disconnect(), frame !== null && window.cancelAnimationFrame(frame);
-      for (let property of applied)
-        target.style.removeProperty(property);
+      document.removeEventListener("fullscreenchange", observeFullscreenElement), rootObserver.disconnect(), fullscreenObserver?.disconnect(), frame !== null && window.cancelAnimationFrame(frame), clear();
     };
   }
   function createReaderFullscreen(target) {
@@ -5212,8 +5223,8 @@ Next page`,
 
   // src/components/Widgets/Dialog.tsx
   var _tmpl$8 = /* @__PURE__ */ template('<div class="fixed inset-0 z-dialog flex items-center justify-center overflow-hidden p-lg bg-black/65 pointer-events-auto font-sans"role=dialog aria-modal=true><div><div><h2 class="m-0 textsize-lg font-700"></h2><button type=button></button></div><div>'), DIALOG_WIDTHS = {
-    md: "max-w-420px",
-    lg: "max-w-520px"
+    md: "max-w-[calc(var(--ui-control-size-xl)*7.5)]",
+    lg: "max-w-[calc(var(--ui-control-size-xl)*9.25)]"
   };
   function Dialog(props) {
     onMount(() => {
@@ -5245,7 +5256,7 @@ Next page`,
           name: "close",
           size: "var(--ui-icon-size-md)"
         })), insert(_el$6, () => props.children), createRenderEffect((_p$) => {
-          var _v$ = props.label, _v$2 = `box-border flex w-full ${DIALOG_WIDTHS[props.width]} max-h-[min(720px,calc(100dvh-32px))] flex-col overflow-hidden rounded-lg border shadow-xl ${reader() ? "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)]" : "ehp-color-site-border ehp-color-site-elevated ehp-color-site-text"}`, _v$3 = `flex min-h-[var(--ui-control-size-lg)] flex-none items-center justify-between gap-md py-sm pl-lg pr-sm border-0 border-b ${reader() ? "border-[var(--color-border)]" : "ehp-color-site-border-subtle-b"}`, _v$4 = `inline-flex w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] flex-none items-center justify-center p-0 rounded-md border bg-transparent cursor-pointer ${reader() ? "border-[var(--color-border)] text-[var(--color-text)]" : "ehp-color-site-border ehp-color-site-text hover:bg-[var(--color-site-item-hover)]"}`, _v$5 = texts_default.button.close, _v$6 = texts_default.button.close, _v$7 = `min-h-0 overflow-y-auto overscroll-contain ${props.bodyClass}`;
+          var _v$ = props.label, _v$2 = `box-border flex w-full ${DIALOG_WIDTHS[props.width]} max-h-[min(calc(var(--ui-control-size-xl)*12.75),calc(100dvh-32px))] flex-col overflow-hidden rounded-lg border shadow-xl ${reader() ? "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)]" : "ehp-color-site-border ehp-color-site-elevated ehp-color-site-text"}`, _v$3 = `flex min-h-[var(--ui-control-size-lg)] flex-none items-center justify-between gap-md py-sm pl-lg pr-sm border-0 border-b ${reader() ? "border-[var(--color-border)]" : "ehp-color-site-border-subtle-b"}`, _v$4 = `inline-flex w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] flex-none items-center justify-center p-0 rounded-md border bg-transparent cursor-pointer ${reader() ? "border-[var(--color-border)] text-[var(--color-text)]" : "ehp-color-site-border ehp-color-site-text hover:bg-[var(--color-site-item-hover)]"}`, _v$5 = texts_default.button.close, _v$6 = texts_default.button.close, _v$7 = `min-h-0 overflow-y-auto overscroll-contain ${props.bodyClass}`;
           return _v$ !== _p$.e && setAttribute(_el$, "aria-label", _p$.e = _v$), _v$2 !== _p$.t && className(_el$2, _p$.t = _v$2), _v$3 !== _p$.a && className(_el$3, _p$.a = _v$3), _v$4 !== _p$.o && className(_el$5, _p$.o = _v$4), _v$5 !== _p$.i && setAttribute(_el$5, "aria-label", _p$.i = _v$5), _v$6 !== _p$.n && setAttribute(_el$5, "title", _p$.n = _v$6), _v$7 !== _p$.s && className(_el$6, _p$.s = _v$7), _p$;
         }, {
           e: void 0,
@@ -6128,22 +6139,18 @@ Next page`,
         scroller.isConnected && (initialized ? scrollToPage(anchorPageNum ?? centeredPageNum(), next) : (initialized = !0, props.targetPageNum === null ? scrollToPreview(props.targetPreviewIndex, next) : scrollToPage(props.targetPageNum, next)), setPreviewLoadReady(!0));
       }));
     };
-    createEffect(() => {
+    return createEffect(() => {
       crossCountOverride(), initialized && updateLayout();
-    });
-    let fullscreenRoot;
-    return onMount(() => {
-      let stopFullscreenUiSizing = props.embedded ? void 0 : observeFullscreenUiSizing(fullscreenRoot), previousBodyOverflow = document.body.style.overflow, previousHtmlOverflow = document.documentElement.style.overflow;
+    }), onMount(() => {
+      let previousBodyOverflow = document.body.style.overflow, previousHtmlOverflow = document.documentElement.style.overflow;
       props.embedded || (document.body.style.overflow = "hidden", document.documentElement.style.overflow = "hidden");
       let resizeObserver = new ResizeObserver(updateLayout);
       resizeObserver.observe(scroller), updateLayout(), onCleanup(() => {
-        stopFullscreenUiSizing?.(), disposed = !0, flingAnimator.cancel(), previewLoadQueue.dispose(), resizeObserver.disconnect(), props.embedded || (document.body.style.overflow = previousBodyOverflow, document.documentElement.style.overflow = previousHtmlOverflow), decodeCache.dispose(), scrollFrame !== null && window.cancelAnimationFrame(scrollFrame);
+        disposed = !0, flingAnimator.cancel(), previewLoadQueue.dispose(), resizeObserver.disconnect(), props.embedded || (document.body.style.overflow = previousBodyOverflow, document.documentElement.style.overflow = previousHtmlOverflow), decodeCache.dispose(), scrollFrame !== null && window.cancelAnimationFrame(scrollFrame);
       });
     }), (() => {
-      var _el$3 = _tmpl$45(), _el$4 = _el$3.firstChild, _el$0 = _el$4.firstChild, _el$1 = _el$0.firstChild, _el$10 = _el$1.firstChild, _ref$ = fullscreenRoot;
-      typeof _ref$ == "function" ? use(_ref$, _el$3) : fullscreenRoot = _el$3;
-      var _ref$2 = overlay;
-      typeof _ref$2 == "function" ? use(_ref$2, _el$4) : overlay = _el$4, insert(_el$4, createComponent(Show, {
+      var _el$3 = _tmpl$45(), _el$4 = _el$3.firstChild, _el$0 = _el$4.firstChild, _el$1 = _el$0.firstChild, _el$10 = _el$1.firstChild, _ref$ = overlay;
+      typeof _ref$ == "function" ? use(_ref$, _el$4) : overlay = _el$4, insert(_el$4, createComponent(Show, {
         get when() {
           return props.embedded;
         },
@@ -6200,8 +6207,8 @@ Next page`,
           scrollFrame = null, setScrollOffset(untrack(readScrollOffset));
         }));
       });
-      var _ref$3 = scroller;
-      return typeof _ref$3 == "function" ? use(_ref$3, _el$1) : scroller = _el$1, insert(_el$10, createComponent(For, {
+      var _ref$2 = scroller;
+      return typeof _ref$2 == "function" ? use(_ref$2, _el$1) : scroller = _el$1, insert(_el$10, createComponent(For, {
         get each() {
           return visibleSlots();
         },
@@ -7382,7 +7389,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260726.1046", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260726.1102", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
@@ -10124,7 +10131,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .max-h-\\[60dvh\\]{max-height:60dvh;}
 .max-h-\\[calc\\(100dvh-32px\\)\\]{max-height:calc(100dvh - 32px);}
 .max-h-\\[calc\\(100vh-48px\\)\\]{max-height:calc(100vh - 48px);}
-.max-h-\\[min\\(720px\\,calc\\(100dvh-32px\\)\\)\\]{max-height:min(720px,calc(100dvh - 32px));}
+.max-h-\\[min\\(calc\\(var\\(--ui-control-size-xl\\)\\*12\\.75\\)\\,calc\\(100dvh-32px\\)\\)\\]{max-height:min(calc(var(--ui-control-size-xl) * 12.75),calc(100dvh - 32px));}
 .max-h-240px{max-height:240px;}
 .max-h-full{max-height:100%;}
 .max-h-screen{max-height:100vh;}
@@ -10132,10 +10139,11 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .max-w-\\[calc\\(100vw-20px\\)\\]{max-width:calc(100vw - 20px);}
 .max-w-\\[calc\\(100vw-32px\\)\\]{max-width:calc(100vw - 32px);}
 .max-w-\\[calc\\(100vw-48px\\)\\]{max-width:calc(100vw - 48px);}
+.max-w-\\[calc\\(var\\(--ui-control-size-xl\\)\\*7\\.5\\)\\]{max-width:calc(var(--ui-control-size-xl) * 7.5);}
+.max-w-\\[calc\\(var\\(--ui-control-size-xl\\)\\*9\\.25\\)\\]{max-width:calc(var(--ui-control-size-xl) * 9.25);}
 .max-w-\\[min\\(78vw\\,320px\\)\\]{max-width:min(78vw,320px);}
 .max-w-\\[min\\(86vw\\,760px\\)\\]{max-width:min(86vw,760px);}
 .max-w-420px{max-width:420px;}
-.max-w-520px{max-width:520px;}
 .max-w-960px{max-width:960px;}
 .max-w-full{max-width:100%;}
 .max-w-screen{max-width:100vw;}
@@ -10537,6 +10545,28 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
   --color-site-text: #f1f1f1;
   --color-site-accent: #f0b35a;
   --color-site-border: #8d7454;
+}
+
+/* The fullscreen root owns scaled tokens so later Portal children inherit them immediately. */
+[data-ehpeek-fullscreen-ui] {
+  --ui-control-size-xs: var(--ehpeek-fullscreen-ui-control-size-xs) !important;
+  --ui-control-size-sm: var(--ehpeek-fullscreen-ui-control-size-sm) !important;
+  --ui-control-size-md: var(--ehpeek-fullscreen-ui-control-size-md) !important;
+  --ui-control-size-lg: var(--ehpeek-fullscreen-ui-control-size-lg) !important;
+  --ui-control-size-xl: var(--ehpeek-fullscreen-ui-control-size-xl) !important;
+  --ui-font-size-xs: var(--ehpeek-fullscreen-ui-font-size-xs) !important;
+  --ui-font-size-sm: var(--ehpeek-fullscreen-ui-font-size-sm) !important;
+  --ui-font-size-md: var(--ehpeek-fullscreen-ui-font-size-md) !important;
+  --ui-font-size-prominent: var(--ehpeek-fullscreen-ui-font-size-prominent) !important;
+  --ui-font-size-title: var(--ehpeek-fullscreen-ui-font-size-title) !important;
+  --ui-font-size-lg: var(--ehpeek-fullscreen-ui-font-size-lg) !important;
+  --ui-font-size-xl: var(--ehpeek-fullscreen-ui-font-size-xl) !important;
+  --ui-icon-size-sm: var(--ehpeek-fullscreen-ui-icon-size-sm) !important;
+  --ui-icon-size-md: var(--ehpeek-fullscreen-ui-icon-size-md) !important;
+  --ui-icon-size-lg: var(--ehpeek-fullscreen-ui-icon-size-lg) !important;
+  --ui-icon-size-xl: var(--ehpeek-fullscreen-ui-icon-size-xl) !important;
+  --ui-status-dot-size-md: var(--ehpeek-fullscreen-ui-status-dot-size-md) !important;
+  --ui-status-dot-size-lg: var(--ehpeek-fullscreen-ui-status-dot-size-lg) !important;
 }
 
 html:fullscreen > body {
@@ -11515,20 +11545,19 @@ html:fullscreen .ehpeek-touch-top-bar {
     untrack(() => props.actionsRef({
       gotoPage: readerCallbacks2.gotoPage
     }));
-    let root, previousFullscreenActive = untrack(() => props.fullscreenActive);
+    let previousFullscreenActive = untrack(() => props.fullscreenActive);
     return createEffect(() => {
       let fullscreenActive = props.fullscreenActive;
       fullscreenActive !== previousFullscreenActive && (previousFullscreenActive = fullscreenActive, session.requestAnimationFrame(() => {
         session.requestAnimationFrame(readerCallbacks2.realignCurrentPage);
       }));
     }), onMount(() => {
-      let stopFullscreenUiSizing = observeFullscreenUiSizing(root);
       readerCallbacks2.init(), onCleanup(() => {
-        stopFullscreenUiSizing(), readerCallbacks2.cleanup(), session.dispose();
+        readerCallbacks2.cleanup(), session.dispose();
       });
     }), (() => {
-      var _el$ = _tmpl$217(), _ref$ = root;
-      return typeof _ref$ == "function" ? use(_ref$, _el$) : root = _el$, insert(_el$, createComponent(Show, {
+      var _el$ = _tmpl$217();
+      return insert(_el$, createComponent(Show, {
         get when() {
           return !readerState.scrollViewport.adjusting();
         },
@@ -12516,6 +12545,7 @@ html:fullscreen .ehpeek-touch-top-bar {
   }
   document.documentElement.setAttribute("data-ehpeek-site", ehSiteTheme());
   updateUiScale();
+  observeFullscreenUiSizing();
   registerGlobalStyle("ehpeek-uno-style", ehpeek_uno_default);
   registerGlobalStyle("ehpeek-theme-style", theme_default);
   registerGlobalStyle("ehpeek-dom-style", styles_default);
