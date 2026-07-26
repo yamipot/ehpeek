@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260726.1236
+// @version      260726.1259
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -5836,7 +5836,7 @@ Next page`,
     ttb: "ltr"
   };
   function ScrollPreview(props) {
-    let previewCache = untrack(() => props.previewCache), onExitPreview = untrack(() => props.onExitPreview), onOpenPage = untrack(() => props.onOpenPage), [open, setOpen] = createSignal(!1), [readDirection, setReadDirection] = createSignal(untrack(() => props.readDirection)), [embeddedReadDirection, setEmbeddedReadDirection] = createSignal(untrack(() => props.embeddedDirection)), [portalMount, setPortalMount] = createSignal(document.body), [targetPreviewIndex, setTargetPreviewIndex] = createSignal(untrack(() => previewCache.current().data.currentIndex)), [highlightedPageNum, setHighlightedPageNum] = createSignal(null), [targetPageNum, setTargetPageNum] = createSignal(null), historyEntry = !1, closeRequested = !1, pendingClose = null, finishClose = (afterClose) => {
+    let previewCache = untrack(() => props.previewCache), decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS), onExitPreview = untrack(() => props.onExitPreview), onOpenPage = untrack(() => props.onOpenPage), [open, setOpen] = createSignal(!1), [readDirection, setReadDirection] = createSignal(untrack(() => props.readDirection)), [embeddedReadDirection, setEmbeddedReadDirection] = createSignal(untrack(() => props.embeddedDirection)), [portalMount, setPortalMount] = createSignal(document.body), [crossCountOverride, setCrossCountOverride] = createSignal(null), [targetPreviewIndex, setTargetPreviewIndex] = createSignal(untrack(() => previewCache.current().data.currentIndex)), [highlightedPageNum, setHighlightedPageNum] = createSignal(null), [targetPageNum, setTargetPageNum] = createSignal(null), historyEntry = !1, closeRequested = !1, pendingClose = null, finishClose = (afterClose) => {
       historyEntry = !1, closeRequested = !1, pendingClose = null, setOpen(!1), props.onOpenChange(!1), afterClose?.();
     }, requestClose = (afterClose) => {
       if (!closeRequested) {
@@ -5877,7 +5877,7 @@ Next page`,
         window.removeEventListener("popstate", onPopState), document.removeEventListener("fullscreenchange", onFullscreenChange);
       });
     }), onCleanup(() => {
-      open() && props.onOpenChange(!1);
+      decodeCache.dispose(), open() && props.onOpenChange(!1);
     }), [createComponent(Show, {
       get when() {
         return props.replaceOriginalPreview;
@@ -5889,6 +5889,10 @@ Next page`,
           },
           keyed: !0,
           children: (direction) => createComponent(ScrollPreviewPanel, {
+            get crossCountOverride() {
+              return crossCountOverride();
+            },
+            decodeCache,
             embedded: !0,
             get highlightedPageNum() {
               return props.continuePageNum;
@@ -5899,6 +5903,7 @@ Next page`,
             get onLoadError() {
               return props.onLoadError;
             },
+            onCrossCountOverrideChange: setCrossCountOverride,
             onOpenOverlay: (pageNum) => {
               setTargetPageNum(pageNum), setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum)), openPreview();
             },
@@ -5926,7 +5931,8 @@ Next page`,
       get children() {
         var _el$ = _tmpl$13(), _el$2 = _el$.firstChild;
         return _el$2.$$click = () => {
-          setHighlightedPageNum(props.continuePageNum), setTargetPageNum(null), setTargetPreviewIndex(previewCache.current().data.currentIndex), openPreview();
+          let pageNum = props.continuePageNum ?? 1;
+          setHighlightedPageNum(props.continuePageNum), setTargetPageNum(pageNum), setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum)), openPreview();
         }, insert(_el$2, createComponent(Icon2, {
           name: "grid",
           size: "var(--ui-icon-size-sm)"
@@ -5948,6 +5954,10 @@ Next page`,
               },
               keyed: !0,
               children: (direction) => createComponent(ScrollPreviewPanel, {
+                get crossCountOverride() {
+                  return crossCountOverride();
+                },
+                decodeCache,
                 embedded: !1,
                 get highlightedPageNum() {
                   return highlightedPageNum();
@@ -5961,6 +5971,7 @@ Next page`,
                 get onLoadError() {
                   return props.onLoadError;
                 },
+                onCrossCountOverrideChange: setCrossCountOverride,
                 onOpenPage: (pageUrl, pageNum) => {
                   requestClose(() => onOpenPage(pageUrl, pageNum));
                 },
@@ -5981,7 +5992,7 @@ Next page`,
     })];
   }
   function ScrollPreviewPanel(props) {
-    let previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, aspectPreviewIndex = previewCache.previewIndexForPage(untrack(() => props.targetPageNum ?? props.targetPreviewIndex * initialPreview.data.pageSize + 1)), [tileAspectRatio, setTileAspectRatio] = createSignal(initialPreview.data.dominantAspectRatio), initialTileAspectRatio = untrack(tileAspectRatio), readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? texts_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? texts_default.gallery.scrollPreviewDirectionRtl : texts_default.gallery.scrollPreviewDirectionLtr, decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS), flingAnimator = new ScrollFlingAnimator(), previewLoadQueue = new PriorityLoadQueue(PREVIEW_CONCURRENT_LOADS), requestedPreviewIndexes = /* @__PURE__ */ new Set(), [failedPreviewIndexes, setFailedPreviewIndexes] = createSignal(/* @__PURE__ */ new Set()), [crossCountOverride, setCrossCountOverride] = createSignal(null), [embeddedPanelHeight, setEmbeddedPanelHeight] = createSignal(null), [exitDragOffset, setExitDragOffset] = createSignal(0), [loadingCount, setLoadingCount] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), [layout, setLayout] = createSignal({
+    let decodeCache = untrack(() => props.decodeCache), previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, aspectPreviewIndex = previewCache.previewIndexForPage(untrack(() => props.targetPageNum ?? props.targetPreviewIndex * initialPreview.data.pageSize + 1)), [tileAspectRatio, setTileAspectRatio] = createSignal(initialPreview.data.dominantAspectRatio), initialTileAspectRatio = untrack(tileAspectRatio), readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? texts_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? texts_default.gallery.scrollPreviewDirectionRtl : texts_default.gallery.scrollPreviewDirectionLtr, flingAnimator = new ScrollFlingAnimator(), previewLoadQueue = new PriorityLoadQueue(PREVIEW_CONCURRENT_LOADS), requestedPreviewIndexes = /* @__PURE__ */ new Set(), [failedPreviewIndexes, setFailedPreviewIndexes] = createSignal(/* @__PURE__ */ new Set()), crossCountOverride = () => props.embedded ? null : props.crossCountOverride, [embeddedPanelHeight, setEmbeddedPanelHeight] = createSignal(null), [exitDragOffset, setExitDragOffset] = createSignal(0), [loadingCount, setLoadingCount] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), [layout, setLayout] = createSignal({
       crossCount: 1,
       gap: GRID_GAP,
       horizontal,
@@ -5990,7 +6001,7 @@ Next page`,
       tileWidth: MAX_TILE_WIDTH,
       viewportHeight: 1,
       viewportWidth: 1
-    }), scroller, overlay, dragDirection = null, dragStartPosition = null, pinchStartCrossCount = 1, scrollFrame = null, loadToken = 0, initialized = !1, disposed = !1, totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount)), totalMainSize = createMemo(() => Math.max(1, totalGroups() * layout().mainStride - layout().gap)), mainViewportSize = createMemo(() => horizontal ? layout().viewportWidth : layout().viewportHeight), mainCanvasSize = createMemo(() => Math.max(totalMainSize(), mainViewportSize())), visibleStartGroup = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS, 0, Math.max(0, totalGroups() - 1))), visibleEndGroup = createMemo(() => clamp(Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS, visibleStartGroup(), Math.max(0, totalGroups() - 1))), visibleStartPageNum = createMemo(() => visibleStartGroup() * layout().crossCount + 1), visibleEndPageNum = createMemo(() => Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)), screenStartPageNum = createMemo(() => Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1), screenEndPageNum = createMemo(() => {
+    }), scroller, overlay, dragDirection = null, dragStartPosition = null, pinchAnchorPageNum = null, pinchStartCrossCount = 1, pinchMinimumCrossCount = 1, layoutFrame = null, scrollFrame = null, loadToken = 0, initialized = !1, disposed = !1, totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount)), totalMainSize = createMemo(() => Math.max(1, totalGroups() * layout().mainStride - layout().gap)), mainViewportSize = createMemo(() => horizontal ? layout().viewportWidth : layout().viewportHeight), mainCanvasSize = createMemo(() => Math.max(totalMainSize(), mainViewportSize())), visibleStartGroup = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS, 0, Math.max(0, totalGroups() - 1))), visibleEndGroup = createMemo(() => clamp(Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS, visibleStartGroup(), Math.max(0, totalGroups() - 1))), visibleStartPageNum = createMemo(() => visibleStartGroup() * layout().crossCount + 1), visibleEndPageNum = createMemo(() => Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)), screenStartPageNum = createMemo(() => Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1), screenEndPageNum = createMemo(() => {
       let end = Math.max(scrollOffset(), scrollOffset() + mainViewportSize() - 1), endGroup = Math.floor(end / layout().mainStride);
       return Math.min(totalImages, (endGroup + 1) * layout().crossCount);
     }), visibleSlots = createMemo(() => {
@@ -6005,7 +6016,10 @@ Next page`,
     }), centeredPageNum = () => {
       let currentLayout = layout(), centerGroup = Math.floor((scrollOffset() + mainViewportSize() / 2) / currentLayout.mainStride);
       return clamp(centerGroup * currentLayout.crossCount + Math.floor(currentLayout.crossCount / 2) + 1, 1, totalImages);
-    }, centeredPreviewIndex = () => previewCache.previewIndexForPage(centeredPageNum()), scrollPositionPage = () => {
+    }, centeredPreviewIndex = () => previewCache.previewIndexForPage(centeredPageNum()), preferredLayoutAnchorPageNum = () => {
+      let targetPageNum = props.highlightedPageNum ?? props.targetPageNum;
+      return targetPageNum !== null && targetPageNum >= screenStartPageNum() && targetPageNum <= screenEndPageNum() ? targetPageNum : centeredPageNum();
+    }, scrollPositionPage = () => {
       let maxOffset = Math.max(0, totalMainSize() - mainViewportSize());
       return maxOffset === 0 || totalImages <= 1 ? 1 : Math.round(1 + clamp(scrollOffset() / maxOffset, 0, 1) * (totalImages - 1));
     }, maxScrollOffset = () => Math.max(0, totalMainSize() - mainViewportSize()), readScrollOffset = () => horizontal ? rightToLeft ? maxScrollOffset() - scroller.scrollLeft : scroller.scrollLeft : scroller.scrollTop, updateScrollOffset = (value) => {
@@ -6075,9 +6089,18 @@ Next page`,
           onStop: () => setScrollOffset(readScrollOffset())
         });
       },
-      onPinchStart: () => props.embedded ? !1 : (flingAnimator.cancel(), pinchStartCrossCount = layout().crossCount, !0),
+      onPinchStart: () => {
+        if (props.embedded)
+          return !1;
+        flingAnimator.cancel(), pinchAnchorPageNum = preferredLayoutAnchorPageNum(), pinchStartCrossCount = layout().crossCount;
+        let currentLayout = layout(), aspectRatio = tileAspectRatio(), crossSize = currentLayout.horizontal ? currentLayout.viewportHeight : currentLayout.viewportWidth, maximumTileCrossSize = currentLayout.horizontal ? Math.min(currentLayout.viewportHeight / 2, currentLayout.viewportWidth / 2 * aspectRatio) : Math.min(currentLayout.viewportWidth / 2, currentLayout.viewportHeight / 2 / aspectRatio);
+        return pinchMinimumCrossCount = Math.min(pinchStartCrossCount, Math.max(1, Math.ceil((crossSize + currentLayout.gap) / (maximumTileCrossSize + currentLayout.gap)))), !0;
+      },
       onPinchMove: (info) => {
-        props.embedded || setCrossCountOverride(clamp(Math.round(pinchStartCrossCount / info.scale), 1, MAX_CROSS_COUNT));
+        props.embedded || props.onCrossCountOverrideChange(clamp(Math.round(pinchStartCrossCount / info.scale), pinchMinimumCrossCount, MAX_CROSS_COUNT));
+      },
+      onPinchEnd: () => {
+        pinchAnchorPageNum = null;
       }
     })), previewLoadQueue.updateCallbacks({
       loadTarget: (previewIndex) => previewCache.load(previewIndex),
@@ -6122,7 +6145,7 @@ Next page`,
     });
     let updateLayout = () => {
       setPreviewLoadReady(!1);
-      let width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), scale = props.embedded ? 1 : fullscreenUiScale(), gap = GRID_GAP * scale, maxTileWidth = MAX_TILE_WIDTH * scale, aspectRatio = tileAspectRatio(), anchorPageNum = initialized ? centeredPageNum() : null, itemsPerRow = Math.max(1, Math.ceil((width + gap) / (maxTileWidth + gap))), itemWidth = Math.max(1, (width - gap * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio)), panelChromeHeight = Math.max(0, overlay.clientHeight - height), targetContentHeight = Math.max(itemHeight, window.innerHeight * 0.55 - panelChromeHeight), embeddedRows = Math.max(1, Math.ceil((targetContentHeight + gap) / (itemHeight + gap))), availableRows = props.embedded ? props.fillContainer ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap))) : embeddedRows : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap))), automaticCrossCount = horizontal ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow)) : Math.min(itemsPerRow, totalImages), crossCount = clamp(crossCountOverride() ?? automaticCrossCount, 1, totalImages);
+      let width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), scale = props.embedded ? 1 : fullscreenUiScale(), gap = GRID_GAP * scale, maxTileWidth = MAX_TILE_WIDTH * scale, aspectRatio = tileAspectRatio(), anchorPageNum = initialized ? pinchAnchorPageNum ?? preferredLayoutAnchorPageNum() : null, itemsPerRow = Math.max(1, Math.ceil((width + gap) / (maxTileWidth + gap))), itemWidth = Math.max(1, (width - gap * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio)), panelChromeHeight = Math.max(0, overlay.clientHeight - height), targetContentHeight = Math.max(itemHeight, window.innerHeight * 0.55 - panelChromeHeight), embeddedRows = Math.max(1, Math.ceil((targetContentHeight + gap) / (itemHeight + gap))), availableRows = props.embedded ? props.fillContainer ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap))) : embeddedRows : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap))), automaticCrossCount = horizontal ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow)) : Math.min(itemsPerRow, totalImages), crossCount = clamp(crossCountOverride() ?? automaticCrossCount, 1, totalImages);
       if (props.embedded && !props.fillContainer && horizontal && crossCountOverride() === null) {
         let contentHeight = crossCount * itemHeight + gap * (crossCount - 1), panelHeight = Math.round(panelChromeHeight + contentHeight);
         setEmbeddedPanelHeight((current) => current === panelHeight ? current : panelHeight);
@@ -6137,8 +6160,8 @@ Next page`,
         viewportHeight: height,
         viewportWidth: width
       };
-      setLayout(next), queueMicrotask(() => untrack(() => {
-        scroller.isConnected && (initialized ? scrollToPage(anchorPageNum ?? centeredPageNum(), next) : (initialized = !0, props.targetPageNum === null ? scrollToPreview(props.targetPreviewIndex, next) : scrollToPage(props.targetPageNum, next)), setPreviewLoadReady(!0));
+      setLayout(next), layoutFrame !== null && window.cancelAnimationFrame(layoutFrame), layoutFrame = window.requestAnimationFrame(() => untrack(() => {
+        layoutFrame = null, scroller.isConnected && (initialized ? scrollToPage(anchorPageNum ?? centeredPageNum(), next) : (initialized = !0, props.targetPageNum === null ? scrollToPreview(props.targetPreviewIndex, next) : scrollToPage(props.targetPageNum, next)), setPreviewLoadReady(!0));
       }));
     };
     return createEffect(() => {
@@ -6148,7 +6171,7 @@ Next page`,
       props.embedded || (document.body.style.overflow = "hidden", document.documentElement.style.overflow = "hidden");
       let resizeObserver = new ResizeObserver(updateLayout);
       resizeObserver.observe(scroller), updateLayout(), onCleanup(() => {
-        disposed = !0, flingAnimator.cancel(), previewLoadQueue.dispose(), resizeObserver.disconnect(), props.embedded || (document.body.style.overflow = previousBodyOverflow, document.documentElement.style.overflow = previousHtmlOverflow), decodeCache.dispose(), scrollFrame !== null && window.cancelAnimationFrame(scrollFrame);
+        disposed = !0, flingAnimator.cancel(), previewLoadQueue.dispose(), resizeObserver.disconnect(), props.embedded || (document.body.style.overflow = previousBodyOverflow, document.documentElement.style.overflow = previousHtmlOverflow), layoutFrame !== null && window.cancelAnimationFrame(layoutFrame), scrollFrame !== null && window.cancelAnimationFrame(scrollFrame);
       });
     }), (() => {
       var _el$3 = _tmpl$45(), _el$4 = _el$3.firstChild, _el$0 = _el$4.firstChild, _el$1 = _el$0.firstChild, _el$10 = _el$1.firstChild, _ref$ = overlay;
@@ -7384,7 +7407,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260726.1236", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260726.1259", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
