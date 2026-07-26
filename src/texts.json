@@ -124,7 +124,7 @@
     "readHistoryLabel": "Read History",
     "readHistoryHelp": "Remembers reading progress",
     "includeUnreadHistoryLabel": "Include Unread History",
-    "includeUnreadHistoryHelp": "Adds opened galleries to Read History before reading starts",
+    "includeUnreadHistoryHelp": "Adds opened but unread galleries to Read History",
     "searchHistoryLabel": "Search History",
     "searchHistoryHelp": "Remembers previous searches",
     "touchUiLabel": "Touch UI",

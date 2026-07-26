@@ -55,9 +55,13 @@ export const state = {
   gallery: {
     enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", true),
     replacePreviewWithScroll: persisted("ehpeek:scroll-preview:replace-original", false),
-    embeddedScrollPreviewDirection: persisted<ReadDirection>(
-      "ehpeek:gallery-scroll-preview:direction",
+    embeddedScrollPreviewSingleDirection: persisted<ReadDirection>(
+      "ehpeek:gallery-scroll-preview:single-direction",
       "rtl",
+    ),
+    embeddedScrollPreviewColumnsDirection: persisted<ReadDirection>(
+      "ehpeek:gallery-scroll-preview:columns-direction",
+      "ttb",
     ),
     scrollPreviewDirection: persisted<ReadDirection>(
       "ehpeek:scroll-preview:direction",

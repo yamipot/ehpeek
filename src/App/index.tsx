@@ -407,7 +407,9 @@ function injectEnhanceUI(
                 gState.readProgress().hasHistory
               ? gState.readProgress().currentPage
               : null}
-            embeddedDirection={state.gallery.embeddedScrollPreviewDirection.value}
+            embeddedDirection={gState.columnsEnabled()
+              ? state.gallery.embeddedScrollPreviewColumnsDirection.value
+              : state.gallery.embeddedScrollPreviewSingleDirection.value}
             fillEmbeddedContainer={gState.columnsEnabled}
             onExitPreview={(previewIndex) => {
               if (previewIndex === previewCache.current().data.currentIndex) {
@@ -430,7 +432,11 @@ function injectEnhanceUI(
             }}
             onOpenPage={(pageUrl, pageNum) => openGalleryPage(previewCache, pageUrl, pageNum)}
             onEmbeddedDirectionChange={(direction) => {
-              state.gallery.embeddedScrollPreviewDirection.set(direction);
+              if (gState.columnsEnabled()) {
+                state.gallery.embeddedScrollPreviewColumnsDirection.set(direction);
+              } else {
+                state.gallery.embeddedScrollPreviewSingleDirection.set(direction);
+              }
             }}
             onReadDirectionChange={(direction) => {
               state.gallery.scrollPreviewDirection.set(direction);
