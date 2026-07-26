@@ -2,6 +2,7 @@ import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
 import type { NavigationMode, PageLayout, ReadDirection, RightTapAction } from "../../state";
 import texts from "../../texts.json";
 import { stopEvent } from "../../utils";
+import { Dialog } from "../Widgets/Dialog";
 import { Icon } from "../Widgets/Icon";
 import { ProgressBar } from "../Widgets/ProgressBar";
 import { InteractionHelp } from "../InteractionHelp";
@@ -370,83 +371,61 @@ export function Toolbar(props: {
         />
       </div>
       <Show when={downloadDialogPageNum() !== null && props.downloadInfos.length > 0}>
-        <div
-          class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 pointer-events-auto"
-          role="dialog"
-          aria-modal="true"
-          aria-label={texts.reader.download}
-          onClick={(event: MouseEvent) => {
-            event.stopPropagation();
-            if (event.target === event.currentTarget) {
-              setDownloadDialogPageNum(null);
-            }
-          }}
-          onPointerDown={stopEvent}
-          onWheel={stopEvent}
+        <Dialog
+          bodyClass="p-lg"
+          label={texts.reader.download}
+          onClose={() => setDownloadDialogPageNum(null)}
+          title={`${texts.reader.download} · ${props.downloadInfos.map((info) => info.pageNum).join(", ")}`}
+          variant="reader"
+          width="lg"
         >
-          <div class="ehpeek-reader-download-dialog-panel w-full max-w-480px p-lg rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] shadow-xl">
-            <div class="flex items-center justify-between gap-md mb-lg">
-              <div class="font-sans textsize-md font-700">
-                {`${texts.reader.download} · ${props.downloadInfos.map((info) => info.pageNum).join(", ")}`}
-              </div>
-              <button
-                type="button"
-                class={READER_BUTTON_CLASS}
-                title={texts.button.close}
-                aria-label={texts.button.close}
-                onClick={() => setDownloadDialogPageNum(null)}
-              >
-                <Icon name="close" size={READER_ICON_SIZE} />
-              </button>
-            </div>
-            <div class="grid gap-md font-sans textsize-md">
-              <For each={props.downloadInfos}>
-                {(downloadInfo) => (
-                  <div class="grid gap-md">
-                    <button
-                      type="button"
-                      class={DOWNLOAD_OPTION_CLASS}
-                      onClick={() => {
-                        if (startImageDownload(downloadInfo.currentImageUrl, downloadInfo.currentFileName)) {
+          <div class="grid gap-md font-sans textsize-md">
+            <For each={props.downloadInfos}>
+              {(downloadInfo) => (
+                <div class="grid gap-md">
+                  <button
+                    type="button"
+                    class={DOWNLOAD_OPTION_CLASS}
+                    onClick={() => {
+                      if (startImageDownload(downloadInfo.currentImageUrl, downloadInfo.currentFileName)) {
+                        setDownloadDialogPageNum(null);
+                      }
+                    }}
+                  >
+                    <span class="textsize-md font-700">
+                      {`${texts.reader.downloadDisplayedImage} · ${downloadInfo.pageNum}`}
+                    </span>
+                    <span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75">
+                      {downloadInfo.currentFileName}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    class={DOWNLOAD_OPTION_CLASS}
+                    disabled={!downloadInfo.originalImageUrl}
+                    onClick={() => {
+                      if (downloadInfo.originalImageUrl) {
+                        if (startImageDownload(
+                          downloadInfo.originalImageUrl,
+                          downloadInfo.originalFileName,
+                        )) {
                           setDownloadDialogPageNum(null);
                         }
-                      }}
-                    >
-                      <span class="textsize-md font-700">
-                        {`${texts.reader.downloadDisplayedImage} · ${downloadInfo.pageNum}`}
-                      </span>
-                      <span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75">
-                        {downloadInfo.currentFileName}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      class={DOWNLOAD_OPTION_CLASS}
-                      disabled={!downloadInfo.originalImageUrl}
-                      onClick={() => {
-                        if (downloadInfo.originalImageUrl) {
-                          if (startImageDownload(
-                            downloadInfo.originalImageUrl,
-                            downloadInfo.originalFileName,
-                          )) {
-                            setDownloadDialogPageNum(null);
-                          }
-                        }
-                      }}
-                    >
-                      <span class="textsize-md font-700">
-                        {`${texts.reader.downloadOriginalImage} · ${downloadInfo.pageNum}`}
-                      </span>
-                      <span class="textsize-sm opacity-75">
-                        {downloadInfo.originalImageUrl ? texts.reader.originalImageSource : texts.reader.originalImageUnavailable}
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </For>
-            </div>
+                      }
+                    }}
+                  >
+                    <span class="textsize-md font-700">
+                      {`${texts.reader.downloadOriginalImage} · ${downloadInfo.pageNum}`}
+                    </span>
+                    <span class="textsize-sm opacity-75">
+                      {downloadInfo.originalImageUrl ? texts.reader.originalImageSource : texts.reader.originalImageUnavailable}
+                    </span>
+                  </button>
+                </div>
+              )}
+            </For>
           </div>
-        </div>
+        </Dialog>
       </Show>
       <Show when={helpOpen()}>
         <InteractionHelp variant="reader" onClose={() => setHelpOpen(false)} />

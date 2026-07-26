@@ -1,5 +1,4 @@
 import {
-  createEffect,
   createMemo,
   createSignal,
   For,
@@ -9,7 +8,6 @@ import {
   Show,
   untrack,
 } from "solid-js";
-import { Portal } from "solid-js/web";
 import type {
   GalleryFavoriteOption,
   MyTagMode,
@@ -19,6 +17,7 @@ import texts from "../../texts.json";
 import { state } from "../../state";
 import { refreshMyTags } from "../Enhance/MyTags";
 import { WelcomeIcon } from "../WelcomeIcon";
+import { Dialog } from "../Widgets/Dialog";
 import { DomNode, DomNodes } from "../Widgets/ExternalDom";
 import { Icon } from "../Widgets/Icon";
 
@@ -58,6 +57,10 @@ export function GalleryInfoPanel(props: {
   const [tagging, setTagging] = createSignal(false);
   const hasNewTag = () => source.elems.newTag !== null;
   const displayedRating = createMemo(() => ratingPreview() ?? ratingValue());
+  const closeRatingPicker = () => {
+    setRatingPreview(null);
+    setRatingPickerOpen(false);
+  };
   const ratingLabel = createMemo(() => {
     const preview = ratingPreview();
     if (preview !== null) {
@@ -275,84 +278,74 @@ export function GalleryInfoPanel(props: {
         onTagUpdated={updateTag}
       />
       <Show when={ratingPickerOpen()}>
-        <div
-          class="ehpeek-touch-gallery-rating-dialog fixed inset-0 z-overlay flex items-center justify-center p-md bg-black/65"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Rate gallery"
-          onClick={(event: MouseEvent) => {
-            if (event.target === event.currentTarget) {
-              setRatingPreview(null);
-              setRatingPickerOpen(false);
-            }
-          }}
+        <Dialog
+          bodyClass="flex flex-col gap-lg p-lg"
+          label="Rate gallery"
+          onClose={closeRatingPicker}
+          title="Rate gallery"
+          variant="site"
+          width="md"
         >
-          <div class="box-border flex w-[min(92vw,420px)] flex-col gap-lg rounded-lg border ehp-color-site-border p-lg ehp-color-site-elevated ehp-color-site-text shadow-xl">
-            <div class="textsize-md font-700">Rate gallery</div>
+          <button
+            type="button"
+            class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
+            aria-label={`Rate gallery: ${displayedRating().toFixed(1)} stars`}
+            onClick={(event: MouseEvent) => {
+              setRatingPreview(
+                ratingFromPointer(
+                  event.clientX,
+                  event.currentTarget as HTMLElement,
+                ),
+              );
+            }}
+          >
+            <span
+              class="flex gap-1px pointer-events-none text-[var(--color-muted)] opacity-40"
+              aria-hidden="true"
+            >
+              <For each={RATING_STAR_INDEXES}>
+                {() => <Icon name="star" size={48} />}
+              </For>
+            </span>
+            <span
+              class={`absolute top-0 left-0 flex gap-1px overflow-hidden pointer-events-none ${ratingSubmitted() || ratingPreview() !== null ? "text-[var(--color-rating-submitted)]" : "ehp-color-site-accent"}`}
+              aria-hidden="true"
+              style={{ width: `${(displayedRating() / 5) * 100}%` }}
+            >
+              <For each={RATING_STAR_INDEXES}>
+                {() => <Icon name="star" size={48} filled />}
+              </For>
+            </span>
+          </button>
+          <div
+            class="text-center textsize-md font-700"
+            aria-live="polite"
+          >
+            {ratingLabel()}
+          </div>
+          <div class="grid grid-cols-2 gap-sm pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
             <button
               type="button"
-              class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
-              aria-label={`Rate gallery: ${displayedRating().toFixed(1)} stars`}
-              onClick={(event: MouseEvent) => {
-                setRatingPreview(
-                  ratingFromPointer(
-                    event.clientX,
-                    event.currentTarget as HTMLElement,
-                  ),
-                );
+              class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108`}
+              disabled={ratingPreview() === null}
+              onClick={() => {
+                const value = ratingPreview();
+                if (value !== null && submitRating(value)) {
+                  setRatingPickerOpen(false);
+                }
               }}
             >
-              <span
-                class="flex gap-1px pointer-events-none text-[var(--color-muted)] opacity-40"
-                aria-hidden="true"
-              >
-                <For each={RATING_STAR_INDEXES}>
-                  {() => <Icon name="star" size={48} />}
-                </For>
-              </span>
-              <span
-                class={`absolute top-0 left-0 flex gap-1px overflow-hidden pointer-events-none ${ratingSubmitted() || ratingPreview() !== null ? "text-[var(--color-rating-submitted)]" : "ehp-color-site-accent"}`}
-                aria-hidden="true"
-                style={{ width: `${(displayedRating() / 5) * 100}%` }}
-              >
-                <For each={RATING_STAR_INDEXES}>
-                  {() => <Icon name="star" size={48} filled />}
-                </For>
-              </span>
+              Submit
             </button>
-            <div
-              class="text-center textsize-md font-700"
-              aria-live="polite"
+            <button
+              type="button"
+              class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]`}
+              onClick={closeRatingPicker}
             >
-              {ratingLabel()}
-            </div>
-            <div class="grid grid-cols-2 gap-sm pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
-              <button
-                type="button"
-                class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108`}
-                disabled={ratingPreview() === null}
-                onClick={() => {
-                  const value = ratingPreview();
-                  if (value !== null && submitRating(value)) {
-                    setRatingPickerOpen(false);
-                  }
-                }}
-              >
-                Submit
-              </button>
-              <button
-                type="button"
-                class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]`}
-                onClick={() => {
-                  setRatingPreview(null);
-                  setRatingPickerOpen(false);
-                }}
-              >
-                {texts.button.close}
-              </button>
-            </div>
+              {texts.button.close}
+            </button>
           </div>
-        </div>
+        </Dialog>
       </Show>
     </section>
   );
@@ -492,6 +485,10 @@ function TouchGalleryTagMenu(props: {
   const [favoriteTag, setFavoriteTag] = createSignal<
     GalleryPanelTagGroup["tags"][number] | null
   >(null);
+  const closeFavoriteTagDialog = () => {
+    setCollectionOpen(false);
+    setFavoriteDialogOpen(false);
+  };
 
   onMount(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -617,26 +614,18 @@ function TouchGalleryTagMenu(props: {
         </div>
       </div>
       <Show when={favoriteDialogOpen()}>
-        <div
-          class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65"
-          role="dialog"
-          aria-modal="true"
-          aria-label={texts.gallery.favoriteTag}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setCollectionOpen(false);
-              setFavoriteDialogOpen(false);
-            }
-          }}
+        <Dialog
+          bodyClass="flex flex-col gap-lg p-lg"
+          label={texts.gallery.favoriteTag}
+          onClose={closeFavoriteTagDialog}
+          title={texts.gallery.favoriteTag}
+          variant="site"
+          width="md"
         >
-          <div class="box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col gap-lg overflow-y-auto overscroll-contain rounded-md border ehp-color-site-border ehp-color-site-elevated p-lg shadow-xl">
-            <div class="ehp-color-site-text textsize-lg font-700">
-              {texts.gallery.favoriteTag}
-            </div>
-            <Show
-              when={!updating()}
-              fallback={<WelcomeIcon embedded label={texts.reader.loading} showIcon={false} />}
-            >
+          <Show
+            when={!updating()}
+            fallback={<WelcomeIcon embedded label={texts.reader.loading} showIcon={false} />}
+          >
               <div class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600">
                 <span>{texts.gallery.tagCollection}</span>
                 <div class="relative">
@@ -702,10 +691,7 @@ function TouchGalleryTagMenu(props: {
                 <button
                   type="button"
                   class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]`}
-                  onClick={() => {
-                    setCollectionOpen(false);
-                    setFavoriteDialogOpen(false);
-                  }}
+                  onClick={closeFavoriteTagDialog}
                 >
                   {texts.button.close}
                 </button>
@@ -723,9 +709,8 @@ function TouchGalleryTagMenu(props: {
                   <span>{texts.button.confirm}</span>
                 </button>
               </div>
-            </Show>
-          </div>
-        </div>
+          </Show>
+        </Dialog>
       </Show>
     </>
   );
@@ -777,36 +762,6 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
     setEditingNote(false);
     setOpen(false);
   };
-
-  onMount(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && open()) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        closeMenu();
-      }
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-
-    onCleanup(() => {
-      document.removeEventListener("keydown", onKeyDown);
-    });
-  });
-
-  createEffect(() => {
-    if (!open()) {
-      return;
-    }
-    const documentOverflow = document.documentElement.style.overflow;
-    const bodyOverflow = document.body.style.overflow;
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    onCleanup(() => {
-      document.documentElement.style.overflow = documentOverflow;
-      document.body.style.overflow = bodyOverflow;
-    });
-  });
 
   const openMenu = async () => {
     const currentFavorite = favorite();
@@ -890,94 +845,71 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
         </span>
       </button>
       <Show when={open()}>
-        <Portal>
-          <div
-            class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 font-sans textsize-md"
-            role="dialog"
-            aria-modal="true"
-            aria-label={favorite().label}
-            onClick={(event) => {
-              if (event.target === event.currentTarget) {
-                closeMenu();
-              }
-            }}
-          >
-            <div class="ehpeek-touch-gallery-favorite-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-hidden border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl">
-              <div class="flex flex-none items-center justify-between gap-md py-sm pl-lg pr-sm border-0 border-b ehp-color-site-border-subtle-b">
-                <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ehp-color-site-text textsize-md font-700">
-                  {editingNote() ? texts.gallery.editFavoriteNote : favorite().label}
-                </span>
-                <button
-                  type="button"
-                  class="inline-flex w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] flex-none items-center justify-center p-0 rounded-md border ehp-color-site-border bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer hover:bg-[var(--color-site-item-hover)] active:scale-96"
-                  aria-label={texts.button.close}
-                  title={texts.button.close}
-                  onClick={closeMenu}
-                >
-                  <Icon name="close" size="var(--ui-icon-size-md)" />
-                </button>
-              </div>
-              <div class="min-h-0 overflow-y-auto overscroll-contain">
-                <Show when={loadingState() === "loading"}>
-                  <WelcomeIcon embedded label={texts.reader.loading} showIcon={false} />
-                </Show>
-                <Show when={loadingState() === "failed"}>
-                  <TouchGalleryFavoriteStatus text="Failed" />
-                </Show>
-                <Show when={loadingState() === "idle"}>
-                  <Show
-                    when={editingNote()}
-                    fallback={
-                      <>
-                        <For each={options().filter((option) => option.value !== "favdel")}>
-                          {(option) => (
-                            <TouchGalleryFavoriteOption
-                              option={option}
-                              onSelect={() => void updateFavorite(option)}
-                            />
-                          )}</For>
-                        <button
-                          type="button"
-                          class="flex w-full min-h-[var(--ui-control-size-lg)] items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left"
-                          onClick={() => setEditingNote(true)}
-                        >
-                          <span class="flex-none ehp-color-site-text" aria-hidden="true">
-                            <Icon name="edit" />
-                          </span>
-                          <span>{texts.gallery.editFavoriteNote}</span>
-                        </button>
-                        <For each={options().filter((option) => option.value === "favdel")}>
-                          {(option) => (
-                            <TouchGalleryFavoriteOption
-                              option={option}
-                              onSelect={() => void updateFavorite(option)}
-                            />
-                          )}</For>
-                      </>
-                    }
-                  >
-                    <div class="flex flex-col gap-md p-lg">
-                      <textarea
-                        class="box-border min-h-[calc(var(--ui-control-size-xl)*3)] w-full resize-y rounded-md border ehp-color-site-border bg-[var(--color-site-surface)] p-md ehp-color-site-text font-inherit textsize-md leading-[1.4]"
-                        value={noteDraft()}
-                        onInput={(event) => setNoteDraft(event.currentTarget.value)}
+        <Dialog
+          bodyClass="p-0"
+          label={favorite().label}
+          onClose={closeMenu}
+          title={editingNote() ? texts.gallery.editFavoriteNote : favorite().label}
+          variant="site"
+          width="md"
+        >
+          <Show when={loadingState() === "loading"}>
+            <WelcomeIcon embedded label={texts.reader.loading} showIcon={false} />
+          </Show>
+          <Show when={loadingState() === "failed"}>
+            <TouchGalleryFavoriteStatus text="Failed" />
+          </Show>
+          <Show when={loadingState() === "idle"}>
+            <Show
+              when={editingNote()}
+              fallback={
+                <>
+                  <For each={options().filter((option) => option.value !== "favdel")}>
+                    {(option) => (
+                      <TouchGalleryFavoriteOption
+                        option={option}
+                        onSelect={() => void updateFavorite(option)}
                       />
-                      <div class="grid grid-cols-1 gap-md">
-                        <button
-                          type="button"
-                          class="min-h-[var(--ui-control-size-md)] rounded-md border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] font-inherit textsize-md font-700"
-                          onClick={() => setEditingNote(false)}
-                        >
-                          {texts.button.confirm}
-                        </button>
-                      </div>
-                    </div>
-                  </Show>
-                </Show>
+                    )}</For>
+                  <button
+                    type="button"
+                    class="flex w-full min-h-[var(--ui-control-size-lg)] items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left"
+                    onClick={() => setEditingNote(true)}
+                  >
+                    <span class="flex-none ehp-color-site-text" aria-hidden="true">
+                      <Icon name="edit" />
+                    </span>
+                    <span>{texts.gallery.editFavoriteNote}</span>
+                  </button>
+                  <For each={options().filter((option) => option.value === "favdel")}>
+                    {(option) => (
+                      <TouchGalleryFavoriteOption
+                        option={option}
+                        onSelect={() => void updateFavorite(option)}
+                      />
+                    )}</For>
+                </>
+              }
+            >
+              <div class="flex flex-col gap-md p-lg">
+                <textarea
+                  class="box-border min-h-[calc(var(--ui-control-size-xl)*3)] w-full resize-y rounded-md border ehp-color-site-border bg-[var(--color-site-surface)] p-md ehp-color-site-text font-inherit textsize-md leading-[1.4]"
+                  value={noteDraft()}
+                  onInput={(event) => setNoteDraft(event.currentTarget.value)}
+                />
+                <div class="grid grid-cols-1 gap-md">
+                  <button
+                    type="button"
+                    class="min-h-[var(--ui-control-size-md)] rounded-md border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] font-inherit textsize-md font-700"
+                    onClick={() => setEditingNote(false)}
+                  >
+                    {texts.button.confirm}
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-        </Portal>
+            </Show>
+          </Show>
+        </Dialog>
       </Show>
     </div>
   );

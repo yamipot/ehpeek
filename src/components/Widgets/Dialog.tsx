@@ -18,6 +18,11 @@ export function Dialog(props: {
   width: keyof typeof DIALOG_WIDTHS;
 }) {
   onMount(() => {
+    const scrollRoots = [document.documentElement, document.body];
+    const overflowStyles = scrollRoots.map((root) => ({
+      priority: root.style.getPropertyPriority("overflow"),
+      value: root.style.getPropertyValue("overflow"),
+    }));
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") {
         return;
@@ -26,8 +31,21 @@ export function Dialog(props: {
       event.stopImmediatePropagation();
       props.onClose();
     };
+    for (const root of scrollRoots) {
+      root.style.setProperty("overflow", "hidden", "important");
+    }
     window.addEventListener("keydown", closeOnEscape, true);
-    onCleanup(() => window.removeEventListener("keydown", closeOnEscape, true));
+    onCleanup(() => {
+      window.removeEventListener("keydown", closeOnEscape, true);
+      scrollRoots.forEach((root, index) => {
+        const previous = overflowStyles[index];
+        if (previous?.value) {
+          root.style.setProperty("overflow", previous.value, previous.priority);
+        } else {
+          root.style.removeProperty("overflow");
+        }
+      });
+    });
   });
 
   const reader = () => props.variant === "reader";
@@ -39,7 +57,7 @@ export function Dialog(props: {
         : document.body}
     >
       <div
-        class="fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 pointer-events-auto font-sans"
+        class="fixed inset-0 z-overlay flex items-center justify-center overflow-hidden p-lg bg-black/65 pointer-events-auto font-sans"
         role="dialog"
         aria-modal="true"
         aria-label={props.label}
