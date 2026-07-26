@@ -35,8 +35,12 @@ export function createGalleryPreviewCache(
 
   const remember = (preview: eh.GalleryPreviewDom): void => {
     const index = preview.data.currentIndex;
-    previews.delete(index);
-    previews.set(index, preview);
+    // The live page can expose only its first thumbnail during early injection.
+    const expectedItems = preview.data.endImage - preview.data.startImage + 1;
+    if (preview.data.previewItems.length >= expectedItems) {
+      previews.delete(index);
+      previews.set(index, preview);
+    }
     for (const page of preview.data.pages) {
       if (page.pageNum && page.pageNum > 0) {
         pages.set(page.pageNum, page);

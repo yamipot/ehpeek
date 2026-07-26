@@ -14,7 +14,7 @@ import { fullscreenUiScale } from "../../App/viewport";
 import type { GalleryPreviewDom, GalleryPreviewItem } from "../../eh";
 import type { ReadDirection } from "../../state";
 import texts from "../../texts.json";
-import { clamp, normalizedAspectRatio } from "../../utils";
+import { clamp } from "../../utils";
 import { ScrollFlingAnimator } from "../animation";
 import { createPointerGestureElement } from "../PointerGesture";
 import {
@@ -25,11 +25,8 @@ import { PositionBar } from "../Widgets/PositionBar";
 import { PriorityLoadQueue } from "../Widgets/PriorityLoadQueue";
 
 const GRID_GAP = 8;
-const FALLBACK_TILE_ASPECT_RATIO = 1.42;
 const HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6;
 const MAX_TILE_WIDTH = 220;
-const MIN_TILE_HEIGHT = 170;
-const MAX_TILE_HEIGHT = 290;
 const MAX_CROSS_COUNT = 12;
 const OVERSCAN_ROWS = 4;
 const PREVIEW_CONCURRENT_LOADS = 2;
@@ -199,7 +196,7 @@ export function ScrollPreview(props: {
             onOpenPage={props.onOpenPage}
             previewCache={previewCache}
             readDirection={direction}
-            targetPageNum={targetPageNum() ?? props.continuePageNum}
+            targetPageNum={targetPageNum() ?? props.continuePageNum ?? 1}
             targetPreviewIndex={targetPreviewIndex()}
             fillContainer={props.fillEmbeddedContainer()}
           />
@@ -273,9 +270,16 @@ function ScrollPreviewPanel(props: {
   const initialPreview = untrack(() => previewCache.current());
   const totalImages = initialPreview.data.totalImages;
   const maxPreviewIndex = initialPreview.data.maxIndex;
-  const tileAspectRatio = dominantAspectRatio(
-    initialPreview.data.previewItems,
+  const aspectPreviewIndex = previewCache.previewIndexForPage(
+    untrack(() =>
+      props.targetPageNum ??
+        props.targetPreviewIndex * initialPreview.data.pageSize + 1
+    ),
   );
+  const [tileAspectRatio, setTileAspectRatio] = createSignal(
+    initialPreview.data.dominantAspectRatio,
+  );
+  const initialTileAspectRatio = untrack(tileAspectRatio);
   const readDirection = untrack(() => props.readDirection);
   const horizontal = readDirection !== "ttb";
   const rightToLeft = readDirection === "rtl";
@@ -306,8 +310,10 @@ function ScrollPreviewPanel(props: {
     crossCount: 1,
     gap: GRID_GAP,
     horizontal,
-    mainStride: horizontal ? MAX_TILE_WIDTH + GRID_GAP : MIN_TILE_HEIGHT + GRID_GAP,
-    tileHeight: MIN_TILE_HEIGHT,
+    mainStride: horizontal
+      ? MAX_TILE_WIDTH + GRID_GAP
+      : MAX_TILE_WIDTH * initialTileAspectRatio + GRID_GAP,
+    tileHeight: MAX_TILE_WIDTH * initialTileAspectRatio,
     tileWidth: MAX_TILE_WIDTH,
     viewportHeight: 1,
     viewportWidth: 1,
@@ -532,11 +538,17 @@ function ScrollPreviewPanel(props: {
         });
       },
       onPinchStart: () => {
+        if (props.embedded) {
+          return false;
+        }
         flingAnimator.cancel();
         pinchStartCrossCount = layout().crossCount;
         return true;
       },
       onPinchMove: (info) => {
+        if (props.embedded) {
+          return;
+        }
         setCrossCountOverride(
           clamp(Math.round(pinchStartCrossCount / info.scale), 1, MAX_CROSS_COUNT),
         );
@@ -562,7 +574,10 @@ function ScrollPreviewPanel(props: {
       setLoadingCount((count) => count + 1);
       return ++loadToken;
     },
-    onLoaded: () => {
+    onLoaded: (previewIndex, loaded) => {
+      if (previewIndex === aspectPreviewIndex) {
+        setTileAspectRatio(loaded.data.dominantAspectRatio);
+      }
       setLoadingCount((count) => Math.max(0, count - 1));
     },
     onError: (previewIndex, error) => {
@@ -632,8 +647,7 @@ function ScrollPreviewPanel(props: {
     const scale = props.embedded ? 1 : fullscreenUiScale();
     const gap = GRID_GAP * scale;
     const maxTileWidth = MAX_TILE_WIDTH * scale;
-    const minTileHeight = MIN_TILE_HEIGHT * scale;
-    const maxTileHeight = MAX_TILE_HEIGHT * scale;
+    const aspectRatio = tileAspectRatio();
     const anchorPageNum = initialized ? centeredPageNum() : null;
     const itemsPerRow = Math.max(
       1,
@@ -643,13 +657,7 @@ function ScrollPreviewPanel(props: {
       1,
       (width - gap * (itemsPerRow - 1)) / itemsPerRow,
     );
-    const itemHeight = Math.round(
-      clamp(
-        itemWidth * tileAspectRatio,
-        minTileHeight,
-        maxTileHeight,
-      ),
-    );
+    const itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio));
     const panelChromeHeight = Math.max(0, overlay.clientHeight - height);
     const targetContentHeight = Math.max(
       itemHeight,
@@ -662,8 +670,10 @@ function ScrollPreviewPanel(props: {
       ),
     );
     const availableRows = props.embedded
-      ? embeddedRows
-      : Math.max(1, Math.ceil((height + gap) / (maxTileHeight + gap)));
+      ? props.fillContainer
+        ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap)))
+        : embeddedRows
+      : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap)));
     const automaticCrossCount = horizontal
       ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow))
       : Math.min(itemsPerRow, totalImages);
@@ -688,19 +698,32 @@ function ScrollPreviewPanel(props: {
       1,
       (height - gap * (crossCount - 1)) / crossCount,
     );
+    const crossCountOverridden = crossCountOverride() !== null;
+    const overriddenTileWidth = Math.min(
+      Math.max(1, (width - gap * (crossCount - 1)) / crossCount),
+      width / 2,
+      height / 2 / aspectRatio,
+    );
     const tileHeight = horizontal
-      ? Math.min(itemHeight, availableTileHeight)
-      : Math.round(
-        clamp(
-          Math.max(1, (width - gap * (crossCount - 1)) / crossCount) *
-            tileAspectRatio,
-          minTileHeight,
-          maxTileHeight,
+      ? crossCountOverridden
+        ? Math.min(availableTileHeight, height / 2, width / 2 * aspectRatio)
+        : Math.min(itemHeight, availableTileHeight)
+      : Math.max(
+        1,
+        Math.round(
+          (crossCountOverridden
+            ? overriddenTileWidth
+            : Math.max(1, (width - gap * (crossCount - 1)) / crossCount)) *
+              aspectRatio,
         ),
       );
     const tileWidth = horizontal
-      ? clamp(tileHeight / tileAspectRatio, 1, maxTileWidth)
-      : Math.max(1, (width - gap * (crossCount - 1)) / crossCount);
+      ? crossCountOverridden
+        ? tileHeight / aspectRatio
+        : clamp(tileHeight / aspectRatio, 1, maxTileWidth)
+      : crossCountOverridden
+        ? overriddenTileWidth
+        : Math.max(1, (width - gap * (crossCount - 1)) / crossCount);
     const next = {
       crossCount,
       gap,
@@ -733,8 +756,9 @@ function ScrollPreviewPanel(props: {
 
   createEffect(() => {
     crossCountOverride();
+    tileAspectRatio();
     if (initialized) {
-      updateLayout();
+      untrack(updateLayout);
     }
   });
 
@@ -938,6 +962,7 @@ function ScrollPreviewPanel(props: {
                 >
                 <PreviewTile
                   alignment={rightToLeft ? "right" : horizontal ? "left" : "center"}
+                  allowUpscale={!props.embedded && crossCountOverride() !== null}
                   decodeCache={decodeCache}
                   failed={failedPreviewIndexes().has(previewCache.previewIndexForPage(slot.pageNum))}
                   height={layout().tileHeight}
@@ -992,31 +1017,9 @@ function ScrollPreviewPanel(props: {
   );
 }
 
-function dominantAspectRatio(items: GalleryPreviewItem[]): number {
-  const buckets = new Map<number, { count: number; total: number }>();
-  let dominant = { count: 0, total: FALLBACK_TILE_ASPECT_RATIO };
-
-  for (const item of items) {
-    const ratio = clamp(
-      normalizedAspectRatio(item.aspectRatio, FALLBACK_TILE_ASPECT_RATIO),
-      0.5,
-      3,
-    );
-    const key = Math.round(ratio * 10);
-    const bucket = buckets.get(key) ?? { count: 0, total: 0 };
-    bucket.count += 1;
-    bucket.total += ratio;
-    buckets.set(key, bucket);
-    if (bucket.count > dominant.count) {
-      dominant = bucket;
-    }
-  }
-
-  return dominant.total / Math.max(1, dominant.count);
-}
-
 function PreviewTile(props: {
   alignment: "center" | "left" | "right";
+  allowUpscale: boolean;
   decodeCache: PreviewDecodeCache;
   failed: boolean;
   height: number;
@@ -1071,7 +1074,11 @@ function PreviewTile(props: {
               when={item.thumbnail.kind === "background"}
               fallback={
                 <img
-                  class="pointer-events-none block max-w-full max-h-full object-contain select-none [-webkit-user-drag:none]"
+                  class="pointer-events-none block object-contain select-none [-webkit-user-drag:none]"
+                  classList={{
+                    "h-full w-full": props.allowUpscale,
+                    "max-h-full max-w-full": !props.allowUpscale,
+                  }}
                   src={item.thumbnail.url}
                   alt=""
                   width={item.thumbnail.width}
@@ -1090,7 +1097,7 @@ function PreviewTile(props: {
                   "background-size": item.thumbnail.backgroundSize,
                   height: `${item.thumbnail.height}px`,
                   transform: `scale(${Math.min(
-                    1,
+                    props.allowUpscale ? Number.POSITIVE_INFINITY : 1,
                     props.width / item.thumbnail.width,
                     props.height / item.thumbnail.height,
                   )})`,

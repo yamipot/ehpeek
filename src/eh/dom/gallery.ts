@@ -156,6 +156,7 @@ export type GalleryPreviewData = {
   currentIndex: number;
   currentUrl: string;
   descriptionText: string;
+  dominantAspectRatio: number;
   endImage: number;
   maxIndex: number;
   pageSize: number;
@@ -264,6 +265,7 @@ export function manageGalleryPreview(
     currentIndex,
     currentUrl,
     descriptionText: rangeText,
+    dominantAspectRatio: dominantPreviewAspectRatio(previewItems),
     endImage,
     maxIndex,
     pageSize,
@@ -371,6 +373,28 @@ export function manageGalleryPreview(
   };
 
   return { data, elems, handle };
+}
+
+function dominantPreviewAspectRatio(items: GalleryPreviewItem[]): number {
+  const buckets = new Map<number, { count: number; total: number }>();
+  let dominant: { count: number; total: number } | null = null;
+
+  for (const item of items) {
+    const key = Math.round(item.aspectRatio * 10);
+    const bucket = buckets.get(key) ?? { count: 0, total: 0 };
+    bucket.count += 1;
+    bucket.total += item.aspectRatio;
+    buckets.set(key, bucket);
+    if (!dominant || bucket.count > dominant.count) {
+      dominant = bucket;
+    }
+  }
+
+  if (!dominant) {
+    throw new Error("Cannot determine the gallery preview aspect ratio.");
+  }
+
+  return dominant.total / dominant.count;
 }
 
 function cssBackgroundUrl(style: string): string {

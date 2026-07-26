@@ -189,7 +189,7 @@ export function manageReadHistoryPage(
   const handle = {
     /** Replaces the visible History rows without navigating away from the current document. */
     updateReadHistoryItems: grids.handle.updateItems,
-    /** Reports explicit and long-press removal requests without exposing History rows. */
+    /** Reports explicit removal requests without exposing History rows. */
     listenForReadHistoryRemoval: grids.handle.listenForItemRemoval,
     /** Keeps navigation anchored to the corresponding edge after an in-page page change. */
     scrollReadHistoryPage(position: "bottom" | "top"): void {
@@ -424,12 +424,6 @@ function manageReadHistoryGrids(
           }
           return visibleRows.find(({ row }) => row.row.contains(target))?.item ?? null;
         };
-        const stopLongPress = resultList.listenLongPress((event) => {
-          const item = itemForTarget(event.target);
-          if (item) {
-            callback(item);
-          }
-        }, (event) => itemForTarget(event.target) !== null);
         const stopButton = resultList.listen("click", (event) => {
           const button = event.target instanceof Element
             ? DomNode.from(event.target).closest(domClass.search.removeHistory)
@@ -442,10 +436,7 @@ function manageReadHistoryGrids(
           event.stopPropagation();
           callback(item);
         });
-        return () => {
-          stopLongPress();
-          stopButton();
-        };
+        return stopButton;
       },
     },
   };
