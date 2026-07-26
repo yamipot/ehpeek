@@ -46,6 +46,7 @@ export type ReaderDownloadInfo = {
   currentImageUrl: string;
   imageHeight: number | null;
   imageWidth: number | null;
+  originalFileName: string;
   originalImageUrl: string | null;
   pageNum: number;
 };
@@ -405,7 +406,11 @@ export function Toolbar(props: {
                     <button
                       type="button"
                       class={DOWNLOAD_OPTION_CLASS}
-                      onClick={() => startImageDownload(downloadInfo.currentImageUrl, downloadInfo.currentFileName)}
+                      onClick={() => {
+                        if (startImageDownload(downloadInfo.currentImageUrl, downloadInfo.currentFileName)) {
+                          setDownloadDialogPageNum(null);
+                        }
+                      }}
                     >
                       <span class="textsize-md font-700">
                         {`${texts.reader.downloadDisplayedImage} · ${downloadInfo.pageNum}`}
@@ -420,7 +425,12 @@ export function Toolbar(props: {
                       disabled={!downloadInfo.originalImageUrl}
                       onClick={() => {
                         if (downloadInfo.originalImageUrl) {
-                          startImageDownload(downloadInfo.originalImageUrl);
+                          if (startImageDownload(
+                            downloadInfo.originalImageUrl,
+                            downloadInfo.originalFileName,
+                          )) {
+                            setDownloadDialogPageNum(null);
+                          }
                         }
                       }}
                     >

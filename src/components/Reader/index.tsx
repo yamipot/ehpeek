@@ -415,11 +415,24 @@ function wireReaderCallbacks(
       }
       loadedImages.delete(downloadPageNum);
       loadedImages.set(downloadPageNum, image);
+      const currentFileName = imageDownloadFileName(
+        options.galleryId,
+        options.galleryToken,
+        downloadPageNum,
+        image.imageUrl,
+      );
       return [{
-        currentFileName: displayedImageFileName(options.galleryId, downloadPageNum, image.imageUrl),
+        currentFileName,
         currentImageUrl: image.imageUrl,
         imageHeight: viewportActions.pageImageHeight(downloadPageNum) ?? image.height,
         imageWidth: viewportActions.pageImageWidth(downloadPageNum) ?? image.width,
+        originalFileName: imageDownloadFileName(
+          options.galleryId,
+          options.galleryToken,
+          downloadPageNum,
+          image.originalImageUrl ?? "",
+          image.imageUrl,
+        ),
         originalImageUrl: image.originalImageUrl,
         pageNum: downloadPageNum,
       }];
@@ -1124,8 +1137,17 @@ function wheelDeltaPixels(delta: number, mode: number): number {
   return delta;
 }
 
-function displayedImageFileName(galleryId: number, pageNum: number, imageUrl: string): string {
-  return `${galleryId}-p${String(pageNum).padStart(2, "0")}.${imageFileExtension(imageUrl)}`;
+function imageDownloadFileName(
+  galleryId: number,
+  galleryToken: string,
+  pageNum: number,
+  imageUrl: string,
+  fallbackImageUrl = "",
+): string {
+  const extension = imageFileExtension(imageUrl) ||
+    imageFileExtension(fallbackImageUrl) ||
+    "webp";
+  return `${galleryId}-${galleryToken}-p${pageNum}.${extension}`;
 }
 
 function imageFileExtension(imageUrl: string): string {

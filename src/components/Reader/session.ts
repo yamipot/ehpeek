@@ -22,6 +22,7 @@ export type ReaderLoadTarget = {
 export type ReaderOptions = {
   decodedImageCacheLimit?: number;
   galleryId: number;
+  galleryToken: string;
   initialPageNum: number;
   totalPages?: number;
   renderWindowSize?: number;

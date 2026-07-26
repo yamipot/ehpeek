@@ -180,6 +180,7 @@ async function openReader(
   const fullscreen = fullscreenLaunch?.fullscreen ?? viewport.createFullscreen(host);
   mountReader({
     galleryId: gallery.galleryId,
+    galleryToken: gallery.token,
     initialPageNum: startPageNum,
     totalPages,
   }, previewCache, {
