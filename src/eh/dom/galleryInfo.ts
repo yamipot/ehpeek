@@ -16,6 +16,7 @@ import type {
 } from "../types";
 import { galleryTagNameFromUrl } from "../url";
 import {
+  anyDomNode,
   createAnchor,
   createManagedElement,
   DomNode,
@@ -46,6 +47,12 @@ export function extractGalleryHistoryInfo(): GalleryHistoryInfo {
       .map((detailCell) => detailCell.text())
       .filter(Boolean)
       .join(" "));
+  // History needs E-H's stable timestamp; EhSyringe's visible copy may contain relative translated text.
+  const postedAt = page
+    .one(domClass.gallery.info.details, anyDomNode)
+    ?.all(domClass.gallery.info.details.rows.cells, anyDomNode)
+    .map((cell) => parseGalleryPostedAt(cell.text()))
+    .find((value) => value !== undefined);
   const ratingMatch = (
     page.all(domClass.common.scripts).map((pageScript) => pageScript.text())
       .find((script) => script.includes("display_rating")) ?? ""
@@ -67,7 +74,7 @@ export function extractGalleryHistoryInfo(): GalleryHistoryInfo {
     categoryClass,
     coverUrl: coverUrl || undefined,
     language: rows[3] || undefined,
-    postedAt: parseGalleryPostedAt(rows[0]),
+    postedAt,
     rating: ratingMatch && Number.isFinite(rating) ? rating : undefined,
     title: source.titleMain.one()?.text() || undefined,
     titleSub: source.titleSub.one()?.text() || undefined,

@@ -23,6 +23,7 @@ type EhPeekGridRow = {
   galleryLink: ManagedDomNode<HTMLElement> | null;
   metadata: ManagedDomNode<HTMLElement>;
   row: ManagedDomNode<HTMLTableRowElement>;
+  stackTags: boolean;
   tags: ManagedDomNode<HTMLElement>[];
   title: ManagedDomNode<HTMLElement> | null;
   titleText: string;
@@ -76,27 +77,26 @@ function createReadHistoryGridRow(
     metadataItems.push(rating);
   }
   appendMetadata(info?.uploader);
+  appendMetadata(item.totalPages ? `${item.totalPages} pages` : undefined);
 
   const progress = item.currentPage > 0
     ? item.totalPages
       ? `${item.currentPage}/${item.totalPages}`
       : String(item.currentPage)
     : texts.history.unread;
-  const updatedAt = new Date(item.updatedAt);
-  const pad = (value: number) => String(value).padStart(2, "0");
   const historyStatus = createManagedElement("div")
-    .replaceClasses("textsize-sm font-600 leading-[1.3]");
-  historyStatus.setTextUnlessInput(
-    `${progress} · ${updatedAt.getFullYear()}-${pad(updatedAt.getMonth() + 1)}-${pad(updatedAt.getDate())} ${pad(updatedAt.getHours())}:${pad(updatedAt.getMinutes())}`,
-  );
+    .replaceClasses(
+      "px-sm py-xs rounded-sm border border-[var(--color-site-border-subtle)] bg-transparent textsize-md font-700 leading-[1.2] whitespace-nowrap",
+    );
+  historyStatus.setTextUnlessInput(progress);
   const removeButton = createManagedElement("button")
     .setAttributes({ type: "button", "data-ehpeek-remove-history": "true" })
     .replaceClasses(
-      "relative z-2 min-h-lg py-xs px-md rounded-md border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] ehp-color-site-text font-inherit textsize-md font-700 text-center cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]",
+      "relative z-2 min-h-lg py-xs px-lg rounded-md border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] ehp-color-site-text font-inherit textsize-md font-700 text-center cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]",
     );
   removeButton.setTextUnlessInput(texts.button.removeHistory);
   const historyActions = createManagedElement("div")
-    .replaceClasses("ehpeek-read-history-actions flex flex-col items-start gap-xs")
+    .replaceClasses("ehpeek-read-history-actions box-border flex items-center justify-end gap-md pr-sm pb-xs")
     .append(historyStatus, removeButton);
   const titleText = titlePreference === "sub"
     ? info?.titleSub || info?.title
@@ -126,14 +126,18 @@ function createReadHistoryGridRow(
 
   const contentCell = createManagedElement("td").replaceClasses("gl2e");
   const galleryLink = createManagedElement("a").attribute("href", galleryHref);
-  const detail = createManagedElement("div").replaceClasses("gl4e");
+  const detail = createManagedElement("div").replaceClasses("gl4e h-full");
   const title = createManagedElement("div").replaceClasses("glink");
   title.setTextUnlessInput(titleText ?? "");
   title.setHidden(!titleText);
   const metadata = createManagedElement("div").replaceClasses("gl3e");
   metadata.append(...metadataItems);
-  galleryLink.append(detail.append(title, historyStatus));
-  contentCell.append(createManagedElement("div").append(metadata, galleryLink));
+  galleryLink.append(detail.append(title));
+  contentCell.append(
+    createManagedElement("div")
+      .replaceClasses("ehpeek-read-history-content h-full")
+      .append(metadata, galleryLink),
+  );
   row.append(thumbnailCell, contentCell);
 
   return {
@@ -143,6 +147,7 @@ function createReadHistoryGridRow(
     galleryLink,
     metadata,
     row,
+    stackTags: false,
     tags: [historyActions],
     title,
     titleText: titleText ?? "",
@@ -478,6 +483,7 @@ export function manageSearchGrids(): void {
       galleryLink: galleryLink?.inplace() ?? null,
       metadata: metadata.inplace(),
       row: row.inplace(),
+      stackTags: true,
       tags: tags.map((item) => item.inplace()),
       title: title?.inplace() ?? null,
       titleText: title?.text() ?? "",
@@ -537,8 +543,10 @@ function manageEhPeekGrid(
     } else if (title) {
       title.after(metadata);
     }
-    for (const tag of tags) {
-      tag.addClasses(sharedApply.stackSearchGridTags);
+    if (source.stackTags) {
+      for (const tag of tags) {
+        tag.addClasses(sharedApply.stackSearchGridTags);
+      }
     }
   }
   

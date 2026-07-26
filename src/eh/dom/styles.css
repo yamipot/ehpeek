@@ -256,12 +256,14 @@ body.ehpeek-constrain-results-to-viewport {
 .ehpeek-layout-search-grid .gl4e:has(> .ehpeek-read-history-actions) {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .ehpeek-layout-search-grid .gl4e > .ehpeek-read-history-actions {
   position: static !important;
-  justify-self: end;
-  width: auto !important;
+  align-self: end;
+  justify-self: stretch;
+  width: 100% !important;
 }
 
 .ehpeek-layout-search-grid .glink {

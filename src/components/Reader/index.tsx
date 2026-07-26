@@ -203,6 +203,8 @@ function wireReaderCallbacks(
   let pagedTargetPageNumber: number | null = null;
   let syncToken = 0;
   let closed = false;
+  let loadDirection: -1 | 1 = 1;
+  let loadDirectionEdgePageNum = state.navi.currentPageNum();
   const scrollFitPageNum = state.navi.currentPageNum();
   const pagedMode = () => state.ctrls.value().navigationMode === "paged";
   const pageTurnStep = () => state.ctrls.value().pageLayout === "double" ? 2 : 1;
@@ -328,13 +330,19 @@ function wireReaderCallbacks(
   function maintainLoadQueue(): void {
     const firstVisiblePageNum =
       viewportActions.firstVisiblePageNum() ?? state.navi.currentPageNum();
+    const movement = (firstVisiblePageNum - loadDirectionEdgePageNum) *
+      loadDirection;
+    if (movement >= 0) {
+      loadDirectionEdgePageNum = firstVisiblePageNum;
+    } else if (-movement > 2) {
+      loadDirection = loadDirection === 1 ? -1 : 1;
+      loadDirectionEdgePageNum = firstVisiblePageNum;
+    }
     const pageNums = [firstVisiblePageNum];
     for (let offset = 1; offset <= preloadWindowSize; offset += 1) {
-      pageNums.push(firstVisiblePageNum + offset);
+      pageNums.push(firstVisiblePageNum + offset * loadDirection);
     }
-    for (let offset = 1; offset <= preloadWindowSize; offset += 1) {
-      pageNums.push(firstVisiblePageNum - offset);
-    }
+    pageNums.push(firstVisiblePageNum - loadDirection);
     session.imageQueue.sync(Array.from(new Set(pageNums)).flatMap((pageNum, priority) => {
       const target = loadTargetFor(pageNum);
       return target ? [{ key: pageNum, priority, target }] : [];
