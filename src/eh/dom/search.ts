@@ -32,6 +32,7 @@ type EhPeekGridRow = {
 
 type ReadHistoryGridsOptions = {
   items: ReadHistoryPageItem[];
+  mode: SearchGridMode;
   source: DomNode<HTMLElement>;
   titlePreference: GalleryTitlePreference;
 };
@@ -165,6 +166,7 @@ function createReadHistoryGridRow(
 export function manageReadHistoryPage(
   items: ReadHistoryPageItem[],
   titlePreference: GalleryTitlePreference,
+  mode: SearchGridMode = "ehpeek-lite",
 ) {
   const page = DomNode.from(document);
   const source = page.use(domClass.search);
@@ -177,6 +179,7 @@ export function manageReadHistoryPage(
 
   const grids = manageReadHistoryGrids({
     items,
+    mode,
     source: resultList,
     titlePreference,
   });
@@ -408,7 +411,7 @@ function manageReadHistoryGrids(
     manageEhPeekGrid(
       resultList,
       visibleRows.map(({ row }) => row),
-      "ehpeek-lite",
+      options.mode,
     );
   };
   updateItems(options.items);

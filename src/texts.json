@@ -20,10 +20,11 @@
         "**Pinch** to zoom the image. Or **double-tap** to enter zoom mode and use the **mouse wheel** to adjust the scale."
       ],
       "Browse": [
-        "When **Enhance > Search Grids** is enabled, **swipe** horizontally to change search result pages."
+        "Choose EhPeek or EhPeekLite from the **layout menu** to replace the original result layout.",
+        "When **Enhance > Search Swipe** is enabled, **swipe** horizontally to change search result pages."
       ],
       "Gallery": [
-        "When **Enhance > Thumbs Grids** is enabled, **swipe** horizontally to change preview pages.",
+        "When **Enhance > Preview Swipe** is enabled, **swipe** horizontally to change preview pages.",
         "The Page Bar in Gallery can be **dragged** to adjust the range."
       ]
     }
@@ -109,7 +110,7 @@
     "exitReaderOnFullscreenExitLabel": "Close Reader on Fullscreen exit",
     "exitReaderOnFullscreenExitHelp": "Closes the Reader when fullscreen is exited",
     "replacePreviewWithScrollLabel": "Embed Scroll Preview",
-    "replacePreviewWithScrollHelp": "Embeds Scroll Preview in the original gallery preview area",
+    "replacePreviewWithScrollHelp": "Replace the original gallery preview area with Scroll Preview",
     "readerOptions": "Options",
     "openGalleryInNewTabLabel": "Open Gallery in new tab",
     "openGalleryInNewTabHelp": "Opens gallery links in a new browser tab",

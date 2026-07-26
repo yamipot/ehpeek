@@ -669,6 +669,7 @@ async function injectPage(page: eh.PageType): Promise<void> {
       const historyDom = eh.manageReadHistoryPage(
         items.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize),
         titlePreference,
+        state.search.grid.value ?? "ehpeek-lite",
       );
       gState.readHistoryPage = historyDom;
       if (gState.settings.touchUiEnabled) {
