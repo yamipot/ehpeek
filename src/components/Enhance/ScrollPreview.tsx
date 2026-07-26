@@ -76,6 +76,7 @@ export function ScrollPreview(props: {
   replaceOriginalPreview: boolean;
 }) {
   const previewCache = untrack(() => props.previewCache);
+  const decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS);
   const onExitPreview = untrack(() => props.onExitPreview);
   const onOpenPage = untrack(() => props.onOpenPage);
   const [open, setOpen] = createSignal(false);
@@ -85,6 +86,7 @@ export function ScrollPreview(props: {
   const [embeddedReadDirection, setEmbeddedReadDirection] =
     createSignal<ReadDirection>(untrack(() => props.embeddedDirection));
   const [portalMount, setPortalMount] = createSignal<HTMLElement>(document.body);
+  const [crossCountOverride, setCrossCountOverride] = createSignal<number | null>(null);
   const [targetPreviewIndex, setTargetPreviewIndex] = createSignal(
     untrack(() => previewCache.current().data.currentIndex),
   );
@@ -170,6 +172,7 @@ export function ScrollPreview(props: {
     });
   });
   onCleanup(() => {
+    decodeCache.dispose();
     if (open()) {
       props.onOpenChange(false);
     }
@@ -180,6 +183,8 @@ export function ScrollPreview(props: {
       <Show when={props.replaceOriginalPreview}>
         <Show when={embeddedReadDirection()} keyed>{(direction) => (
           <ScrollPreviewPanel
+            crossCountOverride={crossCountOverride()}
+            decodeCache={decodeCache}
             embedded
             highlightedPageNum={props.continuePageNum}
             onDirectionChange={(next, pageNum) => {
@@ -188,6 +193,7 @@ export function ScrollPreview(props: {
               props.onEmbeddedDirectionChange(next);
             }}
             onLoadError={props.onLoadError}
+            onCrossCountOverrideChange={setCrossCountOverride}
             onOpenOverlay={(pageNum) => {
               setTargetPageNum(pageNum);
               setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
@@ -208,9 +214,10 @@ export function ScrollPreview(props: {
             type="button"
             class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98"
             onClick={() => {
+              const pageNum = props.continuePageNum ?? 1;
               setHighlightedPageNum(props.continuePageNum);
-              setTargetPageNum(null);
-              setTargetPreviewIndex(previewCache.current().data.currentIndex);
+              setTargetPageNum(pageNum);
+              setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
               openPreview();
             }}
           >
@@ -223,6 +230,8 @@ export function ScrollPreview(props: {
         <Portal mount={portalMount()}>
           <Show when={readDirection()} keyed>{(direction) => (
             <ScrollPreviewPanel
+              crossCountOverride={crossCountOverride()}
+              decodeCache={decodeCache}
               embedded={false}
               highlightedPageNum={highlightedPageNum()}
               onClose={(previewIndex) => {
@@ -234,6 +243,7 @@ export function ScrollPreview(props: {
                 props.onReadDirectionChange(next);
               }}
               onLoadError={props.onLoadError}
+              onCrossCountOverrideChange={setCrossCountOverride}
               onOpenPage={(pageUrl, pageNum) => {
                 requestClose(() => onOpenPage(pageUrl, pageNum));
               }}
@@ -251,11 +261,14 @@ export function ScrollPreview(props: {
 }
 
 function ScrollPreviewPanel(props: {
+  crossCountOverride: number | null;
+  decodeCache: PreviewDecodeCache;
   embedded: boolean;
   highlightedPageNum: number | null;
   onClose?: (previewIndex: number) => void;
   onDirectionChange?: (direction: ReadDirection, pageNum: number) => void;
   onLoadError: (error: unknown) => void;
+  onCrossCountOverrideChange: (crossCount: number) => void;
   onOpenOverlay?: (pageNum: number) => void;
   onOpenPage: (pageUrl: string, pageNum: number) => void;
   previewCache: GalleryPreviewCache;
@@ -264,6 +277,7 @@ function ScrollPreviewPanel(props: {
   targetPreviewIndex: number;
   fillContainer: boolean;
 }) {
+  const decodeCache = untrack(() => props.decodeCache);
   const previewCache = untrack(() => props.previewCache);
   const onClose = untrack(() => props.onClose);
   const onLoadError = untrack(() => props.onLoadError);
@@ -293,14 +307,14 @@ function ScrollPreviewPanel(props: {
     : readDirection === "rtl"
       ? texts.gallery.scrollPreviewDirectionRtl
       : texts.gallery.scrollPreviewDirectionLtr;
-  const decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS);
   const flingAnimator = new ScrollFlingAnimator();
   const previewLoadQueue = new PriorityLoadQueue<number, GalleryPreviewDom>(
     PREVIEW_CONCURRENT_LOADS,
   );
   const requestedPreviewIndexes = new Set<number>();
   const [failedPreviewIndexes, setFailedPreviewIndexes] = createSignal<Set<number>>(new Set());
-  const [crossCountOverride, setCrossCountOverride] = createSignal<number | null>(null);
+  const crossCountOverride = (): number | null =>
+    props.embedded ? null : props.crossCountOverride;
   const [embeddedPanelHeight, setEmbeddedPanelHeight] = createSignal<number | null>(null);
   const [exitDragOffset, setExitDragOffset] = createSignal(0);
   const [loadingCount, setLoadingCount] = createSignal(0);
@@ -322,7 +336,10 @@ function ScrollPreviewPanel(props: {
   let overlay!: HTMLElement;
   let dragDirection: "exit" | "scroll" | null = null;
   let dragStartPosition: number | null = null;
+  let pinchAnchorPageNum: number | null = null;
   let pinchStartCrossCount = 1;
+  let pinchMinimumCrossCount = 1;
+  let layoutFrame: number | null = null;
   let scrollFrame: number | null = null;
   let loadToken = 0;
   let initialized = false;
@@ -390,6 +407,14 @@ function ScrollPreviewPanel(props: {
   };
   const centeredPreviewIndex = (): number =>
     previewCache.previewIndexForPage(centeredPageNum());
+  const preferredLayoutAnchorPageNum = (): number => {
+    const targetPageNum = props.highlightedPageNum ?? props.targetPageNum;
+    return targetPageNum !== null &&
+        targetPageNum >= screenStartPageNum() &&
+        targetPageNum <= screenEndPageNum()
+      ? targetPageNum
+      : centeredPageNum();
+  };
   const scrollPositionPage = (): number => {
     const maxOffset = Math.max(0, totalMainSize() - mainViewportSize());
     if (maxOffset === 0 || totalImages <= 1) {
@@ -542,16 +567,48 @@ function ScrollPreviewPanel(props: {
           return false;
         }
         flingAnimator.cancel();
+        pinchAnchorPageNum = preferredLayoutAnchorPageNum();
         pinchStartCrossCount = layout().crossCount;
+        const currentLayout = layout();
+        const aspectRatio = tileAspectRatio();
+        const crossSize = currentLayout.horizontal
+          ? currentLayout.viewportHeight
+          : currentLayout.viewportWidth;
+        const maximumTileCrossSize = currentLayout.horizontal
+          ? Math.min(
+            currentLayout.viewportHeight / 2,
+            currentLayout.viewportWidth / 2 * aspectRatio,
+          )
+          : Math.min(
+            currentLayout.viewportWidth / 2,
+            currentLayout.viewportHeight / 2 / aspectRatio,
+          );
+        pinchMinimumCrossCount = Math.min(
+          pinchStartCrossCount,
+          Math.max(
+            1,
+            Math.ceil(
+              (crossSize + currentLayout.gap) /
+                (maximumTileCrossSize + currentLayout.gap),
+            ),
+          ),
+        );
         return true;
       },
       onPinchMove: (info) => {
         if (props.embedded) {
           return;
         }
-        setCrossCountOverride(
-          clamp(Math.round(pinchStartCrossCount / info.scale), 1, MAX_CROSS_COUNT),
+        props.onCrossCountOverrideChange(
+          clamp(
+            Math.round(pinchStartCrossCount / info.scale),
+            pinchMinimumCrossCount,
+            MAX_CROSS_COUNT,
+          ),
         );
+      },
+      onPinchEnd: () => {
+        pinchAnchorPageNum = null;
       },
     }),
   );
@@ -648,7 +705,9 @@ function ScrollPreviewPanel(props: {
     const gap = GRID_GAP * scale;
     const maxTileWidth = MAX_TILE_WIDTH * scale;
     const aspectRatio = tileAspectRatio();
-    const anchorPageNum = initialized ? centeredPageNum() : null;
+    const anchorPageNum = initialized
+      ? pinchAnchorPageNum ?? preferredLayoutAnchorPageNum()
+      : null;
     const itemsPerRow = Math.max(
       1,
       Math.ceil((width + gap) / (maxTileWidth + gap)),
@@ -736,7 +795,11 @@ function ScrollPreviewPanel(props: {
     };
     setLayout(next);
 
-    queueMicrotask(() => untrack(() => {
+    if (layoutFrame !== null) {
+      window.cancelAnimationFrame(layoutFrame);
+    }
+    layoutFrame = window.requestAnimationFrame(() => untrack(() => {
+      layoutFrame = null;
       if (!scroller.isConnected) {
         return;
       }
@@ -781,7 +844,9 @@ function ScrollPreviewPanel(props: {
         document.body.style.overflow = previousBodyOverflow;
         document.documentElement.style.overflow = previousHtmlOverflow;
       }
-      decodeCache.dispose();
+      if (layoutFrame !== null) {
+        window.cancelAnimationFrame(layoutFrame);
+      }
       if (scrollFrame !== null) {
         window.cancelAnimationFrame(scrollFrame);
       }
