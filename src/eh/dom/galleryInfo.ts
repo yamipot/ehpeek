@@ -283,12 +283,13 @@ export function manageGalleryInfo(
     return slot === undefined ? null : `var(--color-site-favorite-${slot})`;
   };
 
-  const readFavoriteOptions = (
+  const readFavoriteDialog = (
     doc: Document,
     favorited: boolean,
-  ): GalleryFavoriteOption[] =>
-    DomNode.from(doc).use(domClass.myTags).favoriteOptions.all().map((favoriteInput) => {
-      const row = favoriteInput.closest(domClass.myTags.favoriteOptionRow);
+  ) => {
+    const dialog = DomNode.from(doc).use(domClass.gallery.favoriteDialog);
+    const options: GalleryFavoriteOption[] = dialog.options.all().map((favoriteInput) => {
+      const row = favoriteInput.closest(domClass.gallery.favoriteDialog.optionRow);
       const value = favoriteInput.inputValue();
       return {
         color: favoriteColor(value),
@@ -297,6 +298,11 @@ export function manageGalleryInfo(
         value,
       };
     });
+    return {
+      note: dialog.note.one()?.inputValue() ?? "",
+      options,
+    };
+  };
 
   const manageTagGroups = (): GalleryInfoTagGroup[] => readTagGroups().map((group) => ({
     namespace: group.namespace,
@@ -394,10 +400,10 @@ export function manageGalleryInfo(
     installGalleryInfoPanel() {
       elems.host.prepend(elems.mount);
     },
-    /** Loads the original favorite dialog choices for EhPeek's favorite modal. */
-    async loadGalleryFavoriteOptions(actionUrl: string, favorited: boolean) {
+    /** Loads the original favorite categories and note for EhPeek's favorite modal. */
+    async loadGalleryFavoriteDialog(actionUrl: string, favorited: boolean) {
       const response = await requestPage(actionUrl);
-      return readFavoriteOptions(response.document, favorited);
+      return readFavoriteDialog(response.document, favorited);
     },
     /** Submits a tag to the chosen My Tags collection and validates the response. */
     async submitFavoriteTag(

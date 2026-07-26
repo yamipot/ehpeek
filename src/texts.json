@@ -83,6 +83,8 @@
     "scrollPreviewDirectionLtr": "Scroll Preview: left to right",
     "scrollPreviewDirectionRtl": "Scroll Preview: right to left",
     "favoriteTag": "Add My Tag",
+    "editFavoriteNote": "Edit Note",
+    "discardFavoriteNote": "Discard note edits?",
     "removeFavoriteTag": "Remove My Tag",
     "tagCollection": "Collection",
     "tagBehavior": "Behavior",

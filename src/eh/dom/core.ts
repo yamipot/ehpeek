@@ -111,6 +111,7 @@ export const row = defineDomNode<HTMLTableRowElement>();
 export const script = defineDomNode<HTMLScriptElement>();
 export const select = defineDomNode<HTMLSelectElement>();
 export const table = defineDomNode<HTMLTableElement>();
+export const textarea = defineDomNode<HTMLTextAreaElement>();
 
 export function cls<
   const TApply extends DomApply = typeof emptyDomApply,
@@ -357,7 +358,7 @@ export class DomNode<T extends ParentNode = ParentNode> {
     };
   }
 
-  inputValue(this: DomNode<HTMLInputElement | HTMLSelectElement | HTMLOptionElement>): string {
+  inputValue(this: DomNode<HTMLInputElement | HTMLSelectElement | HTMLOptionElement | HTMLTextAreaElement>): string {
     return this.#node.value;
   }
 
@@ -866,7 +867,7 @@ export class ManagedDomNode<
     this.#node.value = value;
   }
 
-  inputValue(this: ManagedDomNode<HTMLInputElement | HTMLSelectElement | HTMLOptionElement>): string {
+  inputValue(this: ManagedDomNode<HTMLInputElement | HTMLSelectElement | HTMLOptionElement | HTMLTextAreaElement>): string {
     return this.#node.value;
   }
 

@@ -13,6 +13,7 @@ export type IconName =
   | "chevron-right"
   | "close"
   | "download"
+  | "edit"
   | "external-link"
   | "fullscreen"
   | "fullscreen-exit"
@@ -108,6 +109,9 @@ const ICON_DEFINITIONS: Record<IconName, IconDefinition> = {
   },
   download: {
     paths: ["M12 3v12", "m7 10 5 5 5-5", "M5 21h14"],
+  },
+  edit: {
+    paths: ["M4 20h4L19 9l-4-4L4 16v4Z", "m13.5-13.5 4 4"],
   },
   "external-link": {
     paths: ["M14 4h6v6", "m20 4-9 9", "M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"],

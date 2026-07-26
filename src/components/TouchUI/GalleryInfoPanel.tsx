@@ -751,12 +751,28 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
     "idle" | "loading" | "failed"
   >("idle");
   const [options, setOptions] = createSignal<GalleryFavoriteOption[]>([]);
+  const [note, setNote] = createSignal("");
+  const [noteDraft, setNoteDraft] = createSignal("");
+  const [editingNote, setEditingNote] = createSignal(false);
   const favorited = () => favorite().favorited;
+  const closeMenu = () => {
+    if (
+      noteDraft() !== note() &&
+      !window.confirm(texts.gallery.discardFavoriteNote)
+    ) {
+      return;
+    }
+    setNoteDraft(note());
+    setEditingNote(false);
+    setOpen(false);
+  };
 
   onMount(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && open()) {
-        setOpen(false);
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        closeMenu();
       }
     };
 
@@ -789,13 +805,19 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
     }
 
     setOpen(true);
+    setEditingNote(false);
+    setNote("");
+    setNoteDraft("");
     setLoadingState("loading");
 
     try {
-      setOptions(await props.source.handle.loadGalleryFavoriteOptions(
+      const dialog = await props.source.handle.loadGalleryFavoriteDialog(
         currentFavorite.actionUrl,
         currentFavorite.favorited,
-      ));
+      );
+      setOptions(dialog.options);
+      setNote(dialog.note);
+      setNoteDraft(dialog.note);
       setLoadingState("idle");
     } catch (error) {
       console.error("[ehpeek]", error);
@@ -811,13 +833,18 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
 
     setLoadingState("loading");
     try {
-      await props.source.handle.updateGalleryFavorite(actionUrl, option.value);
+      await props.source.handle.updateGalleryFavorite(
+        actionUrl,
+        option.value,
+        noteDraft(),
+      );
       setFavorite({
         ...favorite(),
         color: option.color,
         favorited: option.value !== "favdel",
         label: option.value === "favdel" ? "Not Favorited" : option.label,
       });
+      setNote(noteDraft());
       setLoadingState("idle");
       setOpen(false);
     } catch (error) {
@@ -837,7 +864,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
         onClick={(event: MouseEvent) => {
           event.stopPropagation();
           if (open()) {
-            setOpen(false);
+            closeMenu();
           } else {
             void openMenu();
           }
@@ -860,21 +887,21 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
             aria-label={favorite().label}
             onClick={(event) => {
               if (event.target === event.currentTarget) {
-                setOpen(false);
+                closeMenu();
               }
             }}
           >
             <div class="ehpeek-touch-gallery-favorite-panel box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-hidden border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl">
               <div class="flex flex-none items-center justify-between gap-md py-sm pl-lg pr-sm border-0 border-b ehp-color-site-border-subtle-b">
                 <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ehp-color-site-text textsize-md font-700">
-                  {favorite().label}
+                  {editingNote() ? texts.gallery.editFavoriteNote : favorite().label}
                 </span>
                 <button
                   type="button"
                   class="inline-flex w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] flex-none items-center justify-center p-0 rounded-md border ehp-color-site-border bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer hover:bg-[var(--color-site-item-hover)] active:scale-96"
                   aria-label={texts.button.close}
                   title={texts.button.close}
-                  onClick={() => setOpen(false)}
+                  onClick={closeMenu}
                 >
                   <Icon name="close" size="var(--ui-icon-size-md)" />
                 </button>
@@ -887,13 +914,54 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
                   <TouchGalleryFavoriteStatus text="Failed" />
                 </Show>
                 <Show when={loadingState() === "idle"}>
-                  <For each={options()}>
-                    {(option) => (
-                      <TouchGalleryFavoriteOption
-                        option={option}
-                        onSelect={() => void updateFavorite(option)}
+                  <Show
+                    when={editingNote()}
+                    fallback={
+                      <>
+                        <For each={options().filter((option) => option.value !== "favdel")}>
+                          {(option) => (
+                            <TouchGalleryFavoriteOption
+                              option={option}
+                              onSelect={() => void updateFavorite(option)}
+                            />
+                          )}</For>
+                        <button
+                          type="button"
+                          class="flex w-full min-h-[var(--ui-control-size-lg)] items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left"
+                          onClick={() => setEditingNote(true)}
+                        >
+                          <span class="flex-none ehp-color-site-text" aria-hidden="true">
+                            <Icon name="edit" />
+                          </span>
+                          <span>{texts.gallery.editFavoriteNote}</span>
+                        </button>
+                        <For each={options().filter((option) => option.value === "favdel")}>
+                          {(option) => (
+                            <TouchGalleryFavoriteOption
+                              option={option}
+                              onSelect={() => void updateFavorite(option)}
+                            />
+                          )}</For>
+                      </>
+                    }
+                  >
+                    <div class="flex flex-col gap-md p-lg">
+                      <textarea
+                        class="box-border min-h-[calc(var(--ui-control-size-xl)*3)] w-full resize-y rounded-md border ehp-color-site-border bg-[var(--color-site-surface)] p-md ehp-color-site-text font-inherit textsize-md leading-[1.4]"
+                        value={noteDraft()}
+                        onInput={(event) => setNoteDraft(event.currentTarget.value)}
                       />
-                    )}</For>
+                      <div class="grid grid-cols-1 gap-md">
+                        <button
+                          type="button"
+                          class="min-h-[var(--ui-control-size-md)] rounded-md border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] font-inherit textsize-md font-700"
+                          onClick={() => setEditingNote(false)}
+                        >
+                          {texts.button.confirm}
+                        </button>
+                      </div>
+                    </div>
+                  </Show>
                 </Show>
               </div>
             </div>

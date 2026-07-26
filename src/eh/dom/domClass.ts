@@ -15,6 +15,7 @@ import {
   select,
   table,
   tag,
+  textarea,
 } from "./core";
 
 export const sharedApply = {
@@ -78,8 +79,6 @@ const myTags = {
   options: option("#tagset_outer select option"),
   defaultColor: input("#tagcolor"),
   enabled: input("#tagset_enable"),
-  favoriteOptions: input("input[name='favcat']"),
-  favoriteOptionRow: query("div[style*='height']"),
 };
 
 const gallery = {
@@ -108,6 +107,11 @@ const gallery = {
       }),
     },
   }),
+  favoriteDialog: {
+    note: textarea("textarea[name='favnote']"),
+    optionRow: query("div[style*='height']"),
+    options: input("input[name='favcat']"),
+  },
   commentsAnchor: anchor('a[name="comments"]'),
   imagePage: {
     image: image("img#img"),

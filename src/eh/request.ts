@@ -51,10 +51,14 @@ export async function requestPage(url: string, options: PageRequestOptions = {})
   }
 }
 
-export async function updateGalleryFavorite(actionUrl: string, value: string): Promise<void> {
+export async function updateGalleryFavorite(
+  actionUrl: string,
+  value: string,
+  note: string,
+): Promise<void> {
   const body = new URLSearchParams();
   body.set("favcat", value);
-  body.set("favnote", "");
+  body.set("favnote", note);
   body.set("apply", "Apply Changes");
   body.set("update", "1");
 
