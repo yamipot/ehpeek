@@ -199,7 +199,7 @@ export function ScrollPreview(props: {
             onOpenPage={props.onOpenPage}
             previewCache={previewCache}
             readDirection={direction}
-            targetPageNum={targetPageNum()}
+            targetPageNum={targetPageNum() ?? props.continuePageNum}
             targetPreviewIndex={targetPreviewIndex()}
             fillContainer={props.fillEmbeddedContainer()}
           />
