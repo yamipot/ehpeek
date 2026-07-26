@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260726.1122
+// @version      260726.1138
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -5007,7 +5007,10 @@ Next page`,
     return existing || (meta.name = "viewport", document.head.append(meta)), meta.content = lockedViewportContent(snapshot.content, scale), snapshot;
   }
   async function restorePageViewport(snapshot) {
-    await nextAnimationFrame(), snapshot.created ? snapshot.meta.remove() : snapshot.content === null ? snapshot.meta.removeAttribute("content") : snapshot.meta.content = snapshot.content, await nextAnimationFrame(), await nextAnimationFrame(), window.scrollTo(snapshot.scrollX, snapshot.scrollY);
+    await nextAnimationFrame(), restoreViewportMeta(snapshot), await nextAnimationFrame(), snapshot.meta.isConnected || (snapshot.meta.name = "viewport", document.head.append(snapshot.meta)), snapshot.meta.content = lockedViewportContent(snapshot.content, snapshot.scale), await waitForViewportSettled(), restoreViewportMeta(snapshot), await nextAnimationFrame(), await nextAnimationFrame(), window.scrollTo(snapshot.scrollX, snapshot.scrollY);
+  }
+  function restoreViewportMeta(snapshot) {
+    snapshot.created ? snapshot.meta.remove() : snapshot.content === null ? snapshot.meta.removeAttribute("content") : snapshot.meta.content = snapshot.content;
   }
   var readerViewport = {
     createFullscreen: createReaderFullscreen,
@@ -5884,7 +5887,7 @@ Next page`,
           children: (direction) => createComponent(ScrollPreviewPanel, {
             embedded: !0,
             get highlightedPageNum() {
-              return highlightedPageNum();
+              return props.continuePageNum;
             },
             onDirectionChange: (next, pageNum) => {
               setTargetPageNum(pageNum), setEmbeddedReadDirection(next), props.onEmbeddedDirectionChange(next);
@@ -7384,7 +7387,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260726.1122", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260726.1138", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
@@ -10586,7 +10589,7 @@ html:fullscreen .ehpeek-touch-top-bar {
     return numbers;
   }
   function PagesViewport(props) {
-    let [slots, setSlots] = createSignal([]), [revision, setRevision] = createSignal(0), [renderedScrollSizeScale, setRenderedScrollSizeScale] = createSignal(untrack(() => props.scrollSizeScale)), horizontalAnimator = new ScrollAnimator("x"), verticalAnimator = new ScrollAnimator("y"), flingAnimator = new ScrollFlingAnimator(), pageSlots2 = [], scroller, scrollerApi, dragStartPosition = null, resizeFrame = null, scrollScaleRevision = 0, moveRequestToken = 0, disposed = !1, syncedDirection = untrack(() => props.direction), syncedNavigationMode = untrack(() => props.navigationMode), decodedImageCacheLimit = Math.max(0, Math.floor(untrack(() => props.decodedImageCacheLimit) ?? DEFAULT_DECODED_IMAGE_CACHE_LIMIT)), cachedImages = /* @__PURE__ */ new Map(), cachedImageBytes = 0, refresh = () => setRevision((value) => value + 1), pagedMode = () => props.navigationMode === "paged", horizontalAxis = () => props.direction !== "ttb", slotFor = (pageNum) => pageSlots2.find((slot) => slot.pageNum === pageNum), viewportWidth = () => scrollerApi.viewportWidth(), viewportHeight = () => scrollerApi.viewportHeight(), scrollTop = () => scrollerApi.scrollTop(), visualSlotIndex = (index, slotCount) => props.direction === "rtl" ? slotCount - 1 - index : index, horizontalAnchorOffset = (pageSlots3, anchor2) => {
+    let [slots, setSlots] = createSignal([]), [revision, setRevision] = createSignal(0), [renderedScrollSizeScale, setRenderedScrollSizeScale] = createSignal(untrack(() => props.scrollSizeScale)), horizontalAnimator = new ScrollAnimator("x"), verticalAnimator = new ScrollAnimator("y"), flingAnimator = new ScrollFlingAnimator(), pageSlots2 = [], scroller, scrollerApi, dragStartPosition = null, resizeFrame = null, scrollScaleRevision = 0, moveRequestToken = 0, disposed = !1, syncedDirection = untrack(() => props.direction), syncedNavigationMode = untrack(() => props.navigationMode), decodedImageCacheLimit = Math.max(0, Math.floor(untrack(() => props.decodedImageCacheLimit) ?? DEFAULT_DECODED_IMAGE_CACHE_LIMIT)), cachedImages = /* @__PURE__ */ new Map(), pageErrors = /* @__PURE__ */ new Map(), cachedImageBytes = 0, refresh = () => setRevision((value) => value + 1), pagedMode = () => props.navigationMode === "paged", horizontalAxis = () => props.direction !== "ttb", slotFor = (pageNum) => pageSlots2.find((slot) => slot.pageNum === pageNum), viewportWidth = () => scrollerApi.viewportWidth(), viewportHeight = () => scrollerApi.viewportHeight(), scrollTop = () => scrollerApi.scrollTop(), visualSlotIndex = (index, slotCount) => props.direction === "rtl" ? slotCount - 1 - index : index, horizontalAnchorOffset = (pageSlots3, anchor2) => {
       let orderedSlots = props.direction === "rtl" ? pageSlots3.slice().reverse() : pageSlots3, offset = 0;
       for (let slot of orderedSlots) {
         let extent = slot.frameWidth + PAGE_SLOT_SPACING;
@@ -10662,8 +10665,8 @@ html:fullscreen .ehpeek-touch-top-bar {
       for (let pageNum of pageWindowNumbers(options.currentPageNum, options.windowSize)) {
         let kind = pageSlotKind(pageNum, options.totalPages), oldSlot = oldSlots.get(pageNum), slot = oldSlot && oldSlot.kind === kind ? oldSlot : pageSlot(pageNum, kind);
         if (!oldSlot && kind === "page") {
-          let cached = cachedImages.get(pageNum);
-          cached && (cachedImages.delete(pageNum), cachedImageBytes -= cached.bytes, slot.state = "ready", slot.image = cached.image, slot.width = cached.width, slot.height = cached.height);
+          let errorMessage = pageErrors.get(pageNum), cached = cachedImages.get(pageNum);
+          errorMessage ? (slot.state = "error", slot.errorMessage = errorMessage) : cached && (cachedImages.delete(pageNum), cachedImageBytes -= cached.bytes, slot.state = "ready", slot.image = cached.image, slot.width = cached.width, slot.height = cached.height);
         }
         if (kind === "page") {
           let page2 = options.pages.get(pageNum);
@@ -10725,15 +10728,15 @@ html:fullscreen .ehpeek-touch-top-bar {
         let image2 = pageImageDom(pageNum, slotImage), pendingSlot = slotFor(pageNum);
         pendingSlot && pendingSlot.token === token && (slotImage.displayWhileLoading && (pendingSlot.image = image2), pendingSlot.width = slotImage.width, pendingSlot.height = slotImage.height, refreshSlot(pendingSlot)), await loadImage(image2);
         let slot = slotFor(pageNum);
-        return !slot || slot.token !== token || !slot.elements ? !1 : (slot.state = "ready", slot.image = image2, slot.errorMessage = null, slot.width = positiveNumber(image2.naturalWidth) ?? slotImage.width, slot.height = positiveNumber(image2.naturalHeight) ?? slotImage.height, refreshSlot(slot), !0);
+        return !slot || slot.token !== token || !slot.elements ? !1 : (slot.state = "ready", slot.image = image2, slot.errorMessage = null, pageErrors.delete(pageNum), slot.width = positiveNumber(image2.naturalWidth) ?? slotImage.width, slot.height = positiveNumber(image2.naturalHeight) ?? slotImage.height, refreshSlot(slot), !0);
       },
       setPageError(pageNum, token, errorMessage) {
         let slot = slotFor(pageNum);
-        return !slot || slot.token !== token ? !1 : (slot.state = "error", slot.image = null, slot.errorMessage = errorMessage, refresh(), !0);
+        return !slot || slot.token !== token ? !1 : (slot.state = "error", slot.image = null, slot.errorMessage = errorMessage, pageErrors.set(pageNum, errorMessage), refresh(), !0);
       },
       resetPageError(pageNum) {
         let slot = slotFor(pageNum);
-        return !slot || slot.kind !== "page" || slot.state !== "error" ? !1 : (slot.state = "idle", slot.errorMessage = null, refreshSlot(slot), !0);
+        return !slot || slot.kind !== "page" || slot.state !== "error" ? !1 : (slot.state = "idle", slot.errorMessage = null, pageErrors.delete(pageNum), refreshSlot(slot), !0);
       },
       resetPageLoading(pageNum, token) {
         let slot = slotFor(pageNum);
@@ -11145,7 +11148,7 @@ html:fullscreen .ehpeek-touch-top-bar {
   }
   function applyPageMetaToSlot(slot, page2) {
     let aspectRatio = normalizedAspectRatio(page2.aspectRatio, FALLBACK_ASPECT_RATIO);
-    slot.aspectRatio === aspectRatio && slot.state !== "error" || (slot.aspectRatio = aspectRatio, slot.kind = "page", slot.state = "idle", slot.image = null, slot.errorMessage = null, slot.width = null, slot.height = null, slot.token += 1);
+    slot.aspectRatio !== aspectRatio && (slot.aspectRatio = aspectRatio);
   }
   function clearNonPageSlotMeta(slot) {
     slot.kind !== "blank" && slot.kind !== "end" || (slot.state = "ready", slot.image = null, slot.errorMessage = null, slot.width = null, slot.height = null, slot.token += 1);
