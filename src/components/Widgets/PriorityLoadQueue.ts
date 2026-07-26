@@ -3,7 +3,7 @@ const DEFAULT_CONCURRENT_LOADS = 6;
 export type LoadQueueCallbacks<Target, Loaded> = {
   loadTarget: (target: Target) => Promise<Loaded>;
   markLoading: (target: Target) => number | null;
-  onLoaded: (target: Target, loaded: Loaded, token: number) => void;
+  onLoaded: (target: Target, loaded: Loaded, token: number) => void | Promise<void>;
   onError: (target: Target, error: unknown, token: number) => void;
 };
 
@@ -87,9 +87,9 @@ export class PriorityLoadQueue<Target, Loaded> {
     this.active.add(key);
 
     void loadTarget(target)
-      .then((loaded) => {
+      .then(async (loaded) => {
         if (!this.disposed) {
-          onLoaded(target, loaded, token);
+          await onLoaded(target, loaded, token);
         }
       })
       .catch((error) => {

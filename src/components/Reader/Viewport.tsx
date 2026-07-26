@@ -49,6 +49,7 @@ export function pageWindowNumbers(currentPageNum: number, windowSize: number): n
 }
 
 type ViewportImage = {
+  displayWhileLoading: boolean;
   imageUrl: string;
   highPriority: boolean;
   width: number | null;
@@ -109,6 +110,7 @@ export type PagesViewportActions = {
   beginDrag: () => void;
   cancelDrag: () => void;
   centerPageNum: () => number | null;
+  firstVisiblePageNum: () => number | null;
   focus: () => void;
   isDragging: () => boolean;
   isHitEndPage: (point: { clientX: number; clientY: number }) => boolean;
@@ -529,6 +531,9 @@ export function PagesViewport(props: {
       const image = pageImageDom(pageNum, slotImage);
       const pendingSlot = slotFor(pageNum);
       if (pendingSlot && pendingSlot.token === token) {
+        if (slotImage.displayWhileLoading) {
+          pendingSlot.image = image;
+        }
         pendingSlot.width = slotImage.width;
         pendingSlot.height = slotImage.height;
         refreshSlot(pendingSlot);
@@ -598,6 +603,22 @@ export function PagesViewport(props: {
       }
 
       return null;
+    },
+    firstVisiblePageNum(): number | null {
+      let first: { distance: number; pageNum: number } | null = null;
+      for (const slot of pageSlots) {
+        if (!slot.elements || slot.kind !== "page") {
+          continue;
+        }
+        const distance = scrollerApi.slotViewportStartDistance(
+          slot.elements,
+          props.direction,
+        );
+        if (distance !== null && (!first || distance < first.distance)) {
+          first = { distance, pageNum: slot.pageNum };
+        }
+      }
+      return first?.pageNum ?? null;
     },
     isHitEndPage(point): boolean {
       const pageNum = pageNumAtPoint(point);
@@ -813,7 +834,13 @@ function PageSlotView(props: {
   });
   const image = createMemo(() => {
     void props.revision;
-    return props.slot.state === "ready" ? props.slot.image : null;
+    return props.slot.state === "ready" || props.slot.state === "loading"
+      ? props.slot.image
+      : null;
+  });
+  const imageLoading = createMemo(() => {
+    void props.revision;
+    return props.slot.state === "loading" && props.slot.image !== null;
   });
   const slotStyle = createMemo(() => {
     void props.revision;
@@ -851,7 +878,7 @@ function PageSlotView(props: {
           frame = element;
           props.slot.elements = { node, frame };
         }}
-        class="flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [container-type:size]"
+        class="relative flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [container-type:size]"
       >
         <Show
           when={image()}
@@ -859,6 +886,13 @@ function PageSlotView(props: {
           fallback={<PageSlotPlaceholder content={content()} text={slotPlaceholderText(content())} onReloadPage={props.onReloadPage} />}
         >
           {(currentImage) => currentImage}
+        </Show>
+        <Show when={imageLoading()}>
+          <span
+            class="pointer-events-none absolute right-sm bottom-sm z-1 block w-sm h-sm box-border animate-spin rounded-full border-2px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]"
+            role="status"
+            aria-label={texts.reader.loading}
+          />
         </Show>
       </div>
     </section>
@@ -1115,6 +1149,28 @@ function createPagesScroller(element: HTMLElement) {
       const offset = Math.min(80, scrollerRect.width * 0.14);
       const target = direction === "rtl" ? scrollerRect.right - offset : scrollerRect.left + offset;
       return rect.left <= target && rect.right > target;
+    },
+
+    slotViewportStartDistance(
+      elements: SlotElements,
+      direction: ReadDirection,
+    ): number | null {
+      const scrollerRect = element.getBoundingClientRect();
+      const rect = elements.node.getBoundingClientRect();
+      if (
+        rect.bottom <= scrollerRect.top ||
+        rect.top >= scrollerRect.bottom ||
+        rect.right <= scrollerRect.left ||
+        rect.left >= scrollerRect.right
+      ) {
+        return null;
+      }
+      if (direction === "ttb") {
+        return Math.max(0, rect.top - scrollerRect.top);
+      }
+      return direction === "rtl"
+        ? Math.max(0, scrollerRect.right - rect.right)
+        : Math.max(0, rect.left - scrollerRect.left);
     },
   };
 }

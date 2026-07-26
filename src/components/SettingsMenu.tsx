@@ -200,7 +200,10 @@ export function SettingsMenu(props: {
           </Show>
         </div>
         <div class="min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain">
-          <Show when={activeTab() === "general"}>
+          <div
+            data-ehpeek-settings-tab="general"
+            hidden={activeTab() !== "general"}
+          >
             <SwitchButton
               checked={draft.readerEnabled}
               description={texts.settings.readerHelp}
@@ -221,15 +224,11 @@ export function SettingsMenu(props: {
                 {texts.settings.historyLabel}
               </a>
             </Show>
-            <button
-              type="button"
-              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center gap-md px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
-              onClick={() => setHelpOpen(true)}
-            >
-              <span>{texts.help.title}</span>
-            </button>
-          </Show>
-          <Show when={activeTab() === "enhance"}>
+          </div>
+          <div
+            data-ehpeek-settings-tab="enhance"
+            hidden={activeTab() !== "enhance"}
+          >
             <SwitchButton
               checked={draft.enhanceSearchGridsEnabled}
               description={texts.settings.enhanceSearchHelp}
@@ -266,8 +265,11 @@ export function SettingsMenu(props: {
               label={texts.settings.searchHistoryLabel}
               onChange={(value) => updateDraft("searchHistoryEnabled", value)}
             />
-          </Show>
-          <Show when={activeTab() === "options"}>
+          </div>
+          <div
+            data-ehpeek-settings-tab="options"
+            hidden={activeTab() !== "options"}
+          >
             <SwitchButton
               checked={draft.readerFullscreenEnabled}
               description={texts.settings.readerFullscreenHelp}
@@ -292,8 +294,11 @@ export function SettingsMenu(props: {
               label={texts.settings.includeUnreadHistoryLabel}
               onChange={(value) => updateDraft("includeUnreadHistoryEnabled", value)}
             />
-          </Show>
-          <Show when={activeTab() === "about"}>
+          </div>
+          <div
+            data-ehpeek-settings-tab="about"
+            hidden={activeTab() !== "about"}
+          >
             <div class="flex w-full min-h-[var(--ui-control-size-lg)] items-center px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] font-700">
               Ehpeek
             </div>
@@ -305,7 +310,14 @@ export function SettingsMenu(props: {
             >
               v{__EHPEEK_VERSION__}
             </a>
-          </Show>
+            <button
+              type="button"
+              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center gap-md px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
+              onClick={() => setHelpOpen(true)}
+            >
+              <span>{texts.help.title}</span>
+            </button>
+          </div>
         </div>
         <div class="ehpeek-settings-actions grid grid-cols-3 flex-none gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
           <button

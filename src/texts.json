@@ -2,14 +2,14 @@
   "description": "A touch-optimized E-H/ExH viewer",
   "button": {
     "apply": "Apply",
-    "clearHistory": "Clear All History",
+    "clearHistory": "Clear All",
     "close": "Close",
     "confirm": "Confirm",
     "current": "Current",
     "default": "Default",
-    "exportHistory": "Export History",
-    "importHistory": "Import History",
-    "removeHistory": "Delete History"
+    "exportHistory": "Export",
+    "importHistory": "Import",
+    "removeHistory": "Delete"
   },
   "help": {
     "title": "Help",

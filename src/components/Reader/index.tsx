@@ -42,6 +42,9 @@ const PAGED_WHEEL_THRESHOLD = 8;
 const HORIZONTAL_SCROLL_WHEEL_FACTOR = 0.5;
 const PROGRESS_IDLE_COMMIT_MS = 180;
 const LOADED_IMAGE_INFO_CACHE_LIMIT = 160;
+const PROGRESSIVE_IMAGE_SIZE_THRESHOLD = 2 * 1024 * 1024;
+const CONCURRENT_IMAGE_BYTE_LIMIT = 6 * 1024 * 1024;
+const MIN_CONCURRENT_IMAGE_LOADS = 3;
 const SCROLL_GESTURE_IDLE_MS = 160;
 const SCROLL_BAR_IDLE_MS = 900;
 const SCROLL_BAR_SHOW_DISTANCE = 48;
@@ -323,16 +326,14 @@ function wireReaderCallbacks(
   }
 
   function maintainLoadQueue(): void {
-    const currentPageNum = state.navi.currentPageNum();
-    const pageNums = [currentPageNum];
-    if (state.ctrls.value().navigationMode === "scroll" && !state.scrollViewport.fitImageSize()) {
-      pageNums.push(scrollFitPageNum);
-    }
-    if (state.ctrls.value().navigationMode === "paged" && state.ctrls.value().pageLayout === "double") {
-      pageNums.push(currentPageNum + 1);
+    const firstVisiblePageNum =
+      viewportActions.firstVisiblePageNum() ?? state.navi.currentPageNum();
+    const pageNums = [firstVisiblePageNum];
+    for (let offset = 1; offset <= preloadWindowSize; offset += 1) {
+      pageNums.push(firstVisiblePageNum + offset);
     }
     for (let offset = 1; offset <= preloadWindowSize; offset += 1) {
-      pageNums.push(currentPageNum + offset * state.navi.direction());
+      pageNums.push(firstVisiblePageNum - offset);
     }
     session.imageQueue.sync(Array.from(new Set(pageNums)).flatMap((pageNum, priority) => {
       const target = loadTargetFor(pageNum);
@@ -431,7 +432,9 @@ function wireReaderCallbacks(
       state.navi.setDirection(next > state.navi.currentPageNum() ? 1 : -1);
       state.navi.setCurrentPageNum(next);
       syncAfterPageChange({ scrollIntoView: false });
+      return;
     }
+    maintainLoadQueue();
   }
 
   const onKeydown = (event: KeyboardEvent): void => {
@@ -671,6 +674,10 @@ function wireReaderCallbacks(
   }
 
   function wireImageQueue(): void {
+    const acquireImageLoadBudget = createImageLoadBudget(
+      CONCURRENT_IMAGE_BYTE_LIMIT,
+      MIN_CONCURRENT_IMAGE_LOADS,
+    );
 
     const rememberLoadedImage = (pageNum: number, loaded: LoadedReaderPage): LoadedReaderImage => {
       const image = {
@@ -706,6 +713,10 @@ function wireReaderCallbacks(
       let installed = false;
       try {
         installed = await viewportActions.loadPageImage(target.pageNum, token, {
+          displayWhileLoading: shouldDisplayImageWhileLoading(
+            imageUrl,
+            loaded.originalImageUrl,
+          ),
           imageUrl,
           highPriority: target.pageNum === state.navi.currentPageNum() || (
           state.ctrls.value().navigationMode === "paged" &&
@@ -744,8 +755,19 @@ function wireReaderCallbacks(
       markLoading: (target) => viewportActions.markPageLoading(target.pageNum),
       onLoaded: async (target, loaded, token) => {
         const image = rememberLoadedImage(target.pageNum, loaded);
-        if (pageWindowNumbers(state.navi.currentPageNum(), renderWindowSize).includes(target.pageNum)) {
+        if (!pageWindowNumbers(state.navi.currentPageNum(), renderWindowSize).includes(target.pageNum)) {
+          return;
+        }
+        const releaseBudget = await acquireImageLoadBudget(
+          imageFileByteSize(image.imageUrl) ?? CONCURRENT_IMAGE_BYTE_LIMIT,
+        );
+        try {
+          if (!pageWindowNumbers(state.navi.currentPageNum(), renderWindowSize).includes(target.pageNum)) {
+            return;
+          }
           await installImage(target, image, token);
+        } finally {
+          releaseBudget();
         }
       },
       onError: (target, error, token) => {
@@ -1110,6 +1132,73 @@ function imageFileExtension(imageUrl: string): string {
     return "";
   }
   return "";
+}
+
+function shouldDisplayImageWhileLoading(
+  imageUrl: string,
+  originalImageUrl?: string | null,
+): boolean {
+  if (
+    imageFileExtension(imageUrl) === "gif" ||
+    (originalImageUrl && imageFileExtension(originalImageUrl) === "gif")
+  ) {
+    return true;
+  }
+
+  const byteSize = imageFileByteSize(imageUrl);
+  return byteSize !== null && byteSize > PROGRESSIVE_IMAGE_SIZE_THRESHOLD;
+}
+
+function imageFileByteSize(imageUrl: string): number | null {
+  try {
+    const hathImageKey = new URL(imageUrl).pathname
+      .split("/")
+      .find((part) => /^[a-f0-9]{40}-\d+-\d+-\d+-[a-z0-9]+$/i.test(part));
+    const byteSize = Number(hathImageKey?.split("-")[1]);
+    return Number.isSafeInteger(byteSize) && byteSize > 0 ? byteSize : null;
+  } catch {
+    return null;
+  }
+}
+
+function createImageLoadBudget(maxBytes: number, minConcurrentLoads: number) {
+  type Waiter = {
+    bytes: number;
+    resolve: (release: () => void) => void;
+  };
+  const waiters: Waiter[] = [];
+  let activeBytes = 0;
+  let activeLoads = 0;
+
+  const drain = (): void => {
+    const next = waiters[0];
+    if (
+      !next ||
+      (activeLoads >= minConcurrentLoads && activeBytes + next.bytes > maxBytes)
+    ) {
+      return;
+    }
+    waiters.shift();
+    activeBytes += next.bytes;
+    activeLoads += 1;
+    let released = false;
+    next.resolve(() => {
+      if (released) {
+        return;
+      }
+      released = true;
+      activeBytes = Math.max(0, activeBytes - next.bytes);
+      activeLoads = Math.max(0, activeLoads - 1);
+      drain();
+    });
+    drain();
+  };
+
+  return (bytes: number): Promise<() => void> =>
+    new Promise((resolve) => {
+      waiters.push({ bytes, resolve });
+      drain();
+    });
 }
 
 
