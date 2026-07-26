@@ -54,7 +54,6 @@ class PointerGesture {
   private readonly pinchPointers = new Map<number, { clientX: number; clientY: number }>();
   private drag: GesturePointer | null = null;
   private suppressClick = false;
-  private suppressClickPoint: { clientX: number; clientY: number } | null = null;
   private suppressClickTimer: number | null = null;
   private pinch: {
     startDistance: number;
@@ -116,13 +115,7 @@ class PointerGesture {
   };
 
   private onClick = (event: MouseEvent): void => {
-    const point = this.suppressClickPoint;
-    const targetInside = event.target instanceof Node && this.target.contains(event.target);
-    const nearReleasePoint = point !== null && Math.hypot(
-      event.clientX - point.clientX,
-      event.clientY - point.clientY,
-    ) <= 24;
-    if (!this.suppressClick || (!targetInside && !nearReleasePoint)) {
+    if (!this.suppressClick) {
       return;
     }
 
@@ -362,7 +355,7 @@ class PointerGesture {
         return;
       }
 
-      this.suppressNextClick(info.clientX, info.clientY);
+      this.suppressNextClick();
       this.callbacks().onEnd?.(info, event);
     }
   }
@@ -579,12 +572,11 @@ class PointerGesture {
     drag.lastMoveTime = event.timeStamp;
   }
 
-  private suppressNextClick(clientX: number, clientY: number): void {
+  private suppressNextClick(): void {
     this.suppressClick = true;
-    this.suppressClickPoint = { clientX, clientY };
-    window.addEventListener("click", this.onClick, true);
-    window.addEventListener("mousedown", this.onClickSuppressionPointerDown, true);
-    window.addEventListener("pointerdown", this.onClickSuppressionPointerDown, true);
+    this.target.addEventListener("click", this.onClick, true);
+    this.target.addEventListener("mousedown", this.onClickSuppressionPointerDown, true);
+    this.target.addEventListener("pointerdown", this.onClickSuppressionPointerDown, true);
 
     if (this.suppressClickTimer !== null) {
       window.clearTimeout(this.suppressClickTimer);
@@ -597,10 +589,9 @@ class PointerGesture {
 
   private clearClickSuppression(): void {
     this.suppressClick = false;
-    this.suppressClickPoint = null;
-    window.removeEventListener("click", this.onClick, true);
-    window.removeEventListener("mousedown", this.onClickSuppressionPointerDown, true);
-    window.removeEventListener("pointerdown", this.onClickSuppressionPointerDown, true);
+    this.target.removeEventListener("click", this.onClick, true);
+    this.target.removeEventListener("mousedown", this.onClickSuppressionPointerDown, true);
+    this.target.removeEventListener("pointerdown", this.onClickSuppressionPointerDown, true);
     if (this.suppressClickTimer !== null) {
       window.clearTimeout(this.suppressClickTimer);
       this.suppressClickTimer = null;
