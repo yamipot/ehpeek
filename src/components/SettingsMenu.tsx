@@ -2,6 +2,7 @@ import { createEffect, createSignal, For, onCleanup, onMount, Show, untrack } fr
 import { createStore } from "solid-js/store";
 import texts from "../texts.json";
 import { InteractionHelp } from "./InteractionHelp";
+import { Dialog } from "./Widgets/Dialog";
 import { Icon, type IconName } from "./Widgets/Icon";
 
 type SettingsMenuState = {
@@ -36,6 +37,28 @@ const SETTINGS_CLOSE_BUTTON_COLOR =
   "border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]";
 const SETTINGS_DOT_CLASS =
   "block flex-none w-[var(--ui-status-dot-size-md)] h-[var(--ui-status-dot-size-md)] rounded-full";
+const LICENSES = [
+  {
+    href: "https://github.com/yamipot/ehpeek/blob/master/LICENSE",
+    license: "MIT",
+    name: "EhPeek",
+  },
+  {
+    href: "https://github.com/solidjs/solid/blob/main/LICENSE",
+    license: "MIT",
+    name: "SolidJS",
+  },
+  {
+    href: "https://github.com/lucide-icons/lucide/blob/main/LICENSE",
+    license: "ISC",
+    name: "Lucide Icons",
+  },
+  {
+    href: "https://github.com/adobe/spectrum-design-data/blob/main/LICENSE",
+    license: "Apache-2.0",
+    name: "Adobe Spectrum Tokens",
+  },
+] as const;
 
 function SwitchButton(props: {
   checked: boolean;
@@ -97,6 +120,7 @@ export function SettingsMenu(props: {
   );
   const [activeTab, setActiveTab] = createSignal<SettingsTab>("general");
   const [helpOpen, setHelpOpen] = createSignal(false);
+  const [licensesOpen, setLicensesOpen] = createSignal(false);
   const [changed, setChanged] = createSignal(false);
   let menu!: HTMLDivElement;
   const close = () => {
@@ -117,6 +141,7 @@ export function SettingsMenu(props: {
       setDraft({ ...props.initState });
       setActiveTab("general");
       setHelpOpen(false);
+      setLicensesOpen(false);
       setChanged(false);
     }
   });
@@ -309,6 +334,16 @@ export function SettingsMenu(props: {
             >
               <span>{texts.help.title}</span>
             </button>
+            <button
+              type="button"
+              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center justify-between gap-md px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
+              onClick={() => setLicensesOpen(true)}
+            >
+              <span>{texts.settings.licenses}</span>
+              <span class="flex flex-none" aria-hidden="true">
+                <Icon name="chevron-right" size="var(--ui-icon-size-sm)" />
+              </span>
+            </button>
           </div>
         </div>
         <div class="ehpeek-settings-actions grid grid-cols-3 flex-none gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
@@ -348,6 +383,33 @@ export function SettingsMenu(props: {
           <InteractionHelp variant="site" onClose={() => setHelpOpen(false)} />
         </Show>
       </div>
+      <Show when={licensesOpen()}>
+        <Dialog
+          bodyClass="p-0"
+          label={texts.settings.licenses}
+          onClose={() => setLicensesOpen(false)}
+          title={texts.settings.licenses}
+          variant="site"
+          width="lg"
+        >
+          <For each={LICENSES}>{(license) => (
+            <a
+              class="flex min-h-[var(--ui-control-size-lg)] items-center justify-between gap-md px-md py-sm border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left"
+              href={license.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span class="min-w-0 [font-size:var(--ui-font-size-md)] font-700">
+                {license.name}
+              </span>
+              <span class="flex flex-none items-center gap-sm [font-size:var(--ui-font-size-sm)]">
+                {license.license}
+                <Icon name="external-link" size="var(--ui-icon-size-sm)" />
+              </span>
+            </a>
+          )}</For>
+        </Dialog>
+      </Show>
     </Show>
   );
 }

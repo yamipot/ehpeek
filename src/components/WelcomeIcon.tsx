@@ -8,7 +8,7 @@ export function WelcomeIcon(props: {
 }) {
   const label = () => props.label ?? texts.reader.loading;
   const placementClass = () => props.embedded
-    ? "relative w-full border-0 bg-transparent px-lg py-md"
+    ? "relative box-border w-full border-0 bg-transparent px-lg py-md"
     : "fixed left-1/2 top-1/2 z-[1200] -translate-x-1/2 -translate-y-1/2 rounded-lg border ehp-color-site-border bg-[var(--color-loading)] px-xl py-lg shadow-[0_6px_20px_var(--color-shadow-floating)]";
 
   return (

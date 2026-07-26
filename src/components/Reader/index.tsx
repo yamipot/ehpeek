@@ -1,6 +1,6 @@
 import { createEffect, onCleanup, onMount, Show, untrack } from "solid-js";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
-import { observeFullscreenUiSizing } from "../../fullscreenUi";
+import { observeFullscreenUiSizing } from "../../App/viewport";
 import texts from "../../texts.json";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
 import {

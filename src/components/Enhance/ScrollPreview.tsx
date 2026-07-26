@@ -10,11 +10,11 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
-import type { GalleryPreviewDom, GalleryPreviewItem } from "../../eh";
 import {
   fullscreenUiScale,
   observeFullscreenUiSizing,
-} from "../../fullscreenUi";
+} from "../../App/viewport";
+import type { GalleryPreviewDom, GalleryPreviewItem } from "../../eh";
 import type { ReadDirection } from "../../state";
 import texts from "../../texts.json";
 import { clamp, normalizedAspectRatio } from "../../utils";
