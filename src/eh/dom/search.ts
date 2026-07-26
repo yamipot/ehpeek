@@ -50,34 +50,40 @@ function createReadHistoryGridRow(
 ): EhPeekGridRow {
   const info = item.info;
   const metadataItems: ManagedDomNode<HTMLElement>[] = [];
-  const appendMetadata = (value?: string) => {
+  const appendMetadata = (value: string | undefined, className: string) => {
     if (!value) {
       return;
     }
-    const element = createManagedElement("div");
+    const element = createManagedElement("div").replaceClasses(className);
     element.setTextUnlessInput(value);
     metadataItems.push(element);
   };
 
   if (info?.category && info.categoryClass) {
     const category = createManagedElement("div")
-      .replaceClasses(`cn ${info.categoryClass}`);
+      .replaceClasses(`cn ${info.categoryClass} ehpeek-search-meta-category`);
     category.setTextUnlessInput(info.category);
     metadataItems.push(category);
   }
   appendMetadata(info?.postedAt === undefined
     ? undefined
-    : new Date(info.postedAt).toISOString().slice(0, 16).replace("T", " "));
+    : new Date(info.postedAt).toISOString().slice(0, 16).replace("T", " "),
+  "ehpeek-search-meta-posted");
   if (info?.rating !== undefined) {
     const rounded = Math.round(info.rating * 2) / 2;
-    const rating = createManagedElement("div").replaceClasses("ir").styles({
-      "background-position": `${-16 * (5 - Math.ceil(rounded))}px ${Number.isInteger(rounded) ? -1 : -21}px`,
-      opacity: "1",
-    });
+    const rating = createManagedElement("div")
+      .replaceClasses("ir ehpeek-search-meta-rating")
+      .styles({
+        "background-position": `${-16 * (5 - Math.ceil(rounded))}px ${Number.isInteger(rounded) ? -1 : -21}px`,
+        opacity: "1",
+      });
     metadataItems.push(rating);
   }
-  appendMetadata(info?.uploader);
-  appendMetadata(item.totalPages ? `${item.totalPages} pages` : undefined);
+  appendMetadata(info?.uploader, "ehpeek-search-meta-uploader");
+  appendMetadata(
+    item.totalPages ? `${item.totalPages} pages` : undefined,
+    "ehpeek-search-meta-pages",
+  );
 
   const progress = item.currentPage > 0
     ? item.totalPages
@@ -475,6 +481,33 @@ export function manageSearchGrids(): void {
     const galleryLink = parent?.matches(domClass.common.links) ? parent : null;
     const tags = detail.children().filter((element) => !title?.sameNode(element));
     const coverImage = thumbnailCell.one(domClass.common.image);
+    const metadataItems = metadata.children();
+    const category = metadataItems.find((item) =>
+      item.matches(':is(.cn, .cs, [class*="ct"])'));
+    const posted = metadataItems.find((item) => item.matches('[id^="posted_"]'));
+    const rating = metadataItems.find((item) => item.matches(".ir"));
+    const uploader = metadataItems.find((item) =>
+      item.one('a[href*="/uploader/"]') !== null);
+    const download = metadataItems.find((item) => item.matches(".gldown"));
+    // E-H keeps the page count immediately before the torrent control, including on Favorites.
+    const pages = download?.previous();
+    const knownMetadata = [category, posted, rating, uploader, pages, download];
+    const extraMetadata = metadataItems.filter((item) =>
+      !knownMetadata.some((known) => known?.sameNode(item)));
+    const metadataFields = [
+      [category, "ehpeek-search-meta-category"],
+      [pages, "ehpeek-search-meta-pages"],
+      [posted, "ehpeek-search-meta-posted"],
+      [rating, "ehpeek-search-meta-rating"],
+      [uploader, "ehpeek-search-meta-uploader"],
+      [download, "ehpeek-search-meta-download"],
+    ] as const;
+    for (const [field, className] of metadataFields) {
+      field?.inplace().addClasses(className);
+    }
+    for (const field of extraMetadata) {
+      field.inplace().addClasses("ehpeek-search-meta-extra");
+    }
 
     return {
       coverImage: coverImage?.inplace() ?? null,
