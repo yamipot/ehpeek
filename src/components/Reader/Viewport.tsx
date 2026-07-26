@@ -174,6 +174,7 @@ export function PagesViewport(props: {
     Math.floor(untrack(() => props.decodedImageCacheLimit) ?? DEFAULT_DECODED_IMAGE_CACHE_LIMIT),
   );
   const cachedImages = new Map<number, CachedPageImage>();
+  const pageErrors = new Map<number, string>();
   let cachedImageBytes = 0;
 
   const refresh = () => setRevision((value) => value + 1);
@@ -412,8 +413,12 @@ export function PagesViewport(props: {
       const slot = oldSlot && oldSlot.kind === kind ? oldSlot : pageSlot(pageNum, kind);
 
       if (!oldSlot && kind === "page") {
+        const errorMessage = pageErrors.get(pageNum);
         const cached = cachedImages.get(pageNum);
-        if (cached) {
+        if (errorMessage) {
+          slot.state = "error";
+          slot.errorMessage = errorMessage;
+        } else if (cached) {
           cachedImages.delete(pageNum);
           cachedImageBytes -= cached.bytes;
           slot.state = "ready";
@@ -548,6 +553,7 @@ export function PagesViewport(props: {
       slot.state = "ready";
       slot.image = image;
       slot.errorMessage = null;
+      pageErrors.delete(pageNum);
       slot.width = positiveNumber(image.naturalWidth) ?? slotImage.width;
       slot.height = positiveNumber(image.naturalHeight) ?? slotImage.height;
       refreshSlot(slot);
@@ -563,6 +569,7 @@ export function PagesViewport(props: {
       slot.state = "error";
       slot.image = null;
       slot.errorMessage = errorMessage;
+      pageErrors.set(pageNum, errorMessage);
       refresh();
       return true;
     },
@@ -575,6 +582,7 @@ export function PagesViewport(props: {
 
       slot.state = "idle";
       slot.errorMessage = null;
+      pageErrors.delete(pageNum);
       refreshSlot(slot);
       return true;
     },
@@ -1228,18 +1236,11 @@ function pageSlot(pageNum: number, kind: PageSlotKind): PageSlot {
 function applyPageMetaToSlot(slot: PageSlot, page: PageMeta): void {
   const aspectRatio = normalizedAspectRatio(page.aspectRatio, FALLBACK_ASPECT_RATIO);
 
-  if (slot.aspectRatio === aspectRatio && slot.state !== "error") {
+  if (slot.aspectRatio === aspectRatio) {
     return;
   }
 
   slot.aspectRatio = aspectRatio;
-  slot.kind = "page";
-  slot.state = "idle";
-  slot.image = null;
-  slot.errorMessage = null;
-  slot.width = null;
-  slot.height = null;
-  slot.token += 1;
 }
 
 function clearNonPageSlotMeta(slot: PageSlot): void {

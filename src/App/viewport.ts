@@ -58,6 +58,24 @@ async function restorePageViewport(
   snapshot: FullscreenSnapshot,
 ): Promise<void> {
   await nextAnimationFrame();
+  restoreViewportMeta(snapshot);
+  await nextAnimationFrame();
+
+  // Some mobile WebViews leave the visual viewport at fullscreen scale unless
+  // the pre-fullscreen scale is submitted again after fullscreen has ended.
+  if (!snapshot.meta.isConnected) {
+    snapshot.meta.name = "viewport";
+    document.head.append(snapshot.meta);
+  }
+  snapshot.meta.content = lockedViewportContent(snapshot.content, snapshot.scale);
+  await waitForViewportSettled();
+  restoreViewportMeta(snapshot);
+  await nextAnimationFrame();
+  await nextAnimationFrame();
+  window.scrollTo(snapshot.scrollX, snapshot.scrollY);
+}
+
+function restoreViewportMeta(snapshot: FullscreenSnapshot): void {
   if (snapshot.created) {
     snapshot.meta.remove();
   } else if (snapshot.content === null) {
@@ -65,9 +83,6 @@ async function restorePageViewport(
   } else {
     snapshot.meta.content = snapshot.content;
   }
-  await nextAnimationFrame();
-  await nextAnimationFrame();
-  window.scrollTo(snapshot.scrollX, snapshot.scrollY);
 }
 
 export const readerViewport = {
