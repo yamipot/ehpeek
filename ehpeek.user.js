@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260726.0945
+// @version      260726.1046
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -5211,7 +5211,7 @@ Next page`,
   };
 
   // src/components/Widgets/Dialog.tsx
-  var _tmpl$8 = /* @__PURE__ */ template('<div class="fixed inset-0 z-overlay flex items-center justify-center overflow-hidden p-lg bg-black/65 pointer-events-auto font-sans"role=dialog aria-modal=true><div><div><h2 class="m-0 textsize-lg font-700"></h2><button type=button></button></div><div>'), DIALOG_WIDTHS = {
+  var _tmpl$8 = /* @__PURE__ */ template('<div class="fixed inset-0 z-dialog flex items-center justify-center overflow-hidden p-lg bg-black/65 pointer-events-auto font-sans"role=dialog aria-modal=true><div><div><h2 class="m-0 textsize-lg font-700"></h2><button type=button></button></div><div>'), DIALOG_WIDTHS = {
     md: "max-w-420px",
     lg: "max-w-520px"
   };
@@ -7382,7 +7382,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260726.0945", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260726.1046", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
@@ -9839,6 +9839,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .scrollbar-hidden{scrollbar-width:none;-ms-overflow-style:none;}
 .container{width:100%;}
 .container\\!{width:100% !important;}
+.z-dialog{z-index:1400;}
 .z-overlay{z-index:1100;}
 .z-reader{z-index:1200;}
 .z-ui{z-index:1000;}
