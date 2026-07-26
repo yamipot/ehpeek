@@ -184,7 +184,7 @@ export function ScrollPreview(props: {
         <Show when={embeddedReadDirection()} keyed>{(direction) => (
           <ScrollPreviewPanel
             embedded
-            highlightedPageNum={highlightedPageNum()}
+            highlightedPageNum={props.continuePageNum}
             onDirectionChange={(next, pageNum) => {
               setTargetPageNum(pageNum);
               setEmbeddedReadDirection(next);
