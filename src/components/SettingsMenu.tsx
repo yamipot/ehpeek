@@ -2,6 +2,7 @@ import { createEffect, createSignal, For, onCleanup, onMount, Show, untrack } fr
 import { createStore } from "solid-js/store";
 import texts from "../texts.json";
 import { InteractionHelp } from "./InteractionHelp";
+import { Icon, type IconName } from "./Widgets/Icon";
 
 type SettingsMenuState = {
   openGalleryInNewTab: boolean;
@@ -20,11 +21,11 @@ type SettingsMenuState = {
 
 type SettingsTab = "general" | "enhance" | "options" | "about";
 
-const SETTINGS_SECTIONS: ReadonlyArray<readonly [SettingsTab, string]> = [
-  ["general", texts.settings.general],
-  ["enhance", texts.settings.enhance],
-  ["options", texts.settings.options],
-  ["about", texts.settings.about],
+const SETTINGS_SECTIONS: ReadonlyArray<readonly [SettingsTab, string, IconName]> = [
+  ["general", texts.settings.general, "book-open"],
+  ["enhance", texts.settings.enhance, "sparkles"],
+  ["options", texts.settings.options, "settings"],
+  ["about", texts.settings.about, "info"],
 ];
 
 const SETTINGS_ACTION_BUTTON_CLASS =
@@ -95,7 +96,6 @@ export function SettingsMenu(props: {
     untrack(() => ({ ...props.initState })),
   );
   const [activeTab, setActiveTab] = createSignal<SettingsTab>("general");
-  const [categoryOpen, setCategoryOpen] = createSignal(false);
   const [helpOpen, setHelpOpen] = createSignal(false);
   const [changed, setChanged] = createSignal(false);
   let menu!: HTMLDivElement;
@@ -116,7 +116,6 @@ export function SettingsMenu(props: {
     if (props.open) {
       setDraft({ ...props.initState });
       setActiveTab("general");
-      setCategoryOpen(false);
       setHelpOpen(false);
       setChanged(false);
     }
@@ -143,13 +142,6 @@ export function SettingsMenu(props: {
       }
 
       if (event.key === "Escape") {
-        if (categoryOpen()) {
-          setCategoryOpen(false);
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          return;
-        }
-
         if (!close()) {
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -169,39 +161,33 @@ export function SettingsMenu(props: {
   return (
     <Show when={props.open}>
       <div ref={menu} class="ehpeek-settings-menu pointer-events-auto fixed top-24px right-24px coarse:top-8px coarse:right-8px z-overlay box-border flex w-[calc(var(--ui-control-size-xl)*6)] max-w-[calc(100vw-48px)] coarse:max-w-[calc(100vw-16px)] max-h-[calc(100vh-48px)] coarse:max-h-[calc(100dvh-16px)] flex-col overflow-hidden p-md border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text [font-size:var(--ui-font-size-md)] leading-[1.2]">
-        <div class="relative flex flex-none justify-end mb-sm">
-          <button
-            type="button"
-            class="flex w-[calc(var(--ui-control-size-xl)*3)] min-h-[var(--ui-control-size-md)] items-center justify-between gap-md px-md rounded-md border ehp-color-site-border !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] font-700 cursor-pointer [-webkit-tap-highlight-color:transparent]"
-            aria-haspopup="menu"
-            aria-expanded={categoryOpen()}
-            onClick={() => setCategoryOpen((open) => !open)}
-          >
-            <span>{SETTINGS_SECTIONS.find(([tab]) => tab === activeTab())?.[1]}</span>
-            <span aria-hidden="true">{categoryOpen() ? "▴" : "▾"}</span>
-          </button>
-          <Show when={categoryOpen()}>
-            <div class="absolute top-full right-0 z-2 mt-xs w-[calc(var(--ui-control-size-xl)*3)] overflow-hidden rounded-md border ehp-color-site-border ehp-color-site-elevated shadow-xl" role="menu">
-              <For each={SETTINGS_SECTIONS}>{([tab, label]) => (
-                <button
-                  type="button"
-                  class={`flex w-full min-h-[var(--ui-control-size-md)] items-center px-md border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer [-webkit-tap-highlight-color:transparent] ${activeTab() === tab ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)]"}`}
-                  role="menuitemradio"
-                  aria-checked={activeTab() === tab}
-                  onClick={() => {
-                    setActiveTab(tab);
-                    setCategoryOpen(false);
-                  }}
-                >
-                  {label}
-                </button>
-              )}</For>
-            </div>
-          </Show>
+        <div
+          class="grid grid-cols-4 flex-none gap-xs mb-sm rounded-md border ehp-color-site-border overflow-hidden"
+          role="tablist"
+          aria-label={texts.settings.menuLabel}
+        >
+          <For each={SETTINGS_SECTIONS}>{([tab, label, icon]) => (
+            <button
+              type="button"
+              class={`flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center gap-sm px-sm border-0 ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer [-webkit-tap-highlight-color:transparent] ${activeTab() === tab ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)]"}`}
+              role="tab"
+              aria-selected={activeTab() === tab}
+              aria-controls={`ehpeek-settings-panel-${tab}`}
+              title={label}
+              onClick={() => setActiveTab(tab)}
+            >
+              <Icon name={icon} size="var(--ui-icon-size-md)" />
+            </button>
+          )}</For>
         </div>
         <div class="min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain">
+          <h2 class="m-0 px-md py-sm border-0 border-b ehp-color-site-border-subtle-b [font-size:var(--ui-font-size-md)] font-700">
+            {SETTINGS_SECTIONS.find(([tab]) => tab === activeTab())?.[1]}
+          </h2>
           <div
+            id="ehpeek-settings-panel-general"
             data-ehpeek-settings-tab="general"
+            role="tabpanel"
             hidden={activeTab() !== "general"}
           >
             <SwitchButton
@@ -226,7 +212,9 @@ export function SettingsMenu(props: {
             </Show>
           </div>
           <div
+            id="ehpeek-settings-panel-enhance"
             data-ehpeek-settings-tab="enhance"
+            role="tabpanel"
             hidden={activeTab() !== "enhance"}
           >
             <SwitchButton
@@ -267,7 +255,9 @@ export function SettingsMenu(props: {
             />
           </div>
           <div
+            id="ehpeek-settings-panel-options"
             data-ehpeek-settings-tab="options"
+            role="tabpanel"
             hidden={activeTab() !== "options"}
           >
             <SwitchButton
@@ -296,7 +286,9 @@ export function SettingsMenu(props: {
             />
           </div>
           <div
+            id="ehpeek-settings-panel-about"
             data-ehpeek-settings-tab="about"
+            role="tabpanel"
             hidden={activeTab() !== "about"}
           >
             <div class="flex w-full min-h-[var(--ui-control-size-lg)] items-center px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] font-700">
