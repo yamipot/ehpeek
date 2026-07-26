@@ -51,7 +51,7 @@ import {
 } from "./GalleryPreviewCache";
 import { createAppMount } from "./host";
 import { applyUiScale } from "./uiScale";
-import { readerViewport } from "./viewport";
+import { observeFullscreenUiSizing, readerViewport } from "./viewport";
 
 function settingsMenuState(defaults = false) {
   const read = <T,>(setting: { defaultValue: T; value: T }): T =>
@@ -171,6 +171,7 @@ function setCurrentUiScale(scale: UiScale): void {
 
 document.documentElement.setAttribute("data-ehpeek-site", eh.ehSiteTheme());
 updateUiScale();
+observeFullscreenUiSizing();
 registerGlobalStyle("ehpeek-uno-style", unoCss);
 registerGlobalStyle("ehpeek-theme-style", themeCss);
 registerGlobalStyle("ehpeek-dom-style", ehDomCss);

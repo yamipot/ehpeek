@@ -10,10 +10,7 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
-import {
-  fullscreenUiScale,
-  observeFullscreenUiSizing,
-} from "../../App/viewport";
+import { fullscreenUiScale } from "../../App/viewport";
 import type { GalleryPreviewDom, GalleryPreviewItem } from "../../eh";
 import type { ReadDirection } from "../../state";
 import texts from "../../texts.json";
@@ -741,11 +738,7 @@ function ScrollPreviewPanel(props: {
     }
   });
 
-  let fullscreenRoot!: HTMLDivElement;
   onMount(() => {
-    const stopFullscreenUiSizing = props.embedded
-      ? undefined
-      : observeFullscreenUiSizing(fullscreenRoot);
     const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
     if (!props.embedded) {
@@ -756,7 +749,6 @@ function ScrollPreviewPanel(props: {
     resizeObserver.observe(scroller);
     updateLayout();
     onCleanup(() => {
-      stopFullscreenUiSizing?.();
       disposed = true;
       flingAnimator.cancel();
       previewLoadQueue.dispose();
@@ -774,7 +766,6 @@ function ScrollPreviewPanel(props: {
 
   return (
     <div
-      ref={fullscreenRoot}
       classList={{
         "contents": props.embedded,
         "fixed inset-0 z-[1300]": !props.embedded,

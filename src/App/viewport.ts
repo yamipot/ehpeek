@@ -9,6 +9,8 @@ type FullscreenSnapshot = {
 
 const FULLSCREEN_SCALE_PROPERTY = "--ehpeek-fullscreen-scale";
 const FULLSCREEN_SCALE_INVERSE_PROPERTY = "--ehpeek-fullscreen-scale-inverse";
+const FULLSCREEN_UI_ATTRIBUTE = "data-ehpeek-fullscreen-ui";
+const FULLSCREEN_UI_TOKEN_PREFIX = "--ehpeek-fullscreen-";
 const UI_TOKEN_PROPERTY = /^--ui-/;
 
 export type ReaderFullscreenController = ReturnType<typeof createReaderFullscreen>;
@@ -86,24 +88,39 @@ export function fullscreenUiScale(): number {
   return Number.isFinite(factor) && factor > 0 && factor < 1 ? factor : 1;
 }
 
-/** Keeps component-owned fullscreen UI in visual viewport coordinates. */
-export function observeFullscreenUiSizing(target: HTMLElement): () => void {
-  const applied = new Set<string>();
+/** Publishes fullscreen-adjusted UI tokens once for every descendant overlay. */
+export function observeFullscreenUiSizing(): () => void {
+  let target: HTMLElement | null = null;
+  let applied = new Set<string>();
   let fullscreenObserver: MutationObserver | null = null;
   let frame: number | null = null;
 
-  const sync = () => {
+  const clear = () => {
+    if (!target) {
+      return;
+    }
+    target.removeAttribute(FULLSCREEN_UI_ATTRIBUTE);
     for (const property of applied) {
       target.style.removeProperty(property);
     }
-    applied.clear();
+    target = null;
+    applied = new Set();
+  };
 
-    const factor = fullscreenUiScale();
-    if (factor === 1) {
+  const sync = () => {
+    const fullscreenElement = document.fullscreenElement;
+    if (!(fullscreenElement instanceof HTMLElement)) {
+      clear();
       return;
     }
+    if (target !== fullscreenElement) {
+      clear();
+      target = fullscreenElement;
+    }
 
+    const factor = fullscreenUiScale();
     const source = document.documentElement.style;
+    const next = new Set<string>();
     for (let index = 0; index < source.length; index += 1) {
       const property = source.item(index);
       if (!UI_TOKEN_PROPERTY.test(property)) {
@@ -116,9 +133,21 @@ export function observeFullscreenUiSizing(target: HTMLElement): () => void {
         continue;
       }
 
-      target.style.setProperty(property, `${Number(match[1]) * factor}px`);
-      applied.add(property);
+      const fullscreenProperty = `${FULLSCREEN_UI_TOKEN_PREFIX}${property.slice(2)}`;
+      const scaledValue = `${Number(match[1]) * factor}px`;
+      if (target.style.getPropertyValue(fullscreenProperty) !== scaledValue) {
+        target.style.setProperty(fullscreenProperty, scaledValue);
+      }
+      next.add(fullscreenProperty);
     }
+
+    for (const property of applied) {
+      if (!next.has(property)) {
+        target.style.removeProperty(property);
+      }
+    }
+    target.setAttribute(FULLSCREEN_UI_ATTRIBUTE, "");
+    applied = next;
   };
 
   const scheduleSync = () => {
@@ -160,9 +189,7 @@ export function observeFullscreenUiSizing(target: HTMLElement): () => void {
     if (frame !== null) {
       window.cancelAnimationFrame(frame);
     }
-    for (const property of applied) {
-      target.style.removeProperty(property);
-    }
+    clear();
   };
 }
 

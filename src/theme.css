@@ -69,6 +69,28 @@
   --color-site-border: #8d7454;
 }
 
+/* The fullscreen root owns scaled tokens so later Portal children inherit them immediately. */
+[data-ehpeek-fullscreen-ui] {
+  --ui-control-size-xs: var(--ehpeek-fullscreen-ui-control-size-xs) !important;
+  --ui-control-size-sm: var(--ehpeek-fullscreen-ui-control-size-sm) !important;
+  --ui-control-size-md: var(--ehpeek-fullscreen-ui-control-size-md) !important;
+  --ui-control-size-lg: var(--ehpeek-fullscreen-ui-control-size-lg) !important;
+  --ui-control-size-xl: var(--ehpeek-fullscreen-ui-control-size-xl) !important;
+  --ui-font-size-xs: var(--ehpeek-fullscreen-ui-font-size-xs) !important;
+  --ui-font-size-sm: var(--ehpeek-fullscreen-ui-font-size-sm) !important;
+  --ui-font-size-md: var(--ehpeek-fullscreen-ui-font-size-md) !important;
+  --ui-font-size-prominent: var(--ehpeek-fullscreen-ui-font-size-prominent) !important;
+  --ui-font-size-title: var(--ehpeek-fullscreen-ui-font-size-title) !important;
+  --ui-font-size-lg: var(--ehpeek-fullscreen-ui-font-size-lg) !important;
+  --ui-font-size-xl: var(--ehpeek-fullscreen-ui-font-size-xl) !important;
+  --ui-icon-size-sm: var(--ehpeek-fullscreen-ui-icon-size-sm) !important;
+  --ui-icon-size-md: var(--ehpeek-fullscreen-ui-icon-size-md) !important;
+  --ui-icon-size-lg: var(--ehpeek-fullscreen-ui-icon-size-lg) !important;
+  --ui-icon-size-xl: var(--ehpeek-fullscreen-ui-icon-size-xl) !important;
+  --ui-status-dot-size-md: var(--ehpeek-fullscreen-ui-status-dot-size-md) !important;
+  --ui-status-dot-size-lg: var(--ehpeek-fullscreen-ui-status-dot-size-lg) !important;
+}
+
 html:fullscreen > body {
   width: calc(100% * var(--ehpeek-fullscreen-scale-inverse, 1));
   height: calc(100% * var(--ehpeek-fullscreen-scale-inverse, 1));

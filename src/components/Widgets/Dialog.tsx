@@ -4,8 +4,8 @@ import texts from "../../texts.json";
 import { Icon } from "./Icon";
 
 const DIALOG_WIDTHS = {
-  md: "max-w-420px",
-  lg: "max-w-520px",
+  md: "max-w-[calc(var(--ui-control-size-xl)*7.5)]",
+  lg: "max-w-[calc(var(--ui-control-size-xl)*9.25)]",
 } as const;
 
 export function Dialog(props: {
@@ -71,7 +71,7 @@ export function Dialog(props: {
         onWheel={(event: WheelEvent) => event.stopPropagation()}
       >
         <div
-          class={`box-border flex w-full ${DIALOG_WIDTHS[props.width]} max-h-[min(720px,calc(100dvh-32px))] flex-col overflow-hidden rounded-lg border shadow-xl ${
+          class={`box-border flex w-full ${DIALOG_WIDTHS[props.width]} max-h-[min(calc(var(--ui-control-size-xl)*12.75),calc(100dvh-32px))] flex-col overflow-hidden rounded-lg border shadow-xl ${
             reader()
               ? "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)]"
               : "ehp-color-site-border ehp-color-site-elevated ehp-color-site-text"
