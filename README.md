@@ -7,7 +7,7 @@ A userscript that turns E-H / ExH pages into a touch-optimized gallery reader. I
 
 ## Features
 
-- Touch-optimized layouts; two-column landscape view
+- Touch-optimized layouts; two-column view
 - Reader with paged and continuous-scroll modes
 - Scroll preview for browsing galleries at a glance
 - Gesture navigation, reading history, pinch zoom, etc.
@@ -28,8 +28,21 @@ EhPeek can work with the following scripts for a better experience and maintains
 
 ## Preview
 
-<img width="200" height="440" alt="preview1" src="https://github.com/user-attachments/assets/081a7205-a1cd-49ea-ab25-b79a2cb63356" />
-<img width="200" height="440" alt="preview2" src="https://github.com/user-attachments/assets/2fe1ebfd-7961-4273-88d1-5245999923e1" />
-
-<img width="634" height="440" alt="horizontal1" src="https://github.com/user-attachments/assets/f41321b1-6d52-48a4-b90a-e10134d1f3dc" />
-<img width="307" height="440" alt="scroll" src="https://github.com/user-attachments/assets/b88b5fa2-22cb-43b7-b7ce-0dbc3927daf3" />
+<table>
+  <tr>
+    <td align="center"><img width="200" height="440" alt="preview1" src="https://github.com/user-attachments/assets/081a7205-a1cd-49ea-ab25-b79a2cb63356" /></td>
+    <td align="center"><img width="200" height="440" alt="preview2" src="https://github.com/user-attachments/assets/2fe1ebfd-7961-4273-88d1-5245999923e1" /></td>
+    <td align="center"><img width="307" height="440" alt="scroll" src="https://github.com/user-attachments/assets/b88b5fa2-22cb-43b7-b7ce-0dbc3927daf3" /></td>
+  </tr>
+  <tr>
+    <td align="center">Browsing</td>
+    <td align="center">Reader</td>
+    <td align="center">Scroll Preview</td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center"><img width="634" height="440" alt="horizontal1" src="https://github.com/user-attachments/assets/f41321b1-6d52-48a4-b90a-e10134d1f3dc" /></td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center">Two-column view</td>
+  </tr>
+</table>
