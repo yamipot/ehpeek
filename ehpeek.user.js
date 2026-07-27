@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260726.2256
+// @version      260726.2351
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -5830,13 +5830,13 @@ Next page`,
   };
 
   // src/components/Enhance/ScrollPreview.tsx
-  var _tmpl$13 = /* @__PURE__ */ template('<div class="flex w-full justify-center my-sm"><button type=button class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98">'), _tmpl$27 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$35 = /* @__PURE__ */ template('<div class="flex min-h-[var(--ui-control-size-xs)] flex-none items-center justify-center gap-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs"><span class="inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75"></span><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">'), _tmpl$45 = /* @__PURE__ */ template('<div><section class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]"><div class="relative min-h-0 w-full flex-1"><div class="absolute box-border bg-[var(--color-surface)] cursor-grab [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"><div class=relative>'), _tmpl$54 = /* @__PURE__ */ template('<div class="flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-border)] textsize-sm"><span class="flex items-center gap-sm opacity-75"></span><div class="flex flex-none gap-sm"><button type=button></button><button type=button></button><button type=button><span aria-hidden=true>X'), _tmpl$64 = /* @__PURE__ */ template("<div class=absolute>"), _tmpl$72 = /* @__PURE__ */ template('<div class="relative flex w-full min-w-0 items-start overflow-hidden rounded-sm bg-[var(--color-background)]">'), _tmpl$82 = /* @__PURE__ */ template('<button type=button class="flex w-full h-full flex-col items-center justify-center gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"><span>'), _tmpl$92 = /* @__PURE__ */ template('<span class="pointer-events-none block flex-none"role=img>'), _tmpl$0 = /* @__PURE__ */ template('<a class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline">'), _tmpl$1 = /* @__PURE__ */ template('<span class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 coarse:border-8 border-solid border-[var(--color-danger)]"aria-hidden=true>'), _tmpl$102 = /* @__PURE__ */ template('<img class="pointer-events-none block object-contain select-none [-webkit-user-drag:none]"alt decoding=async>'), GRID_GAP = 8, HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6, MAX_TILE_WIDTH = 220, REFERENCE_PORTRAIT_ASPECT_RATIO = 7 / 5, MAX_CROSS_COUNT = 12, OVERSCAN_ROWS = 4, PREVIEW_CONCURRENT_LOADS = 2, PREVIEW_LOAD_RADIUS = 2, DECODE_CACHE_BYTES = 64 * 1024 * 1024, DECODE_CACHE_ITEMS = 160, NEXT_SCROLL_PREVIEW_DIRECTION = {
+  var _tmpl$13 = /* @__PURE__ */ template('<div class="flex w-full justify-center my-sm"><button type=button class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98">'), _tmpl$27 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$35 = /* @__PURE__ */ template('<div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] min-h-[var(--ui-control-size-xs)] flex-none items-center gap-xs px-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs"><span class="col-start-2 inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75"></span><div class="col-start-3 flex flex-none items-center justify-self-end gap-xs"><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">−</button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">+</button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">'), _tmpl$45 = /* @__PURE__ */ template('<div><section class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]"><div class="relative min-h-0 w-full flex-1"><div class="absolute box-border bg-[var(--color-surface)] cursor-grab [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"><div class=relative>'), _tmpl$54 = /* @__PURE__ */ template('<div class="flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-border)] textsize-sm"><span class="flex items-center gap-sm opacity-75"></span><div class="flex flex-none gap-sm"><button type=button></button><button type=button>−</button><button type=button>+</button><button type=button></button><button type=button><span aria-hidden=true>X'), _tmpl$64 = /* @__PURE__ */ template("<div class=absolute>"), _tmpl$72 = /* @__PURE__ */ template('<div class="relative flex w-full min-w-0 items-start overflow-hidden rounded-sm bg-[var(--color-background)]">'), _tmpl$82 = /* @__PURE__ */ template('<button type=button class="flex w-full h-full flex-col items-center justify-center gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"><span>'), _tmpl$92 = /* @__PURE__ */ template('<span class="pointer-events-none block flex-none"role=img>'), _tmpl$0 = /* @__PURE__ */ template('<a class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline">'), _tmpl$1 = /* @__PURE__ */ template('<span class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 coarse:border-8 border-solid border-[var(--color-danger)]"aria-hidden=true>'), _tmpl$102 = /* @__PURE__ */ template('<img class="pointer-events-none block object-contain select-none [-webkit-user-drag:none]"alt decoding=async>'), GRID_GAP = 8, HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6, MAX_TILE_WIDTH = 220, REFERENCE_PORTRAIT_ASPECT_RATIO = 7 / 5, MAX_CROSS_COUNT = 12, OVERSCAN_ROWS = 4, PREVIEW_CONCURRENT_LOADS = 2, PREVIEW_LOAD_RADIUS = 2, DECODE_CACHE_BYTES = 64 * 1024 * 1024, DECODE_CACHE_ITEMS = 160, NEXT_SCROLL_PREVIEW_DIRECTION = {
     ltr: "rtl",
     rtl: "ttb",
     ttb: "ltr"
   };
   function ScrollPreview(props) {
-    let previewCache = untrack(() => props.previewCache), decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS), onExitPreview = untrack(() => props.onExitPreview), onOpenPage = untrack(() => props.onOpenPage), [open, setOpen] = createSignal(!1), [readDirection, setReadDirection] = createSignal(untrack(() => props.readDirection)), [embeddedReadDirection, setEmbeddedReadDirection] = createSignal(untrack(() => props.embeddedDirection)), [portalMount, setPortalMount] = createSignal(document.body), [crossCountOverride, setCrossCountOverride] = createSignal(null), [targetPreviewIndex, setTargetPreviewIndex] = createSignal(untrack(() => previewCache.current().data.currentIndex)), [highlightedPageNum, setHighlightedPageNum] = createSignal(null), [targetPageNum, setTargetPageNum] = createSignal(null), historyEntry = !1, closeRequested = !1, pendingClose = null, finishClose = (afterClose) => {
+    let previewCache = untrack(() => props.previewCache), decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS), onExitPreview = untrack(() => props.onExitPreview), onOpenPage = untrack(() => props.onOpenPage), [open, setOpen] = createSignal(!1), [readDirection, setReadDirection] = createSignal(untrack(() => props.readDirection)), [embeddedReadDirection, setEmbeddedReadDirection] = createSignal(untrack(() => props.embeddedDirection)), [portalMount, setPortalMount] = createSignal(document.body), [crossCountOverride, setCrossCountOverride] = createSignal(null), [embeddedCrossCountOverride, setEmbeddedCrossCountOverride] = createSignal(null), [targetPreviewIndex, setTargetPreviewIndex] = createSignal(untrack(() => previewCache.current().data.currentIndex)), [highlightedPageNum, setHighlightedPageNum] = createSignal(null), [targetPageNum, setTargetPageNum] = createSignal(null), historyEntry = !1, closeRequested = !1, pendingClose = null, finishClose = (afterClose) => {
       historyEntry = !1, closeRequested = !1, pendingClose = null, setOpen(!1), props.onOpenChange(!1), afterClose?.();
     }, requestClose = (afterClose) => {
       if (!closeRequested) {
@@ -5890,7 +5890,7 @@ Next page`,
           keyed: !0,
           children: (direction) => createComponent(ScrollPreviewPanel, {
             get crossCountOverride() {
-              return crossCountOverride();
+              return embeddedCrossCountOverride();
             },
             decodeCache,
             embedded: !0,
@@ -5903,7 +5903,7 @@ Next page`,
             get onLoadError() {
               return props.onLoadError;
             },
-            onCrossCountOverrideChange: setCrossCountOverride,
+            onCrossCountOverrideChange: setEmbeddedCrossCountOverride,
             onOpenOverlay: (pageNum) => {
               setTargetPageNum(pageNum), setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum)), openPreview();
             },
@@ -5992,7 +5992,7 @@ Next page`,
     })];
   }
   function ScrollPreviewPanel(props) {
-    let decodeCache = untrack(() => props.decodeCache), previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, aspectPreviewIndex = previewCache.previewIndexForPage(untrack(() => props.targetPageNum ?? props.targetPreviewIndex * initialPreview.data.pageSize + 1)), [tileAspectRatio, setTileAspectRatio] = createSignal(initialPreview.data.dominantAspectRatio), initialTileAspectRatio = untrack(tileAspectRatio), readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? texts_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? texts_default.gallery.scrollPreviewDirectionRtl : texts_default.gallery.scrollPreviewDirectionLtr, flingAnimator = new ScrollFlingAnimator(), previewLoadQueue = new PriorityLoadQueue(PREVIEW_CONCURRENT_LOADS), requestedPreviewIndexes = /* @__PURE__ */ new Set(), [failedPreviewIndexes, setFailedPreviewIndexes] = createSignal(/* @__PURE__ */ new Set()), crossCountOverride = () => props.embedded ? null : props.crossCountOverride, [embeddedPanelHeight, setEmbeddedPanelHeight] = createSignal(null), [exitDragOffset, setExitDragOffset] = createSignal(0), [loadingCount, setLoadingCount] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), [layout, setLayout] = createSignal({
+    let decodeCache = untrack(() => props.decodeCache), previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, aspectPreviewIndex = previewCache.previewIndexForPage(untrack(() => props.targetPageNum ?? props.targetPreviewIndex * initialPreview.data.pageSize + 1)), [tileAspectRatio, setTileAspectRatio] = createSignal(initialPreview.data.dominantAspectRatio), initialTileAspectRatio = untrack(tileAspectRatio), readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? texts_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? texts_default.gallery.scrollPreviewDirectionRtl : texts_default.gallery.scrollPreviewDirectionLtr, flingAnimator = new ScrollFlingAnimator(), previewLoadQueue = new PriorityLoadQueue(PREVIEW_CONCURRENT_LOADS), requestedPreviewIndexes = /* @__PURE__ */ new Set(), [failedPreviewIndexes, setFailedPreviewIndexes] = createSignal(/* @__PURE__ */ new Set()), crossCountOverride = () => props.crossCountOverride, [embeddedPanelHeight, setEmbeddedPanelHeight] = createSignal(null), [exitDragOffset, setExitDragOffset] = createSignal(0), [loadingCount, setLoadingCount] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), [layout, setLayout] = createSignal({
       crossCount: 1,
       gap: GRID_GAP,
       horizontal,
@@ -6001,7 +6001,7 @@ Next page`,
       tileWidth: MAX_TILE_WIDTH,
       viewportHeight: 1,
       viewportWidth: 1
-    }), scroller, overlay, dragDirection = null, dragStartPosition = null, pinchAnchorPageNum = null, pinchStartCrossCount = 1, pinchMinimumCrossCount = 1, layoutFrame = null, scrollFrame = null, loadToken = 0, initialized = !1, disposed = !1, totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount)), totalMainSize = createMemo(() => Math.max(1, totalGroups() * layout().mainStride - layout().gap)), mainViewportSize = createMemo(() => horizontal ? layout().viewportWidth : layout().viewportHeight), mainCanvasSize = createMemo(() => Math.max(totalMainSize(), mainViewportSize())), visibleStartGroup = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS, 0, Math.max(0, totalGroups() - 1))), visibleEndGroup = createMemo(() => clamp(Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS, visibleStartGroup(), Math.max(0, totalGroups() - 1))), visibleStartPageNum = createMemo(() => visibleStartGroup() * layout().crossCount + 1), visibleEndPageNum = createMemo(() => Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)), screenStartPageNum = createMemo(() => Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1), screenEndPageNum = createMemo(() => {
+    }), scroller, overlay, dragDirection = null, dragStartPosition = null, resizeAnchorPageNum = null, pinchStartCrossCount = 1, pinchMinimumCrossCount = 1, layoutFrame = null, scrollFrame = null, loadToken = 0, initialized = !1, disposed = !1, totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount)), totalMainSize = createMemo(() => Math.max(1, totalGroups() * layout().mainStride - layout().gap)), mainViewportSize = createMemo(() => horizontal ? layout().viewportWidth : layout().viewportHeight), mainCanvasSize = createMemo(() => Math.max(totalMainSize(), mainViewportSize())), visibleStartGroup = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS, 0, Math.max(0, totalGroups() - 1))), visibleEndGroup = createMemo(() => clamp(Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS, visibleStartGroup(), Math.max(0, totalGroups() - 1))), visibleStartPageNum = createMemo(() => visibleStartGroup() * layout().crossCount + 1), visibleEndPageNum = createMemo(() => Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)), screenStartPageNum = createMemo(() => Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1), screenEndPageNum = createMemo(() => {
       let end = Math.max(scrollOffset(), scrollOffset() + mainViewportSize() - 1), endGroup = Math.floor(end / layout().mainStride);
       return Math.min(totalImages, (endGroup + 1) * layout().crossCount);
     }), visibleSlots = createMemo(() => {
@@ -6019,6 +6019,15 @@ Next page`,
     }, centeredPreviewIndex = () => previewCache.previewIndexForPage(centeredPageNum()), preferredLayoutAnchorPageNum = () => {
       let targetPageNum = props.highlightedPageNum ?? props.targetPageNum;
       return targetPageNum !== null && targetPageNum >= screenStartPageNum() && targetPageNum <= screenEndPageNum() ? targetPageNum : centeredPageNum();
+    }, minimumCrossCount = (currentLayout) => {
+      let aspectRatio = tileAspectRatio(), crossSize = currentLayout.horizontal ? currentLayout.viewportHeight : currentLayout.viewportWidth, maximumTileCrossSize = currentLayout.horizontal ? Math.min(currentLayout.viewportHeight / 2, currentLayout.viewportWidth / 2 * aspectRatio) : Math.min(currentLayout.viewportWidth / 2, currentLayout.viewportHeight / 2 / aspectRatio);
+      return Math.max(1, Math.ceil((crossSize + currentLayout.gap) / (maximumTileCrossSize + currentLayout.gap)));
+    }, resizeCrossCount = (delta) => {
+      flingAnimator.cancel(), resizeAnchorPageNum = preferredLayoutAnchorPageNum();
+      let currentLayout = layout();
+      props.onCrossCountOverrideChange(clamp(currentLayout.crossCount + delta, minimumCrossCount(currentLayout), Math.min(MAX_CROSS_COUNT, totalImages))), queueMicrotask(() => {
+        resizeAnchorPageNum = null;
+      });
     }, scrollPositionPage = () => {
       let maxOffset = Math.max(0, totalMainSize() - mainViewportSize());
       return maxOffset === 0 || totalImages <= 1 ? 1 : Math.round(1 + clamp(scrollOffset() / maxOffset, 0, 1) * (totalImages - 1));
@@ -6092,15 +6101,15 @@ Next page`,
       onPinchStart: () => {
         if (props.embedded)
           return !1;
-        flingAnimator.cancel(), pinchAnchorPageNum = preferredLayoutAnchorPageNum(), pinchStartCrossCount = layout().crossCount;
-        let currentLayout = layout(), aspectRatio = tileAspectRatio(), crossSize = currentLayout.horizontal ? currentLayout.viewportHeight : currentLayout.viewportWidth, maximumTileCrossSize = currentLayout.horizontal ? Math.min(currentLayout.viewportHeight / 2, currentLayout.viewportWidth / 2 * aspectRatio) : Math.min(currentLayout.viewportWidth / 2, currentLayout.viewportHeight / 2 / aspectRatio);
-        return pinchMinimumCrossCount = Math.min(pinchStartCrossCount, Math.max(1, Math.ceil((crossSize + currentLayout.gap) / (maximumTileCrossSize + currentLayout.gap)))), !0;
+        flingAnimator.cancel(), resizeAnchorPageNum = preferredLayoutAnchorPageNum(), pinchStartCrossCount = layout().crossCount;
+        let currentLayout = layout();
+        return pinchMinimumCrossCount = Math.min(pinchStartCrossCount, minimumCrossCount(currentLayout)), !0;
       },
       onPinchMove: (info) => {
         props.embedded || props.onCrossCountOverrideChange(clamp(Math.round(pinchStartCrossCount / info.scale), pinchMinimumCrossCount, MAX_CROSS_COUNT));
       },
       onPinchEnd: () => {
-        pinchAnchorPageNum = null;
+        resizeAnchorPageNum = null;
       }
     })), previewLoadQueue.updateCallbacks({
       loadTarget: (previewIndex) => previewCache.load(previewIndex),
@@ -6145,7 +6154,7 @@ Next page`,
     });
     let updateLayout = () => {
       setPreviewLoadReady(!1);
-      let width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), scale = props.embedded ? 1 : fullscreenUiScale(), gap = GRID_GAP * scale, aspectRatio = tileAspectRatio(), baseMaxTileWidth = MAX_TILE_WIDTH * scale, referenceItemsPerRow = Math.max(1, Math.ceil((width + gap) / (baseMaxTileWidth + gap))), referenceItemWidth = Math.max(1, (width - gap * (referenceItemsPerRow - 1)) / referenceItemsPerRow), maxTileWidth = props.embedded ? referenceItemWidth * Math.sqrt(REFERENCE_PORTRAIT_ASPECT_RATIO / aspectRatio) : baseMaxTileWidth, anchorPageNum = initialized ? pinchAnchorPageNum ?? preferredLayoutAnchorPageNum() : null, itemsPerRow = Math.max(1, Math.ceil((width + gap) / (maxTileWidth + gap))), itemWidth = Math.max(1, (width - gap * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio)), panelChromeHeight = Math.max(0, overlay.clientHeight - height), targetContentHeight = Math.max(itemHeight, window.innerHeight * 0.55 - panelChromeHeight), embeddedRows = Math.max(1, Math.ceil((targetContentHeight + gap) / (itemHeight + gap))), availableRows = props.embedded ? props.fillContainer ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap))) : embeddedRows : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap))), automaticCrossCount = horizontal ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow)) : Math.min(itemsPerRow, totalImages), crossCount = clamp(crossCountOverride() ?? automaticCrossCount, 1, totalImages);
+      let width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), scale = props.embedded ? 1 : fullscreenUiScale(), gap = GRID_GAP * scale, aspectRatio = tileAspectRatio(), baseMaxTileWidth = MAX_TILE_WIDTH * scale, referenceItemsPerRow = Math.max(1, Math.ceil((width + gap) / (baseMaxTileWidth + gap))), referenceItemWidth = Math.max(1, (width - gap * (referenceItemsPerRow - 1)) / referenceItemsPerRow), maxTileWidth = props.embedded ? referenceItemWidth * Math.sqrt(REFERENCE_PORTRAIT_ASPECT_RATIO / aspectRatio) : baseMaxTileWidth, anchorPageNum = initialized ? resizeAnchorPageNum ?? preferredLayoutAnchorPageNum() : null, itemsPerRow = Math.max(1, Math.ceil((width + gap) / (maxTileWidth + gap))), itemWidth = Math.max(1, (width - gap * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio)), panelChromeHeight = Math.max(0, overlay.clientHeight - height), targetContentHeight = Math.max(itemHeight, window.innerHeight * 0.55 - panelChromeHeight), embeddedRows = Math.max(1, Math.ceil((targetContentHeight + gap) / (itemHeight + gap))), availableRows = props.embedded ? props.fillContainer ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap))) : embeddedRows : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap))), automaticCrossCount = horizontal ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow)) : Math.min(itemsPerRow, totalImages), crossCount = clamp(crossCountOverride() ?? automaticCrossCount, 1, totalImages);
       if (props.embedded && !props.fillContainer && horizontal && crossCountOverride() === null) {
         let contentHeight = crossCount * itemHeight + gap * (crossCount - 1), panelHeight = Math.round(panelChromeHeight + contentHeight);
         setEmbeddedPanelHeight((current) => current === panelHeight ? current : panelHeight);
@@ -6174,38 +6183,40 @@ Next page`,
         disposed = !0, flingAnimator.cancel(), previewLoadQueue.dispose(), resizeObserver.disconnect(), props.embedded || (document.body.style.overflow = previousBodyOverflow, document.documentElement.style.overflow = previousHtmlOverflow), layoutFrame !== null && window.cancelAnimationFrame(layoutFrame), scrollFrame !== null && window.cancelAnimationFrame(scrollFrame);
       });
     }), (() => {
-      var _el$3 = _tmpl$45(), _el$4 = _el$3.firstChild, _el$0 = _el$4.firstChild, _el$1 = _el$0.firstChild, _el$10 = _el$1.firstChild, _ref$ = overlay;
+      var _el$3 = _tmpl$45(), _el$4 = _el$3.firstChild, _el$11 = _el$4.firstChild, _el$12 = _el$11.firstChild, _el$13 = _el$12.firstChild, _ref$ = overlay;
       typeof _ref$ == "function" ? use(_ref$, _el$4) : overlay = _el$4, insert(_el$4, createComponent(Show, {
         get when() {
           return props.embedded;
         },
         get fallback() {
           return (() => {
-            var _el$11 = _tmpl$54(), _el$12 = _el$11.firstChild, _el$14 = _el$12.nextSibling, _el$15 = _el$14.firstChild, _el$16 = _el$15.nextSibling, _el$17 = _el$16.nextSibling;
-            return insert(_el$12, createComponent(Show, {
+            var _el$14 = _tmpl$54(), _el$15 = _el$14.firstChild, _el$17 = _el$15.nextSibling, _el$18 = _el$17.firstChild, _el$19 = _el$18.nextSibling, _el$20 = _el$19.nextSibling, _el$21 = _el$20.nextSibling, _el$22 = _el$21.nextSibling;
+            return insert(_el$15, createComponent(Show, {
               get when() {
                 return loadingCount() > 0;
               },
               get children() {
                 return _tmpl$27();
               }
-            }), null), insert(_el$12, () => `${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`, null), _el$15.$$click = () => {
-              props.highlightedPageNum !== null && (flingAnimator.cancel(), scrollToPage(props.highlightedPageNum));
-            }, className(_el$15, READER_FLOATING_ACTION_CLASS), insert(_el$15, () => texts_default.button.current), _el$16.$$click = requestDirectionChange, className(_el$16, READER_FLOATING_ACTION_CLASS), setAttribute(_el$16, "aria-label", directionLabel), setAttribute(_el$16, "title", directionLabel), insert(_el$16, createComponent(Icon2, {
+            }), null), insert(_el$15, () => `${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`, null), _el$18.$$click = requestDirectionChange, className(_el$18, READER_FLOATING_ACTION_CLASS), setAttribute(_el$18, "aria-label", directionLabel), setAttribute(_el$18, "title", directionLabel), insert(_el$18, createComponent(Icon2, {
               name: directionIcon,
               size: "var(--ui-icon-size-md)"
-            })), _el$17.$$click = () => onClose?.(centeredPreviewIndex()), className(_el$17, READER_FLOATING_ACTION_CLASS), createRenderEffect((_p$) => {
-              var _v$1 = props.highlightedPageNum === null, _v$10 = texts_default.button.close, _v$11 = texts_default.button.close;
-              return _v$1 !== _p$.e && (_el$15.disabled = _p$.e = _v$1), _v$10 !== _p$.t && setAttribute(_el$17, "aria-label", _p$.t = _v$10), _v$11 !== _p$.a && setAttribute(_el$17, "title", _p$.a = _v$11), _p$;
+            })), _el$19.$$click = () => resizeCrossCount(1), className(_el$19, READER_FLOATING_ACTION_CLASS), _el$20.$$click = () => resizeCrossCount(-1), className(_el$20, READER_FLOATING_ACTION_CLASS), _el$21.$$click = () => {
+              props.highlightedPageNum !== null && (flingAnimator.cancel(), scrollToPage(props.highlightedPageNum));
+            }, className(_el$21, READER_FLOATING_ACTION_CLASS), insert(_el$21, () => texts_default.button.current), _el$22.$$click = () => onClose?.(centeredPreviewIndex()), className(_el$22, READER_FLOATING_ACTION_CLASS), createRenderEffect((_p$) => {
+              var _v$11 = layout().crossCount >= Math.min(MAX_CROSS_COUNT, totalImages), _v$12 = layout().crossCount <= minimumCrossCount(layout()), _v$13 = props.highlightedPageNum === null, _v$14 = texts_default.button.close, _v$15 = texts_default.button.close;
+              return _v$11 !== _p$.e && (_el$19.disabled = _p$.e = _v$11), _v$12 !== _p$.t && (_el$20.disabled = _p$.t = _v$12), _v$13 !== _p$.a && (_el$21.disabled = _p$.a = _v$13), _v$14 !== _p$.o && setAttribute(_el$22, "aria-label", _p$.o = _v$14), _v$15 !== _p$.i && setAttribute(_el$22, "title", _p$.i = _v$15), _p$;
             }, {
               e: void 0,
               t: void 0,
-              a: void 0
-            }), _el$11;
+              a: void 0,
+              o: void 0,
+              i: void 0
+            }), _el$14;
           })();
         },
         get children() {
-          var _el$5 = _tmpl$35(), _el$6 = _el$5.firstChild, _el$8 = _el$6.nextSibling, _el$9 = _el$8.nextSibling;
+          var _el$5 = _tmpl$35(), _el$6 = _el$5.firstChild, _el$8 = _el$6.nextSibling, _el$9 = _el$8.firstChild, _el$0 = _el$9.nextSibling, _el$1 = _el$0.nextSibling, _el$10 = _el$1.nextSibling;
           return insert(_el$6, createComponent(Show, {
             get when() {
               return loadingCount() > 0;
@@ -6213,35 +6224,37 @@ Next page`,
             get children() {
               return _tmpl$27();
             }
-          }), null), insert(_el$6, () => `${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`, null), _el$8.$$click = requestDirectionChange, setAttribute(_el$8, "aria-label", directionLabel), setAttribute(_el$8, "title", directionLabel), insert(_el$8, createComponent(Icon2, {
+          }), null), insert(_el$6, () => `${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`, null), _el$9.$$click = requestDirectionChange, setAttribute(_el$9, "aria-label", directionLabel), setAttribute(_el$9, "title", directionLabel), insert(_el$9, createComponent(Icon2, {
             name: directionIcon,
             size: "var(--ui-icon-size-sm)"
-          })), _el$9.$$click = () => props.onOpenOverlay?.(centeredPageNum()), insert(_el$9, createComponent(Icon2, {
+          })), _el$0.$$click = () => resizeCrossCount(1), _el$1.$$click = () => resizeCrossCount(-1), _el$10.$$click = () => props.onOpenOverlay?.(centeredPageNum()), insert(_el$10, createComponent(Icon2, {
             name: "fullscreen",
             size: "var(--ui-icon-size-sm)"
           })), createRenderEffect((_p$) => {
-            var _v$ = texts_default.gallery.openScrollPreview, _v$2 = texts_default.gallery.openScrollPreview;
-            return _v$ !== _p$.e && setAttribute(_el$9, "aria-label", _p$.e = _v$), _v$2 !== _p$.t && setAttribute(_el$9, "title", _p$.t = _v$2), _p$;
+            var _v$ = layout().crossCount >= Math.min(MAX_CROSS_COUNT, totalImages), _v$2 = layout().crossCount <= minimumCrossCount(layout()), _v$3 = texts_default.gallery.openScrollPreview, _v$4 = texts_default.gallery.openScrollPreview;
+            return _v$ !== _p$.e && (_el$0.disabled = _p$.e = _v$), _v$2 !== _p$.t && (_el$1.disabled = _p$.t = _v$2), _v$3 !== _p$.a && setAttribute(_el$10, "aria-label", _p$.a = _v$3), _v$4 !== _p$.o && setAttribute(_el$10, "title", _p$.o = _v$4), _p$;
           }, {
             e: void 0,
-            t: void 0
+            t: void 0,
+            a: void 0,
+            o: void 0
           }), _el$5;
         }
-      }), _el$0), _el$1.addEventListener("wheel", () => flingAnimator.cancel()), _el$1.addEventListener("scroll", () => {
+      }), _el$11), _el$12.addEventListener("wheel", () => flingAnimator.cancel()), _el$12.addEventListener("scroll", () => {
         scrollFrame === null && (scrollFrame = window.requestAnimationFrame(() => {
           scrollFrame = null, setScrollOffset(untrack(readScrollOffset));
         }));
       });
       var _ref$2 = scroller;
-      return typeof _ref$2 == "function" ? use(_ref$2, _el$1) : scroller = _el$1, insert(_el$10, createComponent(For, {
+      return typeof _ref$2 == "function" ? use(_ref$2, _el$12) : scroller = _el$12, insert(_el$13, createComponent(For, {
         get each() {
           return visibleSlots();
         },
         children: (slot) => {
           let itemIndex = () => slot.pageNum - 1, group = () => Math.floor(itemIndex() / layout().crossCount), crossIndex = () => itemIndex() % layout().crossCount, left = () => horizontal ? rightToLeft ? mainCanvasSize() - layout().tileWidth - group() * layout().mainStride : group() * layout().mainStride : crossIndex() * (layout().tileWidth + layout().gap), top = () => horizontal ? crossIndex() * (layout().tileHeight + layout().gap) : group() * layout().mainStride;
           return (() => {
-            var _el$18 = _tmpl$64();
-            return insert(_el$18, createComponent(PreviewTile, {
+            var _el$23 = _tmpl$64();
+            return insert(_el$23, createComponent(PreviewTile, {
               alignment: rightToLeft ? "right" : horizontal ? "left" : "center",
               get allowUpscale() {
                 return props.embedded || crossCountOverride() !== null;
@@ -6273,17 +6286,17 @@ Next page`,
                 return layout().tileWidth;
               }
             })), createRenderEffect((_p$) => {
-              var _v$12 = `${layout().tileHeight}px`, _v$13 = `${left()}px`, _v$14 = `${top()}px`, _v$15 = `${layout().tileWidth}px`;
-              return _v$12 !== _p$.e && setStyleProperty(_el$18, "height", _p$.e = _v$12), _v$13 !== _p$.t && setStyleProperty(_el$18, "left", _p$.t = _v$13), _v$14 !== _p$.a && setStyleProperty(_el$18, "top", _p$.a = _v$14), _v$15 !== _p$.o && setStyleProperty(_el$18, "width", _p$.o = _v$15), _p$;
+              var _v$16 = `${layout().tileHeight}px`, _v$17 = `${left()}px`, _v$18 = `${top()}px`, _v$19 = `${layout().tileWidth}px`;
+              return _v$16 !== _p$.e && setStyleProperty(_el$23, "height", _p$.e = _v$16), _v$17 !== _p$.t && setStyleProperty(_el$23, "left", _p$.t = _v$17), _v$18 !== _p$.a && setStyleProperty(_el$23, "top", _p$.a = _v$18), _v$19 !== _p$.o && setStyleProperty(_el$23, "width", _p$.o = _v$19), _p$;
             }, {
               e: void 0,
               t: void 0,
               a: void 0,
               o: void 0
-            }), _el$18;
+            }), _el$23;
           })();
         }
-      })), insert(_el$0, createComponent(Show, {
+      })), insert(_el$11, createComponent(Show, {
         when: !horizontal,
         get children() {
           return createComponent(PositionBar, {
@@ -6307,7 +6320,7 @@ Next page`,
             }
           });
         }
-      }), null), insert(_el$0, createComponent(Show, {
+      }), null), insert(_el$11, createComponent(Show, {
         when: horizontal,
         get children() {
           return createComponent(PositionBar, {
@@ -6331,17 +6344,17 @@ Next page`,
           });
         }
       }), null), createRenderEffect((_p$) => {
-        var _v$3 = {
+        var _v$5 = {
           contents: props.embedded,
           "fixed inset-0 z-[1300]": !props.embedded
-        }, _v$4 = {
+        }, _v$6 = {
           "absolute inset-0 bg-[var(--color-background)]": !props.embedded,
           "border ehp-color-site-border rounded-sm bg-[var(--color-site-elevated)]": props.embedded,
           "relative h-[55dvh]": props.embedded && !props.fillContainer,
           "relative h-full": props.embedded && props.fillContainer,
           "w-full": !props.embedded || props.fillContainer,
           "[width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90dvh)] mx-auto": props.embedded && !props.fillContainer
-        }, _v$5 = props.embedded && !props.fillContainer && horizontal && embeddedPanelHeight() !== null ? `${embeddedPanelHeight()}px` : void 0, _v$6 = props.embedded ? "1" : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`, _v$7 = props.embedded ? "none" : `translate3d(${horizontal ? 0 : exitDragOffset()}px, ${horizontal ? exitDragOffset() : 0}px, 0) scale(${1 - Math.min(0.03, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.03)})`, _v$8 = {
+        }, _v$7 = props.embedded && !props.fillContainer && horizontal && embeddedPanelHeight() !== null ? `${embeddedPanelHeight()}px` : void 0, _v$8 = props.embedded ? "1" : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`, _v$9 = props.embedded ? "none" : `translate3d(${horizontal ? 0 : exitDragOffset()}px, ${horizontal ? exitDragOffset() : 0}px, 0) scale(${1 - Math.min(0.03, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.03)})`, _v$0 = {
           "inset-0": !props.embedded,
           "top-0 right-xs left-xs": props.embedded,
           "bottom-[calc(var(--ui-control-size-xs)/2)]": props.embedded && horizontal,
@@ -6352,8 +6365,8 @@ Next page`,
           "[touch-action:pan-x]": props.embedded && !horizontal,
           "[touch-action:pan-y]": props.embedded && horizontal,
           "overscroll-contain [touch-action:none]": !props.embedded
-        }, _v$9 = horizontal ? "100%" : `${totalMainSize()}px`, _v$0 = horizontal ? `${mainCanvasSize()}px` : "100%";
-        return _p$.e = classList(_el$3, _v$3, _p$.e), _p$.t = classList(_el$4, _v$4, _p$.t), _v$5 !== _p$.a && setStyleProperty(_el$4, "height", _p$.a = _v$5), _v$6 !== _p$.o && setStyleProperty(_el$4, "opacity", _p$.o = _v$6), _v$7 !== _p$.i && setStyleProperty(_el$4, "transform", _p$.i = _v$7), _p$.n = classList(_el$1, _v$8, _p$.n), _v$9 !== _p$.s && setStyleProperty(_el$10, "height", _p$.s = _v$9), _v$0 !== _p$.h && setStyleProperty(_el$10, "width", _p$.h = _v$0), _p$;
+        }, _v$1 = horizontal ? "100%" : `${totalMainSize()}px`, _v$10 = horizontal ? `${mainCanvasSize()}px` : "100%";
+        return _p$.e = classList(_el$3, _v$5, _p$.e), _p$.t = classList(_el$4, _v$6, _p$.t), _v$7 !== _p$.a && setStyleProperty(_el$4, "height", _p$.a = _v$7), _v$8 !== _p$.o && setStyleProperty(_el$4, "opacity", _p$.o = _v$8), _v$9 !== _p$.i && setStyleProperty(_el$4, "transform", _p$.i = _v$9), _p$.n = classList(_el$12, _v$0, _p$.n), _v$1 !== _p$.s && setStyleProperty(_el$13, "height", _p$.s = _v$1), _v$10 !== _p$.h && setStyleProperty(_el$13, "width", _p$.h = _v$10), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -6371,16 +6384,16 @@ Next page`,
     return createEffect(() => {
       releaseDecodedImage?.(), releaseDecodedImage = props.item?.thumbnail.url ? props.decodeCache.retain(props.item.thumbnail.url) : null;
     }), onCleanup(() => releaseDecodedImage?.()), (() => {
-      var _el$19 = _tmpl$72();
-      return insert(_el$19, createComponent(Show, {
+      var _el$24 = _tmpl$72();
+      return insert(_el$24, createComponent(Show, {
         get when() {
           return props.item;
         },
         keyed: !0,
         get fallback() {
           return (() => {
-            var _el$20 = _tmpl$82(), _el$21 = _el$20.firstChild;
-            return _el$20.$$click = () => props.onRetry(), insert(_el$20, createComponent(Show, {
+            var _el$25 = _tmpl$82(), _el$26 = _el$25.firstChild;
+            return _el$25.$$click = () => props.onRetry(), insert(_el$25, createComponent(Show, {
               get when() {
                 return props.failed;
               },
@@ -6390,13 +6403,13 @@ Next page`,
                   size: "var(--ui-icon-size-lg)"
                 });
               }
-            }), _el$21), insert(_el$21, () => props.pageNum), createRenderEffect((_p$) => {
-              var _v$20 = !!props.failed, _v$21 = !props.failed;
-              return _v$20 !== _p$.e && _el$20.classList.toggle("cursor-pointer", _p$.e = _v$20), _v$21 !== _p$.t && (_el$20.disabled = _p$.t = _v$21), _p$;
+            }), _el$26), insert(_el$26, () => props.pageNum), createRenderEffect((_p$) => {
+              var _v$24 = !!props.failed, _v$25 = !props.failed;
+              return _v$24 !== _p$.e && _el$25.classList.toggle("cursor-pointer", _p$.e = _v$24), _v$25 !== _p$.t && (_el$25.disabled = _p$.t = _v$25), _p$;
             }, {
               e: void 0,
               t: void 0
-            }), _el$20;
+            }), _el$25;
           })();
         },
         children: (item) => [createComponent(Show, {
@@ -6405,26 +6418,26 @@ Next page`,
           },
           get fallback() {
             return (() => {
-              var _el$25 = _tmpl$102();
-              return setAttribute(_el$25, "draggable", !1), createRenderEffect((_p$) => {
-                var _v$34 = {
+              var _el$30 = _tmpl$102();
+              return setAttribute(_el$30, "draggable", !1), createRenderEffect((_p$) => {
+                var _v$38 = {
                   "h-full w-full": props.allowUpscale,
                   "max-h-full max-w-full": !props.allowUpscale
-                }, _v$35 = item.thumbnail.url, _v$36 = item.thumbnail.width, _v$37 = item.thumbnail.height;
-                return _p$.e = classList(_el$25, _v$34, _p$.e), _v$35 !== _p$.t && setAttribute(_el$25, "src", _p$.t = _v$35), _v$36 !== _p$.a && setAttribute(_el$25, "width", _p$.a = _v$36), _v$37 !== _p$.o && setAttribute(_el$25, "height", _p$.o = _v$37), _p$;
+                }, _v$39 = item.thumbnail.url, _v$40 = item.thumbnail.width, _v$41 = item.thumbnail.height;
+                return _p$.e = classList(_el$30, _v$38, _p$.e), _v$39 !== _p$.t && setAttribute(_el$30, "src", _p$.t = _v$39), _v$40 !== _p$.a && setAttribute(_el$30, "width", _p$.a = _v$40), _v$41 !== _p$.o && setAttribute(_el$30, "height", _p$.o = _v$41), _p$;
               }, {
                 e: void 0,
                 t: void 0,
                 a: void 0,
                 o: void 0
-              }), _el$25;
+              }), _el$30;
             })();
           },
           get children() {
-            var _el$22 = _tmpl$92();
+            var _el$27 = _tmpl$92();
             return createRenderEffect((_p$) => {
-              var _v$22 = `url(${JSON.stringify(item.thumbnail.url)})`, _v$23 = item.thumbnail.backgroundPosition, _v$24 = item.thumbnail.backgroundRepeat, _v$25 = item.thumbnail.backgroundSize, _v$26 = `${item.thumbnail.height}px`, _v$27 = `scale(${Math.min(props.allowUpscale ? Number.POSITIVE_INFINITY : 1, props.width / item.thumbnail.width, props.height / item.thumbnail.height)})`, _v$28 = props.alignment === "right" ? "right top" : props.alignment === "left" ? "left top" : "center top", _v$29 = `${item.thumbnail.width}px`, _v$30 = `Page ${item.pageNum}`;
-              return _v$22 !== _p$.e && setStyleProperty(_el$22, "background-image", _p$.e = _v$22), _v$23 !== _p$.t && setStyleProperty(_el$22, "background-position", _p$.t = _v$23), _v$24 !== _p$.a && setStyleProperty(_el$22, "background-repeat", _p$.a = _v$24), _v$25 !== _p$.o && setStyleProperty(_el$22, "background-size", _p$.o = _v$25), _v$26 !== _p$.i && setStyleProperty(_el$22, "height", _p$.i = _v$26), _v$27 !== _p$.n && setStyleProperty(_el$22, "transform", _p$.n = _v$27), _v$28 !== _p$.s && setStyleProperty(_el$22, "transform-origin", _p$.s = _v$28), _v$29 !== _p$.h && setStyleProperty(_el$22, "width", _p$.h = _v$29), _v$30 !== _p$.r && setAttribute(_el$22, "aria-label", _p$.r = _v$30), _p$;
+              var _v$26 = `url(${JSON.stringify(item.thumbnail.url)})`, _v$27 = item.thumbnail.backgroundPosition, _v$28 = item.thumbnail.backgroundRepeat, _v$29 = item.thumbnail.backgroundSize, _v$30 = `${item.thumbnail.height}px`, _v$31 = `scale(${Math.min(props.allowUpscale ? Number.POSITIVE_INFINITY : 1, props.width / item.thumbnail.width, props.height / item.thumbnail.height)})`, _v$32 = props.alignment === "right" ? "right top" : props.alignment === "left" ? "left top" : "center top", _v$33 = `${item.thumbnail.width}px`, _v$34 = `Page ${item.pageNum}`;
+              return _v$26 !== _p$.e && setStyleProperty(_el$27, "background-image", _p$.e = _v$26), _v$27 !== _p$.t && setStyleProperty(_el$27, "background-position", _p$.t = _v$27), _v$28 !== _p$.a && setStyleProperty(_el$27, "background-repeat", _p$.a = _v$28), _v$29 !== _p$.o && setStyleProperty(_el$27, "background-size", _p$.o = _v$29), _v$30 !== _p$.i && setStyleProperty(_el$27, "height", _p$.i = _v$30), _v$31 !== _p$.n && setStyleProperty(_el$27, "transform", _p$.n = _v$31), _v$32 !== _p$.s && setStyleProperty(_el$27, "transform-origin", _p$.s = _v$32), _v$33 !== _p$.h && setStyleProperty(_el$27, "width", _p$.h = _v$33), _v$34 !== _p$.r && setAttribute(_el$27, "aria-label", _p$.r = _v$34), _p$;
             }, {
               e: void 0,
               t: void 0,
@@ -6435,20 +6448,20 @@ Next page`,
               s: void 0,
               h: void 0,
               r: void 0
-            }), _el$22;
+            }), _el$27;
           }
         }), (() => {
-          var _el$23 = _tmpl$0();
-          return _el$23.$$click = (event) => {
+          var _el$28 = _tmpl$0();
+          return _el$28.$$click = (event) => {
             event.preventDefault(), event.stopPropagation(), props.onOpenPage(item.pageUrl, item.pageNum);
-          }, setAttribute(_el$23, "draggable", !1), createRenderEffect((_p$) => {
-            var _v$31 = item.pageUrl, _v$32 = `Page ${item.pageNum}`, _v$33 = props.highlighted ? "page" : void 0;
-            return _v$31 !== _p$.e && setAttribute(_el$23, "href", _p$.e = _v$31), _v$32 !== _p$.t && setAttribute(_el$23, "aria-label", _p$.t = _v$32), _v$33 !== _p$.a && setAttribute(_el$23, "aria-current", _p$.a = _v$33), _p$;
+          }, setAttribute(_el$28, "draggable", !1), createRenderEffect((_p$) => {
+            var _v$35 = item.pageUrl, _v$36 = `Page ${item.pageNum}`, _v$37 = props.highlighted ? "page" : void 0;
+            return _v$35 !== _p$.e && setAttribute(_el$28, "href", _p$.e = _v$35), _v$36 !== _p$.t && setAttribute(_el$28, "aria-label", _p$.t = _v$36), _v$37 !== _p$.a && setAttribute(_el$28, "aria-current", _p$.a = _v$37), _p$;
           }, {
             e: void 0,
             t: void 0,
             a: void 0
-          }), _el$23;
+          }), _el$28;
         })(), createComponent(Show, {
           get when() {
             return props.highlighted;
@@ -6458,14 +6471,14 @@ Next page`,
           }
         })]
       })), createRenderEffect((_p$) => {
-        var _v$16 = props.alignment === "center", _v$17 = props.alignment === "left", _v$18 = props.alignment === "right", _v$19 = `${props.height}px`;
-        return _v$16 !== _p$.e && _el$19.classList.toggle("justify-center", _p$.e = _v$16), _v$17 !== _p$.t && _el$19.classList.toggle("justify-start", _p$.t = _v$17), _v$18 !== _p$.a && _el$19.classList.toggle("justify-end", _p$.a = _v$18), _v$19 !== _p$.o && setStyleProperty(_el$19, "height", _p$.o = _v$19), _p$;
+        var _v$20 = props.alignment === "center", _v$21 = props.alignment === "left", _v$22 = props.alignment === "right", _v$23 = `${props.height}px`;
+        return _v$20 !== _p$.e && _el$24.classList.toggle("justify-center", _p$.e = _v$20), _v$21 !== _p$.t && _el$24.classList.toggle("justify-start", _p$.t = _v$21), _v$22 !== _p$.a && _el$24.classList.toggle("justify-end", _p$.a = _v$22), _v$23 !== _p$.o && setStyleProperty(_el$24, "height", _p$.o = _v$23), _p$;
       }, {
         e: void 0,
         t: void 0,
         a: void 0,
         o: void 0
-      }), _el$19;
+      }), _el$24;
     })();
   }
   var PreviewDecodeCache = class {
@@ -7407,7 +7420,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260726.2256", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260726.2351", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
@@ -10101,6 +10114,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .grid-cols-\\[48px_minmax\\(64px\\,1fr\\)_64px_64px\\]{grid-template-columns:48px minmax(64px,1fr) 64px 64px;}
 .grid-cols-\\[auto_96px_96px\\]{grid-template-columns:auto 96px 96px;}
 .grid-cols-\\[max-content_minmax\\(0\\,1fr\\)\\]{grid-template-columns:max-content minmax(0,1fr);}
+.grid-cols-\\[minmax\\(0\\,1fr\\)_auto_minmax\\(0\\,1fr\\)\\]{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);}
 .grid-cols-\\[minmax\\(60px\\,38\\%\\)_minmax\\(0\\,1fr\\)\\]{grid-template-columns:minmax(60px,38%) minmax(0,1fr);}
 .grid-cols-\\[repeat\\(3\\,minmax\\(0\\,1fr\\)\\)\\],
 .grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr));}
@@ -10267,6 +10281,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .justify-end{justify-content:flex-end;}
 .justify-center{justify-content:center;}
 .justify-between{justify-content:space-between;}
+.justify-self-end{justify-self:end;}
 .justify-self-stretch{justify-self:stretch;}
 :root[data-ehpeek-ui-scale="large"] .large\\:gap-18px{gap:18px;}
 :root[data-ehpeek-ui-scale="large"] .large\\:gap-6px{gap:6px;}
