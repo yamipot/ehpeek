@@ -39,6 +39,8 @@ EhPeek can work with the following scripts for a better experience and maintains
     <td align="center">Reader</td>
     <td align="center">Scroll Preview</td>
   </tr>
+</table>
+<table>
   <tr>
     <td colspan="3" align="center"><img width="634" height="440" alt="horizontal1" src="https://github.com/user-attachments/assets/f41321b1-6d52-48a4-b90a-e10134d1f3dc" /></td>
   </tr>

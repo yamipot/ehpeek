@@ -88,6 +88,8 @@ export function ScrollPreview(props: {
     createSignal<ReadDirection>(untrack(() => props.embeddedDirection));
   const [portalMount, setPortalMount] = createSignal<HTMLElement>(document.body);
   const [crossCountOverride, setCrossCountOverride] = createSignal<number | null>(null);
+  const [embeddedCrossCountOverride, setEmbeddedCrossCountOverride] =
+    createSignal<number | null>(null);
   const [targetPreviewIndex, setTargetPreviewIndex] = createSignal(
     untrack(() => previewCache.current().data.currentIndex),
   );
@@ -184,7 +186,7 @@ export function ScrollPreview(props: {
       <Show when={props.replaceOriginalPreview}>
         <Show when={embeddedReadDirection()} keyed>{(direction) => (
           <ScrollPreviewPanel
-            crossCountOverride={crossCountOverride()}
+            crossCountOverride={embeddedCrossCountOverride()}
             decodeCache={decodeCache}
             embedded
             highlightedPageNum={props.continuePageNum}
@@ -194,7 +196,7 @@ export function ScrollPreview(props: {
               props.onEmbeddedDirectionChange(next);
             }}
             onLoadError={props.onLoadError}
-            onCrossCountOverrideChange={setCrossCountOverride}
+            onCrossCountOverrideChange={setEmbeddedCrossCountOverride}
             onOpenOverlay={(pageNum) => {
               setTargetPageNum(pageNum);
               setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
@@ -314,8 +316,7 @@ function ScrollPreviewPanel(props: {
   );
   const requestedPreviewIndexes = new Set<number>();
   const [failedPreviewIndexes, setFailedPreviewIndexes] = createSignal<Set<number>>(new Set());
-  const crossCountOverride = (): number | null =>
-    props.embedded ? null : props.crossCountOverride;
+  const crossCountOverride = (): number | null => props.crossCountOverride;
   const [embeddedPanelHeight, setEmbeddedPanelHeight] = createSignal<number | null>(null);
   const [exitDragOffset, setExitDragOffset] = createSignal(0);
   const [loadingCount, setLoadingCount] = createSignal(0);
@@ -337,7 +338,7 @@ function ScrollPreviewPanel(props: {
   let overlay!: HTMLElement;
   let dragDirection: "exit" | "scroll" | null = null;
   let dragStartPosition: number | null = null;
-  let pinchAnchorPageNum: number | null = null;
+  let resizeAnchorPageNum: number | null = null;
   let pinchStartCrossCount = 1;
   let pinchMinimumCrossCount = 1;
   let layoutFrame: number | null = null;
@@ -415,6 +416,43 @@ function ScrollPreviewPanel(props: {
         targetPageNum <= screenEndPageNum()
       ? targetPageNum
       : centeredPageNum();
+  };
+  const minimumCrossCount = (currentLayout: PreviewLayout): number => {
+    const aspectRatio = tileAspectRatio();
+    const crossSize = currentLayout.horizontal
+      ? currentLayout.viewportHeight
+      : currentLayout.viewportWidth;
+    const maximumTileCrossSize = currentLayout.horizontal
+      ? Math.min(
+        currentLayout.viewportHeight / 2,
+        currentLayout.viewportWidth / 2 * aspectRatio,
+      )
+      : Math.min(
+        currentLayout.viewportWidth / 2,
+        currentLayout.viewportHeight / 2 / aspectRatio,
+      );
+    return Math.max(
+      1,
+      Math.ceil(
+        (crossSize + currentLayout.gap) /
+          (maximumTileCrossSize + currentLayout.gap),
+      ),
+    );
+  };
+  const resizeCrossCount = (delta: number): void => {
+    flingAnimator.cancel();
+    resizeAnchorPageNum = preferredLayoutAnchorPageNum();
+    const currentLayout = layout();
+    props.onCrossCountOverrideChange(
+      clamp(
+        currentLayout.crossCount + delta,
+        minimumCrossCount(currentLayout),
+        Math.min(MAX_CROSS_COUNT, totalImages),
+      ),
+    );
+    queueMicrotask(() => {
+      resizeAnchorPageNum = null;
+    });
   };
   const scrollPositionPage = (): number => {
     const maxOffset = Math.max(0, totalMainSize() - mainViewportSize());
@@ -568,31 +606,12 @@ function ScrollPreviewPanel(props: {
           return false;
         }
         flingAnimator.cancel();
-        pinchAnchorPageNum = preferredLayoutAnchorPageNum();
+        resizeAnchorPageNum = preferredLayoutAnchorPageNum();
         pinchStartCrossCount = layout().crossCount;
         const currentLayout = layout();
-        const aspectRatio = tileAspectRatio();
-        const crossSize = currentLayout.horizontal
-          ? currentLayout.viewportHeight
-          : currentLayout.viewportWidth;
-        const maximumTileCrossSize = currentLayout.horizontal
-          ? Math.min(
-            currentLayout.viewportHeight / 2,
-            currentLayout.viewportWidth / 2 * aspectRatio,
-          )
-          : Math.min(
-            currentLayout.viewportWidth / 2,
-            currentLayout.viewportHeight / 2 / aspectRatio,
-          );
         pinchMinimumCrossCount = Math.min(
           pinchStartCrossCount,
-          Math.max(
-            1,
-            Math.ceil(
-              (crossSize + currentLayout.gap) /
-                (maximumTileCrossSize + currentLayout.gap),
-            ),
-          ),
+          minimumCrossCount(currentLayout),
         );
         return true;
       },
@@ -609,7 +628,7 @@ function ScrollPreviewPanel(props: {
         );
       },
       onPinchEnd: () => {
-        pinchAnchorPageNum = null;
+        resizeAnchorPageNum = null;
       },
     }),
   );
@@ -719,7 +738,7 @@ function ScrollPreviewPanel(props: {
         Math.sqrt(REFERENCE_PORTRAIT_ASPECT_RATIO / aspectRatio)
       : baseMaxTileWidth;
     const anchorPageNum = initialized
-      ? pinchAnchorPageNum ?? preferredLayoutAnchorPageNum()
+      ? resizeAnchorPageNum ?? preferredLayoutAnchorPageNum()
       : null;
     const itemsPerRow = Math.max(
       1,
@@ -916,6 +935,34 @@ function ScrollPreviewPanel(props: {
               <button
                 type="button"
                 class={READER_FLOATING_ACTION_CLASS}
+                aria-label={directionLabel}
+                title={directionLabel}
+                onClick={requestDirectionChange}
+              >
+                <Icon
+                  name={directionIcon}
+                  size="var(--ui-icon-size-md)"
+                />
+              </button>
+              <button
+                type="button"
+                class={READER_FLOATING_ACTION_CLASS}
+                disabled={layout().crossCount >= Math.min(MAX_CROSS_COUNT, totalImages)}
+                onClick={() => resizeCrossCount(1)}
+              >
+                −
+              </button>
+              <button
+                type="button"
+                class={READER_FLOATING_ACTION_CLASS}
+                disabled={layout().crossCount <= minimumCrossCount(layout())}
+                onClick={() => resizeCrossCount(-1)}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                class={READER_FLOATING_ACTION_CLASS}
                 disabled={props.highlightedPageNum === null}
                 onClick={() => {
                   if (props.highlightedPageNum !== null) {
@@ -925,18 +972,6 @@ function ScrollPreviewPanel(props: {
                 }}
               >
                 {texts.button.current}
-              </button>
-              <button
-                type="button"
-                class={READER_FLOATING_ACTION_CLASS}
-                aria-label={directionLabel}
-                title={directionLabel}
-                onClick={requestDirectionChange}
-              >
-                <Icon
-                  name={directionIcon}
-                  size="var(--ui-icon-size-md)"
-                />
               </button>
               <button
                 type="button"
@@ -951,31 +986,49 @@ function ScrollPreviewPanel(props: {
           </div>
         }
         >
-        <div class="flex min-h-[var(--ui-control-size-xs)] flex-none items-center justify-center gap-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs">
-          <span class="inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75">
+        <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] min-h-[var(--ui-control-size-xs)] flex-none items-center gap-xs px-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs">
+          <span class="col-start-2 inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75">
             <Show when={loadingCount() > 0}>
               <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
             </Show>
             {`${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`}
           </span>
-          <button
-            type="button"
-            class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"
-            aria-label={directionLabel}
-            title={directionLabel}
-            onClick={requestDirectionChange}
-          >
-            <Icon name={directionIcon} size="var(--ui-icon-size-sm)" />
-          </button>
-          <button
-            type="button"
-            class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"
-            aria-label={texts.gallery.openScrollPreview}
-            title={texts.gallery.openScrollPreview}
-            onClick={() => props.onOpenOverlay?.(centeredPageNum())}
-          >
-            <Icon name="fullscreen" size="var(--ui-icon-size-sm)" />
-          </button>
+          <div class="col-start-3 flex flex-none items-center justify-self-end gap-xs">
+            <button
+              type="button"
+              class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"
+              aria-label={directionLabel}
+              title={directionLabel}
+              onClick={requestDirectionChange}
+            >
+              <Icon name={directionIcon} size="var(--ui-icon-size-sm)" />
+            </button>
+            <button
+              type="button"
+              class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"
+              disabled={layout().crossCount >= Math.min(MAX_CROSS_COUNT, totalImages)}
+              onClick={() => resizeCrossCount(1)}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"
+              disabled={layout().crossCount <= minimumCrossCount(layout())}
+              onClick={() => resizeCrossCount(-1)}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"
+              aria-label={texts.gallery.openScrollPreview}
+              title={texts.gallery.openScrollPreview}
+              onClick={() => props.onOpenOverlay?.(centeredPageNum())}
+            >
+              <Icon name="fullscreen" size="var(--ui-icon-size-sm)" />
+            </button>
+          </div>
         </div>
         </Show>
         <div class="relative min-h-0 w-full flex-1">
