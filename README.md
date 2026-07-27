@@ -27,5 +27,9 @@ EhPeek can work with the following scripts for a better experience and maintains
 | Latest | [GitHub](https://github.com/yamipot/ehpeek/raw/build-master/ehpeek.user.js) · [jsDelivr](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-master/ehpeek.user.js) |
 
 ## Preview
+
 <img width="200" height="440" alt="preview1" src="https://github.com/user-attachments/assets/081a7205-a1cd-49ea-ab25-b79a2cb63356" />
 <img width="200" height="440" alt="preview2" src="https://github.com/user-attachments/assets/2fe1ebfd-7961-4273-88d1-5245999923e1" />
+
+<img width="634" height="440" alt="horizontal1" src="https://github.com/user-attachments/assets/f41321b1-6d52-48a4-b90a-e10134d1f3dc" />
+<img width="307" height="440" alt="scroll" src="https://github.com/user-attachments/assets/b88b5fa2-22cb-43b7-b7ce-0dbc3927daf3" />
