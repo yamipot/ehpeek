@@ -1040,7 +1040,7 @@ function ScrollPreviewPanel(props: {
                 >
                 <PreviewTile
                   alignment={rightToLeft ? "right" : horizontal ? "left" : "center"}
-                  allowUpscale={!props.embedded && crossCountOverride() !== null}
+                  allowUpscale={props.embedded || crossCountOverride() !== null}
                   decodeCache={decodeCache}
                   failed={failedPreviewIndexes().has(previewCache.previewIndexForPage(slot.pageNum))}
                   height={layout().tileHeight}

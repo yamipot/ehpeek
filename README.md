@@ -7,10 +7,10 @@ A userscript that turns E-H / ExH pages into a touch-optimized gallery reader. I
 
 ## Features
 
-- Touch-optimized layouts for browsing galleries, searching, and viewing details.
-- Fullscreen reader with continuous-scroll and page-flip reading.
-- Faster navigation with gestures, enhanced pagination, and browsing history.
-- Reading progress and Continue support across galleries.
+- Touch-optimized layouts; two-column landscape view
+- Reader with paged and continuous-scroll modes
+- Scroll preview for browsing galleries at a glance
+- Gesture navigation, reading history, pinch zoom, etc.
 
 EhPeek can work with the following scripts for a better experience and maintains best-effort compatibility with them; compatibility with other scripts is not guaranteed:
 
