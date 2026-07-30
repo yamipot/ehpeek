@@ -34,6 +34,10 @@ function TouchTopBarUiMenu(props: {
     value: Accessor<UiScale>;
     onChange: (scale: UiScale) => void;
   };
+  leftHandedControls: {
+    enabled: Accessor<boolean>;
+    onChange: (enabled: boolean) => void;
+  };
   columns?: {
     enabled: Accessor<boolean>;
     onChange: (enabled: boolean) => void;
@@ -86,6 +90,9 @@ function TouchTopBarUiMenu(props: {
       <Show when={open()}>
         <div
           class="absolute top-[calc(100%+4px)] left-0 z-overlay flex gap-xs p-xs overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"
+          classList={{
+            "!left-auto right-0 flex-row-reverse": props.leftHandedControls.enabled(),
+          }}
           role="menu"
         >
           <button
@@ -97,6 +104,19 @@ function TouchTopBarUiMenu(props: {
               props.uiScale.onChange(NEXT_UI_SCALE[props.uiScale.value()])}
           >
             <Icon name="viewport" size={TOUCH_TOP_BAR_ICON_SIZE} />
+          </button>
+          <button
+            type="button"
+            class={TOUCH_ICON_BUTTON_CLASS}
+            aria-label={texts.settings.leftHandedControlsLabel}
+            aria-pressed={props.leftHandedControls.enabled()}
+            title={texts.settings.leftHandedControlsLabel}
+            onClick={() =>
+              props.leftHandedControls.onChange(!props.leftHandedControls.enabled())}
+          >
+            <span classList={{ "-scale-x-100": props.leftHandedControls.enabled() }}>
+              <Icon name="hand" size={TOUCH_TOP_BAR_ICON_SIZE} />
+            </span>
           </button>
           <button
             type="button"
@@ -147,7 +167,10 @@ function TouchTopBarUiMenu(props: {
   );
 }
 
-function TouchTopBarMenu(props: { navItems: TopBarDom["elems"]["navItems"] }) {
+function TouchTopBarMenu(props: {
+  leftHanded: Accessor<boolean>;
+  navItems: TopBarDom["elems"]["navItems"];
+}) {
   const [open, setOpen] = createSignal(false);
   let root!: HTMLDivElement;
 
@@ -182,7 +205,10 @@ function TouchTopBarMenu(props: { navItems: TopBarDom["elems"]["navItems"] }) {
         <Icon name="menu" size={TOUCH_TOP_BAR_ICON_SIZE} />
       </button>
       <Show when={open()}>
-        <div class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-180px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-12px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">
+        <div
+          class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-180px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-12px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"
+          classList={{ "!right-auto left-0": props.leftHanded() }}
+        >
           <For each={props.navItems}>{(item) => {
             const Component = item.Component;
             return <Component />;
@@ -204,6 +230,10 @@ export function TouchTopBar(props: {
     value: Accessor<UiScale>;
     onChange: (scale: UiScale) => void;
   };
+  leftHandedControls: {
+    enabled: Accessor<boolean>;
+    onChange: (enabled: boolean) => void;
+  };
   columns?: {
     enabled: Accessor<boolean>;
     onChange: (enabled: boolean) => void;
@@ -212,8 +242,14 @@ export function TouchTopBar(props: {
   onSettingsMenuOpen: () => void;
 }) {
   return (
-    <nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full h-[var(--ui-control-size-xl)] items-center justify-between pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans">
-      <div class="flex items-center gap-xs">
+    <nav
+      class="ehpeek-touch-top-bar relative z-ui flex box-border w-full h-[var(--ui-control-size-xl)] items-center justify-between pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans"
+      classList={{ "flex-row-reverse": props.leftHandedControls.enabled() }}
+    >
+      <div
+        class="flex items-center gap-xs"
+        classList={{ "flex-row-reverse": props.leftHandedControls.enabled() }}
+      >
         <a
           class={`ehpeek-touch-top-bar-project ${TOUCH_ICON_BUTTON_CLASS} [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]`}
           href={props.source.data.homeHref}
@@ -222,11 +258,15 @@ export function TouchTopBar(props: {
         </a>
         <TouchTopBarUiMenu
           fullscreen={props.fullscreen}
+          leftHandedControls={props.leftHandedControls}
           uiScale={props.uiScale}
           columns={props.columns}
         />
       </div>
-      <div class="flex items-center gap-xs">
+      <div
+        class="flex items-center gap-xs"
+        classList={{ "flex-row-reverse": props.leftHandedControls.enabled() }}
+      >
         <a
           class={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`}
           href={props.source.data.homeHref}
@@ -259,7 +299,10 @@ export function TouchTopBar(props: {
         >
           <Icon name="settings" size={TOUCH_TOP_BAR_ICON_SIZE} />
         </button>
-        <TouchTopBarMenu navItems={props.source.elems.navItems} />
+        <TouchTopBarMenu
+          leftHanded={props.leftHandedControls.enabled}
+          navItems={props.source.elems.navItems}
+        />
       </div>
     </nav>
   );

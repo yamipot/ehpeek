@@ -16,6 +16,7 @@ import Grid2X2 from "lucide-solid/icons/grid-2x2";
 import Heart from "lucide-solid/icons/heart";
 import History from "lucide-solid/icons/history";
 import House from "lucide-solid/icons/house";
+import Hand from "lucide-solid/icons/hand";
 import Info from "lucide-solid/icons/info";
 import Maximize from "lucide-solid/icons/maximize";
 import Minimize from "lucide-solid/icons/minimize";
@@ -52,6 +53,7 @@ export type IconName =
   | "fullscreen"
   | "fullscreen-exit"
   | "grid"
+  | "hand"
   | "heart"
   | "history"
   | "home"
@@ -123,6 +125,7 @@ const LUCIDE_ICONS: Record<LucideIconName, LucideIcon> = {
   fullscreen: Maximize,
   "fullscreen-exit": Minimize,
   grid: Grid2X2,
+  hand: Hand,
   heart: Heart,
   history: History,
   home: House,

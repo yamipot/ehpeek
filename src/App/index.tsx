@@ -94,6 +94,8 @@ function applySettingsMenuState(
 const gState = (() => {
   const settings = settingsMenuState();
   const [columnsEnabled, setColumnsEnabled] = createSignal(currentColumnsEnabled());
+  const [leftHandedControls, setLeftHandedControls] =
+    createSignal(state.app.leftHandedControls.value);
   const [settingsMenuOpen, setSettingsMenuOpen] = createSignal(false);
   const [uiScale, setUiScale] = createSignal(currentUiScale());
   const [readProgress, setReadProgress] = createSignal({
@@ -104,8 +106,10 @@ const gState = (() => {
   return {
     galleryWideLayout: null as eh.GalleryWideLayoutHandle | null,
     columnsEnabled,
+    leftHandedControls,
     readProgress,
     setReadProgress,
+    setLeftHandedControls,
     settings,
     settingsMenuOpen,
     setUiScale,
@@ -167,6 +171,11 @@ function setCurrentUiScale(scale: UiScale): void {
   setting.set(scale);
   gState.setUiScale(scale);
   applyUiScale(scale);
+}
+
+function setLeftHandedControls(enabled: boolean): void {
+  state.app.leftHandedControls.set(enabled);
+  gState.setLeftHandedControls(enabled);
 }
 
 document.documentElement.setAttribute("data-ehpeek-site", eh.ehSiteTheme());
@@ -284,6 +293,7 @@ function installSettingsMenu(): void {
   mount.mount(() => (
     <SettingsMenu
       historyHref={eh.readHistoryUrl()}
+      leftHandedControls={gState.leftHandedControls}
       open={gState.settingsMenuOpen()}
       defaultState={settingsMenuState(true)}
       initState={gState.settings}
@@ -413,6 +423,7 @@ function injectEnhanceUI(
               ? state.gallery.embeddedScrollPreviewColumnsDirection.value
               : state.gallery.embeddedScrollPreviewSingleDirection.value}
             fillEmbeddedContainer={gState.columnsEnabled}
+            leftHandedControls={gState.leftHandedControls}
             onExitPreview={(previewIndex) => {
               if (previewIndex === previewCache.current().data.currentIndex) {
                 return;
@@ -532,6 +543,10 @@ function injectTouchUI(
           historyHref={gState.settings.readHistoryEnabled
             ? eh.readHistoryUrl()
             : undefined}
+          leftHandedControls={{
+            enabled: gState.leftHandedControls,
+            onChange: setLeftHandedControls,
+          }}
           uiScale={{
             value: gState.uiScale,
             onChange: setCurrentUiScale,
@@ -552,7 +567,7 @@ function injectTouchUI(
   if (galleryPage || resultsPage) {
     allowFeatureFailure("Back to top", () => {
       const host = createAppMount("ehpeek-back-to-top-host");
-      host.mount(() => <BackToTop />);
+      host.mount(() => <BackToTop leftHanded={gState.leftHandedControls} />);
     });
   }
 
@@ -564,6 +579,7 @@ function injectTouchUI(
         galleryInfoDom.handle.installGalleryInfoPanel();
         galleryInfoDom.elems.mount.mount(() => (
           <GalleryInfoPanel
+            leftHandedControls={gState.leftHandedControls}
             source={galleryInfoDom}
             primaryAction={
               preview && previewCache ? (

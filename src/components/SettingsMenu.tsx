@@ -1,4 +1,13 @@
-import { createEffect, createSignal, For, onCleanup, onMount, Show, untrack } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+  untrack,
+  type Accessor,
+} from "solid-js";
 import { createStore } from "solid-js/store";
 import texts from "../texts.json";
 import { InteractionHelp } from "./InteractionHelp";
@@ -109,6 +118,7 @@ function SwitchButton(props: {
 
 export function SettingsMenu(props: {
   historyHref: string;
+  leftHandedControls: Accessor<boolean>;
   open: boolean;
   defaultState: SettingsMenuState;
   initState: SettingsMenuState;
@@ -185,7 +195,13 @@ export function SettingsMenu(props: {
 
   return (
     <Show when={props.open}>
-      <div ref={menu} class="ehpeek-settings-menu pointer-events-auto fixed top-24px right-24px coarse:top-8px coarse:right-8px z-overlay box-border flex w-[calc(var(--ui-control-size-xl)*6)] max-w-[calc(100vw-48px)] coarse:max-w-[calc(100vw-16px)] max-h-[calc(100vh-48px)] coarse:max-h-[calc(100dvh-16px)] flex-col overflow-hidden p-md border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text [font-size:var(--ui-font-size-md)] leading-[1.2]">
+      <div
+        ref={menu}
+        class="ehpeek-settings-menu pointer-events-auto fixed top-24px right-24px coarse:top-8px coarse:right-8px z-overlay box-border flex w-[calc(var(--ui-control-size-xl)*6)] max-w-[calc(100vw-48px)] coarse:max-w-[calc(100vw-16px)] max-h-[calc(100vh-48px)] coarse:max-h-[calc(100dvh-16px)] flex-col overflow-hidden p-md border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text [font-size:var(--ui-font-size-md)] leading-[1.2]"
+        classList={{
+          "!right-auto left-24px coarse:left-8px": props.leftHandedControls(),
+        }}
+      >
         <div
           class="grid grid-cols-4 flex-none gap-xs mb-sm rounded-md border ehp-color-site-border overflow-hidden"
           role="tablist"

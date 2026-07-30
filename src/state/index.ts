@@ -37,6 +37,7 @@ const landscapeUiScaleDefault: UiScale = touchUiDefault &&
 export const state = {
   app: {
     ehSyringeDetected: persisted("ehpeek:ehsyringe:detected", false),
+    leftHandedControls: persisted("ehpeek:left-handed-controls", false),
     openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", false),
     portraitUiScale: persisted<UiScale>("ehpeek:ui-scale:portrait", portraitUiScaleDefault),
     landscapeUiScale: persisted<UiScale>("ehpeek:ui-scale:landscape", landscapeUiScaleDefault),

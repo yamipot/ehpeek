@@ -7,6 +7,7 @@ import {
   onMount,
   Show,
   untrack,
+  type Accessor,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
@@ -66,6 +67,7 @@ export function ScrollPreview(props: {
   continuePageNum: number | null;
   embeddedDirection: ReadDirection;
   fillEmbeddedContainer: () => boolean;
+  leftHandedControls: Accessor<boolean>;
   onExitPreview: (previewIndex: number) => void;
   onLoadError: (error: unknown) => void;
   onOpenChange: (open: boolean) => void;
@@ -190,6 +192,7 @@ export function ScrollPreview(props: {
             decodeCache={decodeCache}
             embedded
             highlightedPageNum={props.continuePageNum}
+            leftHandedControls={props.leftHandedControls}
             onDirectionChange={(next, pageNum) => {
               setTargetPageNum(pageNum);
               setEmbeddedReadDirection(next);
@@ -237,6 +240,7 @@ export function ScrollPreview(props: {
               decodeCache={decodeCache}
               embedded={false}
               highlightedPageNum={highlightedPageNum()}
+              leftHandedControls={props.leftHandedControls}
               onClose={(previewIndex) => {
                 requestClose(() => onExitPreview(previewIndex));
               }}
@@ -268,6 +272,7 @@ function ScrollPreviewPanel(props: {
   decodeCache: PreviewDecodeCache;
   embedded: boolean;
   highlightedPageNum: number | null;
+  leftHandedControls: Accessor<boolean>;
   onClose?: (previewIndex: number) => void;
   onDirectionChange?: (direction: ReadDirection, pageNum: number) => void;
   onLoadError: (error: unknown) => void;
@@ -924,14 +929,14 @@ function ScrollPreviewPanel(props: {
         <Show
           when={props.embedded}
           fallback={
-          <div class="flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-border)] textsize-sm">
+          <div class={`flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-border)] textsize-sm${props.leftHandedControls() ? " flex-row-reverse" : ""}`}>
             <span class="flex items-center gap-sm opacity-75">
               <Show when={loadingCount() > 0}>
                 <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
               </Show>
               {`${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`}
             </span>
-            <div class="flex flex-none gap-sm">
+            <div class={`flex flex-none gap-sm${props.leftHandedControls() ? " flex-row-reverse" : ""}`}>
               <button
                 type="button"
                 class={READER_FLOATING_ACTION_CLASS}
@@ -993,7 +998,13 @@ function ScrollPreviewPanel(props: {
             </Show>
             {`${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`}
           </span>
-          <div class="col-start-3 flex flex-none items-center justify-self-end gap-xs">
+          <div
+            class={`flex flex-none items-center gap-xs ${
+              props.leftHandedControls()
+                ? "col-start-1 row-start-1 justify-self-start flex-row-reverse"
+                : "col-start-3 justify-self-end"
+            }`}
+          >
             <button
               type="button"
               class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"

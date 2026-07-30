@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, onCleanup, onMount, Show, type Accessor } from "solid-js";
 import { Icon } from "./Icon";
 
 const BACK_TO_TOP_POSITION_KEY = "ehpeek:back-to-top:position";
@@ -8,7 +8,7 @@ type ButtonPosition = {
   right: number;
 };
 
-export function BackToTop() {
+export function BackToTop(props: { leftHanded: Accessor<boolean> }) {
   let button!: HTMLButtonElement;
   let drag: { bottom: number; pointerId: number; right: number; x: number; y: number } | null = null;
   let dragged = false;
@@ -42,6 +42,10 @@ export function BackToTop() {
         ref={button}
         type="button"
         class="ehpeek-back-to-top fixed right-[max(16px,env(safe-area-inset-right,0px))] bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_64px)] z-ui inline-flex w-lg h-lg items-center justify-center rounded-full border-0 bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96"
+        classList={{
+          "!right-auto left-[max(16px,env(safe-area-inset-left,0px))]":
+            props.leftHanded() && position() === null,
+        }}
         style={positionStyle()}
         onPointerDown={(event) => {
           const rect = button.getBoundingClientRect();

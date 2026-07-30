@@ -1,4 +1,5 @@
 import {
+  type Accessor,
   createMemo,
   createSignal,
   For,
@@ -28,6 +29,7 @@ const RATING_ACTION_BUTTON_CLASS =
 type GalleryPanelTagGroup = GalleryInfoTagGroup;
 
 export function GalleryInfoPanel(props: {
+  leftHandedControls: Accessor<boolean>;
   primaryAction?: JSX.Element;
   source: GalleryInfoDom;
 }) {
@@ -230,10 +232,19 @@ export function GalleryInfoPanel(props: {
       </div>
       <div
         class="ehpeek-touch-gallery-primary relative z-1 grid grid-cols-[1fr_1fr] min-h-[var(--ui-control-size-xl)] mt--9px large:mt--18px mr-[max(7px,env(safe-area-inset-right,0px))] large:mr-[max(14px,env(safe-area-inset-right,0px))] ml-[max(7px,env(safe-area-inset-left,0px))] large:ml-[max(14px,env(safe-area-inset-left,0px))] overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"
+        classList={{ "[direction:rtl]": props.leftHandedControls() }}
         onDragStart={(event: DragEvent) => event.preventDefault()}
       >
-        <TouchGalleryFavoriteButton source={source} />
-        <div class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-l-4 large:border-l-8 border-solid border-l-[var(--color-site-page)]">
+        <div class="contents [direction:ltr]">
+          <TouchGalleryFavoriteButton source={source} />
+        </div>
+        <div
+          class="ehpeek-touch-gallery-primary-actions flex min-w-0 border-0 border-solid border-[var(--color-site-page)] [direction:ltr]"
+          classList={{
+            "border-r-4 large:border-r-8": props.leftHandedControls(),
+            "border-l-4 large:border-l-8": !props.leftHandedControls(),
+          }}
+        >
           {props.primaryAction}
         </div>
       </div>

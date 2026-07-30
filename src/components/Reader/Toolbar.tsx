@@ -1,5 +1,11 @@
 import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
-import type { NavigationMode, PageLayout, ReadDirection, RightTapAction } from "../../state";
+import {
+  state,
+  type NavigationMode,
+  type PageLayout,
+  type ReadDirection,
+  type RightTapAction,
+} from "../../state";
 import texts from "../../texts.json";
 import { stopEvent } from "../../utils";
 import { Dialog } from "../Widgets/Dialog";
@@ -72,6 +78,7 @@ export function Toolbar(props: {
   open: boolean;
   progress: PageProgress;
 }) {
+  const leftHandedControls = state.app.leftHandedControls.value;
   const [downloadDialogPageNum, setDownloadDialogPageNum] = createSignal<number | null>(null);
   const [helpOpen, setHelpOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
@@ -130,7 +137,10 @@ export function Toolbar(props: {
       <div
         class={
           "fixed z-2 flex justify-end transition-[opacity,transform] duration-160 ease-in-out " +
-          "right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(var(--ui-control-size-lg)*2+44px+env(safe-area-inset-bottom,0px))] " +
+          (leftHandedControls
+            ? "left-[max(12px,env(safe-area-inset-left,0px))] "
+            : "right-[max(12px,env(safe-area-inset-right,0px))] ") +
+          "bottom-[calc(var(--ui-control-size-lg)*2+44px+env(safe-area-inset-bottom,0px))] " +
           "[&[data-open=false]]:(opacity-0 translate-y-[calc(100%+16px)] pointer-events-none)"
         }
         data-open={String(props.open)}
@@ -172,15 +182,18 @@ export function Toolbar(props: {
       <div
         class={
           "ehpeek-reader-toolbar fixed z-3 flex justify-end pointer-events-none " +
-          "top-[calc(10px+env(safe-area-inset-top,0px))] right-10px " +
-          "coarse:top-[calc(8px+env(safe-area-inset-top,0px))] coarse:right-8px"
+          "top-[calc(10px+env(safe-area-inset-top,0px))] " +
+          (leftHandedControls
+            ? "left-10px coarse:left-8px "
+            : "right-10px coarse:right-8px ") +
+          "coarse:top-[calc(8px+env(safe-area-inset-top,0px))]"
         }
         onClick={stopEvent}
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div class={`ehpeek-reader-toolbar-buttons flex flex-col items-end gap-md coarse:gap-lg pointer-events-auto${props.open ? "" : " !hidden"}`}>
-          <div class="flex flex-row gap-md coarse:gap-lg">
+        <div class={`ehpeek-reader-toolbar-buttons flex flex-col ${leftHandedControls ? "items-start" : "items-end"} gap-md coarse:gap-lg pointer-events-auto${props.open ? "" : " !hidden"}`}>
+          <div class={`flex flex-row gap-md coarse:gap-lg${leftHandedControls ? " flex-row-reverse" : ""}`}>
           <button
             type="button"
             class={READER_BUTTON_CLASS}
@@ -218,7 +231,7 @@ export function Toolbar(props: {
           </button>
           </div>
           <Show when={moreOpen()}>
-            <div class="flex flex-row gap-md coarse:gap-lg">
+            <div class={`flex flex-row gap-md coarse:gap-lg${leftHandedControls ? " flex-row-reverse" : ""}`}>
               <button
                 type="button"
                 class={READER_BUTTON_CLASS}
@@ -310,11 +323,14 @@ export function Toolbar(props: {
       <div
         class={
           "ehpeek-reader-page-number fixed z-3 pointer-events-none " +
-          "top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] right-auto " +
+          "top-[calc(10px+env(safe-area-inset-top,0px))] " +
+          (leftHandedControls
+            ? "right-[max(10px,env(safe-area-inset-right,0px))] left-auto "
+            : "left-[max(10px,env(safe-area-inset-left,0px))] right-auto ") +
           "min-w-0 max-w-[calc(100vw-20px)] " +
           "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text " +
           "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap " +
-          "text-left"
+          (leftHandedControls ? "text-right" : "text-left")
         }
         hidden={props.controls.navigationMode === "scroll" && !props.open && !props.fullscreenActive}
       >
@@ -329,7 +345,10 @@ export function Toolbar(props: {
         <div
           class={
             "ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none " +
-            "top-[calc(10px+env(safe-area-inset-top,0px))] left-[max(10px,env(safe-area-inset-left,0px))] " +
+            "top-[calc(10px+env(safe-area-inset-top,0px))] " +
+            (leftHandedControls
+              ? "right-[max(10px,env(safe-area-inset-right,0px))] "
+              : "left-[max(10px,env(safe-area-inset-left,0px))] ") +
             "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text " +
             "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap"
           }
