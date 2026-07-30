@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260730.0711
+// @version      260730.1714
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -3624,7 +3624,9 @@ Next page`,
       return null;
     let optionLinkItems = optionLinks?.all(domClass.search.panel.optionLinks) ?? [], advancedToggle = advancedPanel ? optionLinkItems[0] ?? null : null, fileSearchToggle = fileSearch ? optionLinkItems[advancedToggle ? 1 : 0] ?? null : null, advancedToggleMount = advancedToggle ? createAnchor("search-advanced-toggle") : null, fileSearchToggleMount = fileSearchToggle ? createAnchor("search-file-toggle") : null, searchControls = createManagedElement("div", {
       overlay: "ehpeek-overlay-search-actions"
-    }).apply("overlay"), optionLinksApply = { wrap: "ehpeek-wrap-search-options" }, elems = {
+    }).apply("overlay");
+    searchSubmit.inplace(domClass.search.panel.submit.apply).apply("hide");
+    let optionLinksApply = { wrap: "ehpeek-wrap-search-options" }, elems = {
       advancedPanel: source.box.advanced.inplace()?.apply("expand") ?? null,
       advancedToggle: advancedToggle?.inplace() ?? null,
       advancedToggleMount,
@@ -3641,10 +3643,9 @@ Next page`,
       searchActionMount,
       searchBox: source.box.inplace()?.apply("reset") ?? searchControls,
       searchControls,
-      searchInput: searchInput.inplace(domClass.search.input.apply).apply("expand"),
-      searchSubmit: searchSubmit.inplace(domClass.search.panel.submit.apply).apply("hide")
+      searchInput: searchInput.inplace(domClass.search.input.apply).apply("expand")
     };
-    (standardSearchBox ? elems.searchBox : elems.form).before(elems.mount), standardSearchBox && elems.searchBox.remove(), elems.searchInput.replaceWith(elems.searchControls), elems.searchControls.append(elems.searchInput), elems.searchSubmit.remove(), elems.clearButton && elems.clearActionMount && (elems.clearButton.remove(), elems.searchControls.append(elems.clearActionMount)), elems.searchControls.append(elems.searchActionMount), elems.categories && elems.optionLinks && elems.categoryToggleMount && (elems.optionLinks.after(elems.categories), elems.optionLinks.prepend(elems.categoryToggleMount)), elems.optionLinks && elems.advancedToggle && elems.advancedToggleMount && (elems.advancedToggle.after(elems.advancedToggleMount), elems.advancedToggle.remove()), elems.optionLinks && elems.fileSearchToggle && elems.fileSearchToggleMount && (elems.fileSearchToggle.after(elems.fileSearchToggleMount), elems.fileSearchToggle.remove()), elems.fileSearch?.remove();
+    (standardSearchBox ? elems.searchBox : elems.form).before(elems.mount), standardSearchBox && elems.searchBox.remove(), elems.searchInput.replaceWith(elems.searchControls), elems.searchControls.append(elems.searchInput), elems.clearButton && elems.clearActionMount && (elems.clearButton.remove(), elems.searchControls.append(elems.clearActionMount)), elems.searchControls.append(elems.searchActionMount), elems.categories && elems.optionLinks && elems.categoryToggleMount && (elems.optionLinks.after(elems.categories), elems.optionLinks.prepend(elems.categoryToggleMount)), elems.optionLinks && elems.advancedToggle && elems.advancedToggleMount && (elems.advancedToggle.after(elems.advancedToggleMount), elems.advancedToggle.remove()), elems.optionLinks && elems.fileSearchToggle && elems.fileSearchToggleMount && (elems.fileSearchToggle.after(elems.fileSearchToggleMount), elems.fileSearchToggle.remove()), elems.fileSearch?.remove();
     let formInsideSearchBox = source.box.form.one()?.sameNode(form2) ?? !1, formId = form2.attribute("id") || "ehpeek-search-form", data = {
       clearLabel: clearButton ? actionLabel(clearButton) : null,
       hasClear: elems.clearButton !== null && elems.clearActionMount !== null,
@@ -3658,7 +3659,9 @@ Next page`,
       },
       /** Activates E-H's original Search submit control. */
       activateSearch() {
-        elems.searchSubmit.click();
+        elems.form.all(
+          `.${domClass.search.panel.submit.apply.hide}[type="submit"]`
+        )[0]?.click();
       },
       /** Clears only the Search text without invoking E-H's page-navigation reset. */
       clearSearchText() {
@@ -3671,7 +3674,7 @@ Next page`,
         elems.fileSearchToggle?.click();
       }
     };
-    return formInsideSearchBox || (elems.form.setAttributes({ id: formId }), elems.searchInput.setAttributes({ form: formId }), elems.searchSubmit.setAttributes({ form: formId }), elems.clearButton?.setAttributes({ form: formId })), { data, elems, handle };
+    return formInsideSearchBox || (elems.form.setAttributes({ id: formId }), elems.searchInput.setAttributes({ form: formId }), elems.clearButton?.setAttributes({ form: formId })), { data, elems, handle };
   }
   function actionLabel(element) {
     return element.attribute("value") ?? element.text();
@@ -7450,7 +7453,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260730.0711", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260730.1714", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
@@ -8366,7 +8369,7 @@ Next page`,
   delegateEvents(["click"]);
 
   // src/components/TouchUI/SearchPanel.tsx
-  var _tmpl$31 = /* @__PURE__ */ template('<section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_16px)] large:w-[calc(100%_-_32px)] max-w-960px flex-col gap-sm large:gap-md mx-auto mb-sm large:mb-lg p-sm large:p-lg border ehp-color-site-border rounded-sm large:rounded-lg ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans">'), _tmpl$213 = /* @__PURE__ */ template('<button type=button class="appearance-none inline-flex min-h-[var(--ui-control-size-sm)] items-center px-md border-0 rounded-sm large:rounded-md bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]">'), _tmpl$310 = /* @__PURE__ */ template("<button>"), _tmpl$410 = /* @__PURE__ */ template('<span class="contents [&amp;>*:not([hidden])]:col-span-full">');
+  var _tmpl$31 = /* @__PURE__ */ template('<section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_16px)] large:w-[calc(100%_-_32px)] max-w-960px flex-col gap-sm large:gap-md mx-auto mb-sm large:mb-lg p-sm large:p-lg border ehp-color-site-border rounded-sm large:rounded-lg ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans">'), _tmpl$213 = /* @__PURE__ */ template('<button type=button class="appearance-none inline-flex min-h-[var(--ui-control-size-sm)] items-center px-md border-0 rounded-sm large:rounded-md bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]">'), _tmpl$310 = /* @__PURE__ */ template("<button>");
   var TOUCH_SEARCH_ACTION_CLASS = "appearance-none inline-flex box-border w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] items-center justify-center p-0 rounded-sm large:rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-120 [touch-action:manipulation] active:scale-96 active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-search-icon-size:var(--ui-icon-size-md)]";
   function TouchSearchPanel(props) {
     return (() => {
@@ -8415,8 +8418,8 @@ Next page`,
     })();
   }
   function TouchSearchAction(props) {
-    let source = untrack(() => props.source), search2 = untrack(() => props.action === "search"), label = search2 ? source.data.searchLabel : source.data.clearLabel ?? "", original = search2 ? source.elems.searchSubmit : source.elems.clearButton;
-    return [(() => {
+    let source = untrack(() => props.source), search2 = untrack(() => props.action === "search"), label = search2 ? source.data.searchLabel : source.data.clearLabel ?? "";
+    return (() => {
       var _el$3 = _tmpl$310();
       return _el$3.$$click = (event) => {
         event.preventDefault(), search2 ? source.handle.activateSearch() : source.handle.clearSearchText();
@@ -8424,17 +8427,12 @@ Next page`,
         name: search2 ? "search" : "close",
         size: "var(--ehpeek-touch-search-icon-size)"
       })), createRenderEffect(() => className(_el$3, search2 ? `${TOUCH_SEARCH_ACTION_CLASS} z-1 ${source.data.hasClear ? "col-start-3" : "col-start-2"} row-start-1 ehp-color-site-accent` : `${TOUCH_SEARCH_ACTION_CLASS} z-1 col-start-2 row-start-1 ehp-color-site-text`)), _el$3;
-    })(), (() => {
-      var _el$4 = _tmpl$410();
-      return insert(_el$4, createComponent(DomNode2, {
-        node: original
-      })), _el$4;
-    })()];
+    })();
   }
   delegateEvents(["click"]);
 
   // src/components/TouchUI/TopBar.tsx
-  var _tmpl$40 = /* @__PURE__ */ template('<div class="absolute top-[calc(100%+4px)] left-0 z-overlay flex gap-xs p-xs overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"role=menu><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></button><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"><span></span></button><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$214 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-ui-menu relative"><button type=button class="ehpeek-touch-top-bar-ui-menu-button inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$311 = /* @__PURE__ */ template('<button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$411 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-180px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-12px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$58 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu relative"><button type=button class="ehpeek-touch-top-bar-menu-button inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$68 = /* @__PURE__ */ template('<nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full h-[var(--ui-control-size-xl)] items-center justify-between pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans"><div class="flex items-center gap-xs"><a class="ehpeek-touch-top-bar-project inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)] [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]"></a></div><div class="flex items-center gap-xs"><a class="ehpeek-touch-top-bar-home inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><a class="ehpeek-touch-top-bar-favorites inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><button type=button class="ehpeek-touch-top-bar-settings inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$75 = /* @__PURE__ */ template('<a class="ehpeek-touch-top-bar-history inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)", TOUCH_TOP_BAR_PROJECT_ICON_SIZE = "var(--ehpeek-touch-top-bar-project-icon-size)", TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE = "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
+  var _tmpl$40 = /* @__PURE__ */ template('<div class="absolute top-[calc(100%+4px)] left-0 z-overlay flex gap-xs p-xs overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"role=menu><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></button><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"><span></span></button><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$214 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-ui-menu relative"><button type=button class="ehpeek-touch-top-bar-ui-menu-button inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$311 = /* @__PURE__ */ template('<button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$410 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-180px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-12px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$58 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu relative"><button type=button class="ehpeek-touch-top-bar-menu-button inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$68 = /* @__PURE__ */ template('<nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full h-[var(--ui-control-size-xl)] items-center justify-between pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans"><div class="flex items-center gap-xs"><a class="ehpeek-touch-top-bar-project inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)] [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]"></a></div><div class="flex items-center gap-xs"><a class="ehpeek-touch-top-bar-home inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><a class="ehpeek-touch-top-bar-favorites inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><button type=button class="ehpeek-touch-top-bar-settings inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$75 = /* @__PURE__ */ template('<a class="ehpeek-touch-top-bar-history inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)", TOUCH_TOP_BAR_PROJECT_ICON_SIZE = "var(--ehpeek-touch-top-bar-project-icon-size)", TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE = "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
   var NEXT_UI_SCALE = {
     small: "medium",
     medium: "large",
@@ -8552,7 +8550,7 @@ Next page`,
           return open();
         },
         get children() {
-          var _el$1 = _tmpl$411();
+          var _el$1 = _tmpl$410();
           return insert(_el$1, createComponent(For, {
             get each() {
               return props.navItems;
@@ -10181,7 +10179,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .z-3{z-index:3;}
 .z-4{z-index:4;}
 .grid{display:grid;}
-.\\[\\&\\>\\*\\:not\\(\\[hidden\\]\\)\\]\\:col-span-full>*:not([hidden]){grid-column:1/-1;}
 .col-start-1{grid-column-start:1;}
 .col-start-2{grid-column-start:2;}
 .col-start-3{grid-column-start:3;}
@@ -10713,7 +10710,7 @@ html:fullscreen .ehpeek-touch-top-bar {
 `;
 
   // src/components/Reader/Viewport.tsx
-  var _tmpl$41 = /* @__PURE__ */ template("<div tabindex=-1><main>"), _tmpl$215 = /* @__PURE__ */ template('<span class="pointer-events-none absolute right-sm bottom-sm z-1 block w-sm h-sm box-border animate-spin rounded-full border-2px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]"role=status>'), _tmpl$312 = /* @__PURE__ */ template('<section><div class="relative flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [container-type:size]">'), _tmpl$412 = /* @__PURE__ */ template('<button type=button class="ehpeek-reader-page-reload appearance-none inline-flex w-64px h-64px items-center justify-center border border-[var(--color-border)] rounded-md bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-lg font-700 leading-1 hover:bg-[var(--color-badge)] active:scale-96 [touch-action:manipulation]">'), _tmpl$59 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$69 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] opacity-80 break-anywhere textsize-sm font-500 leading-[1.4] [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$76 = /* @__PURE__ */ template("<div>"), _tmpl$85 = /* @__PURE__ */ template('<span class="flex w-full h-full flex-col items-center justify-center gap-xl overflow-hidden"aria-hidden=true><span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]"></span><span class="block w-md h-md flex-none box-border animate-spin rounded-full border-4px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]">'), FALLBACK_ASPECT_RATIO = 1.42, PAGE_SLOT_SPACING = 8, DEFAULT_DECODED_IMAGE_CACHE_LIMIT = 24, DECODED_IMAGE_CACHE_BYTES = 96 * 1024 * 1024, HORIZONTAL_FLING_VELOCITY_MULTIPLIER = 1.4, HORIZONTAL_FLING_MAX_VELOCITY = 1.8;
+  var _tmpl$41 = /* @__PURE__ */ template("<div tabindex=-1><main>"), _tmpl$215 = /* @__PURE__ */ template('<span class="pointer-events-none absolute right-sm bottom-sm z-1 block w-sm h-sm box-border animate-spin rounded-full border-2px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]"role=status>'), _tmpl$312 = /* @__PURE__ */ template('<section><div class="relative flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [container-type:size]">'), _tmpl$411 = /* @__PURE__ */ template('<button type=button class="ehpeek-reader-page-reload appearance-none inline-flex w-64px h-64px items-center justify-center border border-[var(--color-border)] rounded-md bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-lg font-700 leading-1 hover:bg-[var(--color-badge)] active:scale-96 [touch-action:manipulation]">'), _tmpl$59 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$69 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] opacity-80 break-anywhere textsize-sm font-500 leading-[1.4] [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$76 = /* @__PURE__ */ template("<div>"), _tmpl$85 = /* @__PURE__ */ template('<span class="flex w-full h-full flex-col items-center justify-center gap-xl overflow-hidden"aria-hidden=true><span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]"></span><span class="block w-md h-md flex-none box-border animate-spin rounded-full border-4px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]">'), FALLBACK_ASPECT_RATIO = 1.42, PAGE_SLOT_SPACING = 8, DEFAULT_DECODED_IMAGE_CACHE_LIMIT = 24, DECODED_IMAGE_CACHE_BYTES = 96 * 1024 * 1024, HORIZONTAL_FLING_VELOCITY_MULTIPLIER = 1.4, HORIZONTAL_FLING_MAX_VELOCITY = 1.8;
   function pageWindowNumbers(currentPageNum, windowSize) {
     let numbers = [];
     for (let offset = -windowSize; offset <= windowSize; offset += 1)
@@ -11117,7 +11114,7 @@ html:fullscreen .ehpeek-touch-top-bar {
         },
         get children() {
           return [(() => {
-            var _el$7 = _tmpl$412();
+            var _el$7 = _tmpl$411();
             return _el$7.$$click = (event) => {
               stop(event), props.onReloadPage(props.content.pageNum);
             }, _el$7.$$pointerdown = stop, insert(_el$7, createComponent(Icon2, {
@@ -11521,7 +11518,7 @@ html:fullscreen .ehpeek-touch-top-bar {
   }
 
   // src/components/Reader/ViewportCanvas.tsx
-  var _tmpl$51 = /* @__PURE__ */ template('<div class="absolute inset-0 z-2 touch-none select-none">'), _tmpl$216 = /* @__PURE__ */ template("<span>"), _tmpl$313 = /* @__PURE__ */ template('<div class="ehpeek-reader-viewport-toolbar fixed bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-1/2 z-3 flex w-[min(680px,calc(100vw-24px))] -translate-x-1/2 flex-col items-center gap-sm rounded-lg border border-[var(--color-reader-border)] bg-[var(--color-control)] p-sm shadow-xl landscape:w-[min(600px,calc(100vw-24px))]"role=toolbar><div class="grid w-full grid-cols-[48px_minmax(64px,1fr)_64px_64px] items-center justify-center gap-sm coarse:grid-cols-[48px_minmax(40px,1fr)_80px_80px]"><span class="flex w-full flex-col items-center justify-center text-center font-mono textsize-sm font-600 leading-[1.05]"><span></span></span><input type=range class="w-full min-w-0 accent-[var(--color-reader-accent)]"min=10 max=500 step=1><button type=button></button><button type=button>1:1</button></div><div class="grid w-fit max-w-full grid-cols-[auto_96px_96px] items-stretch justify-center gap-sm coarse:w-full coarse:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]"><button type=button></button><button type=button></button><button type=button>'), _tmpl$413 = /* @__PURE__ */ template('<div class="fixed inset-0 z-1">'), MIN_SCALE_PERCENT = 10, MAX_SCALE_PERCENT = 500;
+  var _tmpl$51 = /* @__PURE__ */ template('<div class="absolute inset-0 z-2 touch-none select-none">'), _tmpl$216 = /* @__PURE__ */ template("<span>"), _tmpl$313 = /* @__PURE__ */ template('<div class="ehpeek-reader-viewport-toolbar fixed bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-1/2 z-3 flex w-[min(680px,calc(100vw-24px))] -translate-x-1/2 flex-col items-center gap-sm rounded-lg border border-[var(--color-reader-border)] bg-[var(--color-control)] p-sm shadow-xl landscape:w-[min(600px,calc(100vw-24px))]"role=toolbar><div class="grid w-full grid-cols-[48px_minmax(64px,1fr)_64px_64px] items-center justify-center gap-sm coarse:grid-cols-[48px_minmax(40px,1fr)_80px_80px]"><span class="flex w-full flex-col items-center justify-center text-center font-mono textsize-sm font-600 leading-[1.05]"><span></span></span><input type=range class="w-full min-w-0 accent-[var(--color-reader-accent)]"min=10 max=500 step=1><button type=button></button><button type=button>1:1</button></div><div class="grid w-fit max-w-full grid-cols-[auto_96px_96px] items-stretch justify-center gap-sm coarse:w-full coarse:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]"><button type=button></button><button type=button></button><button type=button>'), _tmpl$412 = /* @__PURE__ */ template('<div class="fixed inset-0 z-1">'), MIN_SCALE_PERCENT = 10, MAX_SCALE_PERCENT = 500;
   function ViewportCanvas(props) {
     let pointers = /* @__PURE__ */ new Map(), pinchStart = null, interactionLayer, sliderPercent = () => Math.min(MAX_SCALE_PERCENT, Math.max(MIN_SCALE_PERCENT, props.scalePercent ?? 100)), clampScale = (scale) => Math.min(MAX_SCALE_PERCENT / 100, Math.max(MIN_SCALE_PERCENT / 100, scale)), stopInteraction = (event) => {
       event.preventDefault(), event.stopPropagation();
@@ -11531,7 +11528,7 @@ html:fullscreen .ehpeek-touch-top-bar {
     return createEffect(() => {
       props.adjusting || (pointers.clear(), pinchStart = null);
     }), (() => {
-      var _el$ = _tmpl$413();
+      var _el$ = _tmpl$412();
       return insert(_el$, () => props.children, null), insert(_el$, createComponent(Show, {
         get when() {
           return props.adjusting;
@@ -12851,7 +12848,7 @@ html:fullscreen .ehpeek-touch-top-bar {
       }) : null)]);
     }) : galleryPage && preview && previewCache && allowFeatureFailure("Original thumbnail grid", () => {
       preview.elems.mount?.remove();
-    }), gState.settings.enhanceSearchGridsEnabled && searchResultsDom && (searchResultsDom.data.previousUrl || searchResultsDom.data.nextUrl) && allowFeatureFailure("Enhanced Search pagination", () => {
+    }), gState.settings.enhanceSearchGridsEnabled && searchResultsDom && allowFeatureFailure("Enhanced Search pagination", () => {
       createAppMount().mount(() => createComponent(EnhanceSearchGrids, {
         source: searchResultsDom,
         onPageChange: (source) => {
