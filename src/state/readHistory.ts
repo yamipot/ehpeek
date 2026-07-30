@@ -266,7 +266,7 @@ function saveReadHistory(record: ReadHistoryRecord): void {
   const key = historyKey(record.galleryId, record.token);
   const previous = GM_getValue<StoredReadHistoryRecord | null>(key, null);
   const exists = previous !== null;
-  const queueOrder = createQueueOrder();
+  const queueOrder = createQueueOrder(record);
 
   GM_setValue(key, {
     ...record,
@@ -446,8 +446,8 @@ function pruneReadHistory(): void {
     GM_deleteValue(entry.key);
   }
 
-  retained.reverse().forEach((entry, index) => {
-    const queueOrder = compactQueueOrder(index);
+  retained.forEach((entry) => {
+    const queueOrder = createQueueOrder(entry.record);
     const record = { ...entry.record, queueOrder };
     GM_setValue(entry.key, record);
     GM_setValue(
@@ -481,12 +481,8 @@ function queueOrderFromKey(key: string): string {
   return key.slice(HISTORY_QUEUE_KEY_PREFIX.length);
 }
 
-function createQueueOrder(): string {
-  const [randomValue = 0] = crypto.getRandomValues(new Uint32Array(1));
-  const random = randomValue.toString(36).padStart(7, "0");
-  return `${Date.now().toString().padStart(13, "0")}-${random}`;
-}
-
-function compactQueueOrder(index: number): string {
-  return index.toString().padStart(20, "0");
+function createQueueOrder(
+  record: Pick<ReadHistoryRecord, "galleryId" | "updatedAt">,
+): string {
+  return `${record.updatedAt}-${record.galleryId}`;
 }
