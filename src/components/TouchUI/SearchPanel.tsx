@@ -53,28 +53,24 @@ export function TouchSearchAction(props: { action: "search" | "clear"; source: S
   const source = untrack(() => props.source);
   const search = untrack(() => props.action === "search");
   const label = search ? source.data.searchLabel : source.data.clearLabel ?? "";
-  const original = search ? source.elems.searchSubmit : source.elems.clearButton;
   return (
-    <>
-      <button
-        type={search ? "submit" : "button"}
-        class={search
-          ? `${TOUCH_SEARCH_ACTION_CLASS} z-1 ${source.data.hasClear ? "col-start-3" : "col-start-2"} row-start-1 ehp-color-site-accent`
-          : `${TOUCH_SEARCH_ACTION_CLASS} z-1 col-start-2 row-start-1 ehp-color-site-text`}
-        aria-label={label}
-        title={label}
-        onClick={(event: MouseEvent) => {
-          event.preventDefault();
-          if (search) {
-            source.handle.activateSearch();
-          } else {
-            source.handle.clearSearchText();
-          }
-        }}
-      >
-        <Icon name={search ? "search" : "close"} size="var(--ehpeek-touch-search-icon-size)" />
-      </button>
-      <span class="contents [&>*:not([hidden])]:col-span-full"><DomNode node={original} /></span>
-    </>
+    <button
+      type={search ? "submit" : "button"}
+      class={search
+        ? `${TOUCH_SEARCH_ACTION_CLASS} z-1 ${source.data.hasClear ? "col-start-3" : "col-start-2"} row-start-1 ehp-color-site-accent`
+        : `${TOUCH_SEARCH_ACTION_CLASS} z-1 col-start-2 row-start-1 ehp-color-site-text`}
+      aria-label={label}
+      title={label}
+      onClick={(event: MouseEvent) => {
+        event.preventDefault();
+        if (search) {
+          source.handle.activateSearch();
+        } else {
+          source.handle.clearSearchText();
+        }
+      }}
+    >
+      <Icon name={search ? "search" : "close"} size="var(--ehpeek-touch-search-icon-size)" />
+    </button>
   );
 }

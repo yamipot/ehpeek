@@ -479,8 +479,7 @@ function injectEnhanceUI(
 
   if (
     gState.settings.enhanceSearchGridsEnabled &&
-    searchResultsDom &&
-    (searchResultsDom.data.previousUrl || searchResultsDom.data.nextUrl)
+    searchResultsDom
   ) {
     allowFeatureFailure("Enhanced Search pagination", () => {
       const host = createAppMount();

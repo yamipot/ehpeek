@@ -45,6 +45,7 @@ export function manageSearchPanel() {
   const searchControls = createManagedElement("div", {
     overlay: "ehpeek-overlay-search-actions",
   }).apply("overlay");
+  searchSubmit.inplace(domClass.search.panel.submit.apply).apply("hide");
   const optionLinksApply = { wrap: "ehpeek-wrap-search-options" } as const;
   const elems = {
     advancedPanel: source.box.advanced.inplace()?.apply("expand") ?? null,
@@ -64,7 +65,6 @@ export function manageSearchPanel() {
     searchBox: source.box.inplace()?.apply("reset") ?? searchControls,
     searchControls,
     searchInput: searchInput.inplace(domClass.search.input.apply).apply("expand"),
-    searchSubmit: searchSubmit.inplace(domClass.search.panel.submit.apply).apply("hide"),
   } satisfies ManagedDomElements;
 
   (standardSearchBox ? elems.searchBox : elems.form).before(elems.mount);
@@ -73,7 +73,6 @@ export function manageSearchPanel() {
   }
   elems.searchInput.replaceWith(elems.searchControls);
   elems.searchControls.append(elems.searchInput);
-  elems.searchSubmit.remove();
   if (elems.clearButton && elems.clearActionMount) {
     elems.clearButton.remove();
     elems.searchControls.append(elems.clearActionMount);
@@ -115,7 +114,12 @@ export function manageSearchPanel() {
     },
     /** Activates E-H's original Search submit control. */
     activateSearch() {
-      elems.searchSubmit.click();
+      // EhSyringe replaces translated submit inputs, so resolve its live replacement at activation time.
+      elems.form
+        .all<HTMLInputElement | HTMLButtonElement>(
+          `.${domClass.search.panel.submit.apply.hide}[type="submit"]`,
+        )[0]
+        ?.click();
     },
     /** Clears only the Search text without invoking E-H's page-navigation reset. */
     clearSearchText() {
@@ -134,7 +138,6 @@ export function manageSearchPanel() {
   if (!formInsideSearchBox) {
     elems.form.setAttributes({ id: formId });
     elems.searchInput.setAttributes({ form: formId });
-    elems.searchSubmit.setAttributes({ form: formId });
     elems.clearButton?.setAttributes({ form: formId });
   }
 
