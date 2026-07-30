@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260730.1714
+// @version      260730.1725
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -6694,7 +6694,7 @@ Next page`,
     return saveReadHistory(record), record;
   }
   function saveReadHistory(record) {
-    let key = historyKey(record.galleryId, record.token), previous = GM_getValue(key, null), exists = previous !== null, queueOrder = createQueueOrder();
+    let key = historyKey(record.galleryId, record.token), previous = GM_getValue(key, null), exists = previous !== null, queueOrder = createQueueOrder(record);
     if (GM_setValue(key, {
       ...record,
       gallery: mergeGalleryInfo(previous?.gallery, record.gallery),
@@ -6797,8 +6797,8 @@ Next page`,
     ).sort((left, right) => right.record.updatedAt - left.record.updatedAt), retained = records.slice(0, READ_HISTORY_LIMIT);
     for (let entry of records.slice(retained.length))
       GM_deleteValue(entry.key);
-    retained.reverse().forEach((entry, index) => {
-      let queueOrder = compactQueueOrder(index), record = { ...entry.record, queueOrder };
+    retained.forEach((entry) => {
+      let queueOrder = createQueueOrder(entry.record), record = { ...entry.record, queueOrder };
       GM_setValue(entry.key, record), GM_setValue(
         queueKey(queueOrder),
         historyReference(record.galleryId, record.token)
@@ -6819,12 +6819,8 @@ Next page`,
   function queueOrderFromKey(key) {
     return key.slice(HISTORY_QUEUE_KEY_PREFIX.length);
   }
-  function createQueueOrder() {
-    let [randomValue = 0] = crypto.getRandomValues(new Uint32Array(1)), random = randomValue.toString(36).padStart(7, "0");
-    return `${Date.now().toString().padStart(13, "0")}-${random}`;
-  }
-  function compactQueueOrder(index) {
-    return index.toString().padStart(20, "0");
+  function createQueueOrder(record) {
+    return `${record.updatedAt}-${record.galleryId}`;
   }
 
   // src/components/Enhance/ReadHistory.tsx
@@ -7453,7 +7449,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260730.1714", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260730.1725", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
