@@ -20,7 +20,7 @@ EhPeek can work with the following scripts for a better experience and maintains
 
 ## Install
 
-- Install [Tampermonkey](https://www.tampermonkey.net/) or other userscript managers. On Android, use a browser with userscript or extension support, such as [Quetta](https://www.quetta.net/products/android) or [Via](https://viayoo.com/).
+- Install [Violentmonkey](https://violentmonkey.github.io/) or another userscript manager. On Android, use a browser with userscript or extension support, such as [Via](https://viayoo.com/) or [Quetta](https://www.quetta.net/products/android).
 - Install from one of these channels:
 
 | Channel | Sources |
