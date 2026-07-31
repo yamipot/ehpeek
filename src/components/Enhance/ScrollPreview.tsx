@@ -57,6 +57,350 @@ type PreviewSlot = {
   pageNum: number;
 };
 
+function createPreviewLoading(options: {
+  aspectPreviewIndex: number;
+  centeredPageNum: Accessor<number>;
+  maxPreviewIndex: number;
+  onAspectRatio: (aspectRatio: number) => void;
+  onLoadError: (error: unknown) => void;
+  previewCache: GalleryPreviewCache;
+  ready: Accessor<boolean>;
+}) {
+  const queue = new PriorityLoadQueue<number, GalleryPreviewDom>(
+    PREVIEW_CONCURRENT_LOADS,
+  );
+  const requestedIndexes = new Set<number>();
+  const [failedIndexes, setFailedIndexes] = createSignal<Set<number>>(new Set());
+  const [loadingCount, setLoadingCount] = createSignal(0);
+  let loadToken = 0;
+
+  const sync = (centerIndex: number, retryIndex?: number): void => {
+    const firstIndex = Math.max(0, centerIndex - PREVIEW_LOAD_RADIUS);
+    const lastIndex = Math.min(options.maxPreviewIndex, centerIndex + PREVIEW_LOAD_RADIUS);
+    const targets = [];
+    for (let previewIndex = firstIndex; previewIndex <= lastIndex; previewIndex += 1) {
+      targets.push({
+        key: previewIndex,
+        priority: previewIndex === retryIndex ? -1 : Math.abs(previewIndex - centerIndex),
+        target: previewIndex,
+      });
+    }
+    queue.sync(targets);
+  };
+
+  queue.updateCallbacks({
+    loadTarget: (previewIndex) => options.previewCache.load(previewIndex),
+    markLoading: (previewIndex) => {
+      if (requestedIndexes.has(previewIndex)) {
+        return null;
+      }
+      requestedIndexes.add(previewIndex);
+      setFailedIndexes((current) => {
+        if (!current.has(previewIndex)) {
+          return current;
+        }
+        const next = new Set(current);
+        next.delete(previewIndex);
+        return next;
+      });
+      setLoadingCount((count) => count + 1);
+      return ++loadToken;
+    },
+    onLoaded: (previewIndex, loaded) => {
+      if (previewIndex === options.aspectPreviewIndex) {
+        options.onAspectRatio(loaded.data.dominantAspectRatio);
+      }
+      setLoadingCount((count) => Math.max(0, count - 1));
+    },
+    onError: (previewIndex, error) => {
+      requestedIndexes.delete(previewIndex);
+      setFailedIndexes((current) => new Set(current).add(previewIndex));
+      setLoadingCount((count) => Math.max(0, count - 1));
+      options.onLoadError(error);
+    },
+  });
+
+  createEffect(() => {
+    if (options.ready()) {
+      sync(options.previewCache.previewIndexForPage(options.centeredPageNum()));
+    }
+  });
+  onCleanup(() => queue.dispose());
+
+  return {
+    failedIndexes,
+    loadingCount,
+    retry(pageNum: number): void {
+      const retryIndex = options.previewCache.previewIndexForPage(pageNum);
+      sync(
+        options.previewCache.previewIndexForPage(options.centeredPageNum()),
+        retryIndex,
+      );
+    },
+  };
+}
+
+type PreviewToolbarState = {
+  directionIcon: "arrow-down" | "arrow-left" | "arrow-right";
+  directionLabel: string;
+  leftHanded: Accessor<boolean>;
+  loading: Accessor<boolean>;
+  rangeText: Accessor<string>;
+  zoomInDisabled: Accessor<boolean>;
+  zoomOutDisabled: Accessor<boolean>;
+  onDirectionChange: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+};
+
+function OverlayPreviewToolbar(props: {
+  onClose: () => void;
+  onCurrent: () => void;
+  currentDisabled: boolean;
+  state: PreviewToolbarState;
+}) {
+  return (
+    <div class={`flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-border)] textsize-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
+      <span class="flex items-center gap-sm opacity-75">
+        <Show when={props.state.loading()}>
+          <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
+        </Show>
+        {props.state.rangeText()}
+      </span>
+      <div class={`flex flex-none gap-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
+        <button
+          type="button"
+          class={READER_FLOATING_ACTION_CLASS}
+          aria-label={props.state.directionLabel}
+          title={props.state.directionLabel}
+          onClick={() => props.state.onDirectionChange()}
+        >
+          <Icon name={props.state.directionIcon} size="var(--ui-icon-size-md)" />
+        </button>
+        <button
+          type="button"
+          class={READER_FLOATING_ACTION_CLASS}
+          disabled={props.state.zoomOutDisabled()}
+          onClick={() => props.state.onZoomOut()}
+        >
+          −
+        </button>
+        <button
+          type="button"
+          class={READER_FLOATING_ACTION_CLASS}
+          disabled={props.state.zoomInDisabled()}
+          onClick={() => props.state.onZoomIn()}
+        >
+          +
+        </button>
+        <button
+          type="button"
+          class={READER_FLOATING_ACTION_CLASS}
+          disabled={props.currentDisabled}
+          onClick={() => props.onCurrent()}
+        >
+          {texts.button.current}
+        </button>
+        <button
+          type="button"
+          class={READER_FLOATING_ACTION_CLASS}
+          aria-label={texts.button.close}
+          title={texts.button.close}
+          onClick={() => props.onClose()}
+        >
+          <span aria-hidden="true">X</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const EMBEDDED_PREVIEW_ACTION_CLASS =
+  "inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96";
+
+function EmbeddedPreviewToolbar(props: {
+  onOpenOverlay: () => void;
+  state: PreviewToolbarState;
+}) {
+  return (
+    <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] min-h-[var(--ui-control-size-xs)] flex-none items-center gap-xs px-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs">
+      <span class="col-start-2 inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75">
+        <Show when={props.state.loading()}>
+          <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
+        </Show>
+        {props.state.rangeText()}
+      </span>
+      <div
+        class={`flex flex-none items-center gap-xs ${
+          props.state.leftHanded()
+            ? "col-start-1 row-start-1 justify-self-start flex-row-reverse"
+            : "col-start-3 justify-self-end"
+        }`}
+      >
+        <button
+          type="button"
+          class={EMBEDDED_PREVIEW_ACTION_CLASS}
+          aria-label={props.state.directionLabel}
+          title={props.state.directionLabel}
+          onClick={() => props.state.onDirectionChange()}
+        >
+          <Icon name={props.state.directionIcon} size="var(--ui-icon-size-sm)" />
+        </button>
+        <button
+          type="button"
+          class={EMBEDDED_PREVIEW_ACTION_CLASS}
+          disabled={props.state.zoomOutDisabled()}
+          onClick={() => props.state.onZoomOut()}
+        >
+          −
+        </button>
+        <button
+          type="button"
+          class={EMBEDDED_PREVIEW_ACTION_CLASS}
+          disabled={props.state.zoomInDisabled()}
+          onClick={() => props.state.onZoomIn()}
+        >
+          +
+        </button>
+        <button
+          type="button"
+          class={EMBEDDED_PREVIEW_ACTION_CLASS}
+          aria-label={texts.gallery.openScrollPreview}
+          title={texts.gallery.openScrollPreview}
+          onClick={() => props.onOpenOverlay()}
+        >
+          <Icon name="fullscreen" size="var(--ui-icon-size-sm)" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type PreviewViewportState = {
+  allowUpscale: Accessor<boolean>;
+  canvasHeight: Accessor<string>;
+  canvasWidth: Accessor<string>;
+  decodeCache: PreviewDecodeCache;
+  embedded: boolean;
+  failedIndexes: Accessor<Set<number>>;
+  highlightedPageNum: number | null;
+  horizontal: boolean;
+  layout: Accessor<PreviewLayout>;
+  maxPageNum: number;
+  onOpenPage: (pageUrl: string, pageNum: number) => void;
+  onPositionInput: (pageNum: number) => void;
+  onRetry: (pageNum: number) => void;
+  onScroll: () => void;
+  onScroller: (element: HTMLDivElement) => void;
+  onWheel: () => void;
+  positionPage: Accessor<number>;
+  previewCache: GalleryPreviewCache;
+  rightToLeft: boolean;
+  screenEndPageNum: Accessor<number>;
+  screenStartPageNum: Accessor<number>;
+  slots: Accessor<PreviewSlot[]>;
+};
+
+function PreviewViewport(props: { state: PreviewViewportState }) {
+  const state = untrack(() => props.state);
+  return (
+    <div class="relative min-h-0 w-full flex-1">
+      <div
+        ref={state.onScroller}
+        class="absolute box-border bg-[var(--color-surface)] cursor-grab [&[data-dragging=true]]:(cursor-grabbing select-none) [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"
+        classList={{
+          "inset-0": !state.embedded,
+          "top-0 right-xs left-xs": state.embedded,
+          "bottom-[calc(var(--ui-control-size-xs)/2)]":
+            state.embedded && state.horizontal,
+          "bottom-xs": state.embedded && !state.horizontal,
+          "overflow-x-auto overflow-y-hidden": state.horizontal,
+          "overflow-y-auto overflow-x-hidden": !state.horizontal,
+          "overscroll-auto": state.embedded,
+          "[touch-action:pan-x]": state.embedded && !state.horizontal,
+          "[touch-action:pan-y]": state.embedded && state.horizontal,
+          "overscroll-contain [touch-action:none]": !state.embedded,
+        }}
+        onScroll={state.onScroll}
+        onWheel={state.onWheel}
+      >
+        <div
+          class="relative"
+          style={{
+            height: state.canvasHeight(),
+            width: state.canvasWidth(),
+          }}
+        >
+          <For each={state.slots()}>{(slot) => {
+            const itemIndex = () => slot.pageNum - 1;
+            const group = () => Math.floor(itemIndex() / state.layout().crossCount);
+            const crossIndex = () => itemIndex() % state.layout().crossCount;
+            const left = () => {
+              if (!state.horizontal) {
+                return crossIndex() *
+                  (state.layout().tileWidth + state.layout().gap);
+              }
+              return state.rightToLeft
+                ? Number.parseFloat(state.canvasWidth()) -
+                  state.layout().tileWidth - group() * state.layout().mainStride
+                : group() * state.layout().mainStride;
+            };
+            const top = () => state.horizontal
+              ? crossIndex() * (state.layout().tileHeight + state.layout().gap)
+              : group() * state.layout().mainStride;
+            return (
+              <div
+                class="absolute"
+                style={{
+                  height: `${state.layout().tileHeight}px`,
+                  left: `${left()}px`,
+                  top: `${top()}px`,
+                  width: `${state.layout().tileWidth}px`,
+                }}
+              >
+                <PreviewTile
+                  alignment={state.rightToLeft
+                    ? "right"
+                    : state.horizontal
+                      ? "left"
+                      : "center"}
+                  allowUpscale={state.allowUpscale()}
+                  decodeCache={state.decodeCache}
+                  failed={state.failedIndexes().has(
+                    state.previewCache.previewIndexForPage(slot.pageNum),
+                  )}
+                  height={state.layout().tileHeight}
+                  highlighted={slot.pageNum === state.highlightedPageNum}
+                  item={slot.item}
+                  pageNum={slot.pageNum}
+                  onOpenPage={state.onOpenPage}
+                  onRetry={() => state.onRetry(slot.pageNum)}
+                  width={state.layout().tileWidth}
+                />
+              </div>
+            );
+          }}</For>
+        </div>
+      </div>
+      <PositionBar
+        ariaLabel={texts.gallery.scrollPreview}
+        axis={state.horizontal ? "horizontal" : "vertical"}
+        currentValue={state.positionPage()}
+        expanded={!state.horizontal}
+        maxValue={state.maxPageNum}
+        onInput={state.onPositionInput}
+        position={state.horizontal ? undefined : "absolute"}
+        reversed={state.horizontal && state.rightToLeft}
+        trackVisible={false}
+        variant={state.embedded ? "site" : "reader"}
+        visibleValueCount={
+          state.screenEndPageNum() - state.screenStartPageNum() + 1
+        }
+      />
+    </div>
+  );
+}
+
 export type ScrollPreviewActions = {
   gotoPreview: (previewIndex: number) => void;
   gotoPage: (pageNum: number) => void;
@@ -66,7 +410,6 @@ export function ScrollPreview(props: {
   actionsRef: (actions: ScrollPreviewActions) => void;
   continuePageNum: number | null;
   embeddedDirection: ReadDirection;
-  fillEmbeddedContainer: () => boolean;
   leftHandedControls: Accessor<boolean>;
   onExitPreview: (previewIndex: number) => void;
   onLoadError: (error: unknown) => void;
@@ -210,7 +553,6 @@ export function ScrollPreview(props: {
             readDirection={direction}
             targetPageNum={targetPageNum() ?? props.continuePageNum ?? 1}
             targetPreviewIndex={targetPreviewIndex()}
-            fillContainer={props.fillEmbeddedContainer()}
           />
         )}</Show>
       </Show>
@@ -258,7 +600,6 @@ export function ScrollPreview(props: {
               readDirection={direction}
               targetPageNum={targetPageNum()}
               targetPreviewIndex={targetPreviewIndex()}
-              fillContainer={false}
             />
           )}</Show>
         </Portal>
@@ -283,7 +624,6 @@ function ScrollPreviewPanel(props: {
   readDirection: ReadDirection;
   targetPageNum: number | null;
   targetPreviewIndex: number;
-  fillContainer: boolean;
 }) {
   const decodeCache = untrack(() => props.decodeCache);
   const previewCache = untrack(() => props.previewCache);
@@ -316,15 +656,8 @@ function ScrollPreviewPanel(props: {
       ? texts.gallery.scrollPreviewDirectionRtl
       : texts.gallery.scrollPreviewDirectionLtr;
   const flingAnimator = new ScrollFlingAnimator();
-  const previewLoadQueue = new PriorityLoadQueue<number, GalleryPreviewDom>(
-    PREVIEW_CONCURRENT_LOADS,
-  );
-  const requestedPreviewIndexes = new Set<number>();
-  const [failedPreviewIndexes, setFailedPreviewIndexes] = createSignal<Set<number>>(new Set());
   const crossCountOverride = (): number | null => props.crossCountOverride;
-  const [embeddedPanelHeight, setEmbeddedPanelHeight] = createSignal<number | null>(null);
   const [exitDragOffset, setExitDragOffset] = createSignal(0);
-  const [loadingCount, setLoadingCount] = createSignal(0);
   const [previewLoadReady, setPreviewLoadReady] = createSignal(false);
   const [scrollOffset, setScrollOffset] = createSignal(0);
   const [layout, setLayout] = createSignal<PreviewLayout>({
@@ -348,7 +681,6 @@ function ScrollPreviewPanel(props: {
   let pinchMinimumCrossCount = 1;
   let layoutFrame: number | null = null;
   let scrollFrame: number | null = null;
-  let loadToken = 0;
   let initialized = false;
   let disposed = false;
 
@@ -414,6 +746,15 @@ function ScrollPreviewPanel(props: {
   };
   const centeredPreviewIndex = (): number =>
     previewCache.previewIndexForPage(centeredPageNum());
+  const loading = createPreviewLoading({
+    aspectPreviewIndex,
+    centeredPageNum,
+    maxPreviewIndex,
+    onAspectRatio: setTileAspectRatio,
+    onLoadError,
+    previewCache,
+    ready: previewLoadReady,
+  });
   const preferredLayoutAnchorPageNum = (): number => {
     const targetPageNum = props.highlightedPageNum ?? props.targetPageNum;
     return targetPageNum !== null &&
@@ -638,59 +979,6 @@ function ScrollPreviewPanel(props: {
     }),
   );
 
-  previewLoadQueue.updateCallbacks({
-    loadTarget: (previewIndex) => previewCache.load(previewIndex),
-    markLoading: (previewIndex) => {
-      if (requestedPreviewIndexes.has(previewIndex)) {
-        return null;
-      }
-      requestedPreviewIndexes.add(previewIndex);
-      setFailedPreviewIndexes((current) => {
-        if (!current.has(previewIndex)) {
-          return current;
-        }
-        const next = new Set(current);
-        next.delete(previewIndex);
-        return next;
-      });
-      setLoadingCount((count) => count + 1);
-      return ++loadToken;
-    },
-    onLoaded: (previewIndex, loaded) => {
-      if (previewIndex === aspectPreviewIndex) {
-        setTileAspectRatio(loaded.data.dominantAspectRatio);
-      }
-      setLoadingCount((count) => Math.max(0, count - 1));
-    },
-    onError: (previewIndex, error) => {
-      requestedPreviewIndexes.delete(previewIndex);
-      setFailedPreviewIndexes((current) => new Set(current).add(previewIndex));
-      setLoadingCount((count) => Math.max(0, count - 1));
-      onLoadError(error);
-    },
-  });
-  const syncPreviewLoadQueue = (centerIndex: number, retryIndex?: number): void => {
-    const firstIndex = Math.max(0, centerIndex - PREVIEW_LOAD_RADIUS);
-    const lastIndex = Math.min(maxPreviewIndex, centerIndex + PREVIEW_LOAD_RADIUS);
-    const targets = [];
-    for (let previewIndex = firstIndex; previewIndex <= lastIndex; previewIndex += 1) {
-      targets.push({
-        key: previewIndex,
-        priority: previewIndex === retryIndex ? -1 : Math.abs(previewIndex - centerIndex),
-        target: previewIndex,
-      });
-    }
-    previewLoadQueue.sync(targets);
-  };
-
-  createEffect(() => {
-    if (!previewLoadReady()) {
-      return;
-    }
-    const centerIndex = previewCache.previewIndexForPage(centeredPageNum());
-    syncPreviewLoadQueue(centerIndex);
-  });
-
   const scrollToPage = (pageNum: number, currentLayout = untrack(layout)): void => {
     const group = Math.floor(
       (clamp(pageNum, 1, totalImages) - 1) / currentLayout.crossCount,
@@ -754,21 +1042,8 @@ function ScrollPreviewPanel(props: {
       (width - gap * (itemsPerRow - 1)) / itemsPerRow,
     );
     const itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio));
-    const panelChromeHeight = Math.max(0, overlay.clientHeight - height);
-    const targetContentHeight = Math.max(
-      itemHeight,
-      window.innerHeight * 0.55 - panelChromeHeight,
-    );
-    const embeddedRows = Math.max(
-      1,
-      Math.ceil(
-        (targetContentHeight + gap) / (itemHeight + gap),
-      ),
-    );
     const availableRows = props.embedded
-      ? props.fillContainer
-        ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap)))
-        : embeddedRows
+      ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap)))
       : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap)));
     const automaticCrossCount = horizontal
       ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow))
@@ -778,18 +1053,6 @@ function ScrollPreviewPanel(props: {
       1,
       totalImages,
     );
-    if (
-      props.embedded &&
-      !props.fillContainer &&
-      horizontal &&
-      crossCountOverride() === null
-    ) {
-      const contentHeight =
-        crossCount * itemHeight + gap * (crossCount - 1);
-      const panelHeight = Math.round(panelChromeHeight + contentHeight);
-      setEmbeddedPanelHeight((current) =>
-        current === panelHeight ? current : panelHeight);
-    }
     const availableTileHeight = Math.max(
       1,
       (height - gap * (crossCount - 1)) / crossCount,
@@ -875,7 +1138,6 @@ function ScrollPreviewPanel(props: {
     onCleanup(() => {
       disposed = true;
       flingAnimator.cancel();
-      previewLoadQueue.dispose();
       resizeObserver.disconnect();
       if (!props.embedded) {
         document.body.style.overflow = previousBodyOverflow;
@@ -889,6 +1151,56 @@ function ScrollPreviewPanel(props: {
       }
     });
   });
+
+  const toolbarState: PreviewToolbarState = {
+    directionIcon,
+    directionLabel,
+    leftHanded: untrack(() => props.leftHandedControls),
+    loading: () => loading.loadingCount() > 0,
+    rangeText: () =>
+      `${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`,
+    zoomInDisabled: () =>
+      layout().crossCount <= minimumCrossCount(layout()),
+    zoomOutDisabled: () =>
+      layout().crossCount >= Math.min(MAX_CROSS_COUNT, totalImages),
+    onDirectionChange: requestDirectionChange,
+    onZoomIn: () => resizeCrossCount(-1),
+    onZoomOut: () => resizeCrossCount(1),
+  };
+  const viewportState: PreviewViewportState = {
+    allowUpscale: () => props.embedded || crossCountOverride() !== null,
+    canvasHeight: () => horizontal ? "100%" : `${totalMainSize()}px`,
+    canvasWidth: () => horizontal ? `${mainCanvasSize()}px` : "100%",
+    decodeCache,
+    embedded: untrack(() => props.embedded),
+    failedIndexes: loading.failedIndexes,
+    highlightedPageNum: untrack(() => props.highlightedPageNum),
+    horizontal,
+    layout,
+    maxPageNum: totalImages,
+    onOpenPage: untrack(() => props.onOpenPage),
+    onPositionInput: scrollToPositionPage,
+    onRetry: loading.retry,
+    onScroll: () => {
+      if (scrollFrame !== null) {
+        return;
+      }
+      scrollFrame = window.requestAnimationFrame(() => {
+        scrollFrame = null;
+        setScrollOffset(untrack(readScrollOffset));
+      });
+    },
+    onScroller: (element) => {
+      scroller = element;
+    },
+    onWheel: () => flingAnimator.cancel(),
+    positionPage: scrollPositionPage,
+    previewCache,
+    rightToLeft,
+    screenEndPageNum,
+    screenStartPageNum,
+    slots: visibleSlots,
+  };
 
   return (
     <div
@@ -904,20 +1216,10 @@ function ScrollPreviewPanel(props: {
           "absolute inset-0 bg-[var(--color-background)]": !props.embedded,
           "border ehp-color-site-border rounded-sm bg-[var(--color-site-elevated)]":
             props.embedded,
-          "relative h-[55dvh]":
-            props.embedded && !props.fillContainer,
-          "relative h-full": props.embedded && props.fillContainer,
-          "w-full": !props.embedded || props.fillContainer,
-          "[width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90dvh)] mx-auto":
-            props.embedded && !props.fillContainer,
+          "relative h-full": props.embedded,
+          "w-full": true,
         }}
         style={{
-          height: props.embedded &&
-              !props.fillContainer &&
-              horizontal &&
-              embeddedPanelHeight() !== null
-            ? `${embeddedPanelHeight()}px`
-            : undefined,
           opacity: props.embedded
             ? "1"
             : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`,
@@ -929,231 +1231,25 @@ function ScrollPreviewPanel(props: {
         <Show
           when={props.embedded}
           fallback={
-          <div class={`flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-border)] textsize-sm${props.leftHandedControls() ? " flex-row-reverse" : ""}`}>
-            <span class="flex items-center gap-sm opacity-75">
-              <Show when={loadingCount() > 0}>
-                <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
-              </Show>
-              {`${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`}
-            </span>
-            <div class={`flex flex-none gap-sm${props.leftHandedControls() ? " flex-row-reverse" : ""}`}>
-              <button
-                type="button"
-                class={READER_FLOATING_ACTION_CLASS}
-                aria-label={directionLabel}
-                title={directionLabel}
-                onClick={requestDirectionChange}
-              >
-                <Icon
-                  name={directionIcon}
-                  size="var(--ui-icon-size-md)"
-                />
-              </button>
-              <button
-                type="button"
-                class={READER_FLOATING_ACTION_CLASS}
-                disabled={layout().crossCount >= Math.min(MAX_CROSS_COUNT, totalImages)}
-                onClick={() => resizeCrossCount(1)}
-              >
-                −
-              </button>
-              <button
-                type="button"
-                class={READER_FLOATING_ACTION_CLASS}
-                disabled={layout().crossCount <= minimumCrossCount(layout())}
-                onClick={() => resizeCrossCount(-1)}
-              >
-                +
-              </button>
-              <button
-                type="button"
-                class={READER_FLOATING_ACTION_CLASS}
-                disabled={props.highlightedPageNum === null}
-                onClick={() => {
-                  if (props.highlightedPageNum !== null) {
-                    flingAnimator.cancel();
-                    scrollToPage(props.highlightedPageNum);
-                  }
-                }}
-              >
-                {texts.button.current}
-              </button>
-              <button
-                type="button"
-                class={READER_FLOATING_ACTION_CLASS}
-                aria-label={texts.button.close}
-                title={texts.button.close}
-                onClick={() => onClose?.(centeredPreviewIndex())}
-              >
-                <span aria-hidden="true">X</span>
-              </button>
-            </div>
-          </div>
-        }
-        >
-        <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] min-h-[var(--ui-control-size-xs)] flex-none items-center gap-xs px-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs">
-          <span class="col-start-2 inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75">
-            <Show when={loadingCount() > 0}>
-              <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
-            </Show>
-            {`${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`}
-          </span>
-          <div
-            class={`flex flex-none items-center gap-xs ${
-              props.leftHandedControls()
-                ? "col-start-1 row-start-1 justify-self-start flex-row-reverse"
-                : "col-start-3 justify-self-end"
-            }`}
-          >
-            <button
-              type="button"
-              class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"
-              aria-label={directionLabel}
-              title={directionLabel}
-              onClick={requestDirectionChange}
-            >
-              <Icon name={directionIcon} size="var(--ui-icon-size-sm)" />
-            </button>
-            <button
-              type="button"
-              class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"
-              disabled={layout().crossCount >= Math.min(MAX_CROSS_COUNT, totalImages)}
-              onClick={() => resizeCrossCount(1)}
-            >
-              −
-            </button>
-            <button
-              type="button"
-              class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"
-              disabled={layout().crossCount <= minimumCrossCount(layout())}
-              onClick={() => resizeCrossCount(-1)}
-            >
-              +
-            </button>
-            <button
-              type="button"
-              class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"
-              aria-label={texts.gallery.openScrollPreview}
-              title={texts.gallery.openScrollPreview}
-              onClick={() => props.onOpenOverlay?.(centeredPageNum())}
-            >
-              <Icon name="fullscreen" size="var(--ui-icon-size-sm)" />
-            </button>
-          </div>
-        </div>
-        </Show>
-        <div class="relative min-h-0 w-full flex-1">
-        <div
-          ref={scroller}
-          class="absolute box-border bg-[var(--color-surface)] cursor-grab [&[data-dragging=true]]:(cursor-grabbing select-none) [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"
-          classList={{
-            "inset-0": !props.embedded,
-            "top-0 right-xs left-xs": props.embedded,
-            "bottom-[calc(var(--ui-control-size-xs)/2)]":
-              props.embedded && horizontal,
-            "bottom-xs": props.embedded && !horizontal,
-            "overflow-x-auto overflow-y-hidden": horizontal,
-            "overflow-y-auto overflow-x-hidden": !horizontal,
-            "overscroll-auto": props.embedded,
-            "[touch-action:pan-x]": props.embedded && !horizontal,
-            "[touch-action:pan-y]": props.embedded && horizontal,
-            "overscroll-contain [touch-action:none]": !props.embedded,
-          }}
-          onScroll={() => {
-            if (scrollFrame !== null) {
-              return;
-            }
-            scrollFrame = window.requestAnimationFrame(() => {
-              scrollFrame = null;
-              setScrollOffset(untrack(readScrollOffset));
-            });
-          }}
-          onWheel={() => flingAnimator.cancel()}
-        >
-          <div
-            class="relative"
-            style={{
-              height: horizontal ? "100%" : `${totalMainSize()}px`,
-              width: horizontal ? `${mainCanvasSize()}px` : "100%",
-            }}
-          >
-            <For each={visibleSlots()}>{(slot) => {
-              const itemIndex = () => slot.pageNum - 1;
-              const group = () => Math.floor(itemIndex() / layout().crossCount);
-              const crossIndex = () => itemIndex() % layout().crossCount;
-              const left = () => {
-                if (!horizontal) {
-                  return crossIndex() * (layout().tileWidth + layout().gap);
+            <OverlayPreviewToolbar
+              currentDisabled={props.highlightedPageNum === null}
+              onClose={() => onClose?.(centeredPreviewIndex())}
+              onCurrent={() => {
+                if (props.highlightedPageNum !== null) {
+                  flingAnimator.cancel();
+                  scrollToPage(props.highlightedPageNum);
                 }
-                return rightToLeft
-                  ? mainCanvasSize() - layout().tileWidth - group() * layout().mainStride
-                  : group() * layout().mainStride;
-              };
-              const top = () => horizontal
-                ? crossIndex() * (layout().tileHeight + layout().gap)
-                : group() * layout().mainStride;
-              return (
-                <div
-                  class="absolute"
-                  style={{
-                    height: `${layout().tileHeight}px`,
-                    left: `${left()}px`,
-                    top: `${top()}px`,
-                    width: `${layout().tileWidth}px`,
-                  }}
-                >
-                <PreviewTile
-                  alignment={rightToLeft ? "right" : horizontal ? "left" : "center"}
-                  allowUpscale={props.embedded || crossCountOverride() !== null}
-                  decodeCache={decodeCache}
-                  failed={failedPreviewIndexes().has(previewCache.previewIndexForPage(slot.pageNum))}
-                  height={layout().tileHeight}
-                  highlighted={slot.pageNum === props.highlightedPageNum}
-                  item={slot.item}
-                  pageNum={slot.pageNum}
-                  onOpenPage={props.onOpenPage}
-                  onRetry={() => {
-                    const retryIndex = previewCache.previewIndexForPage(slot.pageNum);
-                    syncPreviewLoadQueue(
-                      previewCache.previewIndexForPage(centeredPageNum()),
-                      retryIndex,
-                    );
-                  }}
-                  width={layout().tileWidth}
-                />
-                </div>
-              );
-            }}</For>
-          </div>
-        </div>
-        <Show when={!horizontal}>
-          <PositionBar
-            ariaLabel={texts.gallery.scrollPreview}
-            axis="vertical"
-            currentValue={scrollPositionPage()}
-            expanded
-            maxValue={totalImages}
-            onInput={scrollToPositionPage}
-            position="absolute"
-            trackVisible={false}
-            variant={props.embedded ? "site" : "reader"}
-            visibleValueCount={screenEndPageNum() - screenStartPageNum() + 1}
+              }}
+              state={toolbarState}
+            />
+          }
+        >
+          <EmbeddedPreviewToolbar
+            onOpenOverlay={() => props.onOpenOverlay?.(centeredPageNum())}
+            state={toolbarState}
           />
         </Show>
-        <Show when={horizontal}>
-          <PositionBar
-            ariaLabel={texts.gallery.scrollPreview}
-            axis="horizontal"
-            currentValue={scrollPositionPage()}
-            maxValue={totalImages}
-            onInput={scrollToPositionPage}
-            reversed={rightToLeft}
-            trackVisible={false}
-            variant={props.embedded ? "site" : "reader"}
-            visibleValueCount={screenEndPageNum() - screenStartPageNum() + 1}
-          />
-        </Show>
-        </div>
+        <PreviewViewport state={viewportState} />
       </section>
     </div>
   );

@@ -410,7 +410,22 @@ function injectEnhanceUI(
         preview.handle.removeOriginalPreview();
       }
       previewMount.mount(() => (
-        <>
+        <div
+          classList={{
+            "contents": !gState.settings.replacePreviewWithScroll,
+            "relative h-full w-full":
+              gState.settings.replacePreviewWithScroll &&
+              gState.settings.touchUiEnabled &&
+              gState.columnsEnabled(),
+            "relative h-[55dvh] [width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90dvh)] mx-auto":
+              gState.settings.replacePreviewWithScroll &&
+              gState.settings.touchUiEnabled &&
+              !gState.columnsEnabled(),
+            "relative h-[70dvh] w-[min(calc(100%-32px),1212px)] mx-auto":
+              gState.settings.replacePreviewWithScroll &&
+              !gState.settings.touchUiEnabled,
+          }}
+        >
           <ScrollPreview
             actionsRef={(actions) => {
               gState.scrollPreviewActions = actions;
@@ -422,7 +437,6 @@ function injectEnhanceUI(
             embeddedDirection={gState.columnsEnabled()
               ? state.gallery.embeddedScrollPreviewColumnsDirection.value
               : state.gallery.embeddedScrollPreviewSingleDirection.value}
-            fillEmbeddedContainer={gState.columnsEnabled}
             leftHandedControls={gState.leftHandedControls}
             onExitPreview={(previewIndex) => {
               if (previewIndex === previewCache.current().data.currentIndex) {
@@ -468,7 +482,7 @@ function injectEnhanceUI(
               previewCache={previewCache}
             />
           ) : null}
-        </>
+        </div>
       ));
     });
   } else if (galleryPage && preview && previewCache) {
