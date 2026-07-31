@@ -26,7 +26,12 @@ import {
   type ToolbarCallbacks,
 } from "./Toolbar";
 import { ZoomOverlay, type ZoomOverlayActions, type ZoomOverlayImage } from "./ZoomOverlay";
-import { ReaderSession, type ReaderLoadTarget, type ReaderOptions } from "./session";
+import {
+  doublePagePairStart,
+  ReaderSession,
+  type ReaderLoadTarget,
+  type ReaderOptions,
+} from "./session";
 import { ReaderScrollBar } from "./ScrollBar";
 import { ViewportCanvas, type ViewportCanvasCallbacks } from "./ViewportCanvas";
 import readerCss from "./index.css";
@@ -94,6 +99,12 @@ export function Reader(props: {
     gotoPage: readerCallbacks.gotoPage,
   }));
   let previousFullscreenActive = untrack(() => props.fullscreenActive);
+  const viewportPageLayout = () =>
+    readerState.ctrls.value().pageLayout === "double" &&
+      readerState.ctrls.value().firstPageSeparate &&
+      readerState.navi.currentPageNum() === 1
+      ? "single"
+      : readerState.ctrls.value().pageLayout;
 
   createEffect(() => {
     const fullscreenActive = props.fullscreenActive;
@@ -120,7 +131,7 @@ export function Reader(props: {
       id={VIEWER_ID}
       class="fixed inset-0 z-reader overflow-hidden ehp-color-reader font-sans textsize-sm leading-[1.4]"
       data-navigation-mode={readerState.ctrls.value().navigationMode}
-      data-page-layout={readerState.ctrls.value().pageLayout}
+      data-page-layout={viewportPageLayout()}
       data-read-direction={readerState.ctrls.value().direction}
     >
       <Show when={!readerState.scrollViewport.adjusting()}>
@@ -152,7 +163,7 @@ export function Reader(props: {
           decodedImageCacheLimit={options.decodedImageCacheLimit}
           direction={readerState.ctrls.value().direction}
           navigationMode={readerState.ctrls.value().navigationMode}
-          pageLayout={readerState.ctrls.value().pageLayout}
+          pageLayout={viewportPageLayout()}
           scrollFitImageSize={readerState.scrollViewport.fitImageSize()}
           scrollFitPageNum={scrollFitPageNum}
           scrollSizeScale={readerState.scrollViewport.sizeScale()}
@@ -202,7 +213,10 @@ function wireReaderCallbacks(
   let loadDirectionEdgePageNum = state.navi.currentPageNum();
   const scrollFitPageNum = state.navi.currentPageNum();
   const pagedMode = () => state.ctrls.value().navigationMode === "paged";
-  const pageTurnStep = () => state.ctrls.value().pageLayout === "double" ? 2 : 1;
+  const doublePageActive = () =>
+    pagedMode() &&
+    state.ctrls.value().pageLayout === "double" &&
+    !(state.ctrls.value().firstPageSeparate && state.navi.currentPageNum() === 1);
   const updateReaderViewportSize = () => {
     state.scrollViewport.setViewportWidth(Math.max(1, window.innerWidth));
     state.scrollViewport.setViewportHeight(Math.max(1, window.innerHeight));
@@ -218,12 +232,25 @@ function wireReaderCallbacks(
 
   function setCurrentPageNumber(pageNumber: number, scrollIntoView: boolean, scrollMotion: ScrollMotion = "instant"): void {
     pagedTargetPageNumber = null;
-    const target = clamp(Math.round(pageNumber), 1, maxProgressPageNum());
+    const target = normalizedPageNumber(
+      clamp(Math.round(pageNumber), 1, maxProgressPageNum()),
+    );
     if (target !== state.navi.currentPageNum()) {
       state.navi.setDirection(target > state.navi.currentPageNum() ? 1 : -1);
       state.navi.setCurrentPageNum(target);
     }
     syncAfterPageChange({ scrollIntoView, scrollMotion });
+  }
+
+  function normalizedPageNumber(pageNum: number): number {
+    if (
+      !pagedMode() ||
+      state.ctrls.value().pageLayout !== "double" ||
+      (totalPages !== undefined && pageNum === totalPages + 1)
+    ) {
+      return pageNum;
+    }
+    return doublePagePairStart(pageNum, state.ctrls.value().firstPageSeparate);
   }
 
   function syncAfterPageChange(options: {
@@ -365,7 +392,21 @@ function wireReaderCallbacks(
 
   function turnPageBy(delta: number): void {
     if (pagedMode()) {
-      animatePagedStep(delta * pageTurnStep());
+      const base = pagedTargetPageNumber ?? state.navi.currentPageNum();
+      const firstPageSeparate = state.ctrls.value().firstPageSeparate;
+      let pageDelta = delta;
+      if (state.ctrls.value().pageLayout === "double") {
+        if (totalPages !== undefined && base === totalPages + 1 && delta < 0) {
+          pageDelta = doublePagePairStart(totalPages, firstPageSeparate) - base;
+        } else if (firstPageSeparate && base === 1 && delta > 0) {
+          pageDelta = 1;
+        } else if (firstPageSeparate && base === 2 && delta < 0) {
+          pageDelta = -1;
+        } else {
+          pageDelta = delta * 2;
+        }
+      }
+      animatePagedStep(pageDelta);
       return;
     }
     setCurrentPageNumber(state.navi.currentPageNum() + delta, true);
@@ -400,7 +441,7 @@ function wireReaderCallbacks(
 
   function updatePageNumber(): void {
     const pageNum = state.navi.currentPageNum();
-    const downloadPageNums = pagedMode() && state.ctrls.value().pageLayout === "double"
+    const downloadPageNums = doublePageActive()
       ? [pageNum, pageNum + 1]
       : [pageNum];
     state.navi.setDownloadInfos(downloadPageNums.flatMap((downloadPageNum) => {
@@ -735,8 +776,7 @@ function wireReaderCallbacks(
           ),
           imageUrl,
           highPriority: target.pageNum === state.navi.currentPageNum() || (
-          state.ctrls.value().navigationMode === "paged" &&
-          state.ctrls.value().pageLayout === "double" &&
+          doublePageActive() &&
             target.pageNum === state.navi.currentPageNum() + 1
           ),
           width,
@@ -757,8 +797,7 @@ function wireReaderCallbacks(
       if (!closed) {
         const currentPageNum = state.navi.currentPageNum();
         if (target.pageNum === currentPageNum || (
-          pagedMode() &&
-          state.ctrls.value().pageLayout === "double" &&
+          doublePageActive() &&
           target.pageNum === currentPageNum + 1
         )) {
           updatePageNumber();
@@ -821,10 +860,14 @@ function wireReaderCallbacks(
         state.scrollViewport.setAdjusting(false);
       }
 
-      if (controls.navigationMode !== previous.navigationMode || controls.pageLayout !== previous.pageLayout) {
+      if (
+        controls.navigationMode !== previous.navigationMode ||
+        controls.pageLayout !== previous.pageLayout ||
+        controls.firstPageSeparate !== previous.firstPageSeparate
+      ) {
         viewportActions.stopMotion();
         viewportActions.resetPosition();
-        syncAfterPageChange({ scrollIntoView: true });
+        setCurrentPageNumber(state.navi.currentPageNum(), true);
       } else if (controls.direction !== previous.direction) {
         syncViewportWindow();
         scrollToCurrentPage();
@@ -838,7 +881,9 @@ function wireReaderCallbacks(
       }
     };
     const previewProgress = (pageNum: number): void => {
-      const target = clamp(Math.round(pageNum), 1, maxProgressPageNum());
+      const target = normalizedPageNumber(
+        clamp(Math.round(pageNum), 1, maxProgressPageNum()),
+      );
       if (target !== state.navi.currentPageNum()) {
         state.navi.setDirection(target > state.navi.currentPageNum() ? 1 : -1);
         state.navi.setCurrentPageNum(target);

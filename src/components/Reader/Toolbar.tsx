@@ -16,6 +16,7 @@ import { InteractionHelp } from "../InteractionHelp";
 export type ReaderControls = {
   navigationMode: NavigationMode;
   direction: ReadDirection;
+  firstPageSeparate: boolean;
   pageLayout: PageLayout;
   rightTapAction: RightTapAction;
 };
@@ -297,6 +298,35 @@ export function Toolbar(props: {
               <button
                 type="button"
                 class={READER_BUTTON_CLASS}
+                aria-pressed={props.controls.firstPageSeparate}
+                aria-label={props.controls.firstPageSeparate
+                  ? texts.reader.pairSecondAndThirdPages
+                  : texts.reader.pairFirstAndSecondPages}
+                title={props.controls.firstPageSeparate
+                  ? texts.reader.pairSecondAndThirdPages
+                  : texts.reader.pairFirstAndSecondPages}
+                disabled={
+                  props.controls.navigationMode !== "paged" ||
+                  props.controls.pageLayout !== "double"
+                }
+                onClick={() => {
+                  const firstPageSeparate = !props.controls.firstPageSeparate;
+                  props.callbacks.onControlsChange({
+                    ...props.controls,
+                    firstPageSeparate,
+                  });
+                  showControlChange(
+                    firstPageSeparate
+                      ? texts.reader.pairSecondAndThirdPages
+                      : texts.reader.pairFirstAndSecondPages,
+                  );
+                }}
+              >
+                {props.controls.firstPageSeparate ? "2+3" : "1+2"}
+              </button>
+              <button
+                type="button"
+                class={READER_BUTTON_CLASS}
                 aria-label={props.controls.rightTapAction === "previous" ? texts.reader.rightTapPrevious : texts.reader.rightTapNext}
                 onClick={() => {
                   const rightTapAction = props.controls.rightTapAction === "previous" ? "next" : "previous";
@@ -339,6 +369,7 @@ export function Toolbar(props: {
           props.progress.totalPages,
           props.controls.navigationMode,
           props.controls.pageLayout,
+          props.controls.firstPageSeparate,
         )}
       </div>
       <Show when={props.fullscreenActive}>
@@ -509,17 +540,21 @@ function pageNumberText(
   totalPages: number | undefined,
   navigationMode: NavigationMode,
   pageLayout: PageLayout,
+  firstPageSeparate: boolean,
 ): string {
   if (totalPages && pageNum === totalPages + 1) {
     return texts.reader.endPage;
   }
 
+  const doublePage = navigationMode === "paged" &&
+    pageLayout === "double" &&
+    !(firstPageSeparate && pageNum === 1);
   if (!totalPages) {
-    return navigationMode === "paged" && pageLayout === "double" ? `${pageNum}–${pageNum + 1}` : String(pageNum);
+    return doublePage ? `${pageNum}–${pageNum + 1}` : String(pageNum);
   }
 
   const doublePageEnd = Math.min(totalPages, pageNum + 1);
-  return navigationMode === "paged" && pageLayout === "double" && doublePageEnd > pageNum
+  return doublePage && doublePageEnd > pageNum
     ? `${pageNum}–${doublePageEnd} / ${totalPages}`
     : `${pageNum} / ${totalPages}`;
 }

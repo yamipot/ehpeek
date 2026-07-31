@@ -40,6 +40,8 @@
     "pagedMode": "Paged mode",
     "singlePageMode": "Single-page layout",
     "doublePageMode": "Double-page layout",
+    "pairFirstAndSecondPages": "Pair 1+2",
+    "pairSecondAndThirdPages": "Pair 2+3",
     "scrollMode": "Scroll mode",
     "rightTapPrevious": "Right side action:\nPrevious page",
     "rightTapNext": "Right side action:\nNext page",

@@ -42,18 +42,26 @@ export class ReaderSession {
       options.concurrentLoads,
     );
     const navigationMode = appState.reader.navigationMode.value;
-    const [controls, setControls] = createSignal<ReaderControls>({
+    const initialControls: ReaderControls = {
       navigationMode,
       direction: navigationMode === "scroll"
         ? appState.reader.scrollDirection.value
         : appState.reader.pagedDirection.value,
+      firstPageSeparate: false,
       pageLayout: appState.reader.pageLayout.value,
       rightTapAction: appState.reader.rightTapAction.value,
-    });
+    };
+    const [controls, setControls] = createSignal(initialControls);
+    const initialPageNum = initialControls.navigationMode === "paged" &&
+        initialControls.pageLayout === "double"
+      ? doublePagePairStart(initialPageNumber(options), initialControls.firstPageSeparate)
+      : initialPageNumber(options);
     const [toolbarOpen, setToolbarOpen] = createSignal(false);
-    const [viewportWindow, setViewportWindow] = createSignal(initialViewportWindow(options));
+    const [viewportWindow, setViewportWindow] = createSignal(
+      initialViewportWindow(options, initialPageNum),
+    );
     const [zoomImage, setZoomImage] = createSignal<ZoomOverlayImage | null>(null);
-    const [currentPageNum, setCurrentPageNum] = createSignal(initialPageNumber(options));
+    const [currentPageNum, setCurrentPageNum] = createSignal(initialPageNum);
     const [direction, setDirection] = createSignal<Direction>(1);
     const [downloadInfos, setDownloadInfos] = createSignal<ReaderDownloadInfo[]>([]);
     const [maxProgressPageNum, setMaxProgressPageNum] = createSignal(initialMaxProgressPageNumber(options));
@@ -205,13 +213,26 @@ export class ReaderSession {
   }
 }
 
-function initialViewportWindow(options: ReaderOptions): PagesViewportWindowOptions {
+function initialViewportWindow(
+  options: ReaderOptions,
+  initialPageNum: number,
+): PagesViewportWindowOptions {
   return {
-    currentPageNum: initialPageNumber(options),
+    currentPageNum: initialPageNum,
     windowSize: options.renderWindowSize ?? DEFAULT_WINDOW_SIZE,
     totalPages: options.totalPages && options.totalPages > 0 ? options.totalPages : undefined,
     pages: new Map(),
   };
+}
+
+export function doublePagePairStart(
+  pageNum: number,
+  firstPageSeparate: boolean,
+): number {
+  if (firstPageSeparate) {
+    return pageNum <= 1 ? 1 : pageNum - (pageNum % 2);
+  }
+  return pageNum % 2 === 0 ? pageNum - 1 : pageNum;
 }
 
 function initialPageNumber(options: ReaderOptions): number {
