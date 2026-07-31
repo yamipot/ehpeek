@@ -443,15 +443,15 @@ function injectGalleryPreview(previewCache: GalleryPreviewCache): void {
       <div
         classList={{
           "contents": !gState.settings.replacePreviewWithScroll,
-          "relative h-full w-full":
+          "relative h-full w-full [--scroll-preview-height:100%]":
             gState.settings.replacePreviewWithScroll &&
             gState.settings.touchUiEnabled &&
             gState.columnsEnabled(),
-          "relative h-[55dvh] [width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90dvh)] mx-auto":
+          "relative [--scroll-preview-height:55lvh] [width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90lvh)] mx-auto":
             gState.settings.replacePreviewWithScroll &&
             gState.settings.touchUiEnabled &&
             !gState.columnsEnabled(),
-          "relative h-[70dvh] w-[min(calc(100%-32px),1212px)] mx-auto":
+          "relative [--scroll-preview-height:70svh] w-[min(calc(100%-32px),1212px)] mx-auto":
             gState.settings.replacePreviewWithScroll &&
             !gState.settings.touchUiEnabled,
         }}

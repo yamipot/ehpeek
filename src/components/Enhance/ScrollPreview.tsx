@@ -1083,6 +1083,14 @@ function ScrollPreviewPanel(props: {
       : crossCountOverridden
         ? overriddenTileWidth
         : Math.max(1, (width - gap * (crossCount - 1)) / crossCount);
+    if (props.embedded && horizontal) {
+      const fittedScrollerHeight =
+        crossCount * tileHeight + (crossCount - 1) * gap;
+      overlay.style.height =
+        `${Math.ceil(overlay.clientHeight - height + fittedScrollerHeight)}px`;
+    } else if (props.embedded) {
+      overlay.style.removeProperty("height");
+    }
     const next = {
       crossCount,
       gap,
@@ -1216,7 +1224,7 @@ function ScrollPreviewPanel(props: {
           "absolute inset-0 bg-[var(--color-background)]": !props.embedded,
           "border ehp-color-site-border rounded-sm bg-[var(--color-site-elevated)]":
             props.embedded,
-          "relative h-full": props.embedded,
+          "relative h-[var(--scroll-preview-height)]": props.embedded,
           "w-full": true,
         }}
         style={{
