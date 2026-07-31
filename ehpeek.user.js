@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260731.0757
+// @version      260731.1550
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -6380,7 +6380,12 @@ Next page`,
     });
     let updateLayout = () => {
       setPreviewLoadReady(!1);
-      let width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), scale = props.embedded ? 1 : fullscreenUiScale(), gap = GRID_GAP * scale, aspectRatio = tileAspectRatio(), baseMaxTileWidth = MAX_TILE_WIDTH * scale, referenceItemsPerRow = Math.max(1, Math.ceil((width + gap) / (baseMaxTileWidth + gap))), referenceItemWidth = Math.max(1, (width - gap * (referenceItemsPerRow - 1)) / referenceItemsPerRow), maxTileWidth = props.embedded ? referenceItemWidth * Math.sqrt(REFERENCE_PORTRAIT_ASPECT_RATIO / aspectRatio) : baseMaxTileWidth, anchorPageNum = initialized ? resizeAnchorPageNum ?? preferredLayoutAnchorPageNum() : null, itemsPerRow = Math.max(1, Math.ceil((width + gap) / (maxTileWidth + gap))), itemWidth = Math.max(1, (width - gap * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio)), availableRows = props.embedded ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap))) : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap))), automaticCrossCount = horizontal ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow)) : Math.min(itemsPerRow, totalImages), crossCount = clamp(crossCountOverride() ?? automaticCrossCount, 1, totalImages), availableTileHeight = Math.max(1, (height - gap * (crossCount - 1)) / crossCount), crossCountOverridden = crossCountOverride() !== null, overriddenTileWidth = Math.min(Math.max(1, (width - gap * (crossCount - 1)) / crossCount), width / 2, height / 2 / aspectRatio), tileHeight = horizontal ? crossCountOverridden ? Math.min(availableTileHeight, height / 2, width / 2 * aspectRatio) : Math.min(itemHeight, availableTileHeight) : Math.max(1, Math.round((crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount)) * aspectRatio)), tileWidth = horizontal ? crossCountOverridden ? tileHeight / aspectRatio : clamp(tileHeight / aspectRatio, 1, maxTileWidth) : crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount), next = {
+      let width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), scale = props.embedded ? 1 : fullscreenUiScale(), gap = GRID_GAP * scale, aspectRatio = tileAspectRatio(), baseMaxTileWidth = MAX_TILE_WIDTH * scale, referenceItemsPerRow = Math.max(1, Math.ceil((width + gap) / (baseMaxTileWidth + gap))), referenceItemWidth = Math.max(1, (width - gap * (referenceItemsPerRow - 1)) / referenceItemsPerRow), maxTileWidth = props.embedded ? referenceItemWidth * Math.sqrt(REFERENCE_PORTRAIT_ASPECT_RATIO / aspectRatio) : baseMaxTileWidth, anchorPageNum = initialized ? resizeAnchorPageNum ?? preferredLayoutAnchorPageNum() : null, itemsPerRow = Math.max(1, Math.ceil((width + gap) / (maxTileWidth + gap))), itemWidth = Math.max(1, (width - gap * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio)), availableRows = props.embedded ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap))) : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap))), automaticCrossCount = horizontal ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow)) : Math.min(itemsPerRow, totalImages), crossCount = clamp(crossCountOverride() ?? automaticCrossCount, 1, totalImages), availableTileHeight = Math.max(1, (height - gap * (crossCount - 1)) / crossCount), crossCountOverridden = crossCountOverride() !== null, overriddenTileWidth = Math.min(Math.max(1, (width - gap * (crossCount - 1)) / crossCount), width / 2, height / 2 / aspectRatio), tileHeight = horizontal ? crossCountOverridden ? Math.min(availableTileHeight, height / 2, width / 2 * aspectRatio) : Math.min(itemHeight, availableTileHeight) : Math.max(1, Math.round((crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount)) * aspectRatio)), tileWidth = horizontal ? crossCountOverridden ? tileHeight / aspectRatio : clamp(tileHeight / aspectRatio, 1, maxTileWidth) : crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount);
+      if (props.embedded && horizontal) {
+        let fittedScrollerHeight = crossCount * tileHeight + (crossCount - 1) * gap;
+        overlay.style.height = `${Math.ceil(overlay.clientHeight - height + fittedScrollerHeight)}px`;
+      } else props.embedded && overlay.style.removeProperty("height");
+      let next = {
         crossCount,
         gap,
         horizontal,
@@ -6478,7 +6483,7 @@ Next page`,
         }, _v$23 = {
           "absolute inset-0 bg-[var(--color-background)]": !props.embedded,
           "border ehp-color-site-border rounded-sm bg-[var(--color-site-elevated)]": props.embedded,
-          "relative h-full": props.embedded,
+          "relative h-[var(--scroll-preview-height)]": props.embedded,
           "w-full": !0
         }, _v$24 = props.embedded ? "1" : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`, _v$25 = props.embedded ? "none" : `translate3d(${horizontal ? 0 : exitDragOffset()}px, ${horizontal ? exitDragOffset() : 0}px, 0) scale(${1 - Math.min(0.03, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.03)})`;
         return _p$.e = classList(_el$22, _v$22, _p$.e), _p$.t = classList(_el$23, _v$23, _p$.t), _v$24 !== _p$.a && setStyleProperty(_el$23, "opacity", _p$.a = _v$24), _v$25 !== _p$.o && setStyleProperty(_el$23, "transform", _p$.o = _v$25), _p$;
@@ -7527,7 +7532,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260731.0757", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260731.1550", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
@@ -10163,6 +10168,9 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .\\[--ehpeek-touch-top-bar-project-icon-size\\:var\\(--ui-control-size-sm\\)\\]{--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm);}
 .\\[--progress-bar-fill\\:0\\%\\]{--progress-bar-fill:0%;}
 .\\[--progress-bar-track-direction\\:to_right\\]{--progress-bar-track-direction:to right;}
+.\\[--scroll-preview-height\\:100\\%\\]{--scroll-preview-height:100%;}
+.\\[--scroll-preview-height\\:55lvh\\]{--scroll-preview-height:55lvh;}
+.\\[--scroll-preview-height\\:70svh\\]{--scroll-preview-height:70svh;}
 .\\[-webkit-appearance\\:none\\]{-webkit-appearance:none;}
 .\\[-webkit-overflow-scrolling\\:touch\\]{-webkit-overflow-scrolling:touch;}
 .\\[-webkit-tap-highlight-color\\:transparent\\]{-webkit-tap-highlight-color:transparent;}
@@ -10302,11 +10310,10 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .\\[\\&_\\.ehpeek-icon\\]\\:h-\\[var\\(--ui-icon-size-lg\\)\\] .ehpeek-icon{height:var(--ui-icon-size-lg);}
 .\\[\\&_\\.ehpeek-icon\\]\\:w-\\[var\\(--ui-icon-size-lg\\)\\] .ehpeek-icon{width:var(--ui-icon-size-lg);}
 .h-\\[2\\.4em\\]{height:2.4em;}
-.h-\\[55dvh\\]{height:55dvh;}
-.h-\\[70dvh\\]{height:70dvh;}
 .h-\\[calc\\(var\\(--ui-control-size-xs\\)\\/2\\)\\]{height:calc(var(--ui-control-size-xs) / 2);}
 .h-\\[var\\(--reader-frame-height\\)\\]{height:var(--reader-frame-height);}
 .h-\\[var\\(--reader-page-height\\)\\]{height:var(--reader-page-height);}
+.h-\\[var\\(--scroll-preview-height\\)\\]{height:var(--scroll-preview-height);}
 .h-\\[var\\(--ui-control-size-md\\)\\]{height:var(--ui-control-size-md);}
 .h-\\[var\\(--ui-control-size-xl\\)\\]{height:var(--ui-control-size-xl);}
 .h-\\[var\\(--ui-control-size-xs\\)\\]{height:var(--ui-control-size-xs);}
@@ -10652,7 +10659,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .ease-in-out{transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);}
 .will-change-transform{will-change:transform;}
 @media (orientation: landscape){
-.landscape\\:\\[width\\:min\\(calc\\(100\\%-\\(var\\(--touch-gallery-gutter\\)\\*2\\)\\)\\,90dvh\\)\\]{width:min(calc(100% - (var(--touch-gallery-gutter) * 2)),90dvh);}
+.landscape\\:\\[width\\:min\\(calc\\(100\\%-\\(var\\(--touch-gallery-gutter\\)\\*2\\)\\)\\,90lvh\\)\\]{width:min(calc(100% - (var(--touch-gallery-gutter) * 2)),90lvh);}
 .landscape\\:w-\\[min\\(600px\\,calc\\(100vw-24px\\)\\)\\]{width:min(600px,calc(100vw - 24px));}
 }
 @media (pointer: coarse){
@@ -12987,9 +12994,9 @@ html:fullscreen .ehpeek-touch-top-bar {
           }) : null;
         })(), null), createRenderEffect((_$p) => classList(_el$2, {
           contents: !gState.settings.replacePreviewWithScroll,
-          "relative h-full w-full": gState.settings.replacePreviewWithScroll && gState.settings.touchUiEnabled && gState.columnsEnabled(),
-          "relative h-[55dvh] [width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90dvh)] mx-auto": gState.settings.replacePreviewWithScroll && gState.settings.touchUiEnabled && !gState.columnsEnabled(),
-          "relative h-[70dvh] w-[min(calc(100%-32px),1212px)] mx-auto": gState.settings.replacePreviewWithScroll && !gState.settings.touchUiEnabled
+          "relative h-full w-full [--scroll-preview-height:100%]": gState.settings.replacePreviewWithScroll && gState.settings.touchUiEnabled && gState.columnsEnabled(),
+          "relative [--scroll-preview-height:55lvh] [width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90lvh)] mx-auto": gState.settings.replacePreviewWithScroll && gState.settings.touchUiEnabled && !gState.columnsEnabled(),
+          "relative [--scroll-preview-height:70svh] w-[min(calc(100%-32px),1212px)] mx-auto": gState.settings.replacePreviewWithScroll && !gState.settings.touchUiEnabled
         }, _$p)), _el$2;
       })());
     });
