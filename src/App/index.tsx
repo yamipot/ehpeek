@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createEffect, createRoot, createSignal } from "solid-js";
 import { EnhanceSearchGrids } from "../components/Enhance/EnhanceSearchGrids";
 import {
   ThumbsGrids,
@@ -104,7 +104,6 @@ const gState = (() => {
     totalPages: null as number | null,
   });
   return {
-    galleryWideLayout: null as eh.GalleryWideLayoutHandle | null,
     columnsEnabled,
     leftHandedControls,
     readProgress,
@@ -115,8 +114,6 @@ const gState = (() => {
     setUiScale,
     setColumnsEnabled,
     setSettingsMenuOpen,
-    readHistoryPage: null as eh.ReadHistoryPageDom | null,
-    searchResults: null as eh.SearchResultsDom | null,
     scrollPreviewActions: undefined as ScrollPreviewActions | undefined,
     scrollPreviewOpen: false,
     thumbsGridsActions: undefined as ThumbsGridsActions | undefined,
@@ -146,11 +143,7 @@ function updateColumnsLayout(): void {
   if (!gState.settings.touchUiEnabled) {
     return;
   }
-  const enabled = currentColumnsEnabled();
-  gState.galleryWideLayout?.updateEnabled(enabled);
-  gState.readHistoryPage?.handle.updateResultColumns(enabled);
-  gState.searchResults?.handle.updateResultColumns(enabled);
-  gState.setColumnsEnabled(enabled);
+  gState.setColumnsEnabled(currentColumnsEnabled());
 }
 
 function setCurrentColumnsEnabled(enabled: boolean): void {
@@ -158,9 +151,6 @@ function setCurrentColumnsEnabled(enabled: boolean): void {
     ? state.touch.landscapeColumns
     : state.touch.portraitColumns;
   setting.set(enabled);
-  gState.galleryWideLayout?.updateEnabled(enabled);
-  gState.readHistoryPage?.handle.updateResultColumns(enabled);
-  gState.searchResults?.handle.updateResultColumns(enabled);
   gState.setColumnsEnabled(enabled);
 }
 
@@ -211,25 +201,30 @@ const readerCallbacks: ReaderCallbacks = {
   },
 };
 
-function allowFeatureFailure<T>(name: string, run: () => T): T | null {
+function allowFeatureFailure(name: string, run: () => void): void {
   try {
-    return run();
+    run();
   } catch (error) {
     console.error(`[ehpeek] ${name} failed`, error);
-    return null;
   }
 }
 
-async function allowAsyncFeatureFailure<T>(
+async function allowAsyncFeatureFailure(
   name: string,
-  run: () => Promise<T>,
-): Promise<T | null> {
+  run: () => Promise<void>,
+): Promise<void> {
   try {
-    return await run();
+    await run();
   } catch (error) {
     console.error(`[ehpeek] ${name} failed`, error);
-    return null;
   }
+}
+
+function requirePageDependency<T>(name: string, dependency: T | null): T {
+  if (dependency === null) {
+    throw new Error(`Cannot initialize ${name}.`);
+  }
+  return dependency;
 }
 
 function openGalleryPage(
@@ -305,17 +300,335 @@ function installSettingsMenu(): void {
   ));
 }
 
-function injectEnhanceUI(
-  page: eh.PageType,
-  previewCache: GalleryPreviewCache | null,
-  searchTextInput: eh.SearchTextInputDom | null,
-  searchResultsDom: eh.SearchResultsDom | null,
-  touchResultsDom: eh.TouchResultsPageDom | null,
+function injectCommon(page: eh.PageType): void {
+  if (!gState.settings.touchUiEnabled) {
+    allowFeatureFailure("Desktop settings entry", () => {
+      const settingsMount = eh.manageSettingsMenuMount();
+      if (!settingsMount) {
+        return;
+      }
+      settingsMount.mount(() => (
+        <a
+          href="#"
+          onClick={(event: MouseEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            gState.setSettingsMenuOpen(true);
+          }}
+        >
+          {texts.settings.menuLabel}
+        </a>
+      ));
+    });
+    return;
+  }
+
+  allowFeatureFailure("Touch top bar", () => {
+    const topBarDom = eh.manageTopBar();
+    if (!topBarDom) {
+      return;
+    }
+    const columnsAvailable =
+      page.type === "gallery" ||
+      page.type === "readHistory" ||
+      ((page.type === "search" || page.type === "favorites") &&
+        state.search.grid.value !== null);
+    topBarDom.elems.mount.mount(() => (
+      <TouchTopBar
+        fullscreen={readerViewport.createFullscreen(document.documentElement)}
+        historyHref={gState.settings.readHistoryEnabled
+          ? eh.readHistoryUrl()
+          : undefined}
+        leftHandedControls={{
+          enabled: gState.leftHandedControls,
+          onChange: setLeftHandedControls,
+        }}
+        uiScale={{
+          value: gState.uiScale,
+          onChange: setCurrentUiScale,
+        }}
+        columns={columnsAvailable ? {
+          enabled: gState.columnsEnabled,
+          onChange: setCurrentColumnsEnabled,
+        } : undefined}
+        source={topBarDom}
+        onSettingsMenuOpen={() => {
+          gState.setSettingsMenuOpen(true);
+        }}
+      />
+    ));
+  });
+
+  if (
+    page.type === "gallery" ||
+    page.type === "search" ||
+    page.type === "favorites" ||
+    page.type === "readHistory"
+  ) {
+    allowFeatureFailure("Back to top", () => {
+      const host = createAppMount("ehpeek-back-to-top-host");
+      host.mount(() => <BackToTop leftHanded={gState.leftHandedControls} />);
+    });
+  }
+}
+
+function injectGalleryDetails(previewCache: GalleryPreviewCache): void {
+  const preview = previewCache.current();
+  allowFeatureFailure("Touch GalleryInfo", () => {
+    eh.mutateGalleryTouchLayout();
+    const galleryInfoDom = requirePageDependency(
+      "Touch GalleryInfo",
+      eh.manageGalleryInfo(preview.data),
+    );
+    galleryInfoDom.handle.installGalleryInfoPanel();
+    galleryInfoDom.elems.mount.mount(() => (
+      <GalleryInfoPanel
+        leftHandedControls={gState.leftHandedControls}
+        source={galleryInfoDom}
+        primaryAction={(
+          <GalleryReadButton
+            previewCache={previewCache}
+            variant="touchGallery"
+          />
+        )}
+      />
+    ));
+    const wideLayout = requirePageDependency(
+      "Touch Gallery layout",
+      eh.mutateGalleryWideLayout(
+        galleryInfoDom,
+        preview,
+        gState.columnsEnabled(),
+        gState.settings.replacePreviewWithScroll,
+      ),
+    );
+    createEffect(() => wideLayout.updateEnabled(gState.columnsEnabled()));
+  });
+
+  allowFeatureFailure("Touch Gallery comments", () => {
+    eh.mutateGalleryCommentsTouch();
+  });
+}
+
+function injectGalleryPreview(previewCache: GalleryPreviewCache): void {
+  const preview = previewCache.current();
+  const previewMount = preview.elems.mount;
+
+  if (gState.settings.readerEnabled) {
+    allowFeatureFailure("Reader thumbnail links", () => {
+      preview.handle.interceptPreviewImageOpen((pageUrl) => {
+        openGalleryPage(previewCache, pageUrl);
+      });
+    });
+  }
+
+  if (!gState.settings.touchUiEnabled) {
+    allowFeatureFailure("Desktop Read button", () => {
+      const galleryReadButtonMount = eh.manageGalleryContinueReadingButtonMount();
+      galleryReadButtonMount.mount(() => (
+        <GalleryReadButton previewCache={previewCache} variant="gallery" />
+      ));
+    });
+  }
+
+  if (!previewMount) {
+    return;
+  }
+
+  allowFeatureFailure("Gallery Preview enhancements", () => {
+    if (gState.settings.replacePreviewWithScroll) {
+      preview.handle.removeOriginalPreview();
+    }
+    previewMount.mount(() => (
+      <div
+        classList={{
+          "contents": !gState.settings.replacePreviewWithScroll,
+          "relative h-full w-full":
+            gState.settings.replacePreviewWithScroll &&
+            gState.settings.touchUiEnabled &&
+            gState.columnsEnabled(),
+          "relative h-[55dvh] [width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90dvh)] mx-auto":
+            gState.settings.replacePreviewWithScroll &&
+            gState.settings.touchUiEnabled &&
+            !gState.columnsEnabled(),
+          "relative h-[70dvh] w-[min(calc(100%-32px),1212px)] mx-auto":
+            gState.settings.replacePreviewWithScroll &&
+            !gState.settings.touchUiEnabled,
+        }}
+      >
+        <ScrollPreview
+          actionsRef={(actions) => {
+            gState.scrollPreviewActions = actions;
+          }}
+          continuePageNum={gState.settings.readHistoryEnabled &&
+              gState.readProgress().hasHistory
+            ? gState.readProgress().currentPage
+            : null}
+          embeddedDirection={gState.columnsEnabled()
+            ? state.gallery.embeddedScrollPreviewColumnsDirection.value
+            : state.gallery.embeddedScrollPreviewSingleDirection.value}
+          leftHandedControls={gState.leftHandedControls}
+          onExitPreview={(previewIndex) => {
+            if (previewIndex === previewCache.current().data.currentIndex) {
+              return;
+            }
+            if (
+              gState.settings.enhanceThumbsGridsEnabled ||
+              gState.settings.replacePreviewWithScroll
+            ) {
+              void previewCache.select(previewIndex).catch(reportReaderOpenError);
+            } else {
+              window.location.assign(
+                eh.previewUrlForIndex(previewIndex, previewCache.current().data.currentUrl),
+              );
+            }
+          }}
+          onLoadError={reportReaderOpenError}
+          onOpenChange={(open) => {
+            gState.scrollPreviewOpen = open;
+          }}
+          onOpenPage={(pageUrl, pageNum) => openGalleryPage(previewCache, pageUrl, pageNum)}
+          onEmbeddedDirectionChange={(direction) => {
+            if (gState.columnsEnabled()) {
+              state.gallery.embeddedScrollPreviewColumnsDirection.set(direction);
+            } else {
+              state.gallery.embeddedScrollPreviewSingleDirection.set(direction);
+            }
+          }}
+          onReadDirectionChange={(direction) => {
+            state.gallery.scrollPreviewDirection.set(direction);
+          }}
+          previewCache={previewCache}
+          readDirection={state.gallery.scrollPreviewDirection.value}
+          replaceOriginalPreview={gState.settings.replacePreviewWithScroll}
+        />
+        {gState.settings.enhanceThumbsGridsEnabled &&
+        !gState.settings.replacePreviewWithScroll ? (
+          <ThumbsGrids
+            actionsRef={(actions) => {
+              gState.thumbsGridsActions = actions;
+            }}
+            onLoadError={reportReaderOpenError}
+            previewCache={previewCache}
+          />
+        ) : null}
+      </div>
+    ));
+  });
+}
+
+function injectGalleryPage(
+  page: Extract<eh.PageType, { type: "gallery" }>,
 ): void {
-  const galleryPage = page.type === "gallery";
-  const searchPage = page.type === "search" || page.type === "favorites";
-  const preview = previewCache?.current() ?? null;
-  const previewMount = preview?.elems.mount ?? null;
+  const preview = eh.manageGalleryPreview();
+  const previewCache = createGalleryPreviewCache(preview);
+
+  allowFeatureFailure("Gallery Read History", () => {
+    if (!gState.settings.readHistoryEnabled) {
+      gState.setReadProgress({
+        currentPage: 1,
+        hasHistory: false,
+        totalPages: preview.data.totalImages,
+      });
+      return;
+    }
+    const existing = loadReadHistory(page.galleryId, page.token);
+    const galleryInfo = eh.extractGalleryHistoryInfo();
+    let record = existing;
+    if (gState.settings.includeUnreadHistoryEnabled) {
+      record = recordGalleryVisit(
+        page.galleryId,
+        page.token,
+        preview.data.totalImages,
+        galleryInfo,
+      );
+    } else if (existing) {
+      record = updateReadHistoryGalleryInfo(page.galleryId, page.token, galleryInfo);
+    }
+    gState.setReadProgress({
+      currentPage: record?.pageNum && record.pageNum > 0 ? record.pageNum : 1,
+      hasHistory: Boolean(record && record.pageNum > 0),
+      totalPages: record?.totalPages ?? preview.data.totalImages,
+    });
+  });
+
+  if (gState.settings.myTagsEnabled) {
+    allowFeatureFailure("Gallery My Tags appearance", () => {
+      const myTagAppearances = loadMyTagAppearances();
+      if (myTagAppearances) {
+        eh.mutateGalleryMyTags(myTagAppearances);
+        return;
+      }
+      void allowAsyncFeatureFailure("My Tags appearance", async () => {
+        const appearances = await refreshMyTags();
+        if (appearances) {
+          eh.mutateGalleryMyTags(appearances);
+        }
+      });
+    });
+  }
+
+  if (gState.settings.touchUiEnabled) {
+    injectGalleryDetails(previewCache);
+  }
+  injectGalleryPreview(previewCache);
+
+  if (state.reader.enabled.value && page.peekPage !== null) {
+    void allowAsyncFeatureFailure("Reader deep link", async () => {
+      await openReaderFromHash(readerCallbacks, previewCache, readerViewport);
+    });
+  }
+}
+
+function injectSearchControls(
+  page: Extract<eh.PageType, { type: "favorites" | "search" }>,
+): eh.TouchResultsPageDom {
+  const touchResultsDom = eh.manageTouchResultsPage(page);
+
+  allowFeatureFailure("Touch Search panel", () => {
+    const searchPanelDom = eh.manageSearchPanel();
+    if (!searchPanelDom) {
+      return;
+    }
+    searchPanelDom.elems.mount.mount(() => (
+      <TouchSearchPanel
+        source={searchPanelDom}
+        after={touchResultsDom.data.favoritesCategory ? (
+          <FavoritesCategorySelect source={touchResultsDom} />
+        ) : undefined}
+      />
+    ));
+    searchPanelDom.elems.categoryToggleMount?.mount(() => (
+      <TouchSearchCategoryToggle source={searchPanelDom} />
+    ));
+    searchPanelDom.elems.advancedToggleMount?.mount(() => (
+      <TouchSearchOptionToggle option="advancedOptions" source={searchPanelDom} />
+    ));
+    searchPanelDom.elems.fileSearchToggleMount?.mount(() => (
+      <TouchSearchOptionToggle option="fileSearch" source={searchPanelDom} />
+    ));
+    searchPanelDom.elems.searchActionMount.mount(() => (
+      <TouchSearchAction action="search" source={searchPanelDom} />
+    ));
+    searchPanelDom.elems.clearActionMount?.mount(() => (
+      <TouchSearchAction action="clear" source={searchPanelDom} />
+    ));
+  });
+
+  return touchResultsDom;
+}
+
+function injectSearchPage(
+  page: Extract<eh.PageType, { type: "favorites" | "search" }>,
+): void {
+  const initialResultsDom = requirePageDependency(
+    "Search results",
+    eh.manageSearchResults(),
+  );
+  const [resultsDom, setResultsDom] = createSignal(
+    initialResultsDom,
+  );
+
   const updateSearchGridModeSelector = () => {
     eh.mutateSearchGridModeSelect(
       state.search.grid.value,
@@ -331,20 +644,8 @@ function injectEnhanceUI(
     );
   };
 
-  if (galleryPage && preview && previewCache && gState.settings.readerEnabled) {
-    allowFeatureFailure("Reader thumbnail links", () => {
-      preview.handle.interceptPreviewImageOpen((pageUrl) => {
-        openGalleryPage(previewCache, pageUrl);
-      });
-    });
-  }
-
-  if (searchPage) {
-    allowFeatureFailure("Search grid mode selector", () => {
-      updateSearchGridModeSelector();
-    });
-  }
-  const searchGridMode = searchPage ? state.search.grid.value : null;
+  allowFeatureFailure("Search grid mode selector", updateSearchGridModeSelector);
+  const searchGridMode = state.search.grid.value;
   if (searchGridMode) {
     allowFeatureFailure(
       "Search grid",
@@ -352,481 +653,170 @@ function injectEnhanceUI(
     );
   }
   const updateSearchReadHistoryAppearance = () => {
-    if (!searchPage || !gState.settings.readHistoryEnabled) {
+    if (!gState.settings.readHistoryEnabled) {
       return;
     }
     eh.mutateSearchReadHistoryAppearance(loadReadHistory);
   };
   allowFeatureFailure("Search Read History appearance", updateSearchReadHistoryAppearance);
 
-  if (gState.settings.openGalleryInNewTab && searchResultsDom) {
+  if (gState.settings.openGalleryInNewTab) {
     allowFeatureFailure("Gallery links in new tabs", () => {
-      searchResultsDom.handle.ensureGalleryLinksOpenInNewTab();
+      initialResultsDom.handle.ensureGalleryLinksOpenInNewTab();
     });
   }
-
-  if (!gState.settings.touchUiEnabled) {
-    allowFeatureFailure("Desktop settings entry", () => {
-      const settingsMount = eh.manageSettingsMenuMount();
-      if (settingsMount) {
-        settingsMount.mount(() => (
-          <a
-            href="#"
-            onClick={(event: MouseEvent) => {
-              event.preventDefault();
-              event.stopPropagation();
-              gState.setSettingsMenuOpen(true);
-            }}
-          >
-            {texts.settings.menuLabel}
-          </a>
-        ));
-      }
-    });
-  }
-
-  if (
-    !gState.settings.touchUiEnabled &&
-    galleryPage &&
-    preview &&
-    previewCache
-  ) {
-    allowFeatureFailure("Desktop Read button", () => {
-      const galleryReadButtonMount = eh.manageGalleryContinueReadingButtonMount();
-      galleryReadButtonMount.mount(() => (
-        <GalleryReadButton previewCache={previewCache} variant="gallery" />
-      ));
-    });
-  }
-
-  if (
-    galleryPage &&
-    preview &&
-    previewCache &&
-    previewMount
-  ) {
-    allowFeatureFailure("Gallery Preview enhancements", () => {
-      if (gState.settings.replacePreviewWithScroll) {
-        preview.handle.removeOriginalPreview();
-      }
-      previewMount.mount(() => (
-        <div
-          classList={{
-            "contents": !gState.settings.replacePreviewWithScroll,
-            "relative h-full w-full":
-              gState.settings.replacePreviewWithScroll &&
-              gState.settings.touchUiEnabled &&
-              gState.columnsEnabled(),
-            "relative h-[55dvh] [width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90dvh)] mx-auto":
-              gState.settings.replacePreviewWithScroll &&
-              gState.settings.touchUiEnabled &&
-              !gState.columnsEnabled(),
-            "relative h-[70dvh] w-[min(calc(100%-32px),1212px)] mx-auto":
-              gState.settings.replacePreviewWithScroll &&
-              !gState.settings.touchUiEnabled,
-          }}
-        >
-          <ScrollPreview
-            actionsRef={(actions) => {
-              gState.scrollPreviewActions = actions;
-            }}
-            continuePageNum={gState.settings.readHistoryEnabled &&
-                gState.readProgress().hasHistory
-              ? gState.readProgress().currentPage
-              : null}
-            embeddedDirection={gState.columnsEnabled()
-              ? state.gallery.embeddedScrollPreviewColumnsDirection.value
-              : state.gallery.embeddedScrollPreviewSingleDirection.value}
-            leftHandedControls={gState.leftHandedControls}
-            onExitPreview={(previewIndex) => {
-              if (previewIndex === previewCache.current().data.currentIndex) {
-                return;
-              }
-              if (
-                gState.settings.enhanceThumbsGridsEnabled ||
-                gState.settings.replacePreviewWithScroll
-              ) {
-                void previewCache.select(previewIndex).catch(reportReaderOpenError);
-              } else {
-                window.location.assign(
-                  eh.previewUrlForIndex(previewIndex, previewCache.current().data.currentUrl),
-                );
-              }
-            }}
-            onLoadError={reportReaderOpenError}
-            onOpenChange={(open) => {
-              gState.scrollPreviewOpen = open;
-            }}
-            onOpenPage={(pageUrl, pageNum) => openGalleryPage(previewCache, pageUrl, pageNum)}
-            onEmbeddedDirectionChange={(direction) => {
-              if (gState.columnsEnabled()) {
-                state.gallery.embeddedScrollPreviewColumnsDirection.set(direction);
-              } else {
-                state.gallery.embeddedScrollPreviewSingleDirection.set(direction);
-              }
-            }}
-            onReadDirectionChange={(direction) => {
-              state.gallery.scrollPreviewDirection.set(direction);
-            }}
-            previewCache={previewCache}
-            readDirection={state.gallery.scrollPreviewDirection.value}
-            replaceOriginalPreview={gState.settings.replacePreviewWithScroll}
-          />
-          {gState.settings.enhanceThumbsGridsEnabled &&
-          !gState.settings.replacePreviewWithScroll ? (
-            <ThumbsGrids
-              actionsRef={(actions) => {
-                gState.thumbsGridsActions = actions;
-              }}
-              onLoadError={reportReaderOpenError}
-              previewCache={previewCache}
-            />
-          ) : null}
-        </div>
-      ));
-    });
-  } else if (galleryPage && preview && previewCache) {
-    allowFeatureFailure("Original thumbnail grid", () => {
-      preview.elems.mount?.remove();
-    });
-  }
-
-  if (
-    gState.settings.enhanceSearchGridsEnabled &&
-    searchResultsDom
-  ) {
+  const updateSearchPage = (source: eh.SearchResultsDom) => {
+    setResultsDom(source);
+    updateSearchGridModeSelector();
+    if (gState.settings.openGalleryInNewTab) {
+      source.handle.ensureGalleryLinksOpenInNewTab();
+    }
+    if (searchGridMode) {
+      eh.manageSearchGrids(searchGridMode);
+    }
+    updateSearchReadHistoryAppearance();
+  };
+  const mountSearchPagination = (
+    onPageChange: (source: eh.SearchResultsDom) => void,
+  ) => {
+    if (!gState.settings.enhanceSearchGridsEnabled) {
+      return;
+    }
     allowFeatureFailure("Enhanced Search pagination", () => {
       const host = createAppMount();
       host.mount(() => (
         <EnhanceSearchGrids
-          source={searchResultsDom}
-          onPageChange={(source) => {
-            allowFeatureFailure("Changed Search page", () => {
-              gState.searchResults = source;
-              if (gState.settings.touchUiEnabled) {
-                source.handle.updateResultColumns(gState.columnsEnabled());
-              }
-              updateSearchGridModeSelector();
-              if (gState.settings.openGalleryInNewTab) {
-                source.handle.ensureGalleryLinksOpenInNewTab();
-              }
-              touchResultsDom?.handle.updateTouchResultsLayout();
-              if (searchGridMode) {
-                eh.manageSearchGrids(searchGridMode);
-              }
-              updateSearchReadHistoryAppearance();
-            });
-          }}
+          source={initialResultsDom}
+          onPageChange={(source) =>
+            allowFeatureFailure("Changed Search page", () => onPageChange(source))}
         />
       ));
     });
+  };
+
+  if (gState.settings.touchUiEnabled) {
+    const touchResultsDom = injectSearchControls(page);
+    createEffect(() => {
+      resultsDom().handle.updateResultColumns(gState.columnsEnabled());
+    });
+    mountSearchPagination((source) => {
+      updateSearchPage(source);
+      touchResultsDom.handle.updateTouchResultsLayout();
+    });
+  } else {
+    mountSearchPagination(updateSearchPage);
   }
 
-  if (gState.settings.searchHistoryEnabled && searchTextInput) {
+  if (gState.settings.searchHistoryEnabled) {
     allowFeatureFailure("Search history", () => {
+      const searchTextInput = eh.manageSearchTextInput();
+      if (!searchTextInput) {
+        return;
+      }
       const host = createAppMount();
       host.mount(() => <SearchHistory source={searchTextInput} />);
     });
   }
 }
 
-function injectTouchUI(
-  page: eh.PageType,
-  previewCache: GalleryPreviewCache | null,
-): eh.TouchResultsPageDom | null {
-  const galleryPage = page.type === "gallery";
-  const searchPage = page.type === "search" || page.type === "favorites";
-  const resultsPage = searchPage || page.type === "readHistory";
-  const preview = previewCache?.current() ?? null;
-  const columnsAvailable =
-    galleryPage ||
-    page.type === "readHistory" ||
-    (searchPage && state.search.grid.value);
-  const resultsDom = resultsPage
-    ? allowFeatureFailure("Touch results layout", () =>
-        eh.manageTouchResultsPage(page))
-    : null;
-
-  allowFeatureFailure("Touch top bar", () => {
-    const topBarDom = eh.manageTopBar();
-    if (topBarDom) {
-      topBarDom.elems.mount.mount(() => (
-        <TouchTopBar
-          fullscreen={readerViewport.createFullscreen(document.documentElement)}
-          historyHref={gState.settings.readHistoryEnabled
-            ? eh.readHistoryUrl()
-            : undefined}
-          leftHandedControls={{
-            enabled: gState.leftHandedControls,
-            onChange: setLeftHandedControls,
-          }}
-          uiScale={{
-            value: gState.uiScale,
-            onChange: setCurrentUiScale,
-          }}
-          columns={columnsAvailable ? {
-            enabled: gState.columnsEnabled,
-            onChange: setCurrentColumnsEnabled,
-          } : undefined}
-          source={topBarDom}
-          onSettingsMenuOpen={() => {
-            gState.setSettingsMenuOpen(true);
-          }}
-        />
-      ));
-    }
-  });
-
-  if (galleryPage || resultsPage) {
-    allowFeatureFailure("Back to top", () => {
-      const host = createAppMount("ehpeek-back-to-top-host");
-      host.mount(() => <BackToTop leftHanded={gState.leftHandedControls} />);
+function injectReadHistoryPage(
+  page: Extract<eh.PageType, { type: "readHistory" }>,
+): void {
+  const pageSize = 25;
+  const records = loadReadHistoryRecords();
+  const pageCount = Math.max(1, Math.ceil(records.length / pageSize));
+  const pageIndex = Math.min(page.pageIndex, pageCount - 1);
+  const items = records.map((record) => ({
+    currentPage: record.pageNum,
+    galleryId: record.galleryId,
+    info: record.gallery,
+    token: record.token,
+    totalPages: record.totalPages,
+    updatedAt: record.updatedAt,
+  }));
+  const historyDom = requirePageDependency(
+    "Read History page",
+    eh.manageReadHistoryPage(
+      items.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize),
+      state.gallery.titlePreference.reload(),
+      state.search.grid.value ?? "ehpeek-lite",
+    ),
+  );
+  if (gState.settings.touchUiEnabled) {
+    createEffect(() => {
+      historyDom.handle.updateResultColumns(gState.columnsEnabled());
+    });
+    allowFeatureFailure("Touch Read History layout", () => {
+      eh.manageTouchResultsPage(page);
     });
   }
-
-  if (galleryPage) {
-    allowFeatureFailure("Touch GalleryInfo", () => {
-      eh.mutateGalleryTouchLayout();
-      const galleryInfoDom = eh.manageGalleryInfo(preview?.data ?? null);
-      if (galleryInfoDom) {
-        galleryInfoDom.handle.installGalleryInfoPanel();
-        galleryInfoDom.elems.mount.mount(() => (
-          <GalleryInfoPanel
-            leftHandedControls={gState.leftHandedControls}
-            source={galleryInfoDom}
-            primaryAction={
-              preview && previewCache ? (
-                <GalleryReadButton
-                  previewCache={previewCache}
-                  variant="touchGallery"
-                />
-              ) : undefined
-            }
-          />
-        ));
-        if (preview) {
-          gState.galleryWideLayout = eh.mutateGalleryWideLayout(
-            galleryInfoDom,
-            preview,
-            gState.columnsEnabled(),
-            gState.settings.replacePreviewWithScroll,
-          );
-        }
-      }
-    });
-
-    allowFeatureFailure("Touch Gallery comments", () => {
-      eh.mutateGalleryCommentsTouch();
-    });
-  }
-
-  if (searchPage) {
-    allowFeatureFailure("Touch Search panel", () => {
-      const searchPanelDom = eh.manageSearchPanel();
-      if (searchPanelDom) {
-        searchPanelDom.elems.mount.mount(() => (
-          <TouchSearchPanel
-            source={searchPanelDom}
-            after={
-              resultsDom?.data.favoritesCategory ? (
-                <FavoritesCategorySelect
-                  source={resultsDom}
-                />
-              ) : undefined
-            }
-          />
-        ));
-        if (searchPanelDom.elems.categoryToggleMount) {
-          searchPanelDom.elems.categoryToggleMount.mount(() => (
-            <TouchSearchCategoryToggle source={searchPanelDom} />
-          ));
-        }
-        if (searchPanelDom.elems.advancedToggleMount) {
-          searchPanelDom.elems.advancedToggleMount.mount(() => (
-            <TouchSearchOptionToggle option="advancedOptions" source={searchPanelDom} />
-          ));
-        }
-        if (searchPanelDom.elems.fileSearchToggleMount) {
-          searchPanelDom.elems.fileSearchToggleMount.mount(() => (
-            <TouchSearchOptionToggle option="fileSearch" source={searchPanelDom} />
-          ));
-        }
-        searchPanelDom.elems.searchActionMount.mount(() => (
-          <TouchSearchAction action="search" source={searchPanelDom} />
-        ));
-        if (searchPanelDom.elems.clearActionMount) {
-          searchPanelDom.elems.clearActionMount.mount(() => (
-            <TouchSearchAction action="clear" source={searchPanelDom} />
-          ));
-        }
-      }
-    });
-  }
-
-  return resultsDom;
+  historyDom.elems.navigationTopMount.mount(() => (
+    <ReadHistoryPage
+      initialPageIndex={pageIndex}
+      items={items}
+      pageSize={pageSize}
+      source={historyDom}
+    />
+  ));
 }
 
-async function injectPage(page: eh.PageType): Promise<void> {
-  updateUiScale();
-  const galleryPage = page.type === "gallery";
-  const searchPage = page.type === "search" || page.type === "favorites";
-
-  if (page.type === "settings") {
-    const titlePreference = eh.extractGalleryTitlePreference();
-    if (titlePreference) {
-      state.gallery.titlePreference.set(titlePreference);
-    }
+function injectImagePage(
+  page: Extract<eh.PageType, { type: "image" }>,
+): void {
+  if (!gState.settings.readHistoryEnabled) {
+    return;
   }
-
-  if (page.type === "readHistory") {
-    allowFeatureFailure("Read History page", () => {
-      const pageSize = 25;
-      const records = loadReadHistoryRecords();
-      const pageCount = Math.max(1, Math.ceil(records.length / pageSize));
-      const pageIndex = Math.min(page.pageIndex, pageCount - 1);
-      const items = records
-        .map((record) => ({
-          currentPage: record.pageNum,
-          galleryId: record.galleryId,
-          info: record.gallery,
-          token: record.token,
-          totalPages: record.totalPages,
-          updatedAt: record.updatedAt,
-        }));
-      const titlePreference = state.gallery.titlePreference.reload();
-      const historyDom = eh.manageReadHistoryPage(
-        items.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize),
-        titlePreference,
-        state.search.grid.value ?? "ehpeek-lite",
-      );
-      gState.readHistoryPage = historyDom;
-      if (gState.settings.touchUiEnabled) {
-        historyDom?.handle.updateResultColumns(gState.columnsEnabled());
-      }
-      historyDom?.elems.navigationTopMount.mount(() => (
-        <ReadHistoryPage
-          initialPageIndex={pageIndex}
-          items={items}
-          pageSize={pageSize}
-          source={historyDom}
-        />
-      ));
-    });
-  }
-
-  const galleryPreview = galleryPage
-    ? allowFeatureFailure("Gallery Preview", () => eh.manageGalleryPreview())
-    : null;
-  const galleryPreviewCache = galleryPreview
-    ? allowFeatureFailure("Gallery Preview cache", () =>
-        createGalleryPreviewCache(galleryPreview))
-    : null;
-  if (page.type === "gallery" && galleryPreview) {
-    allowFeatureFailure("Gallery Read History", () => {
-      if (!gState.settings.readHistoryEnabled) {
-        gState.setReadProgress({
-          currentPage: 1,
-          hasHistory: false,
-          totalPages: galleryPreview.data.totalImages,
-        });
-        return;
-      }
-      const existing = loadReadHistory(page.galleryId, page.token);
-      const galleryInfo = eh.extractGalleryHistoryInfo();
-      let record = existing;
-      if (gState.settings.includeUnreadHistoryEnabled) {
-        record = recordGalleryVisit(
-          page.galleryId,
-          page.token,
-          galleryPreview.data.totalImages,
-          galleryInfo,
-        );
-      } else if (existing) {
-        record = updateReadHistoryGalleryInfo(page.galleryId, page.token, galleryInfo);
-      }
-      gState.setReadProgress({
-        currentPage: record?.pageNum && record.pageNum > 0 ? record.pageNum : 1,
-        hasHistory: Boolean(record && record.pageNum > 0),
-        totalPages: record?.totalPages ?? galleryPreview.data.totalImages,
-      });
-    });
-  }
-  const searchTextInput = searchPage
-    ? allowFeatureFailure("Search text input", () => eh.manageSearchTextInput())
-    : null;
-  const searchResultsSource = searchPage
-    ? allowFeatureFailure("Search results", () => eh.manageSearchResults())
-    : null;
-  gState.searchResults = searchResultsSource;
-  if (gState.settings.touchUiEnabled) {
-    searchResultsSource?.handle.updateResultColumns(gState.columnsEnabled());
-  }
-
-  if (gState.settings.myTagsEnabled) {
-    if (page.type === "myTags") {
-      void allowAsyncFeatureFailure("My Tags refresh", async () => {
-        const currentMyTags = eh.extractMyTagsPageData();
-        await refreshMyTags(currentMyTags);
-      });
-    } else if (galleryPage) {
-      const myTagAppearances = loadMyTagAppearances();
-      if (myTagAppearances) {
-        allowFeatureFailure("Gallery My Tags appearance", () => {
-          eh.mutateGalleryMyTags(myTagAppearances);
-        });
-      } else {
-        void allowAsyncFeatureFailure("My Tags appearance", async () => {
-          const appearances = await refreshMyTags();
-          if (appearances) {
-            eh.mutateGalleryMyTags(appearances);
-          }
-        });
-      }
-    }
-  }
-
-  if (gState.settings.readHistoryEnabled && page.type === "image") {
-    allowFeatureFailure("Image Read History", () => {
-      const gallery = eh.extractImageGalleryPage();
-      if (gallery?.galleryId === page.galleryId) {
-        const previous = loadReadHistory(gallery.galleryId, gallery.token);
-        const historySession = new ReadHistorySession({
-          gallery: previous?.gallery,
-          galleryId: gallery.galleryId,
-          token: gallery.token,
-          totalPages: previous?.totalPages,
-        });
-        historySession.update(page.pageNum, previous?.totalPages);
-      }
-    });
-  }
-
-  const touchResultsDom = gState.settings.touchUiEnabled
-    ? injectTouchUI(page, galleryPreviewCache)
-    : null;
-  injectEnhanceUI(
-    page,
-    galleryPreviewCache,
-    searchTextInput,
-    searchResultsSource,
-    touchResultsDom,
+  const gallery = requirePageDependency(
+    "Image Gallery data",
+    eh.extractImageGalleryPage(),
   );
+  if (gallery.galleryId !== page.galleryId) {
+    return;
+  }
+  const previous = loadReadHistory(gallery.galleryId, gallery.token);
+  const historySession = new ReadHistorySession({
+    gallery: previous?.gallery,
+    galleryId: gallery.galleryId,
+    token: gallery.token,
+    totalPages: previous?.totalPages,
+  });
+  historySession.update(page.pageNum, previous?.totalPages);
+}
 
-  if (
-    page.type === "gallery" &&
-    state.reader.enabled.value &&
-    page.peekPage !== null
-  ) {
-    if (galleryPreviewCache) {
-      void allowAsyncFeatureFailure(
-        "Reader deep link",
-        () => openReaderFromHash(
-          readerCallbacks,
-          galleryPreviewCache,
-          readerViewport,
-        ),
-      );
+function injectPage(page: eh.PageType): void {
+  updateUiScale();
+  injectCommon(page);
+
+  switch (page.type) {
+    case "gallery":
+      allowFeatureFailure("Gallery page", () => injectGalleryPage(page));
+      break;
+    case "favorites":
+    case "search":
+      allowFeatureFailure("Search page", () => injectSearchPage(page));
+      break;
+    case "readHistory":
+      allowFeatureFailure("Read History page", () => injectReadHistoryPage(page));
+      break;
+    case "image":
+      allowFeatureFailure("Image page", () => injectImagePage(page));
+      break;
+    case "myTags":
+      if (gState.settings.myTagsEnabled) {
+        void allowAsyncFeatureFailure("My Tags refresh", async () => {
+          await refreshMyTags(eh.extractMyTagsPageData());
+        });
+      }
+      break;
+    case "settings": {
+      const titlePreference = eh.extractGalleryTitlePreference();
+      if (titlePreference) {
+        state.gallery.titlePreference.set(titlePreference);
+      }
+      break;
     }
+    case "other":
+      break;
   }
 }
 
@@ -855,8 +845,10 @@ async function startApp(): Promise<void> {
   };
   window.addEventListener("resize", onViewportResize, { passive: true });
 
-  installSettingsMenu();
-  await injectPage(page);
+  createRoot(() => {
+    installSettingsMenu();
+    injectPage(page);
+  });
   dispatchReady();
 }
 
