@@ -100,6 +100,7 @@ const gallery = {
       touchScore: "ehpeek-enable-touch-comment-score",
     },
     childs: {
+      showAll: anchor("#chd > :first-child a[href*='hc=1']"),
       score: cls("c5"),
       scoreComment: cls("c1", {
         childs: {
@@ -108,6 +109,7 @@ const gallery = {
       }),
     },
   }),
+  commentActions: id("postnewcomment"),
   favoriteDialog: {
     note: textarea("textarea[name='favnote']"),
     optionRow: query("div[style*='height']"),

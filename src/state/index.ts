@@ -45,7 +45,7 @@ export const state = {
   reader: {
     enabled: persisted("ehpeek:reader:enabled", true),
     exitOnFullscreenExit: persisted("ehpeek:reader:exit-on-fullscreen-exit", false),
-    fullscreen: persisted("ehpeek:reader:fullscreen", prefersTouchFullscreen()),
+    fullscreen: persisted("ehpeek:reader:fullscreen", false),
     navigationMode: persisted<NavigationMode>("ehpeek:reader:navigation-mode", "scroll"),
     scrollDirection: persisted<ReadDirection>("ehpeek:reader:scroll-direction", "ttb"),
     pagedDirection: persisted<ReadDirection>("ehpeek:reader:paged-direction", "rtl"),
@@ -118,10 +118,6 @@ export function removeSearchHistory(value: string): string[] {
   const history = loadSearchHistory().filter((item) => item !== value);
   state.search.searchHistory.set(history);
   return history;
-}
-
-function prefersTouchFullscreen(): boolean {
-  return window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
 }
 
 function persisted<T>(key: string, defaultValue: T): StateValue<T> {

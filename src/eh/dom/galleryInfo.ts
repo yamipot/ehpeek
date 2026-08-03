@@ -633,11 +633,48 @@ export type GalleryWideLayoutHandle = NonNullable<
   ReturnType<typeof mutateGalleryWideLayout>
 >;
 
-/** Converts Gallery Comments score details from hover interaction to touch interaction. */
-export function mutateGalleryCommentsTouch() {
-  const source = DomNode.from(document).use(domClass.gallery.comments);
-  source.inplace()?.apply("touchScore");
-  const items = source.score.all()
+/** Keeps Gallery Comments interactions on the current TouchUI page. */
+export function manageGalleryCommentsTouch(onLoadError: (error: unknown) => void) {
+  const gallery = DomNode.from(document).use(domClass.gallery);
+  const comments = gallery.comments.inplace();
+  comments?.apply("touchScore");
+  const showAllSource = gallery.comments.showAll.one();
+  const showAll = showAllSource?.inplace() ?? null;
+  const showAllButton = showAllSource?.clone() ?? null;
+  const showAllUrl = showAll?.readAttribute("href");
+  let loadingAll = false;
+
+  if (comments && showAll && showAllUrl) {
+    if (showAllButton) {
+      gallery.commentActions.inplace()?.append(showAllButton);
+    }
+    const loadAll = (event: MouseEvent) => {
+      event.preventDefault();
+      if (loadingAll) {
+        return;
+      }
+      loadingAll = true;
+      showAll.setAttributes({ "aria-busy": "true" });
+      showAllButton?.setAttributes({ "aria-busy": "true" });
+      void requestPage(showAllUrl).then((response) => {
+        const loaded = DomNode.from(response.document)
+          .use(domClass.gallery.comments)
+          .one();
+        if (!loaded) {
+          throw new Error("Cannot read all gallery comments");
+        }
+        comments.replaceChildren(...loaded.children().map((child) => child.move()));
+        manageGalleryCommentsTouch(onLoadError);
+      }).catch(onLoadError).finally(() => {
+        loadingAll = false;
+        showAll.removeAttributes("aria-busy");
+        showAllButton?.removeAttributes("aria-busy");
+      });
+    };
+    showAll.listen("click", loadAll);
+    showAllButton?.listen("click", loadAll);
+  }
+  const items = gallery.comments.score.all()
     .filter((trigger) => trigger.attribute("data-ehpeek-touch-comment-score") !== "true")
     .map((trigger) => ({
       trigger,

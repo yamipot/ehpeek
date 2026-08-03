@@ -406,7 +406,7 @@ function injectGalleryDetails(previewCache: GalleryPreviewCache): void {
   });
 
   allowFeatureFailure("Touch Gallery comments", () => {
-    eh.mutateGalleryCommentsTouch();
+    eh.manageGalleryCommentsTouch(reportReaderOpenError);
   });
 }
 
@@ -662,15 +662,12 @@ function injectSearchPage(
 
   if (gState.settings.openGalleryInNewTab) {
     allowFeatureFailure("Gallery links in new tabs", () => {
-      initialResultsDom.handle.ensureGalleryLinksOpenInNewTab();
+      initialResultsDom.handle.listenGalleryLinksOpenInNewTab();
     });
   }
   const updateSearchPage = (source: eh.SearchResultsDom) => {
     setResultsDom(source);
     updateSearchGridModeSelector();
-    if (gState.settings.openGalleryInNewTab) {
-      source.handle.ensureGalleryLinksOpenInNewTab();
-    }
     if (searchGridMode) {
       eh.manageSearchGrids(searchGridMode);
     }

@@ -1152,6 +1152,10 @@ body.ehpeek-touch-gallery-page :is(
 }
 
 body.ehpeek-touch-gallery-page #postnewcomment {
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
   margin: 16px 0 !important;
   font-size: 0 !important;
 }

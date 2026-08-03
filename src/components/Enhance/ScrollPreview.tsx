@@ -681,6 +681,7 @@ function ScrollPreviewPanel(props: {
   let pinchMinimumCrossCount = 1;
   let layoutFrame: number | null = null;
   let scrollFrame: number | null = null;
+  let layoutWidth = 0;
   let initialized = false;
   let disposed = false;
 
@@ -1010,8 +1011,11 @@ function ScrollPreviewPanel(props: {
     }
   });
 
-  const updateLayout = (): void => {
+  const updateLayout = (resetEmbeddedHeight = false): void => {
     setPreviewLoadReady(false);
+    if (resetEmbeddedHeight && props.embedded) {
+      overlay.style.removeProperty("height");
+    }
     const width = Math.max(1, scroller.clientWidth);
     const height = Math.max(1, scroller.clientHeight);
     const scale = props.embedded ? 1 : fullscreenUiScale();
@@ -1129,7 +1133,7 @@ function ScrollPreviewPanel(props: {
     crossCountOverride();
     tileAspectRatio();
     if (initialized) {
-      untrack(updateLayout);
+      untrack(() => updateLayout(true));
     }
   });
 
@@ -1140,9 +1144,17 @@ function ScrollPreviewPanel(props: {
       document.body.style.overflow = "hidden";
       document.documentElement.style.overflow = "hidden";
     }
-    const resizeObserver = new ResizeObserver(updateLayout);
+    const resizeObserver = new ResizeObserver(() => untrack(() => {
+      const width = scroller.clientWidth;
+      if (Math.abs(width - layoutWidth) <= 1) {
+        return;
+      }
+      layoutWidth = width;
+      updateLayout(true);
+    }));
     resizeObserver.observe(scroller);
-    updateLayout();
+    layoutWidth = scroller.clientWidth;
+    updateLayout(true);
     onCleanup(() => {
       disposed = true;
       flingAnimator.cancel();

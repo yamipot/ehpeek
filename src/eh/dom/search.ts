@@ -1,5 +1,5 @@
 import texts from "../../texts.json";
-import { extractPageType, galleryIdentityFromUrl, type PageType } from "../url";
+import { galleryIdentityFromUrl, type PageType } from "../url";
 import { requestPage } from "../request";
 import type {
   ReadHistoryPageItem,
@@ -232,6 +232,7 @@ export function manageSearchResults() {
     nextUrl: source.navigation.next.one()?.attribute("href") ?? null,
     previousUrl: source.navigation.previous.one()?.attribute("href") ?? null,
   };
+  const resultHost = resultSource.parent()?.inplace() ?? null;
   const elems = {
     resultList: resultSource.inplace(domClass.search.results.apply),
     searchInput: source.input.inplace(),
@@ -292,14 +293,22 @@ export function manageSearchResults() {
     ensureSearchSwipeInput(): void {
       elems.resultList.apply("swipe");
     },
-    /** Applies the user setting to gallery links already owned by the result list. */
-    ensureGalleryLinksOpenInNewTab(): void {
-      for (const link of elems.resultList.all(domClass.search.results.links)) {
-        if (extractPageType(link.readAttribute("href") ?? "").type !== "gallery") {
-          continue;
-        }
-        link.setAttributes({ target: "_blank", rel: "noopener noreferrer" });
+    /** Applies new-tab semantics at activation time so replaced result pages need no rebinding. */
+    listenGalleryLinksOpenInNewTab(): () => void {
+      if (!resultHost) {
+        return () => undefined;
       }
+      const handleClick = (event: MouseEvent) => {
+        const link = event.target instanceof Element
+          ? DomNode.from(event.target).closest(domClass.search.results.galleryLinks)
+          : null;
+        if (!link?.closest(domClass.search.results)) {
+          return;
+        }
+        link.inplace().setAttributes({ target: "_blank", rel: "noopener noreferrer" });
+      };
+
+      return resultHost.listen("click", handleClick, true);
     },
   };
   return { data, elems, handle };
