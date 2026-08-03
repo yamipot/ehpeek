@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260731.1550
+// @version      260803.1115
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -1896,6 +1896,7 @@
         touchScore: "ehpeek-enable-touch-comment-score"
       },
       childs: {
+        showAll: anchor("#chd > :first-child a[href*='hc=1']"),
         score: cls("c5"),
         scoreComment: cls("c1", {
           childs: {
@@ -1904,6 +1905,7 @@
         })
       }
     }),
+    commentActions: id("postnewcomment"),
     favoriteDialog: {
       note: textarea("textarea[name='favnote']"),
       optionRow: query("div[style*='height']"),
@@ -2200,7 +2202,7 @@
     reader: {
       enabled: persisted("ehpeek:reader:enabled", !0),
       exitOnFullscreenExit: persisted("ehpeek:reader:exit-on-fullscreen-exit", !1),
-      fullscreen: persisted("ehpeek:reader:fullscreen", prefersTouchFullscreen()),
+      fullscreen: persisted("ehpeek:reader:fullscreen", !1),
       navigationMode: persisted("ehpeek:reader:navigation-mode", "scroll"),
       scrollDirection: persisted("ehpeek:reader:scroll-direction", "ttb"),
       pagedDirection: persisted("ehpeek:reader:paged-direction", "rtl"),
@@ -2265,9 +2267,6 @@
   function removeSearchHistory(value) {
     let history = loadSearchHistory().filter((item) => item !== value);
     return state.search.searchHistory.set(history), history;
-  }
-  function prefersTouchFullscreen() {
-    return window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
   }
   function persisted(key, defaultValue) {
     let item = {
@@ -3101,10 +3100,25 @@ Next page`,
       }
     };
   }
-  function mutateGalleryCommentsTouch() {
-    let source = DomNode.from(document).use(domClass.gallery.comments);
-    source.inplace()?.apply("touchScore");
-    let items = source.score.all().filter((trigger) => trigger.attribute("data-ehpeek-touch-comment-score") !== "true").map((trigger) => ({
+  function manageGalleryCommentsTouch(onLoadError) {
+    let gallery2 = DomNode.from(document).use(domClass.gallery), comments = gallery2.comments.inplace();
+    comments?.apply("touchScore");
+    let showAllSource = gallery2.comments.showAll.one(), showAll = showAllSource?.inplace() ?? null, showAllButton = showAllSource?.clone() ?? null, showAllUrl = showAll?.readAttribute("href"), loadingAll = !1;
+    if (comments && showAll && showAllUrl) {
+      showAllButton && gallery2.commentActions.inplace()?.append(showAllButton);
+      let loadAll = (event) => {
+        event.preventDefault(), !loadingAll && (loadingAll = !0, showAll.setAttributes({ "aria-busy": "true" }), showAllButton?.setAttributes({ "aria-busy": "true" }), requestPage(showAllUrl).then((response) => {
+          let loaded = DomNode.from(response.document).use(domClass.gallery.comments).one();
+          if (!loaded)
+            throw new Error("Cannot read all gallery comments");
+          comments.replaceChildren(...loaded.children().map((child) => child.move())), manageGalleryCommentsTouch(onLoadError);
+        }).catch(onLoadError).finally(() => {
+          loadingAll = !1, showAll.removeAttributes("aria-busy"), showAllButton?.removeAttributes("aria-busy");
+        }));
+      };
+      showAll.listen("click", loadAll), showAllButton?.listen("click", loadAll);
+    }
+    let items = gallery2.comments.score.all().filter((trigger) => trigger.attribute("data-ehpeek-touch-comment-score") !== "true").map((trigger) => ({
       trigger,
       details: trigger.closest(domClass.gallery.comments.scoreComment)?.one(domClass.gallery.comments.scoreComment.details) ?? null
     })).filter((item) => item.details !== null).map(({ trigger, details }) => ({
@@ -3242,7 +3256,7 @@ Next page`,
     let data = {
       nextUrl: source.navigation.next.one()?.attribute("href") ?? null,
       previousUrl: source.navigation.previous.one()?.attribute("href") ?? null
-    }, elems = {
+    }, resultHost = resultSource.parent()?.inplace() ?? null, elems = {
       resultList: resultSource.inplace(domClass.search.results.apply),
       searchInput: source.input.inplace()
     };
@@ -3278,10 +3292,16 @@ Next page`,
       ensureSearchSwipeInput() {
         elems.resultList.apply("swipe");
       },
-      /** Applies the user setting to gallery links already owned by the result list. */
-      ensureGalleryLinksOpenInNewTab() {
-        for (let link of elems.resultList.all(domClass.search.results.links))
-          extractPageType(link.readAttribute("href") ?? "").type === "gallery" && link.setAttributes({ target: "_blank", rel: "noopener noreferrer" });
+      /** Applies new-tab semantics at activation time so replaced result pages need no rebinding. */
+      listenGalleryLinksOpenInNewTab() {
+        if (!resultHost)
+          return () => {
+          };
+        let handleClick = (event) => {
+          let link = event.target instanceof Element ? DomNode.from(event.target).closest(domClass.search.results.galleryLinks) : null;
+          link?.closest(domClass.search.results) && link.inplace().setAttributes({ target: "_blank", rel: "noopener noreferrer" });
+        };
+        return resultHost.listen("click", handleClick, !0);
       }
     } };
   }
@@ -6249,7 +6269,7 @@ Next page`,
       tileWidth: MAX_TILE_WIDTH,
       viewportHeight: 1,
       viewportWidth: 1
-    }), scroller, overlay, dragDirection = null, dragStartPosition = null, resizeAnchorPageNum = null, pinchStartCrossCount = 1, pinchMinimumCrossCount = 1, layoutFrame = null, scrollFrame = null, initialized = !1, disposed = !1, totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount)), totalMainSize = createMemo(() => Math.max(1, totalGroups() * layout().mainStride - layout().gap)), mainViewportSize = createMemo(() => horizontal ? layout().viewportWidth : layout().viewportHeight), mainCanvasSize = createMemo(() => Math.max(totalMainSize(), mainViewportSize())), visibleStartGroup = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS, 0, Math.max(0, totalGroups() - 1))), visibleEndGroup = createMemo(() => clamp(Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS, visibleStartGroup(), Math.max(0, totalGroups() - 1))), visibleStartPageNum = createMemo(() => visibleStartGroup() * layout().crossCount + 1), visibleEndPageNum = createMemo(() => Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)), screenStartPageNum = createMemo(() => Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1), screenEndPageNum = createMemo(() => {
+    }), scroller, overlay, dragDirection = null, dragStartPosition = null, resizeAnchorPageNum = null, pinchStartCrossCount = 1, pinchMinimumCrossCount = 1, layoutFrame = null, scrollFrame = null, layoutWidth = 0, initialized = !1, disposed = !1, totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount)), totalMainSize = createMemo(() => Math.max(1, totalGroups() * layout().mainStride - layout().gap)), mainViewportSize = createMemo(() => horizontal ? layout().viewportWidth : layout().viewportHeight), mainCanvasSize = createMemo(() => Math.max(totalMainSize(), mainViewportSize())), visibleStartGroup = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS, 0, Math.max(0, totalGroups() - 1))), visibleEndGroup = createMemo(() => clamp(Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS, visibleStartGroup(), Math.max(0, totalGroups() - 1))), visibleStartPageNum = createMemo(() => visibleStartGroup() * layout().crossCount + 1), visibleEndPageNum = createMemo(() => Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)), screenStartPageNum = createMemo(() => Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1), screenEndPageNum = createMemo(() => {
       let end = Math.max(scrollOffset(), scrollOffset() + mainViewportSize() - 1), endGroup = Math.floor(end / layout().mainStride);
       return Math.min(totalImages, (endGroup + 1) * layout().crossCount);
     }), visibleSlots = createMemo(() => {
@@ -6378,8 +6398,8 @@ Next page`,
       let previewIndex = props.targetPreviewIndex, pageNum = props.targetPageNum;
       initialized && scroller.isConnected && (pageNum === null ? scrollToPreview(previewIndex, untrack(layout)) : scrollToPage(pageNum, untrack(layout)));
     });
-    let updateLayout = () => {
-      setPreviewLoadReady(!1);
+    let updateLayout = (resetEmbeddedHeight = !1) => {
+      setPreviewLoadReady(!1), resetEmbeddedHeight && props.embedded && overlay.style.removeProperty("height");
       let width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), scale = props.embedded ? 1 : fullscreenUiScale(), gap = GRID_GAP * scale, aspectRatio = tileAspectRatio(), baseMaxTileWidth = MAX_TILE_WIDTH * scale, referenceItemsPerRow = Math.max(1, Math.ceil((width + gap) / (baseMaxTileWidth + gap))), referenceItemWidth = Math.max(1, (width - gap * (referenceItemsPerRow - 1)) / referenceItemsPerRow), maxTileWidth = props.embedded ? referenceItemWidth * Math.sqrt(REFERENCE_PORTRAIT_ASPECT_RATIO / aspectRatio) : baseMaxTileWidth, anchorPageNum = initialized ? resizeAnchorPageNum ?? preferredLayoutAnchorPageNum() : null, itemsPerRow = Math.max(1, Math.ceil((width + gap) / (maxTileWidth + gap))), itemWidth = Math.max(1, (width - gap * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio)), availableRows = props.embedded ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap))) : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap))), automaticCrossCount = horizontal ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow)) : Math.min(itemsPerRow, totalImages), crossCount = clamp(crossCountOverride() ?? automaticCrossCount, 1, totalImages), availableTileHeight = Math.max(1, (height - gap * (crossCount - 1)) / crossCount), crossCountOverridden = crossCountOverride() !== null, overriddenTileWidth = Math.min(Math.max(1, (width - gap * (crossCount - 1)) / crossCount), width / 2, height / 2 / aspectRatio), tileHeight = horizontal ? crossCountOverridden ? Math.min(availableTileHeight, height / 2, width / 2 * aspectRatio) : Math.min(itemHeight, availableTileHeight) : Math.max(1, Math.round((crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount)) * aspectRatio)), tileWidth = horizontal ? crossCountOverridden ? tileHeight / aspectRatio : clamp(tileHeight / aspectRatio, 1, maxTileWidth) : crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount);
       if (props.embedded && horizontal) {
         let fittedScrollerHeight = crossCount * tileHeight + (crossCount - 1) * gap;
@@ -6400,12 +6420,15 @@ Next page`,
       }));
     };
     createEffect(() => {
-      crossCountOverride(), tileAspectRatio(), initialized && untrack(updateLayout);
+      crossCountOverride(), tileAspectRatio(), initialized && untrack(() => updateLayout(!0));
     }), onMount(() => {
       let previousBodyOverflow = document.body.style.overflow, previousHtmlOverflow = document.documentElement.style.overflow;
       props.embedded || (document.body.style.overflow = "hidden", document.documentElement.style.overflow = "hidden");
-      let resizeObserver = new ResizeObserver(updateLayout);
-      resizeObserver.observe(scroller), updateLayout(), onCleanup(() => {
+      let resizeObserver = new ResizeObserver(() => untrack(() => {
+        let width = scroller.clientWidth;
+        Math.abs(width - layoutWidth) <= 1 || (layoutWidth = width, updateLayout(!0));
+      }));
+      resizeObserver.observe(scroller), layoutWidth = scroller.clientWidth, updateLayout(!0), onCleanup(() => {
         disposed = !0, flingAnimator.cancel(), resizeObserver.disconnect(), props.embedded || (document.body.style.overflow = previousBodyOverflow, document.documentElement.style.overflow = previousHtmlOverflow), layoutFrame !== null && window.cancelAnimationFrame(layoutFrame), scrollFrame !== null && window.cancelAnimationFrame(scrollFrame);
       });
     });
@@ -7532,7 +7555,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260731.1550", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260803.1115", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
@@ -9870,6 +9893,10 @@ body.ehpeek-touch-gallery-page :is(
 }
 
 body.ehpeek-touch-gallery-page #postnewcomment {
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
   margin: 16px 0 !important;
   font-size: 0 !important;
 }
@@ -12932,7 +12959,7 @@ html:fullscreen .ehpeek-touch-top-bar {
       let wideLayout = requirePageDependency("Touch Gallery layout", mutateGalleryWideLayout(galleryInfoDom, preview, gState.columnsEnabled(), gState.settings.replacePreviewWithScroll));
       createEffect(() => wideLayout.updateEnabled(gState.columnsEnabled()));
     }), allowFeatureFailure("Touch Gallery comments", () => {
-      mutateGalleryCommentsTouch();
+      manageGalleryCommentsTouch(reportReaderOpenError);
     });
   }
   function injectGalleryPreview(previewCache) {
@@ -13075,10 +13102,10 @@ html:fullscreen .ehpeek-touch-top-bar {
       gState.settings.readHistoryEnabled && mutateSearchReadHistoryAppearance(loadReadHistory);
     };
     allowFeatureFailure("Search Read History appearance", updateSearchReadHistoryAppearance), gState.settings.openGalleryInNewTab && allowFeatureFailure("Gallery links in new tabs", () => {
-      initialResultsDom.handle.ensureGalleryLinksOpenInNewTab();
+      initialResultsDom.handle.listenGalleryLinksOpenInNewTab();
     });
     let updateSearchPage = (source) => {
-      setResultsDom(source), updateSearchGridModeSelector(), gState.settings.openGalleryInNewTab && source.handle.ensureGalleryLinksOpenInNewTab(), searchGridMode && manageSearchGrids(searchGridMode), updateSearchReadHistoryAppearance();
+      setResultsDom(source), updateSearchGridModeSelector(), searchGridMode && manageSearchGrids(searchGridMode), updateSearchReadHistoryAppearance();
     }, mountSearchPagination = (onPageChange) => {
       gState.settings.enhanceSearchGridsEnabled && allowFeatureFailure("Enhanced Search pagination", () => {
         createAppMount().mount(() => createComponent(EnhanceSearchGrids, {
