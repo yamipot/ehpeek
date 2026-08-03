@@ -184,7 +184,7 @@ body.ehpeek-constrain-results-to-viewport {
   position: relative !important;
   display: grid !important;
   grid-template-columns: clamp(112px, 34%, 250px) minmax(0, 1fr) !important;
-  align-items: start !important;
+  align-items: center !important;
   column-gap: 0 !important;
   width: 100% !important;
   cursor: pointer !important;
@@ -608,7 +608,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 .ehpeek-overlay-search-actions {
   box-sizing: border-box !important;
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 60px !important;
+  grid-template-columns: minmax(0, 1fr) 90px !important;
   align-items: start !important;
   gap: 0 !important;
   min-width: 0 !important;
@@ -618,7 +618,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 }
 
 .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] {
-  grid-template-columns: minmax(0, 1fr) 60px 60px !important;
+  grid-template-columns: minmax(0, 1fr) 90px 90px !important;
 }
 
 .ehpeek-expand-search-input {
@@ -628,20 +628,20 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   grid-row: 1 !important;
   min-width: 0 !important;
   width: 100% !important;
-  height: 60px !important;
+  height: 90px !important;
   margin: 0 !important;
-  padding: 0 72px 0 16px !important;
+  padding: 0 102px 0 24px !important;
   border: 1px solid var(--color-site-border) !important;
-  border-radius: 6px !important;
+  border-radius: 9px !important;
   outline: none !important;
   background: var(--color-site-elevated) !important;
   color: var(--color-site-text) !important;
-  font-size: var(--ui-font-size-md) !important;
+  font-size: var(--ui-font-size-lg) !important;
   line-height: 1.2 !important;
 }
 
 .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] .ehpeek-expand-search-input {
-  padding-right: 132px !important;
+  padding-right: 192px !important;
 }
 
 .ehpeek-expand-search-input:focus {
@@ -975,25 +975,25 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 }
 
 :root:not([data-ehpeek-ui-scale="large"]) .ehpeek-overlay-search-actions {
-  grid-template-columns: minmax(0, 1fr) 40px !important;
+  grid-template-columns: minmax(0, 1fr) 60px !important;
 }
 
 :root:not([data-ehpeek-ui-scale="large"])
   .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] {
-  grid-template-columns: minmax(0, 1fr) 40px 40px !important;
+  grid-template-columns: minmax(0, 1fr) 60px 60px !important;
 }
 
 :root:not([data-ehpeek-ui-scale="large"]) .ehpeek-expand-search-input {
-  height: 40px !important;
-  padding: 0 48px 0 10px !important;
+  height: 60px !important;
+  padding: 0 72px 0 10px !important;
   border-radius: 4px !important;
-  font-size: var(--ui-font-size-md) !important;
+  font-size: var(--ui-font-size-lg) !important;
 }
 
 :root:not([data-ehpeek-ui-scale="large"])
   .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"]
   .ehpeek-expand-search-input {
-  padding-right: 88px !important;
+  padding-right: 132px !important;
 }
 
 :root:not([data-ehpeek-ui-scale="large"])
