@@ -93,6 +93,7 @@
 
 html:fullscreen > body {
   width: calc(100% * var(--ehpeek-fullscreen-scale-inverse, 1));
+  max-width: none !important;
   height: calc(100% * var(--ehpeek-fullscreen-scale-inverse, 1));
   transform: scale(var(--ehpeek-fullscreen-scale, 1));
   transform-origin: top left;

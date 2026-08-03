@@ -578,7 +578,7 @@ body.ehpeek-constrain-results-to-viewport {
   --ehpeek-read-history-tint: color-mix(in srgb, var(--color-site-accent) 12%, transparent);
 }
 
-tr[data-ehpeek-read-history] > td,
+tr[data-ehpeek-read-history] > td:not(.glfe),
 [data-ehpeek-read-history]:not(tr) {
   box-shadow: inset 0 0 0 9999px var(--ehpeek-read-history-tint) !important;
 }

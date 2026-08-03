@@ -335,7 +335,6 @@ function injectCommon(page: eh.PageType): void {
         state.search.grid.value !== null);
     topBarDom.elems.mount.mount(() => (
       <TouchTopBar
-        fullscreen={readerViewport.createFullscreen(document.documentElement)}
         historyHref={gState.settings.readHistoryEnabled
           ? eh.readHistoryUrl()
           : undefined}
