@@ -107,6 +107,11 @@ function userscriptVersion() {
 }
 
 function userscriptInstallUrl() {
+  const overrideUrl = process.env.EHPEEK_INSTALL_URL?.trim();
+  if (overrideUrl) {
+    return overrideUrl;
+  }
+
   if (releaseBuild) {
     const sourceBranch = releaseBranch.replace(/[^a-zA-Z0-9._-]+/g, "-");
     return `https://github.com/yamipot/ehpeek/raw/build-${sourceBranch}/ehpeek.user.js`;
