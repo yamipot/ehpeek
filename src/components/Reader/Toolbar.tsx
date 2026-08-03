@@ -474,6 +474,43 @@ export function Toolbar(props: {
                 </div>
               )}
             </For>
+            <details class="textsize-sm opacity-75">
+              <summary class="cursor-pointer font-700">
+                {texts.reader.downloadHelpLabel}
+              </summary>
+              <p class="m-0 mt-sm leading-[1.4]">
+                {texts.reader.downloadHelp}
+              </p>
+              <div class="mt-md flex flex-wrap items-center gap-x-md gap-y-sm">
+                <span class="font-700">{texts.reader.openImage}:</span>
+                <For each={props.downloadInfos}>
+                  {(downloadInfo) => (
+                    <>
+                      <a
+                        class="text-[var(--color-accent)] hover:underline"
+                        href={downloadInfo.currentImageUrl}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
+                        {`${texts.reader.displayedImageShort} ${downloadInfo.pageNum}`}
+                      </a>
+                      <Show when={downloadInfo.originalImageUrl}>
+                        {(originalImageUrl) => (
+                          <a
+                            class="text-[var(--color-accent)] hover:underline"
+                            href={originalImageUrl()}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                          >
+                            {`${texts.reader.originalImageShort} ${downloadInfo.pageNum}`}
+                          </a>
+                        )}
+                      </Show>
+                    </>
+                  )}
+                </For>
+              </div>
+            </details>
           </div>
         </Dialog>
       </Show>
