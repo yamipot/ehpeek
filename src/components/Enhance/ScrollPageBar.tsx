@@ -3,12 +3,12 @@ import { clamp } from "../../utils";
 import { createPointerGestureElement } from "../PointerGesture";
 
 const DRAG_PIXEL_STEP = 18;
-const PAGE_BAR_CELL_CLASS = "!w-sm !h-sm coarse:!w-md coarse:!h-md !p-0 rounded-sm coarse:rounded-md cursor-pointer text-center align-middle select-none";
-const PAGE_BAR_LINK_CLASS = "flex !w-sm !h-sm coarse:!w-md coarse:!h-md items-center justify-center box-border !p-0 rounded-sm coarse:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
+const PAGE_BAR_CELL_CLASS = "!w-sm !h-sm large:!w-md large:!h-md !p-0 rounded-sm large:rounded-md cursor-pointer text-center align-middle select-none";
+const PAGE_BAR_LINK_CLASS = "flex !w-sm !h-sm large:!w-md large:!h-md items-center justify-center box-border !p-0 rounded-sm large:rounded-md !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
 const PAGE_BAR_LINK_COLOR_CLASS = "!border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)]";
 const PAGE_BAR_CURRENT_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)]";
 const PAGE_BAR_DISABLED_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)] opacity-40 cursor-default";
-const PAGE_BAR_TABLE_CLASS = "border-separate border-spacing-4px coarse:border-spacing-6px";
+const PAGE_BAR_TABLE_CLASS = "border-separate border-spacing-4px large:border-spacing-6px";
 
 type PageBarItemState = "link" | "current" | "disabled";
 

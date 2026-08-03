@@ -1384,7 +1384,7 @@ function PreviewTile(props: {
             />
             <Show when={props.highlighted}>
               <span
-                class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 coarse:border-8 border-solid border-[var(--color-danger)]"
+                class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 large:border-8 border-solid border-[var(--color-danger)]"
                 aria-hidden="true"
               />
             </Show>

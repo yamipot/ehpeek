@@ -110,7 +110,7 @@ export function ViewportCanvas(props: {
           role="toolbar"
           aria-label={texts.reader.adjustScrollViewport}
         >
-          <div class="grid w-full grid-cols-[48px_minmax(64px,1fr)_64px_64px] items-center justify-center gap-sm coarse:grid-cols-[48px_minmax(40px,1fr)_80px_80px]">
+          <div class="grid w-full grid-cols-[48px_minmax(64px,1fr)_64px_64px] items-center justify-center gap-sm large:grid-cols-[48px_minmax(40px,1fr)_80px_80px]">
             <span class="flex w-full flex-col items-center justify-center text-center font-mono textsize-sm font-600 leading-[1.05]">
               <Show when={props.scaleMode !== "custom"}>
                 <span>{props.scaleMode === "fit" ? texts.reader.fit : "1:1"}</span>
@@ -134,7 +134,7 @@ export function ViewportCanvas(props: {
               1:1
             </button>
           </div>
-          <div class="grid w-fit max-w-full grid-cols-[auto_96px_96px] items-stretch justify-center gap-sm coarse:w-full coarse:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          <div class="grid w-fit max-w-full grid-cols-[auto_96px_96px] items-stretch justify-center gap-sm large:w-full large:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]">
             <button type="button" class={`${READER_BUTTON_CLASS} w-full whitespace-normal leading-[1.1]`} onClick={() => props.callbacks.onApplyAll()}>
               {texts.reader.applyGlobally}
             </button>

@@ -10,7 +10,7 @@ export function InteractionHelp(props: {
 }) {
   return (
     <Dialog
-      bodyClass="p-xl coarse:p-lg"
+      bodyClass="p-xl large:p-lg"
       label={texts.help.title}
       onClose={props.onClose}
       title={texts.help.title}

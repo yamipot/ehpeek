@@ -970,86 +970,92 @@ tr[data-ehpeek-read-history] > td,
   display: none !important;
 }
 
-@media (pointer: fine) {
-  .ehpeek-stack-search-form {
-    gap: 8px !important;
-  }
-
-  .ehpeek-overlay-search-actions {
-    grid-template-columns: minmax(0, 1fr) 40px !important;
-  }
-
-  .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] {
-    grid-template-columns: minmax(0, 1fr) 40px 40px !important;
-  }
-
-  .ehpeek-expand-search-input {
-    height: 40px !important;
-    padding: 0 48px 0 10px !important;
-    border-radius: 4px !important;
-    font-size: var(--ui-font-size-md) !important;
-  }
-
-  .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] .ehpeek-expand-search-input {
-    padding-right: 88px !important;
-  }
-
-  .ehpeek-layout-search-categories > tbody {
-    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)) !important;
-  }
-
-  .ehpeek-layout-search-categories [id^="cat_"] {
-    height: 32px !important;
-    padding-inline: 8px !important;
-    border-radius: 4px !important;
-    font-size: var(--ui-font-size-md) !important;
-  }
-
-  .ehpeek-wrap-search-options {
-    gap: 4px 6px !important;
-  }
-
-  .ehpeek-wrap-search-options > a {
-    min-height: 32px !important;
-    padding-inline: 10px !important;
-    border-radius: 4px !important;
-    font-size: var(--ui-font-size-md) !important;
-  }
-
-  .ehpeek-reset-search-box-layout .searchadv {
-    padding-top: 8px !important;
-    font-size: var(--ui-font-size-md) !important;
-  }
-
-  .ehpeek-reset-search-box-layout .searchadv > div,
-  .ehpeek-expand-file-search .searchadv > div {
-    gap: 4px !important;
-  }
-
-  .ehpeek-reset-search-box-layout .searchadv > div > div,
-  .ehpeek-expand-file-search .searchadv > div > div {
-    padding: 4px !important;
-  }
-
-  .ehpeek-expand-file-search {
-    padding: 8px !important;
-    border-radius: 3px !important;
-    font-size: var(--ui-font-size-sm) !important;
-  }
-
-  .ehpeek-expand-file-search form {
-    gap: 4px !important;
-  }
+:root:not([data-ehpeek-ui-scale="large"]) .ehpeek-stack-search-form {
+  gap: 8px !important;
 }
 
-@media (pointer: coarse) {
-  .ehpeek-suppress-thumbnail-tap-highlight > :is(:hover, :active) {
-    border-color: var(--color-site-border) !important;
-  }
+:root:not([data-ehpeek-ui-scale="large"]) .ehpeek-overlay-search-actions {
+  grid-template-columns: minmax(0, 1fr) 40px !important;
+}
 
-  .ehpeek-suppress-thumbnail-tap-highlight a:is(:focus, :active) {
-    outline: none !important;
-  }
+:root:not([data-ehpeek-ui-scale="large"])
+  .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] {
+  grid-template-columns: minmax(0, 1fr) 40px 40px !important;
+}
+
+:root:not([data-ehpeek-ui-scale="large"]) .ehpeek-expand-search-input {
+  height: 40px !important;
+  padding: 0 48px 0 10px !important;
+  border-radius: 4px !important;
+  font-size: var(--ui-font-size-md) !important;
+}
+
+:root:not([data-ehpeek-ui-scale="large"])
+  .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"]
+  .ehpeek-expand-search-input {
+  padding-right: 88px !important;
+}
+
+:root:not([data-ehpeek-ui-scale="large"])
+  .ehpeek-layout-search-categories > tbody {
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)) !important;
+}
+
+:root:not([data-ehpeek-ui-scale="large"])
+  .ehpeek-layout-search-categories [id^="cat_"] {
+  height: 32px !important;
+  padding-inline: 8px !important;
+  border-radius: 4px !important;
+  font-size: var(--ui-font-size-md) !important;
+}
+
+:root:not([data-ehpeek-ui-scale="large"]) .ehpeek-wrap-search-options {
+  gap: 4px 6px !important;
+}
+
+:root:not([data-ehpeek-ui-scale="large"]) .ehpeek-wrap-search-options > a {
+  min-height: 32px !important;
+  padding-inline: 10px !important;
+  border-radius: 4px !important;
+  font-size: var(--ui-font-size-md) !important;
+}
+
+:root:not([data-ehpeek-ui-scale="large"])
+  .ehpeek-reset-search-box-layout .searchadv {
+  padding-top: 8px !important;
+  font-size: var(--ui-font-size-md) !important;
+}
+
+:root:not([data-ehpeek-ui-scale="large"])
+  .ehpeek-reset-search-box-layout .searchadv > div,
+:root:not([data-ehpeek-ui-scale="large"])
+  .ehpeek-expand-file-search .searchadv > div {
+  gap: 4px !important;
+}
+
+:root:not([data-ehpeek-ui-scale="large"])
+  .ehpeek-reset-search-box-layout .searchadv > div > div,
+:root:not([data-ehpeek-ui-scale="large"])
+  .ehpeek-expand-file-search .searchadv > div > div {
+  padding: 4px !important;
+}
+
+:root:not([data-ehpeek-ui-scale="large"]) .ehpeek-expand-file-search {
+  padding: 8px !important;
+  border-radius: 3px !important;
+  font-size: var(--ui-font-size-sm) !important;
+}
+
+:root:not([data-ehpeek-ui-scale="large"]) .ehpeek-expand-file-search form {
+  gap: 4px !important;
+}
+
+.ehpeek-suppress-thumbnail-tap-highlight > :is(:hover, :active) {
+  border-color: var(--color-site-border) !important;
+}
+
+.ehpeek-suppress-thumbnail-tap-highlight a:is(:focus, :active) {
+  outline: none !important;
 }
 
 /* The root state scopes original Gallery layout overrides to TouchUI pages. */

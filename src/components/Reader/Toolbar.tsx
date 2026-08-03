@@ -32,6 +32,8 @@ export const READER_BUTTON_CLASS = [
   "inline-flex min-w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] items-center justify-center px-md py-0 rounded-md large:(px-lg rounded-lg)",
   "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:(opacity-40 cursor-default)",
 ].join(" ");
+const READER_TOOLBAR_BUTTON_CLASS =
+  `${READER_BUTTON_CLASS} !w-[var(--ui-control-size-lg)] !min-w-0 !px-sm flex-none`;
 export const READER_FLOATING_ACTION_CLASS = [
   READER_BUTTON_CLASS,
   "!min-w-[var(--ui-control-size-lg)] !h-[var(--ui-control-size-lg)] opacity-85 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-160",
@@ -185,26 +187,26 @@ export function Toolbar(props: {
           "ehpeek-reader-toolbar fixed z-3 flex justify-end pointer-events-none " +
           "top-[calc(10px+env(safe-area-inset-top,0px))] " +
           (leftHandedControls
-            ? "left-10px coarse:left-8px "
-            : "right-10px coarse:right-8px ") +
-          "coarse:top-[calc(8px+env(safe-area-inset-top,0px))]"
+            ? "left-10px large:left-8px "
+            : "right-10px large:right-8px ") +
+          "large:top-[calc(8px+env(safe-area-inset-top,0px))]"
         }
         onClick={stopEvent}
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div class={`ehpeek-reader-toolbar-buttons flex flex-col ${leftHandedControls ? "items-start" : "items-end"} gap-md coarse:gap-lg pointer-events-auto${props.open ? "" : " !hidden"}`}>
-          <div class={`flex flex-row gap-md coarse:gap-lg${leftHandedControls ? " flex-row-reverse" : ""}`}>
+        <div class={`ehpeek-reader-toolbar-buttons flex flex-col ${leftHandedControls ? "items-start" : "items-end"} gap-md large:gap-lg pointer-events-auto${props.open ? "" : " !hidden"}`}>
+          <div class={`flex flex-row gap-md large:gap-lg${leftHandedControls ? " flex-row-reverse" : ""}`}>
           <button
             type="button"
-            class={READER_BUTTON_CLASS}
+            class={READER_TOOLBAR_BUTTON_CLASS}
             onClick={() => props.callbacks.onOpenOriginalPageClick()}
           >
             <Icon name="external-link" size={READER_ICON_SIZE} />
           </button>
           <button
             type="button"
-            class={READER_BUTTON_CLASS}
+            class={READER_TOOLBAR_BUTTON_CLASS}
             aria-label={texts.reader.readingOptions}
             title={texts.reader.readingOptions}
             aria-expanded={moreOpen()}
@@ -214,7 +216,7 @@ export function Toolbar(props: {
           </button>
           <button
             type="button"
-            class={READER_BUTTON_CLASS}
+            class={READER_TOOLBAR_BUTTON_CLASS}
             aria-label={texts.help.title}
             title={texts.help.title}
             onClick={() => setHelpOpen(true)}
@@ -223,7 +225,7 @@ export function Toolbar(props: {
           </button>
           <button
             type="button"
-            class={READER_BUTTON_CLASS}
+            class={READER_TOOLBAR_BUTTON_CLASS}
             aria-label={texts.button.close}
             title={texts.button.close}
             onClick={() => props.callbacks.onCloseClick()}
@@ -232,10 +234,10 @@ export function Toolbar(props: {
           </button>
           </div>
           <Show when={moreOpen()}>
-            <div class={`flex flex-row gap-md coarse:gap-lg${leftHandedControls ? " flex-row-reverse" : ""}`}>
+            <div class={`flex w-[calc(var(--ui-control-size-lg)*3+32px)] flex-row flex-wrap gap-md large:gap-lg${leftHandedControls ? " flex-row-reverse" : ""}`}>
               <button
                 type="button"
-                class={READER_BUTTON_CLASS}
+                class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-label={props.controls.navigationMode === "scroll" ? texts.reader.scrollMode : texts.reader.pagedMode}
                 title={props.controls.navigationMode === "scroll" ? texts.reader.scrollMode : texts.reader.pagedMode}
                 onClick={() => {
@@ -251,7 +253,7 @@ export function Toolbar(props: {
               </button>
               <button
                 type="button"
-                class={READER_BUTTON_CLASS}
+                class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-label={props.controls.direction === "rtl"
                   ? texts.reader.directionRtl
                   : props.controls.direction === "ltr"
@@ -284,7 +286,7 @@ export function Toolbar(props: {
               </button>
               <button
                 type="button"
-                class={READER_BUTTON_CLASS}
+                class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-label={props.controls.pageLayout === "double" ? texts.reader.doublePageMode : texts.reader.singlePageMode}
                 disabled={props.controls.navigationMode !== "paged"}
                 onClick={() => {
@@ -297,7 +299,7 @@ export function Toolbar(props: {
               </button>
               <button
                 type="button"
-                class={READER_BUTTON_CLASS}
+                class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-pressed={props.controls.firstPageSeparate}
                 aria-label={props.controls.firstPageSeparate
                   ? texts.reader.pairSecondAndThirdPages
@@ -326,7 +328,7 @@ export function Toolbar(props: {
               </button>
               <button
                 type="button"
-                class={READER_BUTTON_CLASS}
+                class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-label={props.controls.rightTapAction === "previous" ? texts.reader.rightTapPrevious : texts.reader.rightTapNext}
                 onClick={() => {
                   const rightTapAction = props.controls.rightTapAction === "previous" ? "next" : "previous";
@@ -338,7 +340,7 @@ export function Toolbar(props: {
               </button>
               <button
                 type="button"
-                class={READER_BUTTON_CLASS}
+                class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-label={texts.reader.adjustScrollViewport}
                 title={texts.reader.adjustScrollViewport}
                 disabled={props.controls.navigationMode !== "scroll"}

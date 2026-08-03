@@ -5,17 +5,17 @@ type PositionBarVariant = "reader" | "site";
 
 const VERTICAL_CLASS = {
   reader: {
-    collapsedFill: "w-20px coarse:w-24px",
-    collapsedInteraction: "w-20px coarse:w-40px",
-    expandedFill: "w-36px coarse:w-48px",
-    expandedInteraction: "w-36px coarse:w-64px",
+    collapsedFill: "w-20px large:w-24px",
+    collapsedInteraction: "w-20px large:w-40px",
+    expandedFill: "w-36px large:w-48px",
+    expandedInteraction: "w-36px large:w-64px",
     fill: "bg-[var(--color-reader-scrollbar,var(--color-muted))]",
     track: "bg-[var(--color-reader-border,var(--color-border))]",
     trackSize: "right-4px w-6px",
   },
   site: {
-    collapsedFill: "w-10px coarse:w-14px",
-    collapsedInteraction: "w-14px coarse:w-24px",
+    collapsedFill: "w-10px large:w-14px",
+    collapsedInteraction: "w-14px large:w-24px",
     expandedFill: "w-[calc(var(--ui-control-size-sm)/2)]",
     expandedInteraction: "w-[calc(var(--ui-control-size-sm)/2)]",
     fill: "bg-[var(--color-site-text)] opacity-55",
@@ -27,7 +27,7 @@ const VERTICAL_CLASS = {
 const HORIZONTAL_CLASS = {
   reader: {
     fill: "bg-[var(--color-reader-scrollbar,var(--color-muted))]",
-    interaction: "h-20px coarse:h-24px",
+    interaction: "h-20px large:h-24px",
     track: "bg-[var(--color-reader-border,var(--color-border))]",
     trackSize: "bottom-4px h-6px",
   },

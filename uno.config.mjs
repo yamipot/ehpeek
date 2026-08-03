@@ -5,10 +5,8 @@ export default defineConfig({
   transformers: [transformerVariantGroup()],
   variants: [
     uiScaleVariant("large"),
-    mediaVariant("coarse", "(pointer: coarse)"),
     mediaVariant("desktop", "(min-width: 760px)"),
     mediaVariant("landscape", "(orientation: landscape)"),
-    mediaVariant("coarse-landscape", "(orientation: landscape) and (pointer: coarse)"),
   ],
   shortcuts: {
     "ehp-color-reader": "bg-[var(--color-reader-background)] text-[var(--color-reader-text)]",

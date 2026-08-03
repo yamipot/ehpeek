@@ -625,7 +625,7 @@ function manageEhPeekGrid(
     })
       .attribute("href", galleryHref)
       .attribute("aria-label", title || "Open gallery")
-      .replaceClasses("hidden coarse:block absolute inset-0 z-1")
+      .replaceClasses("hidden large:block absolute inset-0 z-1")
       .apply("cover");
     row
       .append(overlay)

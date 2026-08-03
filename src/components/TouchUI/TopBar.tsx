@@ -206,7 +206,7 @@ function TouchTopBarMenu(props: {
       </button>
       <Show when={open()}>
         <div
-          class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-180px coarse:w-[calc(100vw-32px)] max-w-[calc(100vw-12px)] coarse:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"
+          class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-180px large:w-[calc(100vw-32px)] max-w-[calc(100vw-12px)] large:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"
           classList={{ "!right-auto left-0": props.leftHanded() }}
         >
           <For each={props.navItems}>{(item) => {
