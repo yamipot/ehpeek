@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260803.1633
+// @version      260804.1237
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -2203,11 +2203,8 @@
       enabled: persisted("ehpeek:reader:enabled", !0),
       exitOnFullscreenExit: persisted("ehpeek:reader:exit-on-fullscreen-exit", !1),
       fullscreen: persisted("ehpeek:reader:fullscreen", !1),
-      navigationMode: persisted("ehpeek:reader:navigation-mode", "scroll"),
-      scrollDirection: persisted("ehpeek:reader:scroll-direction", "ttb"),
-      pagedDirection: persisted("ehpeek:reader:paged-direction", "rtl"),
-      pageLayout: persisted("ehpeek:reader:page-layout", "single"),
-      rightTapAction: persisted("ehpeek:reader:right-tap-action", "previous"),
+      portraitControls: readerControls("portrait"),
+      landscapeControls: readerControls("landscape"),
       scrollTtbScale: persisted("ehpeek:reader:scroll-ttb-scale", null),
       scrollHorizontalScale: persisted("ehpeek:reader:scroll-horizontal-scale", null)
     },
@@ -2253,6 +2250,12 @@
       landscapeColumns: persisted("ehpeek:touch-ui:landscape-columns", !0)
     }
   };
+  function currentReaderOrientation() {
+    return window.matchMedia("(orientation: landscape)").matches ? "landscape" : "portrait";
+  }
+  function currentReaderControlsState() {
+    return currentReaderOrientation() === "landscape" ? state.reader.landscapeControls : state.reader.portraitControls;
+  }
   function loadSearchHistory() {
     let history = state.search.searchHistory.reload();
     return Array.isArray(history) ? history.filter((item) => typeof item == "string") : [];
@@ -2280,6 +2283,15 @@
       }
     };
     return item;
+  }
+  function readerControls(orientation) {
+    return {
+      navigationMode: persisted(`ehpeek:reader:navigation-mode:${orientation}`, "scroll"),
+      scrollDirection: persisted(`ehpeek:reader:scroll-direction:${orientation}`, "ttb"),
+      pagedDirection: persisted(`ehpeek:reader:paged-direction:${orientation}`, "rtl"),
+      pageLayout: persisted(`ehpeek:reader:page-layout:${orientation}`, "single"),
+      rightTapAction: persisted(`ehpeek:reader:right-tap-action:${orientation}`, "previous")
+    };
   }
   function normalizeReaderScrollSizeScale(scale) {
     return Number.isFinite(scale) ? Math.min(100, Math.max(1e-3, scale)) : 1;
@@ -7576,7 +7588,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260803.1633", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260804.1237", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
@@ -11486,12 +11498,12 @@ html:fullscreen .ehpeek-touch-top-bar {
       this.imageQueue = new PriorityLoadQueue(
         options.concurrentLoads
       );
-      let navigationMode = state.reader.navigationMode.value, initialControls = {
+      let readerControls2 = currentReaderControlsState(), navigationMode = readerControls2.navigationMode.value, initialControls = {
         navigationMode,
-        direction: navigationMode === "scroll" ? state.reader.scrollDirection.value : state.reader.pagedDirection.value,
+        direction: navigationMode === "scroll" ? readerControls2.scrollDirection.value : readerControls2.pagedDirection.value,
         firstPageSeparate: !1,
-        pageLayout: state.reader.pageLayout.value,
-        rightTapAction: state.reader.rightTapAction.value
+        pageLayout: readerControls2.pageLayout.value,
+        rightTapAction: readerControls2.rightTapAction.value
       }, [controls, setControls] = createSignal(initialControls), initialPageNum = initialControls.navigationMode === "paged" && initialControls.pageLayout === "double" ? doublePagePairStart(initialPageNumber(options), initialControls.firstPageSeparate) : initialPageNumber(options), [toolbarOpen, setToolbarOpen] = createSignal(!1), [viewportWindow, setViewportWindow] = createSignal(
         initialViewportWindow(options, initialPageNum)
       ), [zoomImage, setZoomImage] = createSignal(null), [currentPageNum, setCurrentPageNum] = createSignal(initialPageNum), [direction, setDirection] = createSignal(1), [downloadInfos, setDownloadInfos] = createSignal([]), [maxProgressPageNum, setMaxProgressPageNum] = createSignal(initialMaxProgressPageNumber(options)), [progressInputActive, setProgressInputActive] = createSignal(!1), [scrollBarVisible, setScrollBarVisible] = createSignal(!1), [scrollBarExpanded, setScrollBarExpanded] = createSignal(!1), [scrollViewportAdjusting, setScrollViewportAdjusting] = createSignal(!1), [scrollViewportTtbScale, setScrollViewportTtbScale] = createSignal(
@@ -11931,9 +11943,28 @@ html:fullscreen .ehpeek-touch-top-bar {
     })();
   }
   function wireReaderCallbacks(session, options, previewCache, callbacks) {
-    let state2 = session.state, viewportActions, zoomOverlay, totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : void 0, renderWindowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE2, preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE2, pages = /* @__PURE__ */ new Map(), loadedImages = /* @__PURE__ */ new Map(), pagedTargetPageNumber = null, syncToken = 0, closed = !1, loadDirection = 1, loadDirectionEdgePageNum = state2.navi.currentPageNum(), scrollFitPageNum = state2.navi.currentPageNum(), pagedMode = () => state2.ctrls.value().navigationMode === "paged", doublePageActive = () => pagedMode() && state2.ctrls.value().pageLayout === "double" && !(state2.ctrls.value().firstPageSeparate && state2.navi.currentPageNum() === 1), updateReaderViewportSize = () => {
+    let state2 = session.state, viewportActions, zoomOverlay, totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : void 0, renderWindowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE2, preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE2, pages = /* @__PURE__ */ new Map(), loadedImages = /* @__PURE__ */ new Map(), pagedTargetPageNumber = null, syncToken = 0, closed = !1, loadDirection = 1, loadDirectionEdgePageNum = state2.navi.currentPageNum(), scrollFitPageNum = state2.navi.currentPageNum(), pagedMode = () => state2.ctrls.value().navigationMode === "paged", doublePageActive = () => pagedMode() && state2.ctrls.value().pageLayout === "double" && !(state2.ctrls.value().firstPageSeparate && state2.navi.currentPageNum() === 1), readerOrientation = currentReaderOrientation(), updateReaderViewportSize = () => {
       state2.scrollViewport.setViewportWidth(Math.max(1, window.innerWidth)), state2.scrollViewport.setViewportHeight(Math.max(1, window.innerHeight));
+      let nextOrientation = currentReaderOrientation();
+      nextOrientation !== readerOrientation && (readerOrientation = nextOrientation, updateControls(configuredReaderControls()));
     };
+    function configuredReaderControls() {
+      let controls = currentReaderControlsState(), navigationMode = controls.navigationMode.value;
+      return {
+        navigationMode,
+        direction: navigationMode === "scroll" ? controls.scrollDirection.value : controls.pagedDirection.value,
+        firstPageSeparate: state2.ctrls.value().firstPageSeparate,
+        pageLayout: controls.pageLayout.value,
+        rightTapAction: controls.rightTapAction.value
+      };
+    }
+    function updateControls(requestedControls) {
+      let previous = state2.ctrls.value(), persistedControls = currentReaderControlsState(), controls = requestedControls.navigationMode === previous.navigationMode ? requestedControls : {
+        ...requestedControls,
+        direction: requestedControls.navigationMode === "scroll" ? persistedControls.scrollDirection.value : persistedControls.pagedDirection.value
+      };
+      persistedControls.navigationMode.set(controls.navigationMode), controls.navigationMode === "scroll" ? persistedControls.scrollDirection.set(controls.direction) : persistedControls.pagedDirection.set(controls.direction), persistedControls.pageLayout.set(controls.pageLayout), persistedControls.rightTapAction.set(controls.rightTapAction), state2.ctrls.update(controls), controls.navigationMode !== "scroll" && state2.scrollViewport.setAdjusting(!1), controls.navigationMode !== previous.navigationMode || controls.pageLayout !== previous.pageLayout || controls.firstPageSeparate !== previous.firstPageSeparate ? (viewportActions.stopMotion(), viewportActions.resetPosition(), setCurrentPageNumber(state2.navi.currentPageNum(), !0)) : controls.direction !== previous.direction && (syncViewportWindow(), scrollToCurrentPage());
+    }
     function requestReaderClose() {
       closed || (closed = !0, callbacks.onClosed());
     }
@@ -12266,13 +12297,7 @@ html:fullscreen .ehpeek-touch-top-bar {
       });
     }
     function wireToolbar() {
-      let toolbar2 = {}, progressNavigationTimer = null, pendingProgressPageNum = null, updateControls = (requestedControls) => {
-        let previous = state2.ctrls.value(), controls = requestedControls.navigationMode === previous.navigationMode ? requestedControls : {
-          ...requestedControls,
-          direction: requestedControls.navigationMode === "scroll" ? state.reader.scrollDirection.value : state.reader.pagedDirection.value
-        };
-        state.reader.navigationMode.set(controls.navigationMode), controls.navigationMode === "scroll" ? state.reader.scrollDirection.set(controls.direction) : state.reader.pagedDirection.set(controls.direction), state.reader.pageLayout.set(controls.pageLayout), state.reader.rightTapAction.set(controls.rightTapAction), state2.ctrls.update(controls), controls.navigationMode !== "scroll" && state2.scrollViewport.setAdjusting(!1), controls.navigationMode !== previous.navigationMode || controls.pageLayout !== previous.pageLayout || controls.firstPageSeparate !== previous.firstPageSeparate ? (viewportActions.stopMotion(), viewportActions.resetPosition(), setCurrentPageNumber(state2.navi.currentPageNum(), !0)) : controls.direction !== previous.direction && (syncViewportWindow(), scrollToCurrentPage());
-      }, cancelProgressNavigation = () => {
+      let toolbar2 = {}, progressNavigationTimer = null, pendingProgressPageNum = null, cancelProgressNavigation = () => {
         progressNavigationTimer !== null && (session.clearTimeout(progressNavigationTimer), progressNavigationTimer = null);
       }, previewProgress = (pageNum) => {
         let target = normalizedPageNumber(clamp(Math.round(pageNum), 1, maxProgressPageNum()));
