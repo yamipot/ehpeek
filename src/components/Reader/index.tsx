@@ -3,6 +3,8 @@ import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
 import texts from "../../texts.json";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
 import {
+  currentReaderControlsState,
+  currentReaderOrientation,
   normalizeReaderScrollSizeScale,
   state as appState,
 } from "../../state";
@@ -217,10 +219,68 @@ function wireReaderCallbacks(
     pagedMode() &&
     state.ctrls.value().pageLayout === "double" &&
     !(state.ctrls.value().firstPageSeparate && state.navi.currentPageNum() === 1);
+  let readerOrientation = currentReaderOrientation();
   const updateReaderViewportSize = () => {
     state.scrollViewport.setViewportWidth(Math.max(1, window.innerWidth));
     state.scrollViewport.setViewportHeight(Math.max(1, window.innerHeight));
+    const nextOrientation = currentReaderOrientation();
+    if (nextOrientation !== readerOrientation) {
+      readerOrientation = nextOrientation;
+      updateControls(configuredReaderControls());
+    }
   };
+
+  function configuredReaderControls(): ReaderControls {
+    const controls = currentReaderControlsState();
+    const navigationMode = controls.navigationMode.value;
+    return {
+      navigationMode,
+      direction: navigationMode === "scroll"
+        ? controls.scrollDirection.value
+        : controls.pagedDirection.value,
+      firstPageSeparate: state.ctrls.value().firstPageSeparate,
+      pageLayout: controls.pageLayout.value,
+      rightTapAction: controls.rightTapAction.value,
+    };
+  }
+
+  function updateControls(requestedControls: ReaderControls): void {
+    const previous = state.ctrls.value();
+    const persistedControls = currentReaderControlsState();
+    const controls = requestedControls.navigationMode === previous.navigationMode
+      ? requestedControls
+      : {
+          ...requestedControls,
+          direction: requestedControls.navigationMode === "scroll"
+            ? persistedControls.scrollDirection.value
+            : persistedControls.pagedDirection.value,
+        };
+    persistedControls.navigationMode.set(controls.navigationMode);
+    if (controls.navigationMode === "scroll") {
+      persistedControls.scrollDirection.set(controls.direction);
+    } else {
+      persistedControls.pagedDirection.set(controls.direction);
+    }
+    persistedControls.pageLayout.set(controls.pageLayout);
+    persistedControls.rightTapAction.set(controls.rightTapAction);
+    state.ctrls.update(controls);
+    if (controls.navigationMode !== "scroll") {
+      state.scrollViewport.setAdjusting(false);
+    }
+
+    if (
+      controls.navigationMode !== previous.navigationMode ||
+      controls.pageLayout !== previous.pageLayout ||
+      controls.firstPageSeparate !== previous.firstPageSeparate
+    ) {
+      viewportActions.stopMotion();
+      viewportActions.resetPosition();
+      setCurrentPageNumber(state.navi.currentPageNum(), true);
+    } else if (controls.direction !== previous.direction) {
+      syncViewportWindow();
+      scrollToCurrentPage();
+    }
+  }
 
   function requestReaderClose(): void {
     if (closed) {
@@ -836,43 +896,6 @@ function wireReaderCallbacks(
     const toolbar = {} as ToolbarCallbacks;
     let progressNavigationTimer: number | null = null;
     let pendingProgressPageNum: number | null = null;
-
-    const updateControls = (requestedControls: ReaderControls): void => {
-      const previous = state.ctrls.value();
-      const controls = requestedControls.navigationMode === previous.navigationMode
-        ? requestedControls
-        : {
-            ...requestedControls,
-            direction: requestedControls.navigationMode === "scroll"
-              ? appState.reader.scrollDirection.value
-              : appState.reader.pagedDirection.value,
-          };
-      appState.reader.navigationMode.set(controls.navigationMode);
-      if (controls.navigationMode === "scroll") {
-        appState.reader.scrollDirection.set(controls.direction);
-      } else {
-        appState.reader.pagedDirection.set(controls.direction);
-      }
-      appState.reader.pageLayout.set(controls.pageLayout);
-      appState.reader.rightTapAction.set(controls.rightTapAction);
-      state.ctrls.update(controls);
-      if (controls.navigationMode !== "scroll") {
-        state.scrollViewport.setAdjusting(false);
-      }
-
-      if (
-        controls.navigationMode !== previous.navigationMode ||
-        controls.pageLayout !== previous.pageLayout ||
-        controls.firstPageSeparate !== previous.firstPageSeparate
-      ) {
-        viewportActions.stopMotion();
-        viewportActions.resetPosition();
-        setCurrentPageNumber(state.navi.currentPageNum(), true);
-      } else if (controls.direction !== previous.direction) {
-        syncViewportWindow();
-        scrollToCurrentPage();
-      }
-    };
 
     const cancelProgressNavigation = (): void => {
       if (progressNavigationTimer !== null) {

@@ -1,6 +1,10 @@
 import { createSignal } from "solid-js";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
-import { state as appState, type ReaderScrollSizeScale } from "../../state";
+import {
+  currentReaderControlsState,
+  state as appState,
+  type ReaderScrollSizeScale,
+} from "../../state";
 import { clamp } from "../../utils";
 import type { ReaderControls, ReaderDownloadInfo } from "./Toolbar";
 import {
@@ -41,15 +45,16 @@ export class ReaderSession {
     this.imageQueue = new PriorityLoadQueue(
       options.concurrentLoads,
     );
-    const navigationMode = appState.reader.navigationMode.value;
+    const readerControls = currentReaderControlsState();
+    const navigationMode = readerControls.navigationMode.value;
     const initialControls: ReaderControls = {
       navigationMode,
       direction: navigationMode === "scroll"
-        ? appState.reader.scrollDirection.value
-        : appState.reader.pagedDirection.value,
+        ? readerControls.scrollDirection.value
+        : readerControls.pagedDirection.value,
       firstPageSeparate: false,
-      pageLayout: appState.reader.pageLayout.value,
-      rightTapAction: appState.reader.rightTapAction.value,
+      pageLayout: readerControls.pageLayout.value,
+      rightTapAction: readerControls.rightTapAction.value,
     };
     const [controls, setControls] = createSignal(initialControls);
     const initialPageNum = initialControls.navigationMode === "paged" &&

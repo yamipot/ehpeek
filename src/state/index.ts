@@ -3,6 +3,7 @@ export type ReadDirection = "ltr" | "rtl" | "ttb";
 export type PageLayout = "single" | "double";
 export type RightTapAction = "previous" | "next";
 export type ReaderScrollSizeScale = number | "one-to-one" | null;
+export type ReaderOrientation = "portrait" | "landscape";
 export type GalleryTitlePreference = "main" | "sub";
 export type UiScale = "small" | "medium" | "large";
 export type SearchGridMode = "ehpeek" | "ehpeek-lite";
@@ -46,11 +47,8 @@ export const state = {
     enabled: persisted("ehpeek:reader:enabled", true),
     exitOnFullscreenExit: persisted("ehpeek:reader:exit-on-fullscreen-exit", false),
     fullscreen: persisted("ehpeek:reader:fullscreen", false),
-    navigationMode: persisted<NavigationMode>("ehpeek:reader:navigation-mode", "scroll"),
-    scrollDirection: persisted<ReadDirection>("ehpeek:reader:scroll-direction", "ttb"),
-    pagedDirection: persisted<ReadDirection>("ehpeek:reader:paged-direction", "rtl"),
-    pageLayout: persisted<PageLayout>("ehpeek:reader:page-layout", "single"),
-    rightTapAction: persisted<RightTapAction>("ehpeek:reader:right-tap-action", "previous"),
+    portraitControls: readerControls("portrait"),
+    landscapeControls: readerControls("landscape"),
     scrollTtbScale: persisted<ReaderScrollSizeScale>("ehpeek:reader:scroll-ttb-scale", null),
     scrollHorizontalScale: persisted<ReaderScrollSizeScale>("ehpeek:reader:scroll-horizontal-scale", null),
   },
@@ -97,6 +95,16 @@ export const state = {
   },
 } as const;
 
+export function currentReaderOrientation(): ReaderOrientation {
+  return window.matchMedia("(orientation: landscape)").matches ? "landscape" : "portrait";
+}
+
+export function currentReaderControlsState() {
+  return currentReaderOrientation() === "landscape"
+    ? state.reader.landscapeControls
+    : state.reader.portraitControls;
+}
+
 export function loadSearchHistory(): string[] {
   const history = state.search.searchHistory.reload();
   return Array.isArray(history) ? history.filter((item): item is string => typeof item === "string") : [];
@@ -135,6 +143,16 @@ function persisted<T>(key: string, defaultValue: T): StateValue<T> {
   };
 
   return item;
+}
+
+function readerControls(orientation: ReaderOrientation) {
+  return {
+    navigationMode: persisted<NavigationMode>(`ehpeek:reader:navigation-mode:${orientation}`, "scroll"),
+    scrollDirection: persisted<ReadDirection>(`ehpeek:reader:scroll-direction:${orientation}`, "ttb"),
+    pagedDirection: persisted<ReadDirection>(`ehpeek:reader:paged-direction:${orientation}`, "rtl"),
+    pageLayout: persisted<PageLayout>(`ehpeek:reader:page-layout:${orientation}`, "single"),
+    rightTapAction: persisted<RightTapAction>(`ehpeek:reader:right-tap-action:${orientation}`, "previous"),
+  } as const;
 }
 
 export function normalizeReaderScrollSizeScale(scale: number): number {
