@@ -24,6 +24,7 @@ import MoveHorizontal from "lucide-solid/icons/move-horizontal";
 import MoveVertical from "lucide-solid/icons/move-vertical";
 import Palette from "lucide-solid/icons/palette";
 import Pencil from "lucide-solid/icons/pencil";
+import Play from "lucide-solid/icons/play";
 import RefreshCw from "lucide-solid/icons/refresh-cw";
 import Rows3 from "lucide-solid/icons/rows-3";
 import ScanLine from "lucide-solid/icons/scan-line";
@@ -32,6 +33,7 @@ import Settings from "lucide-solid/icons/settings";
 import Sparkles from "lucide-solid/icons/sparkles";
 import Star from "lucide-solid/icons/star";
 import X from "lucide-solid/icons/x";
+import ZoomIn from "lucide-solid/icons/zoom-in";
 import { createMemo, For, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
@@ -63,13 +65,15 @@ export type IconName =
   | "palette"
   | "panda-peek"
   | "pages"
+  | "play"
   | "refresh"
   | "search"
   | "settings"
   | "sparkles"
   | "scroll-continuous"
   | "star"
-  | "viewport";
+  | "viewport"
+  | "zoom-in";
 
 export function Icon(props: {
   filled?: boolean;
@@ -134,6 +138,7 @@ const LUCIDE_ICONS: Record<LucideIconName, LucideIcon> = {
   page: File,
   palette: Palette,
   pages: Columns2,
+  play: Play,
   refresh: RefreshCw,
   search: Search,
   settings: Settings,
@@ -141,6 +146,7 @@ const LUCIDE_ICONS: Record<LucideIconName, LucideIcon> = {
   "scroll-continuous": Rows3,
   star: Star,
   viewport: ScanLine,
+  "zoom-in": ZoomIn,
 };
 
 const FILLABLE_ICONS = new Set<IconName>(["heart", "star"]);

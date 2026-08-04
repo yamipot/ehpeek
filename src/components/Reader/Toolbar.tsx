@@ -1,9 +1,10 @@
-import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import {
   state,
   type NavigationMode,
   type PageLayout,
   type ReadDirection,
+  type ReaderDoubleTapAction,
   type RightTapAction,
 } from "../../state";
 import texts from "../../texts.json";
@@ -19,6 +20,7 @@ export type ReaderControls = {
   firstPageSeparate: boolean;
   pageLayout: PageLayout;
   rightTapAction: RightTapAction;
+  doubleTapAction: ReaderDoubleTapAction;
 };
 
 export type PageProgress = {
@@ -86,6 +88,9 @@ export function Toolbar(props: {
   const [helpOpen, setHelpOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
   const [controlChange, setControlChange] = createSignal<string | null>(null);
+  const [fullscreenToolbarTop, setFullscreenToolbarTop] = createSignal<string>();
+  let pageNumber!: HTMLDivElement;
+  let fullscreenStatus: HTMLDivElement | undefined;
   let controlChangeTimer: number | null = null;
   const fullscreenTime = createFullscreenTime(() => props.fullscreenActive);
   const showControlChange = (message: string) => {
@@ -103,6 +108,32 @@ export function Toolbar(props: {
     if (controlChangeTimer !== null) {
       window.clearTimeout(controlChangeTimer);
     }
+  });
+
+  onMount(() => {
+    const updateFullscreenToolbarTop = () => {
+      if (!props.fullscreenActive) {
+        setFullscreenToolbarTop(undefined);
+        return;
+      }
+      const statusBottom = fullscreenStatus?.getBoundingClientRect().bottom ?? 0;
+      const pageNumberBottom = pageNumber.getBoundingClientRect().bottom;
+      setFullscreenToolbarTop(`${Math.ceil(Math.max(statusBottom, pageNumberBottom) + 8)}px`);
+    };
+    const observer = new ResizeObserver(updateFullscreenToolbarTop);
+    observer.observe(pageNumber);
+    window.addEventListener("resize", updateFullscreenToolbarTop);
+    createEffect(() => {
+      if (props.fullscreenActive) {
+        queueMicrotask(updateFullscreenToolbarTop);
+      } else {
+        updateFullscreenToolbarTop();
+      }
+    });
+    onCleanup(() => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateFullscreenToolbarTop);
+    });
   });
 
   createEffect(() => {
@@ -191,6 +222,7 @@ export function Toolbar(props: {
             : "right-10px large:right-8px ") +
           "large:top-[calc(8px+env(safe-area-inset-top,0px))]"
         }
+        style={{ top: fullscreenToolbarTop() }}
         onClick={stopEvent}
         onPointerDown={stopEvent}
         onWheel={stopEvent}
@@ -234,7 +266,7 @@ export function Toolbar(props: {
           </button>
           </div>
           <Show when={moreOpen()}>
-            <div class={`flex w-[calc(var(--ui-control-size-lg)*3+32px)] flex-row flex-wrap gap-md large:gap-lg${leftHandedControls ? " flex-row-reverse" : ""}`}>
+            <div class={`flex w-[calc(var(--ui-control-size-lg)*4+48px)] flex-row flex-wrap gap-md large:gap-lg${leftHandedControls ? " flex-row-reverse" : ""}`}>
               <button
                 type="button"
                 class={READER_TOOLBAR_BUTTON_CLASS}
@@ -348,11 +380,51 @@ export function Toolbar(props: {
               >
                 <Icon name="viewport" size={READER_ICON_SIZE} />
               </button>
+              <button
+                type="button"
+                class={READER_TOOLBAR_BUTTON_CLASS}
+                aria-label={props.controls.doubleTapAction === "zoom"
+                  ? texts.reader.doubleTapZoom
+                  : props.controls.doubleTapAction === "scroll-preview"
+                    ? texts.reader.doubleTapScrollPreview
+                    : texts.reader.doubleTapOff}
+                title={props.controls.doubleTapAction === "zoom"
+                  ? texts.reader.doubleTapZoom
+                  : props.controls.doubleTapAction === "scroll-preview"
+                    ? texts.reader.doubleTapScrollPreview
+                    : texts.reader.doubleTapOff}
+                onClick={() => {
+                  const doubleTapAction: ReaderDoubleTapAction =
+                    props.controls.doubleTapAction === "zoom"
+                      ? "scroll-preview"
+                      : props.controls.doubleTapAction === "scroll-preview"
+                        ? "off"
+                        : "zoom";
+                  props.callbacks.onControlsChange({ ...props.controls, doubleTapAction });
+                  showControlChange(
+                    doubleTapAction === "zoom"
+                      ? texts.reader.doubleTapZoom
+                      : doubleTapAction === "scroll-preview"
+                        ? texts.reader.doubleTapScrollPreview
+                        : texts.reader.doubleTapOff,
+                  );
+                }}
+              >
+                <Icon
+                  name={props.controls.doubleTapAction === "zoom"
+                    ? "zoom-in"
+                    : props.controls.doubleTapAction === "scroll-preview"
+                      ? "grid"
+                      : "close"}
+                  size={READER_ICON_SIZE}
+                />
+              </button>
             </div>
           </Show>
         </div>
       </div>
       <div
+        ref={pageNumber}
         class={
           "ehpeek-reader-page-number fixed z-3 pointer-events-none " +
           "top-[calc(10px+env(safe-area-inset-top,0px))] " +
@@ -376,6 +448,7 @@ export function Toolbar(props: {
       </div>
       <Show when={props.fullscreenActive}>
         <div
+          ref={fullscreenStatus}
           class={
             "ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none " +
             "top-[calc(10px+env(safe-area-inset-top,0px))] " +

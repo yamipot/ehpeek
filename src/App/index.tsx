@@ -1,4 +1,11 @@
-import { createEffect, createRoot, createSignal } from "solid-js";
+import {
+  createEffect,
+  createRoot,
+  createSignal,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { EnhanceSearchGrids } from "../components/Enhance/EnhanceSearchGrids";
 import {
   ThumbsGrids,
@@ -19,7 +26,10 @@ import {
 import { SearchHistory } from "../components/Enhance/SearchHistory";
 import { loadMyTagAppearances, refreshMyTags } from "../components/Enhance/MyTags";
 import { SettingsMenu } from "../components/SettingsMenu";
-import { BackToTop } from "../components/Widgets/BackToTop";
+import {
+  BackToTop,
+  clearBackToTopPosition,
+} from "../components/Widgets/BackToTop";
 import {
   GalleryInfoPanel,
   FavoritesCategorySelect,
@@ -53,6 +63,13 @@ import { createAppMount } from "./host";
 import { applyUiScale } from "./uiScale";
 import { observeFullscreenUiSizing, readerViewport } from "./viewport";
 
+const FLOATING_READ_BUTTON_POSITION_KEY = "ehpeek:gallery:floating-read-button:position";
+
+type FloatingReadButtonPosition = {
+  bottom: number;
+  right: number;
+};
+
 function settingsMenuState(defaults = false) {
   const read = <T,>(setting: { defaultValue: T; value: T }): T =>
     defaults ? setting.defaultValue : setting.value;
@@ -64,6 +81,7 @@ function settingsMenuState(defaults = false) {
     readerFullscreenEnabled: read(state.reader.fullscreen),
     replacePreviewWithScroll: read(state.gallery.replacePreviewWithScroll),
     enhanceThumbsGridsEnabled: read(state.gallery.enhanceThumbs),
+    floatingReadButtonEnabled: read(state.gallery.floatingReadButton),
     enhanceSearchGridsEnabled: read(state.search.enhance),
     myTagsEnabled: read(state.gallery.myTags),
     readHistoryEnabled: read(state.gallery.readHistory),
@@ -76,12 +94,19 @@ function settingsMenuState(defaults = false) {
 function applySettingsMenuState(
   next: ReturnType<typeof settingsMenuState>,
 ): void {
+  if (!next.floatingReadButtonEnabled) {
+    GM_deleteValue(FLOATING_READ_BUTTON_POSITION_KEY);
+  }
+  if (!next.touchUiEnabled) {
+    clearBackToTopPosition();
+  }
   state.app.openGalleryInNewTab.set(next.openGalleryInNewTab);
   state.reader.enabled.set(next.readerEnabled);
   state.reader.exitOnFullscreenExit.set(next.exitReaderOnFullscreenExit);
   state.reader.fullscreen.set(next.readerFullscreenEnabled);
   state.gallery.replacePreviewWithScroll.set(next.replacePreviewWithScroll);
   state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled);
+  state.gallery.floatingReadButton.set(next.floatingReadButtonEnabled);
   state.search.enhance.set(next.enhanceSearchGridsEnabled);
   state.gallery.myTags.set(next.myTagsEnabled);
   state.gallery.readHistory.set(next.readHistoryEnabled);
@@ -198,6 +223,7 @@ const readerCallbacks: ReaderCallbacks = {
       return;
     }
     gState.setReadProgress({ currentPage, hasHistory: true, totalPages });
+    gState.scrollPreviewActions?.setContinuePage(currentPage);
   },
 };
 
@@ -260,7 +286,7 @@ function openFromReadButton(previewCache: GalleryPreviewCache): void {
 
 function GalleryReadButton(props: {
   previewCache: GalleryPreviewCache;
-  variant: "gallery" | "touchGallery";
+  variant: "floatingGallery" | "gallery" | "touchGallery";
 }) {
   return (
     <ReadButton
@@ -273,6 +299,111 @@ function GalleryReadButton(props: {
       variant={props.variant}
     />
   );
+}
+
+function FloatingGalleryReadButton(props: { previewCache: GalleryPreviewCache }) {
+  let host!: HTMLDivElement;
+  let drag: {
+    bottom: number;
+    pointerId: number;
+    right: number;
+    x: number;
+    y: number;
+  } | null = null;
+  let dragged = false;
+  const [visible, setVisible] = createSignal(window.scrollY <= 32);
+  const [position, setPosition] = createSignal<FloatingReadButtonPosition | null>(
+    GM_getValue<FloatingReadButtonPosition | null>(FLOATING_READ_BUTTON_POSITION_KEY, null),
+  );
+  const positionStyle = () => {
+    const current = position();
+    return current
+      ? { bottom: `${current.bottom}px`, right: `${current.right}px` }
+      : undefined;
+  };
+
+  onMount(() => {
+    const updateVisibility = () => setVisible(window.scrollY <= 32);
+    window.addEventListener("scroll", updateVisibility, { passive: true });
+    onCleanup(() => window.removeEventListener("scroll", updateVisibility));
+  });
+
+  return (
+    <Show when={visible()}>
+      <div
+        ref={host}
+        class="fixed right-[max(80px,env(safe-area-inset-right,0px))] bottom-[max(96px,env(safe-area-inset-bottom,0px))] z-ui [touch-action:none]"
+        style={positionStyle()}
+        onPointerDown={(event) => {
+          const rect = host.getBoundingClientRect();
+          dragged = false;
+          drag = {
+            bottom: window.innerHeight - rect.bottom,
+            pointerId: event.pointerId,
+            right: window.innerWidth - rect.right,
+            x: event.clientX,
+            y: event.clientY,
+          };
+          host.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          if (!drag || drag.pointerId !== event.pointerId) {
+            return;
+          }
+          const dx = event.clientX - drag.x;
+          const dy = event.clientY - drag.y;
+          dragged ||= Math.hypot(dx, dy) > 4;
+          setPosition(clampFloatingReadButtonPosition({
+            bottom: drag.bottom - dy,
+            right: drag.right - dx,
+          }, host));
+        }}
+        onPointerUp={(event) => {
+          if (!drag || drag.pointerId !== event.pointerId) {
+            return;
+          }
+          host.releasePointerCapture(event.pointerId);
+          drag = null;
+          const current = position();
+          if (dragged && current) {
+            GM_setValue(FLOATING_READ_BUTTON_POSITION_KEY, current);
+          }
+        }}
+      >
+        <ReadButton
+          currentPage={gState.settings.readHistoryEnabled
+            ? gState.readProgress().currentPage
+            : 1}
+          hasHistory={gState.settings.readHistoryEnabled && gState.readProgress().hasHistory}
+          totalPages={gState.readProgress().totalPages}
+          onClick={() => {
+            if (dragged) {
+              dragged = false;
+              return;
+            }
+            openFromReadButton(props.previewCache);
+          }}
+          variant="floatingGallery"
+        />
+      </div>
+    </Show>
+  );
+}
+
+function clampFloatingReadButtonPosition(
+  position: FloatingReadButtonPosition,
+  element: HTMLElement,
+): FloatingReadButtonPosition {
+  return {
+    bottom: Math.min(
+      Math.max(0, position.bottom),
+      Math.max(0, window.innerHeight - element.offsetHeight),
+    ),
+    right: Math.min(
+      Math.max(0, position.right),
+      Math.max(0, window.innerWidth - element.offsetWidth),
+    ),
+  };
 }
 
 function installSettingsMenu(): void {
@@ -426,6 +557,17 @@ function injectGalleryPreview(previewCache: GalleryPreviewCache): void {
       const galleryReadButtonMount = eh.manageGalleryContinueReadingButtonMount();
       galleryReadButtonMount.mount(() => (
         <GalleryReadButton previewCache={previewCache} variant="gallery" />
+      ));
+    });
+  }
+
+  if (gState.settings.floatingReadButtonEnabled) {
+    allowFeatureFailure("Floating Gallery Read button", () => {
+      const host = createAppMount(
+        "contents",
+      );
+      host.mount(() => (
+        <FloatingGalleryReadButton previewCache={previewCache} />
       ));
     });
   }

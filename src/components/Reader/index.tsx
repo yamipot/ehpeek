@@ -44,6 +44,8 @@ const VIEWER_ID = "ehpeek-reader";
 const DEFAULT_WINDOW_SIZE = 10;
 
 const PAGED_SWIPE_THRESHOLD = 24;
+const PAGED_PREVIEW_SWIPE_THRESHOLD = 48;
+const PAGED_PREVIEW_SWIPE_AXIS_LIMIT = 32;
 const PAGED_WHEEL_THRESHOLD = 8;
 const HORIZONTAL_SCROLL_WHEEL_FACTOR = 0.5;
 const PROGRESS_IDLE_COMMIT_MS = 180;
@@ -55,7 +57,7 @@ const SCROLL_GESTURE_IDLE_MS = 160;
 const SCROLL_BAR_IDLE_MS = 900;
 const SCROLL_BAR_SHOW_DISTANCE = 48;
 const SCROLL_BAR_EXPAND_VIEWPORTS = 2;
-const DOUBLE_TAP_MS = 340;
+const DOUBLE_TAP_MS = 220;
 const DOUBLE_TAP_DISTANCE = 36;
 const TAP_CANCEL_DISTANCE = 8;
 const FALLBACK_ASPECT_RATIO = 1.42;
@@ -241,6 +243,7 @@ function wireReaderCallbacks(
       firstPageSeparate: state.ctrls.value().firstPageSeparate,
       pageLayout: controls.pageLayout.value,
       rightTapAction: controls.rightTapAction.value,
+      doubleTapAction: appState.reader.doubleTapAction.value,
     };
   }
 
@@ -263,6 +266,7 @@ function wireReaderCallbacks(
     }
     persistedControls.pageLayout.set(controls.pageLayout);
     persistedControls.rightTapAction.set(controls.rightTapAction);
+    appState.reader.doubleTapAction.set(controls.doubleTapAction);
     state.ctrls.update(controls);
     if (controls.navigationMode !== "scroll") {
       state.scrollViewport.setAdjusting(false);
@@ -967,20 +971,32 @@ function wireReaderCallbacks(
 
 
   function wireGesture(): PointerGestureCallbacks {
-    const gesture: PointerGestureCallbacks = {
-      get dragAxis() {
-        if (state.overlay.image() !== null || !pagedMode()) {
-          return "any";
-        }
-        return state.ctrls.value().direction === "ttb" ? "y" : "x";
-      },
-    };
+    const gesture: PointerGestureCallbacks = { dragAxis: "any" };
     let tapTimer: number | null = null;
     let pendingTap: {
       info: PointerDragEnd;
       event: PointerEvent | MouseEvent;
       time: number;
     } | null = null;
+    let clickSuppressionTimer: number | null = null;
+    const clearClickSuppression = (): void => {
+      document.removeEventListener("click", suppressClick, true);
+      if (clickSuppressionTimer !== null) {
+        session.clearTimeout(clickSuppressionTimer);
+        clickSuppressionTimer = null;
+      }
+    };
+    const suppressClick = (event: MouseEvent): void => {
+      clearClickSuppression();
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    const suppressNextClick = (): void => {
+      clearClickSuppression();
+      document.addEventListener("click", suppressClick, true);
+      clickSuppressionTimer = session.setTimeout(clearClickSuppression, 400);
+    };
+    onCleanup(clearClickSuppression);
     const isPageReloadButtonTarget = (event: PointerEvent | MouseEvent): boolean =>
       event.target instanceof Element &&
       event.target.closest(".ehpeek-reader-page-reload") !== null;
@@ -989,6 +1005,16 @@ function wireReaderCallbacks(
       pagedMode() ||
       state.ctrls.value().direction !== "ttb" ||
       event.pointerType === "mouse";
+    const isPreviewSwipe = (info: PointerDragEnd): boolean => {
+      if (!pagedMode()) {
+        return false;
+      }
+      return state.ctrls.value().direction === "ttb"
+        ? Math.abs(info.dx) >= PAGED_PREVIEW_SWIPE_THRESHOLD &&
+          Math.abs(info.dy) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT
+        : info.dy >= PAGED_PREVIEW_SWIPE_THRESHOLD &&
+          Math.abs(info.dx) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT;
+    };
     const imageAtPoint = (point: { clientX: number; clientY: number }): ZoomOverlayImage | null => {
       const pageNum = viewportActions.pageNumAtPoint(point);
       return pageNum === null || !viewportActions.pageImageReady(pageNum)
@@ -1031,7 +1057,10 @@ function wireReaderCallbacks(
         return false;
       }
       cancelPendingTap();
-      if (!toggleZoomAtPoint(info)) {
+      if (state.ctrls.value().doubleTapAction === "scroll-preview") {
+        suppressNextClick();
+        callbacks.onOpenScrollPreview(state.navi.currentPageNum());
+      } else if (!toggleZoomAtPoint(info)) {
         return false;
       }
       event.preventDefault();
@@ -1066,6 +1095,11 @@ function wireReaderCallbacks(
 
     gesture.onTap = (info: PointerDragEnd, event: PointerEvent | MouseEvent): void => {
       viewportActions.cancelDrag();
+      if (state.ctrls.value().doubleTapAction === "off") {
+        cancelPendingTap();
+        runSingleTap(info, event);
+        return;
+      }
       if (consumeDoubleTap(info, event)) {
         return;
       }
@@ -1095,6 +1129,11 @@ function wireReaderCallbacks(
         return;
       }
       viewportActions.cancelDrag();
+      if (isPreviewSwipe(info)) {
+        scrollToCurrentPage("animated");
+        callbacks.onOpenScrollPreview(state.navi.currentPageNum());
+        return;
+      }
       if (!pagedMode()) {
         if (state.ctrls.value().direction === "ttb") {
           viewportActions.moveToTop(viewportActions.scrollTop());

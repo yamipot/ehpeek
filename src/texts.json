@@ -17,7 +17,8 @@
       "Reader": [
         "**Tap** the center to show or hide the toolbar.",
         "**Swipe or scroll** in the reading direction; tap either side or use the **Arrow keys** to turn pages.",
-        "**Pinch** to zoom the image. Or **double-tap** to enter zoom mode and use the **mouse wheel** to adjust the scale."
+        "In **Paged mode**, pull down or swipe sideways across the reading direction to open Scroll Preview.",
+        "**Pinch** to zoom the image. The **double-tap** action can be changed in Reading options."
       ],
       "Browse": [
         "Choose EhPeek or EhPeekLite from the **layout menu** to replace the original result layout.",
@@ -45,6 +46,9 @@
     "scrollMode": "Scroll mode",
     "rightTapPrevious": "Right side action:\nPrevious page",
     "rightTapNext": "Right side action:\nNext page",
+    "doubleTapZoom": "Double-tap action:\nZoom",
+    "doubleTapScrollPreview": "Double-tap action:\nScroll Preview",
+    "doubleTapOff": "Double-tap action:\nOff",
     "directionRtl": "Reading direction:\n Right to left",
     "directionLtr": "Reading direction:\n Left to right",
     "directionTtb": "Reading direction:\n Top to bottom",
@@ -116,6 +120,8 @@
     "exitReaderOnFullscreenExitHelp": "Closes the Reader when fullscreen is exited",
     "replacePreviewWithScrollLabel": "Embed Scroll Preview",
     "replacePreviewWithScrollHelp": "Replace the original gallery preview area with Scroll Preview",
+    "floatingReadButtonLabel": "Floating Read button",
+    "floatingReadButtonHelp": "Show a Read or Continue button near the bottom-right of Gallery pages",
     "readerOptions": "Options",
     "openGalleryInNewTabLabel": "Open Gallery in new tab",
     "openGalleryInNewTabHelp": "Opens gallery links in a new browser tab",

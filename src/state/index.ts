@@ -2,6 +2,7 @@ export type NavigationMode = "scroll" | "paged";
 export type ReadDirection = "ltr" | "rtl" | "ttb";
 export type PageLayout = "single" | "double";
 export type RightTapAction = "previous" | "next";
+export type ReaderDoubleTapAction = "zoom" | "scroll-preview" | "off";
 export type ReaderScrollSizeScale = number | "one-to-one" | null;
 export type ReaderOrientation = "portrait" | "landscape";
 export type GalleryTitlePreference = "main" | "sub";
@@ -45,6 +46,7 @@ export const state = {
   },
   reader: {
     enabled: persisted("ehpeek:reader:enabled", true),
+    doubleTapAction: persisted<ReaderDoubleTapAction>("ehpeek:reader:double-tap-action", "zoom"),
     exitOnFullscreenExit: persisted("ehpeek:reader:exit-on-fullscreen-exit", false),
     fullscreen: persisted("ehpeek:reader:fullscreen", false),
     portraitControls: readerControls("portrait"),
@@ -54,6 +56,7 @@ export const state = {
   },
   gallery: {
     enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", true),
+    floatingReadButton: persisted("ehpeek:gallery:floating-read-button", false),
     replacePreviewWithScroll: persisted("ehpeek:scroll-preview:replace-original", false),
     embeddedScrollPreviewSingleDirection: persisted<ReadDirection>(
       "ehpeek:gallery-scroll-preview:single-direction",

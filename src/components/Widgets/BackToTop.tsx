@@ -3,6 +3,10 @@ import { Icon } from "./Icon";
 
 const BACK_TO_TOP_POSITION_KEY = "ehpeek:back-to-top:position";
 
+export function clearBackToTopPosition(): void {
+  GM_deleteValue(BACK_TO_TOP_POSITION_KEY);
+}
+
 type ButtonPosition = {
   bottom: number;
   right: number;

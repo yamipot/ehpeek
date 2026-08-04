@@ -39,10 +39,16 @@ const HORIZONTAL_CLASS = {
   },
 } satisfies Record<PositionBarVariant, Record<string, string>>;
 
+const COMPACT_READER_VERTICAL_FILL = {
+  collapsed: "w-10px large:w-12px",
+  expanded: "w-18px large:w-24px",
+};
+
 export function PositionBar(props: {
   ariaLabel: string;
   axis: "horizontal" | "vertical";
   class?: string;
+  compactVertical?: boolean;
   currentValue: number;
   expanded?: boolean;
   maxValue: number;
@@ -182,8 +188,12 @@ export function PositionBar(props: {
     ? verticalClasses.expandedInteraction
     : verticalClasses.collapsedInteraction;
   const fillSize = () => expanded()
-    ? verticalClasses.expandedFill
-    : verticalClasses.collapsedFill;
+    ? variant === "reader" && props.compactVertical
+      ? COMPACT_READER_VERTICAL_FILL.expanded
+      : verticalClasses.expandedFill
+    : variant === "reader" && props.compactVertical
+      ? COMPACT_READER_VERTICAL_FILL.collapsed
+      : verticalClasses.collapsedFill;
   const renderVertical = () => (
     <div
       ref={track}

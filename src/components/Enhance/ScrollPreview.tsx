@@ -40,6 +40,29 @@ const NEXT_SCROLL_PREVIEW_DIRECTION: Record<ReadDirection, ReadDirection> = {
   rtl: "ttb",
   ttb: "ltr",
 };
+const OVERLAY_UI_TOKENS = [
+  "--ui-control-size-xs",
+  "--ui-control-size-sm",
+  "--ui-control-size-md",
+  "--ui-control-size-lg",
+  "--ui-control-size-xl",
+  "--ui-font-size-xs",
+  "--ui-font-size-sm",
+  "--ui-font-size-md",
+  "--ui-font-size-lg",
+  "--ui-font-size-xl",
+  "--ui-icon-size-sm",
+  "--ui-icon-size-md",
+  "--ui-icon-size-lg",
+  "--ui-icon-size-xl",
+] as const;
+
+function captureOverlayUiTokens(): Record<string, string> {
+  const rootStyle = getComputedStyle(document.documentElement);
+  return Object.fromEntries(
+    OVERLAY_UI_TOKENS.map((property) => [property, rootStyle.getPropertyValue(property)]),
+  );
+}
 
 type PreviewLayout = {
   crossCount: number;
@@ -283,7 +306,7 @@ type PreviewViewportState = {
   decodeCache: PreviewDecodeCache;
   embedded: boolean;
   failedIndexes: Accessor<Set<number>>;
-  highlightedPageNum: number | null;
+  highlightedPageNum: Accessor<number | null>;
   horizontal: boolean;
   layout: Accessor<PreviewLayout>;
   maxPageNum: number;
@@ -370,7 +393,7 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
                     state.previewCache.previewIndexForPage(slot.pageNum),
                   )}
                   height={state.layout().tileHeight}
-                  highlighted={slot.pageNum === state.highlightedPageNum}
+                  highlighted={slot.pageNum === state.highlightedPageNum()}
                   item={slot.item}
                   pageNum={slot.pageNum}
                   onOpenPage={state.onOpenPage}
@@ -385,6 +408,7 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
       <PositionBar
         ariaLabel={texts.gallery.scrollPreview}
         axis={state.horizontal ? "horizontal" : "vertical"}
+        compactVertical
         currentValue={state.positionPage()}
         expanded={!state.horizontal}
         maxValue={state.maxPageNum}
@@ -404,6 +428,7 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
 export type ScrollPreviewActions = {
   gotoPreview: (previewIndex: number) => void;
   gotoPage: (pageNum: number) => void;
+  setContinuePage: (pageNum: number | null) => void;
 };
 
 export function ScrollPreview(props: {
@@ -422,6 +447,7 @@ export function ScrollPreview(props: {
   replaceOriginalPreview: boolean;
 }) {
   const previewCache = untrack(() => props.previewCache);
+  const overlayUiTokens = captureOverlayUiTokens();
   const decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS);
   const onExitPreview = untrack(() => props.onExitPreview);
   const onOpenPage = untrack(() => props.onOpenPage);
@@ -439,6 +465,9 @@ export function ScrollPreview(props: {
     untrack(() => previewCache.current().data.currentIndex),
   );
   const [highlightedPageNum, setHighlightedPageNum] = createSignal<number | null>(null);
+  const [continuePageNum, setContinuePageNum] = createSignal<number | null>(
+    untrack(() => props.continuePageNum),
+  );
   const [targetPageNum, setTargetPageNum] = createSignal<number | null>(null);
   let historyEntry = false;
   let closeRequested = false;
@@ -501,6 +530,7 @@ export function ScrollPreview(props: {
         setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
         openPreview();
       },
+      setContinuePage: setContinuePageNum,
     });
   });
   onMount(() => {
@@ -534,7 +564,7 @@ export function ScrollPreview(props: {
             crossCountOverride={embeddedCrossCountOverride()}
             decodeCache={decodeCache}
             embedded
-            highlightedPageNum={props.continuePageNum}
+            highlightedPageNum={continuePageNum}
             leftHandedControls={props.leftHandedControls}
             onDirectionChange={(next, pageNum) => {
               setTargetPageNum(pageNum);
@@ -551,7 +581,7 @@ export function ScrollPreview(props: {
             onOpenPage={props.onOpenPage}
             previewCache={previewCache}
             readDirection={direction}
-            targetPageNum={targetPageNum() ?? props.continuePageNum ?? 1}
+            targetPageNum={targetPageNum() ?? continuePageNum() ?? 1}
             targetPreviewIndex={targetPreviewIndex()}
           />
         )}</Show>
@@ -562,8 +592,8 @@ export function ScrollPreview(props: {
             type="button"
             class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98"
             onClick={() => {
-              const pageNum = props.continuePageNum ?? 1;
-              setHighlightedPageNum(props.continuePageNum);
+              const pageNum = continuePageNum() ?? 1;
+              setHighlightedPageNum(continuePageNum());
               setTargetPageNum(pageNum);
               setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
               openPreview();
@@ -581,7 +611,7 @@ export function ScrollPreview(props: {
               crossCountOverride={crossCountOverride()}
               decodeCache={decodeCache}
               embedded={false}
-              highlightedPageNum={highlightedPageNum()}
+              highlightedPageNum={highlightedPageNum}
               leftHandedControls={props.leftHandedControls}
               onClose={(previewIndex) => {
                 requestClose(() => onExitPreview(previewIndex));
@@ -598,6 +628,7 @@ export function ScrollPreview(props: {
               }}
               previewCache={previewCache}
               readDirection={direction}
+              uiTokens={overlayUiTokens}
               targetPageNum={targetPageNum()}
               targetPreviewIndex={targetPreviewIndex()}
             />
@@ -612,7 +643,7 @@ function ScrollPreviewPanel(props: {
   crossCountOverride: number | null;
   decodeCache: PreviewDecodeCache;
   embedded: boolean;
-  highlightedPageNum: number | null;
+  highlightedPageNum: Accessor<number | null>;
   leftHandedControls: Accessor<boolean>;
   onClose?: (previewIndex: number) => void;
   onDirectionChange?: (direction: ReadDirection, pageNum: number) => void;
@@ -622,6 +653,7 @@ function ScrollPreviewPanel(props: {
   onOpenPage: (pageUrl: string, pageNum: number) => void;
   previewCache: GalleryPreviewCache;
   readDirection: ReadDirection;
+  uiTokens?: Record<string, string>;
   targetPageNum: number | null;
   targetPreviewIndex: number;
 }) {
@@ -757,7 +789,7 @@ function ScrollPreviewPanel(props: {
     ready: previewLoadReady,
   });
   const preferredLayoutAnchorPageNum = (): number => {
-    const targetPageNum = props.highlightedPageNum ?? props.targetPageNum;
+    const targetPageNum = props.highlightedPageNum() ?? props.targetPageNum;
     return targetPageNum !== null &&
         targetPageNum >= screenStartPageNum() &&
         targetPageNum <= screenEndPageNum()
@@ -1143,6 +1175,21 @@ function ScrollPreviewPanel(props: {
     if (!props.embedded) {
       document.body.style.overflow = "hidden";
       document.documentElement.style.overflow = "hidden";
+      void overlay.animate(
+        [
+          {
+            opacity: 0.72,
+            transform: horizontal
+              ? "translate3d(0, -32px, 0) scale(0.99)"
+              : "translate3d(32px, 0, 0) scale(0.99)",
+          },
+          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)" },
+        ],
+        {
+          duration: 120,
+          easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+        },
+      ).finished.catch(() => undefined);
     }
     const resizeObserver = new ResizeObserver(() => untrack(() => {
       const width = scroller.clientWidth;
@@ -1240,6 +1287,7 @@ function ScrollPreviewPanel(props: {
           "w-full": true,
         }}
         style={{
+          ...props.uiTokens,
           opacity: props.embedded
             ? "1"
             : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`,
@@ -1252,12 +1300,13 @@ function ScrollPreviewPanel(props: {
           when={props.embedded}
           fallback={
             <OverlayPreviewToolbar
-              currentDisabled={props.highlightedPageNum === null}
+              currentDisabled={props.highlightedPageNum() === null}
               onClose={() => onClose?.(centeredPreviewIndex())}
               onCurrent={() => {
-                if (props.highlightedPageNum !== null) {
+                const highlightedPageNum = props.highlightedPageNum();
+                if (highlightedPageNum !== null) {
                   flingAnimator.cancel();
-                  scrollToPage(props.highlightedPageNum);
+                  scrollToPage(highlightedPageNum);
                 }
               }}
               state={toolbarState}

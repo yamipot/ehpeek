@@ -22,6 +22,7 @@ type SettingsMenuState = {
   replacePreviewWithScroll: boolean;
   enhanceThumbsGridsEnabled: boolean;
   enhanceSearchGridsEnabled: boolean;
+  floatingReadButtonEnabled: boolean;
   myTagsEnabled: boolean;
   readHistoryEnabled: boolean;
   includeUnreadHistoryEnabled: boolean;
@@ -275,6 +276,12 @@ export function SettingsMenu(props: {
               description={texts.settings.replacePreviewWithScrollHelp}
               label={texts.settings.replacePreviewWithScrollLabel}
               onChange={(value) => updateDraft("replacePreviewWithScroll", value)}
+            />
+            <SwitchButton
+              checked={draft.floatingReadButtonEnabled}
+              description={texts.settings.floatingReadButtonHelp}
+              label={texts.settings.floatingReadButtonLabel}
+              onChange={(value) => updateDraft("floatingReadButtonEnabled", value)}
             />
             <SwitchButton
               checked={draft.myTagsEnabled}
