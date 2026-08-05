@@ -5,7 +5,7 @@ export type RightTapAction = "previous" | "next";
 export type ReaderScrollSizeScale = number | "one-to-one" | null;
 export type ReaderOrientation = "portrait" | "landscape";
 export type GalleryTitlePreference = "main" | "sub";
-export type UiScale = "small" | "medium" | "large";
+export type UiScale = "xsmall" | "small" | "medium" | "large" | "xlarge";
 export type SearchGridMode = "ehpeek" | "ehpeek-lite";
 export type MyTagAppearance = {
   backgroundColor: string;

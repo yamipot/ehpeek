@@ -19,9 +19,11 @@ const TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE =
 const TOUCH_ICON_BUTTON_CLASS =
   "inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]";
 const NEXT_UI_SCALE: Record<UiScale, UiScale> = {
+  xsmall: "small",
   small: "medium",
   medium: "large",
-  large: "small",
+  large: "xlarge",
+  xlarge: "xsmall",
 };
 
 function TouchTopBarUiMenu(props: {

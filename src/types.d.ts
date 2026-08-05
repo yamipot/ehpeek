@@ -14,7 +14,7 @@ declare module "ehpeek:spectrum-ui-scales" {
   type IconScale = Record<"sm" | "md" | "lg" | "xl", string>;
 
   const scales: Record<
-    "small" | "medium" | "large",
+    "xsmall" | "small" | "medium" | "large" | "xlarge",
     {
       control: SizeScale;
       font: FontScale;

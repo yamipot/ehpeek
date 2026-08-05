@@ -282,7 +282,7 @@ function readSpectrumUiScales() {
     ]),
   );
 
-  return Object.fromEntries(
+  const resolved = Object.fromEntries(
     Object.entries(table).map(([name, definition]) => [
       name,
       {
@@ -295,6 +295,28 @@ function readSpectrumUiScales() {
           definition.set,
         ),
       },
+    ]),
+  );
+  return {
+    xsmall: scaleSpectrumUiValues(resolved.small, 0.8),
+    ...resolved,
+    xlarge: scaleSpectrumUiValues(resolved.large, 1.25),
+  };
+}
+
+function scaleSpectrumUiValues(groups, factor) {
+  return Object.fromEntries(
+    Object.entries(groups).map(([group, values]) => [
+      group,
+      Object.fromEntries(
+        Object.entries(values).map(([name, value]) => {
+          const pixels = /^([\d.]+)px$/.exec(value)?.[1];
+          const scaled = pixels === undefined
+            ? value
+            : `${Math.round(Number(pixels) * factor * 1000) / 1000}px`;
+          return [name, scaled];
+        }),
+      ),
     ]),
   );
 }

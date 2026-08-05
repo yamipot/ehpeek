@@ -5,7 +5,7 @@ export default defineConfig({
   transformers: [transformerVariantGroup()],
   postprocess: [pointerHoverPostprocessor()],
   variants: [
-    uiScaleVariant("large"),
+    uiScaleVariant("large", "xlarge"),
     mediaVariant("desktop", "(min-width: 760px)"),
     mediaVariant("landscape", "(orientation: landscape)"),
   ],
@@ -71,9 +71,9 @@ function pointerHoverPostprocessor() {
   };
 }
 
-function uiScaleVariant(scale) {
+function uiScaleVariant(...scales) {
   return (matcher) => {
-    const marker = `${scale}:`;
+    const marker = `${scales[0]}:`;
 
     if (!matcher.startsWith(marker)) {
       return matcher;
@@ -82,7 +82,10 @@ function uiScaleVariant(scale) {
     return {
       matcher: matcher.slice(marker.length),
       selector: (selector) =>
-        `:root[data-ehpeek-ui-scale="${scale}"] ${selector}`,
+        scales
+          .map((scale) =>
+            `:root[data-ehpeek-ui-scale="${scale}"] ${selector}`)
+          .join(", "),
     };
   };
 }
