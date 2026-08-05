@@ -8,9 +8,11 @@ import {
   Show,
   untrack,
   type Accessor,
+  type Setter,
 } from "solid-js";
-import { Portal } from "solid-js/web";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
+import type { GalleryCoordinator } from "../../App/GalleryCoordinator";
+import { OverlayPortal, useOverlayHost } from "../../App/OverlayHost";
 import type { GalleryPreviewDom, GalleryPreviewItem } from "../../eh";
 import type { ReadDirection } from "../../state";
 import texts from "../../texts.json";
@@ -279,7 +281,6 @@ type PreviewViewportState = {
   canvasHeight: Accessor<string>;
   canvasWidth: Accessor<string>;
   decodeCache: PreviewDecodeCache;
-  embedded: boolean;
   failedIndexes: Accessor<Set<number>>;
   highlightedPageNum: Accessor<number | null>;
   horizontal: boolean;
@@ -296,7 +297,9 @@ type PreviewViewportState = {
   rightToLeft: boolean;
   screenEndPageNum: Accessor<number>;
   screenStartPageNum: Accessor<number>;
+  scrollerClassList: Record<string, boolean>;
   slots: Accessor<PreviewSlot[]>;
+  thickness: "narrow" | "normal";
 };
 
 function PreviewViewport(props: { state: PreviewViewportState }) {
@@ -306,19 +309,7 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
       <div
         ref={state.onScroller}
         class="absolute box-border bg-[var(--color-surface)] cursor-grab [&[data-dragging=true]]:(cursor-grabbing select-none) [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"
-        classList={{
-          "inset-0": !state.embedded,
-          "top-0 right-xs left-xs": state.embedded,
-          "bottom-[calc(var(--ui-control-size-xs)/2)]":
-            state.embedded && state.horizontal,
-          "bottom-xs": state.embedded && !state.horizontal,
-          "overflow-x-auto overflow-y-hidden": state.horizontal,
-          "overflow-y-auto overflow-x-hidden": !state.horizontal,
-          "overscroll-auto": state.embedded,
-          "[touch-action:pan-x]": state.embedded && !state.horizontal,
-          "[touch-action:pan-y]": state.embedded && state.horizontal,
-          "overscroll-contain [touch-action:none]": !state.embedded,
-        }}
+        classList={state.scrollerClassList}
         onScroll={state.onScroll}
         onWheel={state.onWheel}
       >
@@ -383,15 +374,14 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
       <PositionBar
         ariaLabel={texts.gallery.scrollPreview}
         axis={state.horizontal ? "horizontal" : "vertical"}
-        compactVertical
         currentValue={state.positionPage()}
         expanded={!state.horizontal}
         maxValue={state.maxPageNum}
         onInput={state.onPositionInput}
         position={state.horizontal ? undefined : "absolute"}
         reversed={state.horizontal && state.rightToLeft}
+        thickness={state.thickness}
         trackVisible={false}
-        variant={state.embedded ? "site" : "reader"}
         visibleValueCount={
           state.screenEndPageNum() - state.screenStartPageNum() + 1
         }
@@ -401,30 +391,45 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
 }
 
 export type ScrollPreviewActions = {
+  close: () => void;
   gotoPreview: (previewIndex: number) => void;
   gotoPage: (pageNum: number) => void;
-  setContinuePage: (pageNum: number | null) => void;
 };
 
-export function ScrollPreview(props: {
-  actionsRef: (actions: ScrollPreviewActions) => void;
-  continuePageNum: number | null;
+export type ScrollPreviewProps = {
+  coordinator: GalleryCoordinator;
   embeddedDirection: ReadDirection;
   leftHandedControls: Accessor<boolean>;
-  onExitPreview: (previewIndex: number) => void;
   onLoadError: (error: unknown) => void;
-  onOpenChange: (open: boolean) => void;
-  onOpenPage: (pageUrl: string, pageNum: number) => void;
   onEmbeddedDirectionChange: (direction: ReadDirection) => void;
   onReadDirectionChange: (direction: ReadDirection) => void;
   previewCache: GalleryPreviewCache;
   readDirection: ReadDirection;
   replaceOriginalPreview: boolean;
-}) {
+};
+
+type ScrollPreviewSession = {
+  continuePageNum: Accessor<number | null>;
+  crossCountOverride: Accessor<number | null>;
+  decodeCache: PreviewDecodeCache;
+  embeddedCrossCountOverride: Accessor<number | null>;
+  embeddedReadDirection: Accessor<ReadDirection>;
+  highlightedPageNum: Accessor<number | null>;
+  open: Accessor<boolean>;
+  readDirection: Accessor<ReadDirection>;
+  setCrossCountOverride: Setter<number | null>;
+  setEmbeddedCrossCountOverride: Setter<number | null>;
+  setEmbeddedReadDirection: Setter<ReadDirection>;
+  setReadDirection: Setter<ReadDirection>;
+  setTargetPageNum: Setter<number | null>;
+  targetPageNum: Accessor<number | null>;
+  targetPreviewIndex: Accessor<number>;
+};
+
+export function ScrollPreview(props: ScrollPreviewProps) {
+  const coordinator = untrack(() => props.coordinator);
   const previewCache = untrack(() => props.previewCache);
   const decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS);
-  const onExitPreview = untrack(() => props.onExitPreview);
-  const onOpenPage = untrack(() => props.onOpenPage);
   const [open, setOpen] = createSignal(false);
   const [readDirection, setReadDirection] = createSignal(
     untrack(() => props.readDirection),
@@ -438,161 +443,154 @@ export function ScrollPreview(props: {
     untrack(() => previewCache.current().data.currentIndex),
   );
   const [highlightedPageNum, setHighlightedPageNum] = createSignal<number | null>(null);
-  const [continuePageNum, setContinuePageNum] = createSignal<number | null>(
-    untrack(() => props.continuePageNum),
-  );
+  const continuePageNum = () => coordinator.progress().hasHistory
+    ? coordinator.progress().currentPage
+    : null;
   const [targetPageNum, setTargetPageNum] = createSignal<number | null>(null);
-  let historyEntry = false;
-  let closeRequested = false;
-  let pendingClose: (() => void) | null = null;
-  const finishClose = (afterClose?: () => void): void => {
-    historyEntry = false;
-    closeRequested = false;
-    pendingClose = null;
-    setOpen(false);
-    props.onOpenChange(false);
-    afterClose?.();
-  };
-  const requestClose = (afterClose: () => void): void => {
-    if (closeRequested) {
-      return;
-    }
-    if (historyEntry) {
-      closeRequested = true;
-      pendingClose = afterClose;
-      window.history.back();
-      return;
-    }
-    finishClose(afterClose);
-  };
   const openPreview = (): void => {
     if (!open()) {
-      const currentState = window.history.state;
-      window.history.pushState({
-        ...(currentState !== null && typeof currentState === "object" ? currentState : {}),
-        ehpeekScrollPreview: true,
-      }, "", window.location.href);
-      historyEntry = true;
       setOpen(true);
-      props.onOpenChange(true);
     }
-  };
-  const onPopState = (): void => {
-    if (!open() || !historyEntry) {
-      return;
-    }
-    finishClose(pendingClose ?? undefined);
   };
 
-  createEffect(() => {
-    props.actionsRef({
-      gotoPreview: (previewIndex) => {
-        setHighlightedPageNum(null);
-        setTargetPageNum(null);
-        setTargetPreviewIndex(previewIndex);
-        openPreview();
-      },
-      gotoPage: (pageNum) => {
-        setHighlightedPageNum(pageNum);
-        setTargetPageNum(pageNum);
-        setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
-        openPreview();
-      },
-      setContinuePage: setContinuePageNum,
-    });
-  });
-  onMount(() => {
-    window.addEventListener("popstate", onPopState);
-    onCleanup(() => {
-      window.removeEventListener("popstate", onPopState);
-    });
+  coordinator.attachPreview({
+    close: () => setOpen(false),
+    gotoPreview: (previewIndex) => {
+      setHighlightedPageNum(null);
+      setTargetPageNum(null);
+      setTargetPreviewIndex(previewIndex);
+      openPreview();
+    },
+    gotoPage: (pageNum) => {
+      setHighlightedPageNum(pageNum);
+      setTargetPageNum(pageNum);
+      setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
+      openPreview();
+    },
   });
   onCleanup(() => {
     decodeCache.dispose();
-    if (open()) {
-      props.onOpenChange(false);
-    }
   });
+
+  const session: ScrollPreviewSession = {
+    continuePageNum,
+    crossCountOverride,
+    decodeCache,
+    embeddedCrossCountOverride,
+    embeddedReadDirection,
+    highlightedPageNum,
+    open,
+    readDirection,
+    setCrossCountOverride,
+    setEmbeddedCrossCountOverride,
+    setEmbeddedReadDirection,
+    setReadDirection,
+    setTargetPageNum,
+    targetPageNum,
+    targetPreviewIndex,
+  };
 
   return (
     <>
-      <Show when={props.replaceOriginalPreview}>
-        <Show when={embeddedReadDirection()} keyed>{(direction) => (
+      <EmbeddedScrollPreview session={session} source={props} />
+      <ScrollPreviewLauncher session={session} source={props} />
+      <ScrollPreviewOverlay session={session} source={props} />
+    </>
+  );
+}
+
+function EmbeddedScrollPreview(props: {
+  session: ScrollPreviewSession;
+  source: ScrollPreviewProps;
+}) {
+  const session = untrack(() => props.session);
+  const source = untrack(() => props.source);
+  return (
+    <Show when={source.replaceOriginalPreview}>
+      <Show when={session.embeddedReadDirection()} keyed>{(direction) => (
+        <ScrollPreviewPanel
+          crossCountOverride={session.embeddedCrossCountOverride()}
+          decodeCache={session.decodeCache}
+          embedded
+          highlightedPageNum={session.continuePageNum}
+          leftHandedControls={source.leftHandedControls}
+          onDirectionChange={(next, pageNum) => {
+            session.setTargetPageNum(pageNum);
+            session.setEmbeddedReadDirection(next);
+            source.onEmbeddedDirectionChange(next);
+          }}
+          onLoadError={source.onLoadError}
+          onCrossCountOverrideChange={session.setEmbeddedCrossCountOverride}
+          onOpenOverlay={source.coordinator.openPreviewPage}
+          onOpenPage={source.coordinator.openGalleryPage}
+          pixelScale={1}
+          previewCache={source.previewCache}
+          readDirection={direction}
+          targetPageNum={session.targetPageNum() ?? session.continuePageNum() ?? 1}
+          targetPreviewIndex={session.targetPreviewIndex()}
+        />
+      )}</Show>
+    </Show>
+  );
+}
+
+function ScrollPreviewLauncher(props: {
+  session: ScrollPreviewSession;
+  source: ScrollPreviewProps;
+}) {
+  const session = untrack(() => props.session);
+  const source = untrack(() => props.source);
+  return (
+    <Show when={!source.replaceOriginalPreview}>
+      <div class="flex w-full justify-center my-sm">
+        <button
+          type="button"
+          class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98"
+          onClick={() => source.coordinator.openPreviewPage(session.continuePageNum() ?? 1)}
+        >
+          <Icon name="grid" size="var(--ui-icon-size-sm)" />
+          {texts.gallery.scrollPreview}
+        </button>
+      </div>
+    </Show>
+  );
+}
+
+function ScrollPreviewOverlay(props: {
+  session: ScrollPreviewSession;
+  source: ScrollPreviewProps;
+}) {
+  const session = untrack(() => props.session);
+  const source = untrack(() => props.source);
+  const overlayHost = useOverlayHost();
+  return (
+    <Show when={session.open()}>
+      <OverlayPortal>
+        <Show when={session.readDirection()} keyed>{(direction) => (
           <ScrollPreviewPanel
-            crossCountOverride={embeddedCrossCountOverride()}
-            decodeCache={decodeCache}
-            embedded
-            highlightedPageNum={continuePageNum}
-            leftHandedControls={props.leftHandedControls}
+            crossCountOverride={session.crossCountOverride()}
+            decodeCache={session.decodeCache}
+            embedded={false}
+            highlightedPageNum={session.highlightedPageNum}
+            leftHandedControls={source.leftHandedControls}
+            onClose={source.coordinator.requestClosePreview}
             onDirectionChange={(next, pageNum) => {
-              setTargetPageNum(pageNum);
-              setEmbeddedReadDirection(next);
-              props.onEmbeddedDirectionChange(next);
+              session.setTargetPageNum(pageNum);
+              session.setReadDirection(next);
+              source.onReadDirectionChange(next);
             }}
-            onLoadError={props.onLoadError}
-            onCrossCountOverrideChange={setEmbeddedCrossCountOverride}
-            onOpenOverlay={(pageNum) => {
-              setTargetPageNum(pageNum);
-              setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
-              openPreview();
-            }}
-            onOpenPage={props.onOpenPage}
-            previewCache={previewCache}
+            onLoadError={source.onLoadError}
+            onCrossCountOverrideChange={session.setCrossCountOverride}
+            onOpenPage={source.coordinator.selectPreviewPage}
+            pixelScale={overlayHost.fullscreenPixelScale()}
+            previewCache={source.previewCache}
             readDirection={direction}
-            targetPageNum={targetPageNum() ?? continuePageNum() ?? 1}
-            targetPreviewIndex={targetPreviewIndex()}
+            targetPageNum={session.targetPageNum()}
+            targetPreviewIndex={session.targetPreviewIndex()}
           />
         )}</Show>
-      </Show>
-      <Show when={!props.replaceOriginalPreview}>
-        <div class="flex w-full justify-center my-sm">
-          <button
-            type="button"
-            class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98"
-            onClick={() => {
-              const pageNum = continuePageNum() ?? 1;
-              setHighlightedPageNum(continuePageNum());
-              setTargetPageNum(pageNum);
-              setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
-              openPreview();
-            }}
-          >
-            <Icon name="grid" size="var(--ui-icon-size-sm)" />
-            {texts.gallery.scrollPreview}
-          </button>
-        </div>
-      </Show>
-      <Show when={open()}>
-        <Portal>
-          <Show when={readDirection()} keyed>{(direction) => (
-            <ScrollPreviewPanel
-              crossCountOverride={crossCountOverride()}
-              decodeCache={decodeCache}
-              embedded={false}
-              highlightedPageNum={highlightedPageNum}
-              leftHandedControls={props.leftHandedControls}
-              onClose={(previewIndex) => {
-                requestClose(() => onExitPreview(previewIndex));
-              }}
-              onDirectionChange={(next, pageNum) => {
-                setTargetPageNum(pageNum);
-                setReadDirection(next);
-                props.onReadDirectionChange(next);
-              }}
-              onLoadError={props.onLoadError}
-              onCrossCountOverrideChange={setCrossCountOverride}
-              onOpenPage={(pageUrl, pageNum) => {
-                requestClose(() => onOpenPage(pageUrl, pageNum));
-              }}
-              previewCache={previewCache}
-              readDirection={direction}
-              targetPageNum={targetPageNum()}
-              targetPreviewIndex={targetPreviewIndex()}
-            />
-          )}</Show>
-        </Portal>
-      </Show>
-    </>
+      </OverlayPortal>
+    </Show>
   );
 }
 
@@ -608,12 +606,14 @@ function ScrollPreviewPanel(props: {
   onCrossCountOverrideChange: (crossCount: number) => void;
   onOpenOverlay?: (pageNum: number) => void;
   onOpenPage: (pageUrl: string, pageNum: number) => void;
+  pixelScale: number;
   previewCache: GalleryPreviewCache;
   readDirection: ReadDirection;
   targetPageNum: number | null;
   targetPreviewIndex: number;
 }) {
   const decodeCache = untrack(() => props.decodeCache);
+  const embedded = untrack(() => props.embedded);
   const previewCache = untrack(() => props.previewCache);
   const onClose = untrack(() => props.onClose);
   const onLoadError = untrack(() => props.onLoadError);
@@ -630,6 +630,8 @@ function ScrollPreviewPanel(props: {
     initialPreview.data.dominantAspectRatio,
   );
   const initialTileAspectRatio = untrack(tileAspectRatio);
+  const pixelScale = () => props.pixelScale;
+  const initialPixelScale = untrack(pixelScale);
   const readDirection = untrack(() => props.readDirection);
   const horizontal = readDirection !== "ttb";
   const rightToLeft = readDirection === "rtl";
@@ -650,13 +652,13 @@ function ScrollPreviewPanel(props: {
   const [scrollOffset, setScrollOffset] = createSignal(0);
   const [layout, setLayout] = createSignal<PreviewLayout>({
     crossCount: 1,
-    gap: GRID_GAP,
+    gap: GRID_GAP * initialPixelScale,
     horizontal,
     mainStride: horizontal
-      ? MAX_TILE_WIDTH + GRID_GAP
-      : MAX_TILE_WIDTH * initialTileAspectRatio + GRID_GAP,
-    tileHeight: MAX_TILE_WIDTH * initialTileAspectRatio,
-    tileWidth: MAX_TILE_WIDTH,
+      ? (MAX_TILE_WIDTH + GRID_GAP) * initialPixelScale
+      : (MAX_TILE_WIDTH * initialTileAspectRatio + GRID_GAP) * initialPixelScale,
+    tileHeight: MAX_TILE_WIDTH * initialTileAspectRatio * initialPixelScale,
+    tileWidth: MAX_TILE_WIDTH * initialPixelScale,
     viewportHeight: 1,
     viewportWidth: 1,
   });
@@ -836,7 +838,7 @@ function ScrollPreviewPanel(props: {
   createPointerGestureElement(
     () => scroller ?? null,
     () => ({
-      dragAxis: props.embedded
+      dragAxis: embedded
         ? horizontal
           ? "x"
           : "y"
@@ -850,7 +852,7 @@ function ScrollPreviewPanel(props: {
         if (dragDirection === null) {
           const mainDelta = horizontal ? Math.abs(info.dx) : Math.abs(info.dy);
           const exitDelta = horizontal ? Math.abs(info.dy) : Math.abs(info.dx);
-          dragDirection = props.embedded || mainDelta >= exitDelta
+          dragDirection = embedded || mainDelta >= exitDelta
             ? "scroll"
             : "exit";
         }
@@ -937,7 +939,7 @@ function ScrollPreviewPanel(props: {
         });
       },
       onPinchStart: () => {
-        if (props.embedded) {
+        if (embedded) {
           return false;
         }
         flingAnimator.cancel();
@@ -951,7 +953,7 @@ function ScrollPreviewPanel(props: {
         return true;
       },
       onPinchMove: (info) => {
-        if (props.embedded) {
+        if (embedded) {
           return;
         }
         props.onCrossCountOverrideChange(
@@ -1001,12 +1003,12 @@ function ScrollPreviewPanel(props: {
 
   const updateLayout = (resetEmbeddedHeight = false): void => {
     setPreviewLoadReady(false);
-    if (resetEmbeddedHeight && props.embedded) {
+    if (resetEmbeddedHeight && embedded) {
       overlay.style.removeProperty("height");
     }
     const width = Math.max(1, scroller.clientWidth);
     const height = Math.max(1, scroller.clientHeight);
-    const scale = 1;
+    const scale = pixelScale();
     const gap = GRID_GAP * scale;
     const aspectRatio = tileAspectRatio();
     const baseMaxTileWidth = MAX_TILE_WIDTH * scale;
@@ -1018,7 +1020,7 @@ function ScrollPreviewPanel(props: {
       1,
       (width - gap * (referenceItemsPerRow - 1)) / referenceItemsPerRow,
     );
-    const maxTileWidth = props.embedded
+    const maxTileWidth = embedded
       ? referenceItemWidth *
         Math.sqrt(REFERENCE_PORTRAIT_ASPECT_RATIO / aspectRatio)
       : baseMaxTileWidth;
@@ -1034,7 +1036,7 @@ function ScrollPreviewPanel(props: {
       (width - gap * (itemsPerRow - 1)) / itemsPerRow,
     );
     const itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio));
-    const availableRows = props.embedded
+    const availableRows = embedded
       ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap)))
       : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap)));
     const automaticCrossCount = horizontal
@@ -1075,12 +1077,12 @@ function ScrollPreviewPanel(props: {
       : crossCountOverridden
         ? overriddenTileWidth
         : Math.max(1, (width - gap * (crossCount - 1)) / crossCount);
-    if (props.embedded && horizontal) {
+    if (embedded && horizontal) {
       const fittedScrollerHeight =
         crossCount * tileHeight + (crossCount - 1) * gap;
       overlay.style.height =
         `${Math.ceil(overlay.clientHeight - height + fittedScrollerHeight)}px`;
-    } else if (props.embedded) {
+    } else if (embedded) {
       overlay.style.removeProperty("height");
     }
     const next = {
@@ -1119,6 +1121,7 @@ function ScrollPreviewPanel(props: {
 
   createEffect(() => {
     crossCountOverride();
+    pixelScale();
     tileAspectRatio();
     if (initialized) {
       untrack(() => updateLayout(true));
@@ -1128,7 +1131,7 @@ function ScrollPreviewPanel(props: {
   onMount(() => {
     const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
-    if (!props.embedded) {
+    if (!embedded) {
       document.body.style.overflow = "hidden";
       document.documentElement.style.overflow = "hidden";
       void overlay.animate(
@@ -1162,7 +1165,7 @@ function ScrollPreviewPanel(props: {
       disposed = true;
       flingAnimator.cancel();
       resizeObserver.disconnect();
-      if (!props.embedded) {
+      if (!embedded) {
         document.body.style.overflow = previousBodyOverflow;
         document.documentElement.style.overflow = previousHtmlOverflow;
       }
@@ -1191,11 +1194,10 @@ function ScrollPreviewPanel(props: {
     onZoomOut: () => resizeCrossCount(1),
   };
   const viewportState: PreviewViewportState = {
-    allowUpscale: () => props.embedded || crossCountOverride() !== null,
+    allowUpscale: () => embedded || crossCountOverride() !== null,
     canvasHeight: () => horizontal ? "100%" : `${totalMainSize()}px`,
     canvasWidth: () => horizontal ? `${mainCanvasSize()}px` : "100%",
     decodeCache,
-    embedded: untrack(() => props.embedded),
     failedIndexes: loading.failedIndexes,
     highlightedPageNum: untrack(() => props.highlightedPageNum),
     horizontal,
@@ -1222,37 +1224,50 @@ function ScrollPreviewPanel(props: {
     rightToLeft,
     screenEndPageNum,
     screenStartPageNum,
+    scrollerClassList: {
+      "inset-0": !embedded,
+      "top-0 right-xs left-xs": embedded,
+      "bottom-[calc(var(--ui-control-size-xs)/2)]": embedded && horizontal,
+      "bottom-xs": embedded && !horizontal,
+      "overflow-x-auto overflow-y-hidden": horizontal,
+      "overflow-y-auto overflow-x-hidden": !horizontal,
+      "overscroll-auto": embedded,
+      "[touch-action:pan-x]": embedded && !horizontal,
+      "[touch-action:pan-y]": embedded && horizontal,
+      "overscroll-contain [touch-action:none]": !embedded,
+    },
     slots: visibleSlots,
+    thickness: !embedded && !horizontal ? "narrow" : "normal",
   };
 
   return (
     <div
       classList={{
-        "contents": props.embedded,
-        "fixed inset-0 z-[1300]": !props.embedded,
+        "contents": embedded,
+        "fixed inset-0 z-[1300]": !embedded,
       }}
     >
       <section
         ref={overlay}
         class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]"
         classList={{
-          "absolute inset-0 bg-[var(--color-background)]": !props.embedded,
+          "absolute inset-0 bg-[var(--color-background)]": !embedded,
           "border ehp-color-site-border rounded-sm bg-[var(--color-site-elevated)]":
-            props.embedded,
-          "relative h-[var(--scroll-preview-height)]": props.embedded,
+            embedded,
+          "relative h-[var(--scroll-preview-height)]": embedded,
           "w-full": true,
         }}
         style={{
-          opacity: props.embedded
+          opacity: embedded
             ? "1"
             : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`,
-          transform: props.embedded
+          transform: embedded
             ? "none"
             : `translate3d(${horizontal ? 0 : exitDragOffset()}px, ${horizontal ? exitDragOffset() : 0}px, 0) scale(${1 - Math.min(0.03, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.03)})`,
         }}
       >
         <Show
-          when={props.embedded}
+          when={embedded}
           fallback={
             <OverlayPreviewToolbar
               currentDisabled={props.highlightedPageNum() === null}

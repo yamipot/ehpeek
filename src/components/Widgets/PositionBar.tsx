@@ -1,54 +1,31 @@
 import { createSignal, untrack } from "solid-js";
 import { clamp } from "../../utils";
 
-type PositionBarVariant = "reader" | "site";
+type PositionBarThickness = "narrow" | "normal";
 
-const VERTICAL_CLASS = {
-  reader: {
-    collapsedFill: "w-20px large:w-24px",
-    collapsedInteraction: "w-20px large:w-40px",
-    expandedFill: "w-36px large:w-48px",
-    expandedInteraction: "w-36px large:w-64px",
-    fill: "bg-[var(--color-reader-scrollbar,var(--color-muted))]",
-    track: "bg-[var(--color-reader-border,var(--color-border))]",
-    trackSize: "right-4px w-6px",
+const VERTICAL_FILL = {
+  narrow: {
+    collapsed: "w-10px large:w-12px",
+    expanded: "w-18px large:w-24px",
   },
-  site: {
-    collapsedFill: "w-10px large:w-14px",
-    collapsedInteraction: "w-14px large:w-24px",
-    expandedFill: "w-[calc(var(--ui-control-size-sm)/2)]",
-    expandedInteraction: "w-[calc(var(--ui-control-size-sm)/2)]",
-    fill: "bg-[var(--color-site-text)] opacity-55",
-    track: "bg-transparent",
-    trackSize: "right-2px w-3px",
+  normal: {
+    collapsed: "w-20px large:w-24px",
+    expanded: "w-36px large:w-48px",
   },
-} satisfies Record<PositionBarVariant, Record<string, string>>;
+} satisfies Record<PositionBarThickness, Record<string, string>>;
 
-const HORIZONTAL_CLASS = {
-  reader: {
-    fill: "bg-[var(--color-reader-scrollbar,var(--color-muted))]",
-    interaction: "h-20px large:h-24px",
-    track: "bg-[var(--color-reader-border,var(--color-border))]",
-    trackSize: "bottom-4px h-6px",
-  },
-  site: {
-    fill: "bg-[var(--color-site-text)] opacity-55",
-    interaction: "h-[calc(var(--ui-control-size-xs)/2)]",
-    track: "bg-transparent",
-    trackSize: "bottom-2px h-3px",
-  },
-} satisfies Record<PositionBarVariant, Record<string, string>>;
+const HORIZONTAL_FILL = {
+  narrow: "h-10px large:h-12px",
+  normal: "h-20px large:h-24px",
+} satisfies Record<PositionBarThickness, string>;
 
-const COMPACT_READER_VERTICAL_FILL = {
-  collapsed: "w-10px large:w-12px",
-  expanded: "w-18px large:w-24px",
-};
+const POSITION_BAR_FILL = "bg-[var(--color-reader-scrollbar,var(--color-muted))]";
+const POSITION_BAR_TRACK = "bg-[var(--color-reader-border,var(--color-border))]";
 
 export function PositionBar(props: {
   ariaLabel: string;
   axis: "horizontal" | "vertical";
   class?: string;
-  compactVertical?: boolean;
   currentValue: number;
   expanded?: boolean;
   maxValue: number;
@@ -58,8 +35,8 @@ export function PositionBar(props: {
   onPointerDown?: (event: PointerEvent) => void;
   position?: "absolute" | "fixed";
   reversed?: boolean;
+  thickness?: PositionBarThickness;
   trackVisible?: boolean;
-  variant: PositionBarVariant;
   visible?: boolean;
   visibleValueCount?: number;
 }) {
@@ -68,7 +45,7 @@ export function PositionBar(props: {
   let thumb!: HTMLDivElement;
   let dragOffset = 0;
   const axis = untrack(() => props.axis);
-  const variant = untrack(() => props.variant);
+  const thickness = untrack(() => props.thickness ?? "normal");
   const horizontal = axis === "horizontal";
   const minValue = () => props.minValue ?? 1;
   const valueRange = () => Math.max(0, props.maxValue - minValue());
@@ -143,11 +120,10 @@ export function PositionBar(props: {
   };
   const stopWheel = (event: WheelEvent): void => event.stopPropagation();
 
-  const horizontalClasses = HORIZONTAL_CLASS[variant];
   const renderHorizontal = () => (
       <div
         ref={track}
-        class={`ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-x-0 bottom-0 z-2 ${horizontalClasses.interaction} touch-none select-none`}
+        class={`ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-x-0 bottom-0 z-2 h-20px large:h-24px touch-none select-none`}
         aria-label={props.ariaLabel}
         aria-orientation="horizontal"
         aria-valuemax={props.maxValue}
@@ -163,13 +139,13 @@ export function PositionBar(props: {
         onWheel={stopWheel}
       >
         <div
-          class={`absolute inset-x-0 ${horizontalClasses.trackSize} ${
-            props.trackVisible === false ? "bg-transparent" : horizontalClasses.track
+          class={`absolute inset-x-0 bottom-4px h-6px ${
+            props.trackVisible === false ? "bg-transparent" : POSITION_BAR_TRACK
           }`}
         />
         <div
           ref={thumb}
-          class={`ehpeek-position-bar-thumb absolute bottom-0 flex ${horizontalClasses.interaction} items-end cursor-grab active:cursor-grabbing`}
+          class="ehpeek-position-bar-thumb absolute bottom-0 flex h-20px large:h-24px items-end cursor-grab active:cursor-grabbing"
           style={{
             left: `${visualPosition()}%`,
             transform: `translateX(-${visualPosition()}%)`,
@@ -177,23 +153,18 @@ export function PositionBar(props: {
           }}
         >
           <span
-            class={`block w-full h-full rounded-t-md ${horizontalClasses.fill} shadow-[0_2px_10px_var(--color-shadow-control)]`}
+            class={`block w-full ${HORIZONTAL_FILL[thickness]} rounded-t-md ${POSITION_BAR_FILL} shadow-[0_2px_10px_var(--color-shadow-control)]`}
           />
         </div>
       </div>
   );
 
-  const verticalClasses = VERTICAL_CLASS[variant];
   const interactionSize = () => expanded()
-    ? verticalClasses.expandedInteraction
-    : verticalClasses.collapsedInteraction;
+    ? "w-36px large:w-64px"
+    : "w-20px large:w-40px";
   const fillSize = () => expanded()
-    ? variant === "reader" && props.compactVertical
-      ? COMPACT_READER_VERTICAL_FILL.expanded
-      : verticalClasses.expandedFill
-    : variant === "reader" && props.compactVertical
-      ? COMPACT_READER_VERTICAL_FILL.collapsed
-      : verticalClasses.collapsedFill;
+    ? VERTICAL_FILL[thickness].expanded
+    : VERTICAL_FILL[thickness].collapsed;
   const renderVertical = () => (
     <div
       ref={track}
@@ -215,8 +186,8 @@ export function PositionBar(props: {
       onWheel={stopWheel}
     >
       <div
-        class={`absolute inset-y-0 ${verticalClasses.trackSize} ${
-          props.trackVisible === false ? "bg-transparent" : verticalClasses.track
+        class={`absolute inset-y-0 right-4px w-6px ${
+          props.trackVisible === false ? "bg-transparent" : POSITION_BAR_TRACK
         }`}
       />
       <div
@@ -229,7 +200,7 @@ export function PositionBar(props: {
         }}
       >
         <span
-          class={`block h-full rounded-l-md ${verticalClasses.fill} ${fillSize()} shadow-[0_2px_10px_var(--color-shadow-control)] transition-[width,opacity] duration-160`}
+          class={`block h-full rounded-l-md ${POSITION_BAR_FILL} ${fillSize()} shadow-[0_2px_10px_var(--color-shadow-control)] transition-[width,opacity] duration-160`}
         />
       </div>
     </div>

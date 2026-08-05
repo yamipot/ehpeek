@@ -1,5 +1,5 @@
 import { type JSX, onCleanup, onMount } from "solid-js";
-import { Portal } from "solid-js/web";
+import { OverlayPortal } from "../../App/OverlayHost";
 import texts from "../../texts.json";
 import { Icon } from "./Icon";
 
@@ -51,11 +51,7 @@ export function Dialog(props: {
   const reader = () => props.variant === "reader";
 
   return (
-    <Portal
-      mount={document.fullscreenElement instanceof HTMLElement
-        ? document.fullscreenElement
-        : document.body}
-    >
+    <OverlayPortal>
       <div
         class="fixed inset-0 z-dialog flex items-center justify-center overflow-hidden p-lg bg-black/65 pointer-events-auto font-sans"
         role="dialog"
@@ -102,6 +98,6 @@ export function Dialog(props: {
           </div>
         </div>
       </div>
-    </Portal>
+    </OverlayPortal>
   );
 }

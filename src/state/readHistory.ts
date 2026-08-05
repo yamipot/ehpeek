@@ -1,5 +1,6 @@
 import { state } from "./index";
 import type { GalleryHistoryInfo } from "../eh/types";
+import { createSignal, type Accessor, type Setter } from "solid-js";
 
 const HISTORY_KEY_PREFIX = "ehpeek:history:";
 const HISTORY_QUEUE_KEY_PREFIX = "ehpeek:hist_q:";
@@ -16,6 +17,12 @@ export type ReadHistoryRecord = {
   pageNum: number;
   totalPages?: number;
   updatedAt: number;
+};
+
+export type ReadingProgress = {
+  currentPage: number;
+  hasHistory: boolean;
+  totalPages: number | null;
 };
 
 type StoredReadHistoryRecord = ReadHistoryRecord & {
@@ -39,18 +46,35 @@ type ReadHistoryArchive = {
   records: ReadHistoryArchiveRecord[];
 };
 
-export class ReadHistorySession {
+export class ReadingProgressSession {
+  readonly progress: Accessor<ReadingProgress>;
+  private readonly setProgress: Setter<ReadingProgress>;
   private pending: ReadHistoryRecord | null = null;
   private lastSaved: ReadHistoryRecord | null = null;
   private timer: number | null = null;
 
-  constructor(private readonly baseRecord: Omit<ReadHistoryRecord, "pageNum" | "updatedAt">) {
+  constructor(
+    private readonly baseRecord: Omit<ReadHistoryRecord, "pageNum" | "updatedAt"> | null,
+    initial: ReadingProgress,
+  ) {
+    const [progress, setProgress] = createSignal(initial);
+    this.progress = progress;
+    this.setProgress = setProgress;
     window.addEventListener("pagehide", this.flush);
     document.addEventListener("visibilitychange", this.onVisibilityChange);
   }
 
   update(pageNum: number | undefined, totalPages?: number): void {
     if (!pageNum || pageNum <= 0) {
+      return;
+    }
+
+    this.setProgress({
+      currentPage: pageNum,
+      hasHistory: this.baseRecord !== null,
+      totalPages: totalPages ?? this.progress().totalPages,
+    });
+    if (!this.baseRecord) {
       return;
     }
 

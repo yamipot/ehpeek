@@ -9,19 +9,16 @@ import {
 import { EnhanceSearchGrids } from "../components/Enhance/EnhanceSearchGrids";
 import {
   ThumbsGrids,
-  type ThumbsGridsActions,
 } from "../components/Enhance/EnhanceThumbsGrids";
 import {
   ScrollPreview,
-  type ScrollPreviewActions,
 } from "../components/Enhance/ScrollPreview";
-import { ReadButton, ReadHistoryPage } from "../components/Enhance/ReadHistory";
+import { ReadHistoryPage } from "../components/Enhance/ReadHistory";
 import {
   loadReadHistory,
   loadReadHistoryRecords,
-  recordGalleryVisit,
-  ReadHistorySession,
-  updateReadHistoryGalleryInfo,
+  ReadingProgressSession,
+  type ReadingProgress,
 } from "../state/readHistory";
 import { SearchHistory } from "../components/Enhance/SearchHistory";
 import { loadMyTagAppearances, refreshMyTags } from "../components/Enhance/MyTags";
@@ -30,6 +27,7 @@ import {
   BackToTop,
   clearBackToTopPosition,
 } from "../components/Widgets/BackToTop";
+import { Icon } from "../components/Widgets/Icon";
 import {
   GalleryInfoPanel,
   FavoritesCategorySelect,
@@ -47,21 +45,22 @@ import { registerGlobalStyle } from "../utils";
 import ehDomCss from "../eh/dom/styles.css";
 import unoCss from "ehpeek:uno.css";
 import themeCss from "../theme.css";
+import { reportReaderOpenError } from "./Reader";
 import {
-  gotoActiveReaderPage,
-  openReaderFromHash,
-  openReaderFromUserAction,
-  openOriginalReader,
-  reportReaderOpenError,
-  type ReaderCallbacks,
-} from "./Reader";
+  createGalleryCoordinator,
+  type GalleryCoordinator,
+} from "./GalleryCoordinator";
 import {
   createGalleryPreviewCache,
   type GalleryPreviewCache,
 } from "./GalleryPreviewCache";
 import { createAppMount } from "./host";
+import {
+  createOverlayHost,
+  OverlayHostProvider,
+  type OverlayHost,
+} from "./OverlayHost";
 import { applyUiScale } from "./uiScale";
-import { observeFullscreenUiSizing, readerViewport } from "./viewport";
 
 const FLOATING_READ_BUTTON_POSITION_KEY = "ehpeek:gallery:floating-read-button:position";
 
@@ -123,25 +122,15 @@ const gState = (() => {
     createSignal(state.app.leftHandedControls.value);
   const [settingsMenuOpen, setSettingsMenuOpen] = createSignal(false);
   const [uiScale, setUiScale] = createSignal(currentUiScale());
-  const [readProgress, setReadProgress] = createSignal({
-    currentPage: 1,
-    hasHistory: false,
-    totalPages: null as number | null,
-  });
   return {
     columnsEnabled,
     leftHandedControls,
-    readProgress,
-    setReadProgress,
     setLeftHandedControls,
     settings,
     settingsMenuOpen,
     setUiScale,
     setColumnsEnabled,
     setSettingsMenuOpen,
-    scrollPreviewActions: undefined as ScrollPreviewActions | undefined,
-    scrollPreviewOpen: false,
-    thumbsGridsActions: undefined as ThumbsGridsActions | undefined,
     uiScale,
   };
 })();
@@ -158,10 +147,13 @@ function currentColumnsEnabled(): boolean {
     : state.touch.portraitColumns.value;
 }
 
+let overlayHost: OverlayHost;
+
 function updateUiScale(): void {
   const scale = currentUiScale();
   gState.setUiScale(scale);
   applyUiScale(scale);
+  overlayHost?.setUiScale(scale);
 }
 
 function updateColumnsLayout(): void {
@@ -186,6 +178,7 @@ function setCurrentUiScale(scale: UiScale): void {
   setting.set(scale);
   gState.setUiScale(scale);
   applyUiScale(scale);
+  overlayHost?.setUiScale(scale);
 }
 
 function setLeftHandedControls(enabled: boolean): void {
@@ -195,37 +188,9 @@ function setLeftHandedControls(enabled: boolean): void {
 
 document.documentElement.setAttribute("data-ehpeek-site", eh.ehSiteTheme());
 updateUiScale();
-observeFullscreenUiSizing();
 registerGlobalStyle("ehpeek-uno-style", unoCss);
 registerGlobalStyle("ehpeek-theme-style", themeCss);
 registerGlobalStyle("ehpeek-dom-style", ehDomCss);
-
-const readerCallbacks: ReaderCallbacks = {
-  get enhanceThumbsGridsEnabled() {
-    return gState.settings.enhanceThumbsGridsEnabled ||
-      gState.settings.replacePreviewWithScroll ||
-      gState.scrollPreviewOpen;
-  },
-  exitReaderOnFullscreenExit: gState.settings.exitReaderOnFullscreenExit,
-  readHistoryEnabled: gState.settings.readHistoryEnabled,
-  onGotoPreviewIndex: (previewIndex) => {
-    if (gState.scrollPreviewOpen) {
-      gState.scrollPreviewActions?.gotoPreview(previewIndex);
-    } else {
-      gState.thumbsGridsActions?.gotoPreview(previewIndex);
-    }
-  },
-  onOpenScrollPreview: (pageNum) => {
-    gState.scrollPreviewActions?.gotoPage(pageNum);
-  },
-  onReaderClosed: (currentPage, totalPages) => {
-    if (!gState.settings.readHistoryEnabled) {
-      return;
-    }
-    gState.setReadProgress({ currentPage, hasHistory: true, totalPages });
-    gState.scrollPreviewActions?.setContinuePage(currentPage);
-  },
-};
 
 function allowFeatureFailure(name: string, run: () => void): void {
   try {
@@ -253,55 +218,70 @@ function requirePageDependency<T>(name: string, dependency: T | null): T {
   return dependency;
 }
 
-function openGalleryPage(
-  previewCache: GalleryPreviewCache,
-  startPageUrl: string,
-  preferredPageNum?: number,
-): void {
-  if (preferredPageNum !== undefined && gotoActiveReaderPage(preferredPageNum)) {
-    return;
-  }
-  if (state.reader.enabled.value) {
-    openReaderFromUserAction(
-      startPageUrl,
-      readerCallbacks,
-      previewCache,
-      readerViewport,
-      preferredPageNum,
-    );
-  } else if (preferredPageNum !== undefined) {
-    void openOriginalReader(preferredPageNum, previewCache).catch(reportReaderOpenError);
-  }
+type GalleryReadButtonProps = {
+  onRead: () => void;
+  progress: () => ReadingProgress;
+};
+
+function readButtonLabel(progress: ReadingProgress): string {
+  return progress.hasHistory
+    ? texts.reader.continueReading
+    : texts.reader.startReading;
 }
 
-function openFromReadButton(previewCache: GalleryPreviewCache): void {
-  const pageNum = gState.settings.readHistoryEnabled
-    ? gState.readProgress().currentPage
-    : 1;
-  const firstPage = previewCache.current().data.pages[0];
-  if (firstPage) {
-    openGalleryPage(previewCache, firstPage.url, pageNum);
-  }
+function readButtonProgress(progress: ReadingProgress): string {
+  return progress.totalPages
+    ? `${progress.currentPage}/${progress.totalPages}`
+    : String(progress.currentPage);
 }
 
-function GalleryReadButton(props: {
-  previewCache: GalleryPreviewCache;
-  variant: "floatingGallery" | "gallery" | "touchGallery";
-}) {
+function GalleryReadButton(props: GalleryReadButtonProps) {
   return (
-    <ReadButton
-      currentPage={gState.settings.readHistoryEnabled
-        ? gState.readProgress().currentPage
-        : 1}
-      hasHistory={gState.settings.readHistoryEnabled && gState.readProgress().hasHistory}
-      totalPages={gState.readProgress().totalPages}
-      onClick={() => openFromReadButton(props.previewCache)}
-      variant={props.variant}
-    />
+    <button
+      type="button"
+      class="ehpeek-continue-reading flex box-border w-full max-w-full min-h-sm items-center gap-sm py-sm px-xs border-0 bg-transparent text-[var(--color-site-accent)] hover:bg-[var(--color-site-accent-hover)] shadow-none cursor-pointer text-left font-sans textsize-sm font-700 leading-[1.2]"
+      aria-label={readButtonLabel(props.progress())}
+      title={readButtonLabel(props.progress())}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        props.onRead();
+      }}
+    >
+      {readButtonLabel(props.progress())}
+      <Show when={props.progress().hasHistory}>
+        <span class="ehpeek-continue-reading-page inline-block ml-auto opacity-72 textsize-xs font-600 whitespace-nowrap">
+          {readButtonProgress(props.progress())}
+        </span>
+      </Show>
+    </button>
   );
 }
 
-function FloatingGalleryReadButton(props: { previewCache: GalleryPreviewCache }) {
+function TouchGalleryReadButton(props: GalleryReadButtonProps) {
+  return (
+    <button
+      type="button"
+      class="ehpeek-continue-reading ehpeek-touch-gallery-primary-button flex min-w-0 w-full h-full min-h-[var(--ui-control-size-xl)] flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-prominent)] font-700"
+      aria-label={readButtonLabel(props.progress())}
+      title={readButtonLabel(props.progress())}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        props.onRead();
+      }}
+    >
+      {readButtonLabel(props.progress())}
+      <Show when={props.progress().hasHistory}>
+        <span class="ehpeek-continue-reading-page block mt-2px ehp-color-site-accent [font-size:var(--ui-font-size-prominent)] font-600 opacity-78 normal-case">
+          {readButtonProgress(props.progress())}
+        </span>
+      </Show>
+    </button>
+  );
+}
+
+function FloatingReadButton(props: GalleryReadButtonProps) {
   let host!: HTMLDivElement;
   let drag: {
     bottom: number;
@@ -370,21 +350,23 @@ function FloatingGalleryReadButton(props: { previewCache: GalleryPreviewCache })
           }
         }}
       >
-        <ReadButton
-          currentPage={gState.settings.readHistoryEnabled
-            ? gState.readProgress().currentPage
-            : 1}
-          hasHistory={gState.settings.readHistoryEnabled && gState.readProgress().hasHistory}
-          totalPages={gState.readProgress().totalPages}
-          onClick={() => {
+        <button
+          type="button"
+          class="ehpeek-continue-reading inline-flex w-96px h-96px items-center justify-center p-0 rounded-full border ehp-color-site-border bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] !outline-none focus:!outline-none active:!outline-none active:scale-98"
+          aria-label={readButtonLabel(props.progress())}
+          title={readButtonLabel(props.progress())}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
             if (dragged) {
               dragged = false;
               return;
             }
-            openFromReadButton(props.previewCache);
+            props.onRead();
           }}
-          variant="floatingGallery"
-        />
+        >
+          <Icon name="play" size="var(--ui-icon-size-xl)" />
+        </button>
       </div>
     </Show>
   );
@@ -415,19 +397,22 @@ function installSettingsMenu(): void {
 
   const mount = createAppMount(
     "fixed inset-0 z-[1150] pointer-events-none",
+    overlayHost.element,
   );
   mount.mount(() => (
-    <SettingsMenu
-      historyHref={eh.readHistoryUrl()}
-      leftHandedControls={gState.leftHandedControls}
-      open={gState.settingsMenuOpen()}
-      defaultState={settingsMenuState(true)}
-      initState={gState.settings}
-      onApply={(next) => {
-        applySettingsMenuState(next);
-      }}
-      onOpenChange={gState.setSettingsMenuOpen}
-    />
+    <OverlayHostProvider host={overlayHost}>
+      <SettingsMenu
+        historyHref={eh.readHistoryUrl()}
+        leftHandedControls={gState.leftHandedControls}
+        open={gState.settingsMenuOpen()}
+        defaultState={settingsMenuState(true)}
+        initState={gState.settings}
+        onApply={(next) => {
+          applySettingsMenuState(next);
+        }}
+        onOpenChange={gState.setSettingsMenuOpen}
+      />
+    </OverlayHostProvider>
   ));
 }
 
@@ -502,7 +487,10 @@ function injectCommon(page: eh.PageType): void {
   }
 }
 
-function injectGalleryDetails(previewCache: GalleryPreviewCache): void {
+function injectGalleryDetails(
+  previewCache: GalleryPreviewCache,
+  coordinator: GalleryCoordinator,
+): void {
   const preview = previewCache.current();
   allowFeatureFailure("Touch GalleryInfo", () => {
     eh.mutateGalleryTouchLayout();
@@ -512,16 +500,18 @@ function injectGalleryDetails(previewCache: GalleryPreviewCache): void {
     );
     galleryInfoDom.handle.installGalleryInfoPanel();
     galleryInfoDom.elems.mount.mount(() => (
-      <GalleryInfoPanel
-        leftHandedControls={gState.leftHandedControls}
-        source={galleryInfoDom}
-        primaryAction={(
-          <GalleryReadButton
-            previewCache={previewCache}
-            variant="touchGallery"
-          />
-        )}
-      />
+      <OverlayHostProvider host={overlayHost}>
+        <GalleryInfoPanel
+          leftHandedControls={gState.leftHandedControls}
+          source={galleryInfoDom}
+          primaryAction={(
+            <TouchGalleryReadButton
+              onRead={coordinator.openFromReadButton}
+              progress={coordinator.progress}
+            />
+          )}
+        />
+      </OverlayHostProvider>
     ));
     const wideLayout = requirePageDependency(
       "Touch Gallery layout",
@@ -540,14 +530,17 @@ function injectGalleryDetails(previewCache: GalleryPreviewCache): void {
   });
 }
 
-function injectGalleryPreview(previewCache: GalleryPreviewCache): void {
+function injectGalleryPreview(
+  previewCache: GalleryPreviewCache,
+  coordinator: GalleryCoordinator,
+): void {
   const preview = previewCache.current();
   const previewMount = preview.elems.mount;
 
   if (gState.settings.readerEnabled) {
     allowFeatureFailure("Reader thumbnail links", () => {
       preview.handle.interceptPreviewImageOpen((pageUrl) => {
-        openGalleryPage(previewCache, pageUrl);
+        coordinator.openGalleryPage(pageUrl);
       });
     });
   }
@@ -556,18 +549,24 @@ function injectGalleryPreview(previewCache: GalleryPreviewCache): void {
     allowFeatureFailure("Desktop Read button", () => {
       const galleryReadButtonMount = eh.manageGalleryContinueReadingButtonMount();
       galleryReadButtonMount.mount(() => (
-        <GalleryReadButton previewCache={previewCache} variant="gallery" />
+        <GalleryReadButton
+          onRead={coordinator.openFromReadButton}
+          progress={coordinator.progress}
+        />
       ));
     });
   }
 
   if (gState.settings.floatingReadButtonEnabled) {
-    allowFeatureFailure("Floating Gallery Read button", () => {
+    allowFeatureFailure("Floating Read button", () => {
       const host = createAppMount(
         "contents",
       );
       host.mount(() => (
-        <FloatingGalleryReadButton previewCache={previewCache} />
+        <FloatingReadButton
+          onRead={coordinator.openFromReadButton}
+          progress={coordinator.progress}
+        />
       ));
     });
   }
@@ -581,79 +580,54 @@ function injectGalleryPreview(previewCache: GalleryPreviewCache): void {
       preview.handle.removeOriginalPreview();
     }
     previewMount.mount(() => (
-      <div
-        classList={{
-          "contents": !gState.settings.replacePreviewWithScroll,
-          "relative h-full w-full [--scroll-preview-height:100%]":
-            gState.settings.replacePreviewWithScroll &&
-            gState.settings.touchUiEnabled &&
-            gState.columnsEnabled(),
-          "relative [--scroll-preview-height:55lvh] [width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90lvh)] mx-auto":
-            gState.settings.replacePreviewWithScroll &&
-            gState.settings.touchUiEnabled &&
-            !gState.columnsEnabled(),
-          "relative [--scroll-preview-height:70svh] w-[min(calc(100%-32px),1212px)] mx-auto":
-            gState.settings.replacePreviewWithScroll &&
-            !gState.settings.touchUiEnabled,
-        }}
-      >
-        <ScrollPreview
-          actionsRef={(actions) => {
-            gState.scrollPreviewActions = actions;
+      <OverlayHostProvider host={overlayHost}>
+        <div
+          classList={{
+            "contents": !gState.settings.replacePreviewWithScroll,
+            "relative h-full w-full [--scroll-preview-height:100%]":
+              gState.settings.replacePreviewWithScroll &&
+              gState.settings.touchUiEnabled &&
+              gState.columnsEnabled(),
+            "relative [--scroll-preview-height:55lvh] [width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90lvh)] mx-auto":
+              gState.settings.replacePreviewWithScroll &&
+              gState.settings.touchUiEnabled &&
+              !gState.columnsEnabled(),
+            "relative [--scroll-preview-height:70svh] w-[min(calc(100%-32px),1212px)] mx-auto":
+              gState.settings.replacePreviewWithScroll &&
+              !gState.settings.touchUiEnabled,
           }}
-          continuePageNum={gState.settings.readHistoryEnabled &&
-              gState.readProgress().hasHistory
-            ? gState.readProgress().currentPage
-            : null}
-          embeddedDirection={gState.columnsEnabled()
-            ? state.gallery.embeddedScrollPreviewColumnsDirection.value
-            : state.gallery.embeddedScrollPreviewSingleDirection.value}
-          leftHandedControls={gState.leftHandedControls}
-          onExitPreview={(previewIndex) => {
-            if (previewIndex === previewCache.current().data.currentIndex) {
-              return;
-            }
-            if (
-              gState.settings.enhanceThumbsGridsEnabled ||
-              gState.settings.replacePreviewWithScroll
-            ) {
-              void previewCache.select(previewIndex).catch(reportReaderOpenError);
-            } else {
-              window.location.assign(
-                eh.previewUrlForIndex(previewIndex, previewCache.current().data.currentUrl),
-              );
-            }
-          }}
-          onLoadError={reportReaderOpenError}
-          onOpenChange={(open) => {
-            gState.scrollPreviewOpen = open;
-          }}
-          onOpenPage={(pageUrl, pageNum) => openGalleryPage(previewCache, pageUrl, pageNum)}
-          onEmbeddedDirectionChange={(direction) => {
-            if (gState.columnsEnabled()) {
-              state.gallery.embeddedScrollPreviewColumnsDirection.set(direction);
-            } else {
-              state.gallery.embeddedScrollPreviewSingleDirection.set(direction);
-            }
-          }}
-          onReadDirectionChange={(direction) => {
-            state.gallery.scrollPreviewDirection.set(direction);
-          }}
-          previewCache={previewCache}
-          readDirection={state.gallery.scrollPreviewDirection.value}
-          replaceOriginalPreview={gState.settings.replacePreviewWithScroll}
-        />
-        {gState.settings.enhanceThumbsGridsEnabled &&
-        !gState.settings.replacePreviewWithScroll ? (
-          <ThumbsGrids
-            actionsRef={(actions) => {
-              gState.thumbsGridsActions = actions;
-            }}
+        >
+          <ScrollPreview
+            coordinator={coordinator}
+            embeddedDirection={gState.columnsEnabled()
+              ? state.gallery.embeddedScrollPreviewColumnsDirection.value
+              : state.gallery.embeddedScrollPreviewSingleDirection.value}
+            leftHandedControls={gState.leftHandedControls}
             onLoadError={reportReaderOpenError}
+            onEmbeddedDirectionChange={(direction) => {
+              if (gState.columnsEnabled()) {
+                state.gallery.embeddedScrollPreviewColumnsDirection.set(direction);
+              } else {
+                state.gallery.embeddedScrollPreviewSingleDirection.set(direction);
+              }
+            }}
+            onReadDirectionChange={(direction) => {
+              state.gallery.scrollPreviewDirection.set(direction);
+            }}
             previewCache={previewCache}
+            readDirection={state.gallery.scrollPreviewDirection.value}
+            replaceOriginalPreview={gState.settings.replacePreviewWithScroll}
           />
-        ) : null}
-      </div>
+          {gState.settings.enhanceThumbsGridsEnabled &&
+          !gState.settings.replacePreviewWithScroll ? (
+            <ThumbsGrids
+              coordinator={coordinator}
+              onLoadError={reportReaderOpenError}
+              previewCache={previewCache}
+            />
+          ) : null}
+        </div>
+      </OverlayHostProvider>
     ));
   });
 }
@@ -663,34 +637,16 @@ function injectGalleryPage(
 ): void {
   const preview = eh.manageGalleryPreview();
   const previewCache = createGalleryPreviewCache(preview);
-
-  allowFeatureFailure("Gallery Read History", () => {
-    if (!gState.settings.readHistoryEnabled) {
-      gState.setReadProgress({
-        currentPage: 1,
-        hasHistory: false,
-        totalPages: preview.data.totalImages,
-      });
-      return;
-    }
-    const existing = loadReadHistory(page.galleryId, page.token);
-    const galleryInfo = eh.extractGalleryHistoryInfo();
-    let record = existing;
-    if (gState.settings.includeUnreadHistoryEnabled) {
-      record = recordGalleryVisit(
-        page.galleryId,
-        page.token,
-        preview.data.totalImages,
-        galleryInfo,
-      );
-    } else if (existing) {
-      record = updateReadHistoryGalleryInfo(page.galleryId, page.token, galleryInfo);
-    }
-    gState.setReadProgress({
-      currentPage: record?.pageNum && record.pageNum > 0 ? record.pageNum : 1,
-      hasHistory: Boolean(record && record.pageNum > 0),
-      totalPages: record?.totalPages ?? preview.data.totalImages,
-    });
+  const coordinator = createGalleryCoordinator({
+    enhanceThumbsGridsEnabled: gState.settings.enhanceThumbsGridsEnabled,
+    exitReaderOnFullscreenExit: gState.settings.exitReaderOnFullscreenExit,
+    includeUnreadHistoryEnabled: gState.settings.includeUnreadHistoryEnabled,
+    overlayHost,
+    previewCache,
+    readHistoryEnabled: gState.settings.readHistoryEnabled,
+    readerEnabled: gState.settings.readerEnabled,
+    readerFullscreenEnabled: gState.settings.readerFullscreenEnabled,
+    replacePreviewWithScroll: gState.settings.replacePreviewWithScroll,
   });
 
   if (gState.settings.myTagsEnabled) {
@@ -710,13 +666,13 @@ function injectGalleryPage(
   }
 
   if (gState.settings.touchUiEnabled) {
-    injectGalleryDetails(previewCache);
+    injectGalleryDetails(previewCache, coordinator);
   }
-  injectGalleryPreview(previewCache);
+  injectGalleryPreview(previewCache, coordinator);
 
   if (state.reader.enabled.value && page.peekPage !== null) {
     void allowAsyncFeatureFailure("Reader deep link", async () => {
-      await openReaderFromHash(readerCallbacks, previewCache, readerViewport);
+      await coordinator.openReaderFromHash();
     });
   }
 }
@@ -912,11 +868,15 @@ function injectImagePage(
     return;
   }
   const previous = loadReadHistory(gallery.galleryId, gallery.token);
-  const historySession = new ReadHistorySession({
+  const historySession = new ReadingProgressSession({
     gallery: previous?.gallery,
     galleryId: gallery.galleryId,
     token: gallery.token,
     totalPages: previous?.totalPages,
+  }, {
+    currentPage: previous?.pageNum && previous.pageNum > 0 ? previous.pageNum : 1,
+    hasHistory: Boolean(previous && previous.pageNum > 0),
+    totalPages: previous?.totalPages ?? null,
   });
   historySession.update(page.pageNum, previous?.totalPages);
 }
@@ -976,6 +936,7 @@ async function startApp(): Promise<void> {
     });
   }
 
+  overlayHost = createOverlayHost(document.body, currentUiScale());
   const page = eh.extractPageType();
   const onViewportResize = () => {
     updateUiScale();

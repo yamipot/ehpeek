@@ -7,16 +7,10 @@ type FullscreenSnapshot = {
   scrollY: number;
 };
 
-const FULLSCREEN_SCALE_PROPERTY = "--ehpeek-fullscreen-scale";
-const FULLSCREEN_SCALE_INVERSE_PROPERTY = "--ehpeek-fullscreen-scale-inverse";
-const FULLSCREEN_UI_ATTRIBUTE = "data-ehpeek-fullscreen-ui";
-const FULLSCREEN_UI_TOKEN_PREFIX = "--ehpeek-fullscreen-";
-const UI_TOKEN_PROPERTY = /^--ui-/;
-
-export type ReaderFullscreenController = ReturnType<typeof createReaderFullscreen>;
+export type FullscreenController = ReturnType<typeof createFullscreenController>;
 
 /** Locks original-page scrolling while the Reader overlay owns the viewport. */
-function lockPageScroll(): () => void {
+export function lockPageScroll(): () => void {
   const documentElement = document.documentElement;
   const body = document.body;
   const documentOverflow = documentElement.style.overflow;
@@ -85,130 +79,10 @@ function restoreViewportMeta(snapshot: FullscreenSnapshot): void {
   }
 }
 
-export const readerViewport = {
-  createFullscreen: createReaderFullscreen,
-  lockScroll: lockPageScroll,
-};
-
-export type ReaderViewport = typeof readerViewport;
-
-export function fullscreenUiScale(): number {
-  const fullscreenElement = document.fullscreenElement;
-  if (!(fullscreenElement instanceof HTMLElement)) {
-    return 1;
-  }
-  const factor = Number.parseFloat(
-    fullscreenElement.style.getPropertyValue(FULLSCREEN_SCALE_PROPERTY),
-  );
-  return Number.isFinite(factor) && factor > 0 && factor < 1 ? factor : 1;
-}
-
-/** Publishes fullscreen-adjusted UI tokens once for every descendant overlay. */
-export function observeFullscreenUiSizing(): () => void {
-  let target: HTMLElement | null = null;
-  let applied = new Set<string>();
-  let fullscreenObserver: MutationObserver | null = null;
-  let frame: number | null = null;
-
-  const clear = () => {
-    if (!target) {
-      return;
-    }
-    target.removeAttribute(FULLSCREEN_UI_ATTRIBUTE);
-    for (const property of applied) {
-      target.style.removeProperty(property);
-    }
-    target = null;
-    applied = new Set();
-  };
-
-  const sync = () => {
-    const fullscreenElement = document.fullscreenElement;
-    if (!(fullscreenElement instanceof HTMLElement)) {
-      clear();
-      return;
-    }
-    if (target !== fullscreenElement) {
-      clear();
-      target = fullscreenElement;
-    }
-
-    const factor = fullscreenUiScale();
-    const source = document.documentElement.style;
-    const next = new Set<string>();
-    for (let index = 0; index < source.length; index += 1) {
-      const property = source.item(index);
-      if (!UI_TOKEN_PROPERTY.test(property)) {
-        continue;
-      }
-
-      const value = source.getPropertyValue(property).trim();
-      const match = /^([\d.]+)px$/.exec(value);
-      if (!match) {
-        continue;
-      }
-
-      const fullscreenProperty = `${FULLSCREEN_UI_TOKEN_PREFIX}${property.slice(2)}`;
-      const scaledValue = `${Number(match[1]) * factor}px`;
-      if (target.style.getPropertyValue(fullscreenProperty) !== scaledValue) {
-        target.style.setProperty(fullscreenProperty, scaledValue);
-      }
-      next.add(fullscreenProperty);
-    }
-
-    for (const property of applied) {
-      if (!next.has(property)) {
-        target.style.removeProperty(property);
-      }
-    }
-    target.setAttribute(FULLSCREEN_UI_ATTRIBUTE, "");
-    applied = next;
-  };
-
-  const scheduleSync = () => {
-    if (frame !== null) {
-      return;
-    }
-    frame = window.requestAnimationFrame(() => {
-      frame = null;
-      sync();
-    });
-  };
-
-  const observeFullscreenElement = () => {
-    fullscreenObserver?.disconnect();
-    fullscreenObserver = null;
-    const fullscreenElement = document.fullscreenElement;
-    if (fullscreenElement instanceof HTMLElement) {
-      fullscreenObserver = new MutationObserver(scheduleSync);
-      fullscreenObserver.observe(fullscreenElement, {
-        attributeFilter: ["style"],
-        attributes: true,
-      });
-    }
-    scheduleSync();
-  };
-
-  const rootObserver = new MutationObserver(scheduleSync);
-  rootObserver.observe(document.documentElement, {
-    attributeFilter: ["style"],
-    attributes: true,
-  });
-  document.addEventListener("fullscreenchange", observeFullscreenElement);
-  observeFullscreenElement();
-
-  return () => {
-    document.removeEventListener("fullscreenchange", observeFullscreenElement);
-    rootObserver.disconnect();
-    fullscreenObserver?.disconnect();
-    if (frame !== null) {
-      window.cancelAnimationFrame(frame);
-    }
-    clear();
-  };
-}
-
-function createReaderFullscreen(target: HTMLElement) {
+export function createFullscreenController(
+  target: HTMLElement,
+  onScaleChange: (factor: number) => void = () => undefined,
+) {
   let snapshot: FullscreenSnapshot | null = null;
   let restorePromise: Promise<void> | null = null;
   const active = () => {
@@ -222,8 +96,7 @@ function createReaderFullscreen(target: HTMLElement) {
     if (restorePromise) {
       return restorePromise;
     }
-    target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY);
-    target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
+    onScaleChange(1);
     const captured = snapshot;
     if (!captured) {
       return Promise.resolve();
@@ -250,11 +123,7 @@ function createReaderFullscreen(target: HTMLElement) {
         await nextAnimationFrame();
         const scaleAfter = Math.max(0.01, window.visualViewport?.scale ?? 1);
         const scale = Math.min(1, Math.max(0.1, scaleBefore / scaleAfter));
-        target.style.setProperty(FULLSCREEN_SCALE_PROPERTY, String(scale));
-        target.style.setProperty(
-          FULLSCREEN_SCALE_INVERSE_PROPERTY,
-          String(1 / scale),
-        );
+        onScaleChange(scale);
       } catch (error) {
         await restore();
         throw error;
@@ -263,18 +132,16 @@ function createReaderFullscreen(target: HTMLElement) {
     exit: async (): Promise<void> => {
       if (active()) {
         await document.exitFullscreen();
-        await restore();
       }
-      target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY);
-      target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
+      await restore();
+      onScaleChange(1);
     },
     restore,
     subscribe: (callback: (active: boolean) => void): (() => void) => {
       const onChange = () => {
         const fullscreenActive = active();
         if (!fullscreenActive) {
-          target.style.removeProperty(FULLSCREEN_SCALE_PROPERTY);
-          target.style.removeProperty(FULLSCREEN_SCALE_INVERSE_PROPERTY);
+          onScaleChange(1);
           void restore();
         }
         callback(fullscreenActive);

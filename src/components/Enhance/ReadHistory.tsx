@@ -11,7 +11,6 @@ import {
   removeReadHistory,
 } from "../../state/readHistory";
 import texts from "../../texts.json";
-import { Icon } from "../Widgets/Icon";
 import { PageSwipe } from "./PageSwipe";
 import { ScrollPageBar } from "./ScrollPageBar";
 
@@ -229,57 +228,5 @@ export function ReadHistoryPage(props: {
         </Portal>
       )}
     </div>
-  );
-}
-
-export function ReadButton(props: {
-  currentPage: number;
-  hasHistory: boolean;
-  totalPages: number | null;
-  onClick: () => void;
-  variant: "floatingGallery" | "gallery" | "touchGallery";
-}) {
-  const buttonClassName = () =>
-    props.variant === "touchGallery"
-      ? "ehpeek-continue-reading ehpeek-touch-gallery-primary-button flex min-w-0 w-full h-full min-h-[var(--ui-control-size-xl)] flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-prominent)] font-700"
-      : props.variant === "floatingGallery"
-      ? "ehpeek-continue-reading inline-flex w-96px h-96px items-center justify-center p-0 rounded-full border ehp-color-site-border bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] !outline-none focus:!outline-none active:!outline-none active:scale-98"
-      : "ehpeek-continue-reading flex box-border w-full max-w-full min-h-sm items-center gap-sm py-sm px-xs border-0 bg-transparent text-[var(--color-site-accent)] hover:bg-[var(--color-site-accent-hover)] shadow-none cursor-pointer text-left font-sans textsize-sm font-700 leading-[1.2]";
-  const detailClassName = () =>
-    props.variant === "touchGallery"
-      ? "ehpeek-continue-reading-page block mt-2px ehp-color-site-accent [font-size:var(--ui-font-size-prominent)] font-600 opacity-78 normal-case"
-      : props.variant === "floatingGallery"
-      ? "ehpeek-continue-reading-page inline-block opacity-72 textsize-sm font-600 whitespace-nowrap"
-      : "ehpeek-continue-reading-page inline-block ml-auto opacity-72 textsize-xs font-600 whitespace-nowrap";
-
-  return (
-    <button
-      type="button"
-      class={buttonClassName()}
-      aria-label={props.hasHistory
-        ? texts.reader.continueReading
-        : texts.reader.startReading}
-      title={props.hasHistory
-        ? texts.reader.continueReading
-        : texts.reader.startReading}
-      onClick={(event: MouseEvent) => {
-        event.preventDefault();
-        event.stopPropagation();
-        props.onClick();
-      }}
-    >
-      {props.variant === "floatingGallery" ? (
-        <Icon name="play" size="var(--ui-icon-size-xl)" />
-      ) : props.hasHistory
-        ? texts.reader.continueReading
-        : texts.reader.startReading}
-      {props.variant !== "floatingGallery" && props.hasHistory && (
-        <span class={detailClassName()}>
-          {props.totalPages
-            ? `${props.currentPage}/${props.totalPages}`
-            : String(props.currentPage)}
-        </span>
-      )}
-    </button>
   );
 }

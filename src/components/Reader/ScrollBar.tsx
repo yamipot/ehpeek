@@ -23,7 +23,6 @@ export function ReaderScrollBar(props: {
       onInput={props.callbacks.onProgressInput}
       onPointerDown={props.callbacks.onProgressPointerDown}
       position="fixed"
-      variant="reader"
       visible={props.visible}
       visibleValueCount={1}
     />

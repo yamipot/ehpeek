@@ -1,5 +1,6 @@
 import { createEffect, onCleanup, onMount, Show, untrack } from "solid-js";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
+import type { GalleryCoordinator } from "../../App/GalleryCoordinator";
 import texts from "../../texts.json";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
 import {
@@ -67,29 +68,21 @@ type LoadedReaderImage = ZoomOverlayImage & {
   originalImageUrl: string | null;
 };
 
-export type ReaderCallbacks = {
-  onActivePageChange: (page: ReaderPage) => void;
-  onClosed: () => void;
-  onFullscreenToggle: () => void;
-  onOpenOriginalPage: (page: ReaderPage) => void;
-  onOpenScrollPreview: (pageNum: number) => void;
-};
-
 export type ReaderActions = {
   gotoPage: (pageNum: number) => void;
 };
 
-export function Reader(props: {
-  actionsRef: (actions: ReaderActions) => void;
-  callbacks: ReaderCallbacks;
+type ReaderProps = {
+  coordinator: GalleryCoordinator;
+  fullscreenActive: boolean;
   options: ReaderOptions;
   previewCache: GalleryPreviewCache;
-  fullscreenActive: boolean;
-}) {
+};
+
+export function Reader(props: ReaderProps) {
   const options = untrack(() => props.options);
   const totalPages = options.totalPages ?? 0;
   const previewCache = untrack(() => props.previewCache);
-  const callbacks = untrack(() => props.callbacks);
   const session = new ReaderSession(options);
   const readerState = session.state;
   const scrollFitPageNum = readerState.navi.currentPageNum();
@@ -97,11 +90,12 @@ export function Reader(props: {
     session,
     options,
     previewCache,
-    callbacks,
+    untrack(() => props.coordinator),
   );
-  untrack(() => props.actionsRef({
+  const coordinator = untrack(() => props.coordinator);
+  coordinator.attachReader({
     gotoPage: readerCallbacks.gotoPage,
-  }));
+  });
   let previousFullscreenActive = untrack(() => props.fullscreenActive);
   const viewportPageLayout = () =>
     readerState.ctrls.value().pageLayout === "double" &&
@@ -125,6 +119,7 @@ export function Reader(props: {
     readerCallbacks.init();
 
     onCleanup(() => {
+      coordinator.attachReader(null);
       readerCallbacks.cleanup();
       session.dispose();
     });
@@ -201,7 +196,8 @@ function wireReaderCallbacks(
   session: ReaderSession,
   options: ReaderOptions,
   previewCache: GalleryPreviewCache,
-  callbacks: ReaderCallbacks) {
+  coordinator: GalleryCoordinator,
+) {
   const state = session.state;
   let viewportActions!: PagesViewportActions;
   let zoomOverlay!: ZoomOverlayActions;
@@ -291,7 +287,7 @@ function wireReaderCallbacks(
       return;
     }
     closed = true;
-    callbacks.onClosed();
+    coordinator.requestCloseReader();
   }
 
   function setCurrentPageNumber(pageNumber: number, scrollIntoView: boolean, scrollMotion: ScrollMotion = "instant"): void {
@@ -543,7 +539,7 @@ function wireReaderCallbacks(
   function notifyActivePageChange(): void {
     const page = pages.get(state.navi.currentPageNum());
     if (page) {
-      callbacks.onActivePageChange(page);
+      coordinator.readerActivePageChanged(page);
     }
   }
 
@@ -925,15 +921,15 @@ function wireReaderCallbacks(
 
     toolbar.onCloseClick = requestReaderClose;
     toolbar.onControlsChange = updateControls;
-    toolbar.onFullscreenClick = callbacks.onFullscreenToggle;
+    toolbar.onFullscreenClick = coordinator.toggleReaderFullscreen;
     toolbar.onOpenOriginalPageClick = (): void => {
       const page = pages.get(state.navi.currentPageNum());
       if (page && isRealPageNum(state.navi.currentPageNum())) {
-        callbacks.onOpenOriginalPage(page);
+        coordinator.openOriginalPage(page);
       }
     };
     toolbar.onOpenScrollPreviewClick = (): void => {
-      callbacks.onOpenScrollPreview(state.navi.currentPageNum());
+      coordinator.openPreviewPage(state.navi.currentPageNum());
     };
     toolbar.onViewportAdjustClick = scrollViewport.open;
     toolbar.onProgressPointerDown = (event: PointerEvent): void => {
@@ -1059,7 +1055,7 @@ function wireReaderCallbacks(
       cancelPendingTap();
       if (state.ctrls.value().doubleTapAction === "scroll-preview") {
         suppressNextClick();
-        callbacks.onOpenScrollPreview(state.navi.currentPageNum());
+        coordinator.openPreviewPage(state.navi.currentPageNum());
       } else if (!toggleZoomAtPoint(info)) {
         return false;
       }
@@ -1131,7 +1127,7 @@ function wireReaderCallbacks(
       viewportActions.cancelDrag();
       if (isPreviewSwipe(info)) {
         scrollToCurrentPage("animated");
-        callbacks.onOpenScrollPreview(state.navi.currentPageNum());
+        coordinator.openPreviewPage(state.navi.currentPageNum());
         return;
       }
       if (!pagedMode()) {
