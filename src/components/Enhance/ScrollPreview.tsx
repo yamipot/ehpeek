@@ -294,6 +294,7 @@ type PreviewViewportState = {
   onScroll: () => void;
   onScroller: (element: HTMLDivElement) => void;
   onWheel: () => void;
+  pixelScale: Accessor<number>;
   positionPage: Accessor<number>;
   previewCache: GalleryPreviewCache;
   rightToLeft: boolean;
@@ -380,6 +381,7 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
         expanded={!state.horizontal}
         maxValue={state.maxPageNum}
         onInput={state.onPositionInput}
+        pixelScale={state.pixelScale()}
         position={state.horizontal ? undefined : "absolute"}
         reversed={state.horizontal && state.rightToLeft}
         thickness={state.thickness}
@@ -1221,6 +1223,7 @@ function ScrollPreviewPanel(props: {
       scroller = element;
     },
     onWheel: () => flingAnimator.cancel(),
+    pixelScale,
     positionPage: scrollPositionPage,
     previewCache,
     rightToLeft,

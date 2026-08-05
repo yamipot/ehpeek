@@ -9,6 +9,29 @@ type FullscreenSnapshot = {
 
 export type FullscreenController = ReturnType<typeof createFullscreenController>;
 
+/** Keeps mobile browser chrome aligned with an active full-viewport surface. */
+export function lockPageThemeColor(color: string): () => void {
+  const existing = document.querySelector<HTMLMetaElement>(
+    'meta[name="theme-color"]',
+  );
+  const meta = existing ?? document.createElement("meta");
+  const previousContent = existing?.getAttribute("content") ?? null;
+  if (!existing) {
+    meta.name = "theme-color";
+    document.head.append(meta);
+  }
+  meta.content = color;
+  return () => {
+    if (!existing) {
+      meta.remove();
+    } else if (previousContent === null) {
+      meta.removeAttribute("content");
+    } else {
+      meta.content = previousContent;
+    }
+  };
+}
+
 /** Locks original-page scrolling while the Reader overlay owns the viewport. */
 export function lockPageScroll(): () => void {
   const documentElement = document.documentElement;

@@ -33,6 +33,7 @@ export function PositionBar(props: {
   onCommit?: (value: number) => void;
   onInput: (value: number) => void;
   onPointerDown?: (event: PointerEvent) => void;
+  pixelScale?: number;
   position?: "absolute" | "fixed";
   reversed?: boolean;
   thickness?: PositionBarThickness;
@@ -152,9 +153,13 @@ export function PositionBar(props: {
             width: `clamp(var(--ui-control-size-md), ${visibleRatio() * 100}%, calc(var(--ui-control-size-xl) * 4))`,
           }}
         >
-          <span
-            class={`block w-full ${HORIZONTAL_FILL[thickness]} rounded-t-md ${POSITION_BAR_FILL} shadow-[0_2px_10px_var(--color-shadow-control)]`}
-          />
+        <span
+          class={`block w-full ${HORIZONTAL_FILL[thickness]} rounded-t-md ${POSITION_BAR_FILL} shadow-[0_2px_10px_var(--color-shadow-control)]`}
+          style={{
+            transform: `scaleY(${props.pixelScale ?? 1})`,
+            "transform-origin": "bottom",
+          }}
+        />
         </div>
       </div>
   );
@@ -201,6 +206,10 @@ export function PositionBar(props: {
       >
         <span
           class={`block h-full rounded-l-md ${POSITION_BAR_FILL} ${fillSize()} shadow-[0_2px_10px_var(--color-shadow-control)] transition-[width,opacity] duration-160`}
+          style={{
+            transform: `scaleX(${props.pixelScale ?? 1})`,
+            "transform-origin": "right",
+          }}
         />
       </div>
     </div>

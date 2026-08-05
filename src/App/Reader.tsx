@@ -11,7 +11,9 @@ import {
   OverlayHostProvider,
   type OverlayHost,
 } from "./OverlayHost";
-import { lockPageScroll } from "./viewport";
+import { lockPageScroll, lockPageThemeColor } from "./viewport";
+
+const READER_THEME_COLOR = "#070707";
 
 export type ReaderSurface = {
   dispose: () => void;
@@ -29,6 +31,7 @@ export function mountReaderSurface(options: {
   let setFullscreenActive = (_active: boolean): void => undefined;
   let disposed = false;
   const unlockPageScroll = lockPageScroll();
+  const unlockPageThemeColor = lockPageThemeColor(READER_THEME_COLOR);
   let disposeRoot: () => void;
   try {
     disposeRoot = render(
@@ -52,6 +55,7 @@ export function mountReaderSurface(options: {
     );
   } catch (error) {
     options.coordinator.attachReader(null);
+    unlockPageThemeColor();
     unlockPageScroll();
     host.remove();
     throw error;
@@ -64,6 +68,7 @@ export function mountReaderSurface(options: {
       }
       disposed = true;
       disposeRoot();
+      unlockPageThemeColor();
       unlockPageScroll();
       host.remove();
     },
