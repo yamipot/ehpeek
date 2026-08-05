@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260805.0513
+// @version      260805.0617
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -2201,7 +2201,6 @@
     },
     reader: {
       enabled: persisted("ehpeek:reader:enabled", !0),
-      doubleTapAction: persisted("ehpeek:reader:double-tap-action", "zoom"),
       exitOnFullscreenExit: persisted("ehpeek:reader:exit-on-fullscreen-exit", !1),
       fullscreen: persisted("ehpeek:reader:fullscreen", !1),
       portraitControls: readerControls("portrait"),
@@ -2211,7 +2210,6 @@
     },
     gallery: {
       enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", !0),
-      floatingReadButton: persisted("ehpeek:gallery:floating-read-button", !1),
       replacePreviewWithScroll: persisted("ehpeek:scroll-preview:replace-original", !1),
       embeddedScrollPreviewSingleDirection: persisted(
         "ehpeek:gallery-scroll-preview:single-direction",
@@ -2408,7 +2406,7 @@
           "**Tap** the center to show or hide the toolbar.",
           "**Swipe or scroll** in the reading direction; tap either side or use the **Arrow keys** to turn pages.",
           "In **Paged mode**, pull down or swipe sideways across the reading direction to open Scroll Preview.",
-          "**Pinch** to zoom the image. The **double-tap** action can be changed in Reading options."
+          "**Pinch** to zoom. With a mouse, **press and hold** an image or use **Ctrl/⌘ + wheel** to zoom; while zoomed, press and hold, double-click, or double-tap to exit."
         ],
         Browse: [
           "Choose EhPeek or EhPeekLite from the **layout menu** to replace the original result layout.",
@@ -2438,12 +2436,6 @@
 Previous page`,
       rightTapNext: `Right side action:
 Next page`,
-      doubleTapZoom: `Double-tap action:
-Zoom`,
-      doubleTapScrollPreview: `Double-tap action:
-Scroll Preview`,
-      doubleTapOff: `Double-tap action:
-Off`,
       directionRtl: `Reading direction:
  Right to left`,
       directionLtr: `Reading direction:
@@ -2518,8 +2510,6 @@ Off`,
       exitReaderOnFullscreenExitHelp: "Closes the Reader when fullscreen is exited",
       replacePreviewWithScrollLabel: "Embed Scroll Preview",
       replacePreviewWithScrollHelp: "Replace the original gallery preview area with Scroll Preview",
-      floatingReadButtonLabel: "Floating Read button",
-      floatingReadButtonHelp: "Show a Read or Continue button near the bottom-right of Gallery pages",
       readerOptions: "Options",
       openGalleryInNewTabLabel: "Open Gallery in new tab",
       openGalleryInNewTabHelp: "Opens gallery links in a new browser tab",
@@ -4534,6 +4524,7 @@ Off`,
     constructor(target, callbacks) {
       __publicField(this, "pinchPointers", /* @__PURE__ */ new Map());
       __publicField(this, "drag", null);
+      __publicField(this, "holdTimer", null);
       __publicField(this, "suppressClick", !1);
       __publicField(this, "suppressClickTimer", null);
       __publicField(this, "pinch", null);
@@ -4592,14 +4583,14 @@ Off`,
       this.target = target, this.callbacks = callbacks, this.setDragging(!1), target.addEventListener("pointerdown", this.onPointerDown), target.addEventListener("mousedown", this.onMouseDown), target.addEventListener("dragstart", this.onDragStart), target.addEventListener("contextmenu", this.onContextMenu);
     }
     dispose() {
-      this.drag && this.releaseCapture(this.drag), this.drag = null, this.setDragging(!1), this.clearPinch(), this.removePointerListeners(), this.removeMouseListeners(), this.target.removeEventListener("pointerdown", this.onPointerDown), this.target.removeEventListener("mousedown", this.onMouseDown), this.target.removeEventListener("dragstart", this.onDragStart), this.target.removeEventListener("contextmenu", this.onContextMenu), this.clearClickSuppression();
+      this.drag && this.releaseCapture(this.drag), this.drag = null, this.clearHold(), this.setDragging(!1), this.clearPinch(), this.removePointerListeners(), this.removeMouseListeners(), this.target.removeEventListener("pointerdown", this.onPointerDown), this.target.removeEventListener("mousedown", this.onMouseDown), this.target.removeEventListener("dragstart", this.onDragStart), this.target.removeEventListener("contextmenu", this.onContextMenu), this.clearClickSuppression();
     }
     isDragging() {
       return this.drag?.active === !0;
     }
     cancel(preservePinchPointers = !1) {
       let drag = this.drag;
-      drag && (this.releaseCapture(drag), preservePinchPointers || this.pinchPointers.delete(drag.pointerId), this.drag = null, this.setDragging(!1), this.removePointerListeners(), this.removeMouseListeners());
+      drag && (this.releaseCapture(drag), preservePinchPointers || this.pinchPointers.delete(drag.pointerId), this.drag = null, this.clearHold(), this.setDragging(!1), this.removePointerListeners(), this.removeMouseListeners());
     }
     start(pointerId, pointerType, clientX, clientY, event, canDrag) {
       this.drag = {
@@ -4613,20 +4604,25 @@ Off`,
         lastClientX: clientX,
         lastClientY: clientY,
         lastMoveTime: event.timeStamp,
+        holdConsumed: !1,
         startTarget: event.target,
         tapCancelled: !1,
         velocityX: 0,
         velocityY: 0
       };
       let captureTarget = event.target;
-      canDrag && "pointerId" in event && typeof captureTarget?.setPointerCapture == "function" && (captureTarget.setPointerCapture(pointerId), this.drag.captureTarget = captureTarget), this.addPointerListeners();
+      canDrag && "pointerId" in event && typeof captureTarget?.setPointerCapture == "function" && (captureTarget.setPointerCapture(pointerId), this.drag.captureTarget = captureTarget), this.addPointerListeners(), this.startHold(this.drag, event);
     }
     move(clientX, clientY, event) {
       let drag = this.drag;
       if (!drag)
         return;
+      if (drag.holdConsumed) {
+        event.preventDefault();
+        return;
+      }
       let dx = clientX - drag.startClientX, dy = clientY - drag.startClientY, tapMoveThreshold = this.tapMoveThreshold();
-      if ((Math.abs(dx) >= tapMoveThreshold || Math.abs(dy) >= tapMoveThreshold) && (drag.tapCancelled = !0), !drag.canDrag) {
+      if ((Math.abs(dx) >= tapMoveThreshold || Math.abs(dy) >= tapMoveThreshold) && (drag.tapCancelled = !0, this.clearHold()), !drag.canDrag) {
         this.updateLastMove(drag, clientX, clientY, event);
         return;
       }
@@ -4655,7 +4651,7 @@ Off`,
       let drag = this.drag;
       if (!drag)
         return;
-      this.drag = null, this.setDragging(!1), this.releaseCapture(drag), this.removePointerListeners(), this.removeMouseListeners();
+      this.drag = null, this.clearHold(), this.setDragging(!1), this.releaseCapture(drag), this.removePointerListeners(), this.removeMouseListeners();
       let info = {
         pointerId: drag.pointerId,
         clientX,
@@ -4664,7 +4660,12 @@ Off`,
         dy: clientY - drag.startClientY,
         velocityX: drag.velocityX,
         velocityY: drag.velocityY
-      }, tapMoveThreshold = this.tapMoveThreshold(), isTap = !drag.tapCancelled && Math.abs(info.dx) < tapMoveThreshold && Math.abs(info.dy) < tapMoveThreshold;
+      };
+      if (drag.holdConsumed) {
+        this.suppressNextClick();
+        return;
+      }
+      let tapMoveThreshold = this.tapMoveThreshold(), isTap = !drag.tapCancelled && Math.abs(info.dx) < tapMoveThreshold && Math.abs(info.dy) < tapMoveThreshold;
       if (!cancelled && !drag.active && isTap && this.callbacks().onTap?.({
         ...info,
         startTarget: drag.startTarget
@@ -4731,6 +4732,22 @@ Off`,
     }
     tapMoveThreshold() {
       return this.callbacks().tapMoveThreshold ?? DEFAULT_TAP_MOVE_THRESHOLD_PX;
+    }
+    startHold(drag, event) {
+      let callbacks = this.callbacks();
+      callbacks.holdDelay === void 0 || !callbacks.onHold || (this.holdTimer = window.setTimeout(() => {
+        if (this.holdTimer = null, this.drag !== drag || drag.active || drag.tapCancelled)
+          return;
+        let result = this.callbacks().onHold?.({
+          clientX: drag.startClientX,
+          clientY: drag.startClientY,
+          pointerId: drag.pointerId
+        }, event);
+        result && (drag.tapCancelled = !0, result === "consume" ? drag.holdConsumed = !0 : this.activateDrag(drag, event));
+      }, callbacks.holdDelay));
+    }
+    clearHold() {
+      this.holdTimer !== null && (window.clearTimeout(this.holdTimer), this.holdTimer = null);
     }
     dragStartThreshold() {
       return this.callbacks().dragStartThreshold ?? DEFAULT_DRAG_START_THRESHOLD_PX;
@@ -5120,6 +5137,14 @@ Off`,
   }
 
   // src/App/viewport.ts
+  function lockPageThemeColor(color) {
+    let existing = document.querySelector(
+      'meta[name="theme-color"]'
+    ), meta = existing ?? document.createElement("meta"), previousContent = existing?.getAttribute("content") ?? null;
+    return existing || (meta.name = "theme-color", document.head.append(meta)), meta.content = color, () => {
+      existing ? previousContent === null ? meta.removeAttribute("content") : meta.content = previousContent : meta.remove();
+    };
+  }
   function lockPageScroll() {
     let documentElement = document.documentElement, body = document.body, documentOverflow = documentElement.style.overflow, bodyOverflow = body.style.overflow;
     return documentElement.style.overflow = "hidden", body.style.overflow = "hidden", () => {
@@ -5334,7 +5359,7 @@ Off`,
   };
 
   // src/components/Widgets/PositionBar.tsx
-  var _tmpl$8 = /* @__PURE__ */ template('<div aria-orientation=horizontal role=scrollbar><div></div><div class="ehpeek-position-bar-thumb absolute bottom-0 flex h-20px large:h-24px items-end cursor-grab active:cursor-grabbing"><span>'), _tmpl$24 = /* @__PURE__ */ template("<div aria-orientation=vertical role=scrollbar><div></div><div><span>"), VERTICAL_FILL = {
+  var _tmpl$8 = /* @__PURE__ */ template('<div aria-orientation=horizontal role=scrollbar><div></div><div class="ehpeek-position-bar-thumb absolute bottom-0 flex h-20px large:h-24px items-end cursor-grab active:cursor-grabbing"><span style=transform-origin:bottom>'), _tmpl$24 = /* @__PURE__ */ template("<div aria-orientation=vertical role=scrollbar><div></div><div><span style=transform-origin:right>"), VERTICAL_FILL = {
     narrow: {
       collapsed: "w-10px large:w-12px",
       expanded: "w-18px large:w-24px"
@@ -5355,9 +5380,13 @@ Off`,
       let value = valueAt(coordinate(event));
       return props.onInput(value), value;
     }, onPointerDown = (event) => {
-      event.preventDefault(), event.stopPropagation(), setDragging(!0), track.setPointerCapture(event.pointerId);
+      event.preventDefault(), event.stopPropagation();
+      let thumbPressed = event.target instanceof Node && thumb.contains(event.target);
+      if (!thumbPressed && props.trackClickEnabled === !1)
+        return;
+      setDragging(!0), track.setPointerCapture(event.pointerId);
       let thumbRect = thumb.getBoundingClientRect();
-      dragOffset = event.target instanceof Node && thumb.contains(event.target) ? coordinate(event) - (horizontal ? thumbRect.left : thumbRect.top) : (horizontal ? thumbRect.width : thumbRect.height) / 2, props.onPointerDown?.(event), inputAt(event);
+      dragOffset = thumbPressed ? coordinate(event) - (horizontal ? thumbRect.left : thumbRect.top) : (horizontal ? thumbRect.width : thumbRect.height) / 2, props.onPointerDown?.(event), inputAt(event);
     }, onPointerMove = (event) => {
       dragging() && inputAt(event);
     }, onPointerUp = (event) => {
@@ -5377,29 +5406,8 @@ Off`,
       typeof _ref$ == "function" ? use(_ref$, _el$) : track = _el$;
       var _ref$2 = thumb;
       return typeof _ref$2 == "function" ? use(_ref$2, _el$3) : thumb = _el$3, createRenderEffect((_p$) => {
-        var _v$ = `ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-x-0 bottom-0 z-2 h-20px large:h-24px touch-none select-none`, _v$2 = props.ariaLabel, _v$3 = props.maxValue, _v$4 = minValue(), _v$5 = props.currentValue, _v$6 = `absolute inset-x-0 bottom-4px h-6px ${props.trackVisible === !1 ? "bg-transparent" : POSITION_BAR_TRACK}`, _v$7 = `${visualPosition()}%`, _v$8 = `translateX(-${visualPosition()}%)`, _v$9 = `clamp(var(--ui-control-size-md), ${visibleRatio() * 100}%, calc(var(--ui-control-size-xl) * 4))`, _v$0 = `block w-full ${HORIZONTAL_FILL[thickness]} rounded-t-md ${POSITION_BAR_FILL} shadow-[0_2px_10px_var(--color-shadow-control)]`;
-        return _v$ !== _p$.e && className(_el$, _p$.e = _v$), _v$2 !== _p$.t && setAttribute(_el$, "aria-label", _p$.t = _v$2), _v$3 !== _p$.a && setAttribute(_el$, "aria-valuemax", _p$.a = _v$3), _v$4 !== _p$.o && setAttribute(_el$, "aria-valuemin", _p$.o = _v$4), _v$5 !== _p$.i && setAttribute(_el$, "aria-valuenow", _p$.i = _v$5), _v$6 !== _p$.n && className(_el$2, _p$.n = _v$6), _v$7 !== _p$.s && setStyleProperty(_el$3, "left", _p$.s = _v$7), _v$8 !== _p$.h && setStyleProperty(_el$3, "transform", _p$.h = _v$8), _v$9 !== _p$.r && setStyleProperty(_el$3, "width", _p$.r = _v$9), _v$0 !== _p$.d && className(_el$4, _p$.d = _v$0), _p$;
-      }, {
-        e: void 0,
-        t: void 0,
-        a: void 0,
-        o: void 0,
-        i: void 0,
-        n: void 0,
-        s: void 0,
-        h: void 0,
-        r: void 0,
-        d: void 0
-      }), _el$;
-    })(), interactionSize = () => expanded() ? "w-36px large:w-64px" : "w-20px large:w-40px", fillSize = () => expanded() ? VERTICAL_FILL[thickness].expanded : VERTICAL_FILL[thickness].collapsed, renderVertical = () => (() => {
-      var _el$5 = _tmpl$24(), _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$7.firstChild;
-      _el$5.addEventListener("wheel", stopWheel), _el$5.$$pointerup = onPointerUp, _el$5.$$pointermove = onPointerMove, _el$5.$$pointerdown = onPointerDown, _el$5.addEventListener("pointercancel", onPointerCancel), _el$5.$$contextmenu = stopContextMenu, _el$5.$$click = stopClick;
-      var _ref$3 = track;
-      typeof _ref$3 == "function" ? use(_ref$3, _el$5) : track = _el$5;
-      var _ref$4 = thumb;
-      return typeof _ref$4 == "function" ? use(_ref$4, _el$7) : thumb = _el$7, createRenderEffect((_p$) => {
-        var _v$1 = `ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-y-0 right-0 z-2 ${interactionSize()} touch-none select-none transition-[width,opacity] duration-160 ease-in-out [--ehpeek-position-bar-thumb-min:calc(var(--ui-control-size-md)*1.5)] [--ehpeek-position-bar-thumb-max:calc(var(--ui-control-size-xl)*4)] ${visible() ? "opacity-100" : "opacity-0 pointer-events-none"}`, _v$10 = props.ariaLabel, _v$11 = props.maxValue, _v$12 = minValue(), _v$13 = props.currentValue, _v$14 = `absolute inset-y-0 right-4px w-6px ${props.trackVisible === !1 ? "bg-transparent" : POSITION_BAR_TRACK}`, _v$15 = `ehpeek-position-bar-thumb absolute right-0 flex ${interactionSize()} items-center justify-end cursor-grab active:cursor-grabbing transition-[width,height] duration-160`, _v$16 = `clamp(var(--ehpeek-position-bar-thumb-min), ${visibleRatio() * 100}%, var(--ehpeek-position-bar-thumb-max))`, _v$17 = `${visualPosition()}%`, _v$18 = `translateY(-${visualPosition()}%)`, _v$19 = `block h-full rounded-l-md ${POSITION_BAR_FILL} ${fillSize()} shadow-[0_2px_10px_var(--color-shadow-control)] transition-[width,opacity] duration-160`;
-        return _v$1 !== _p$.e && className(_el$5, _p$.e = _v$1), _v$10 !== _p$.t && setAttribute(_el$5, "aria-label", _p$.t = _v$10), _v$11 !== _p$.a && setAttribute(_el$5, "aria-valuemax", _p$.a = _v$11), _v$12 !== _p$.o && setAttribute(_el$5, "aria-valuemin", _p$.o = _v$12), _v$13 !== _p$.i && setAttribute(_el$5, "aria-valuenow", _p$.i = _v$13), _v$14 !== _p$.n && className(_el$6, _p$.n = _v$14), _v$15 !== _p$.s && className(_el$7, _p$.s = _v$15), _v$16 !== _p$.h && setStyleProperty(_el$7, "height", _p$.h = _v$16), _v$17 !== _p$.r && setStyleProperty(_el$7, "top", _p$.r = _v$17), _v$18 !== _p$.d && setStyleProperty(_el$7, "transform", _p$.d = _v$18), _v$19 !== _p$.l && className(_el$8, _p$.l = _v$19), _p$;
+        var _v$ = `ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-x-0 bottom-0 z-2 h-20px large:h-24px touch-none select-none`, _v$2 = props.ariaLabel, _v$3 = props.maxValue, _v$4 = minValue(), _v$5 = props.currentValue, _v$6 = `absolute inset-x-0 bottom-4px h-6px ${props.trackVisible === !1 ? "bg-transparent" : POSITION_BAR_TRACK}`, _v$7 = `${visualPosition()}%`, _v$8 = `translateX(-${visualPosition()}%)`, _v$9 = `clamp(var(--ui-control-size-md), ${visibleRatio() * 100}%, calc(var(--ui-control-size-xl) * 4))`, _v$0 = `block w-full ${HORIZONTAL_FILL[thickness]} rounded-t-md ${POSITION_BAR_FILL} shadow-[0_2px_10px_var(--color-shadow-control)]`, _v$1 = `scaleY(${props.pixelScale ?? 1})`;
+        return _v$ !== _p$.e && className(_el$, _p$.e = _v$), _v$2 !== _p$.t && setAttribute(_el$, "aria-label", _p$.t = _v$2), _v$3 !== _p$.a && setAttribute(_el$, "aria-valuemax", _p$.a = _v$3), _v$4 !== _p$.o && setAttribute(_el$, "aria-valuemin", _p$.o = _v$4), _v$5 !== _p$.i && setAttribute(_el$, "aria-valuenow", _p$.i = _v$5), _v$6 !== _p$.n && className(_el$2, _p$.n = _v$6), _v$7 !== _p$.s && setStyleProperty(_el$3, "left", _p$.s = _v$7), _v$8 !== _p$.h && setStyleProperty(_el$3, "transform", _p$.h = _v$8), _v$9 !== _p$.r && setStyleProperty(_el$3, "width", _p$.r = _v$9), _v$0 !== _p$.d && className(_el$4, _p$.d = _v$0), _v$1 !== _p$.l && setStyleProperty(_el$4, "transform", _p$.l = _v$1), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -5412,6 +5420,29 @@ Off`,
         r: void 0,
         d: void 0,
         l: void 0
+      }), _el$;
+    })(), interactionSize = () => expanded() ? "w-36px large:w-64px" : "w-20px large:w-40px", fillSize = () => expanded() ? VERTICAL_FILL[thickness].expanded : VERTICAL_FILL[thickness].collapsed, renderVertical = () => (() => {
+      var _el$5 = _tmpl$24(), _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$7.firstChild;
+      _el$5.addEventListener("wheel", stopWheel), _el$5.$$pointerup = onPointerUp, _el$5.$$pointermove = onPointerMove, _el$5.$$pointerdown = onPointerDown, _el$5.addEventListener("pointercancel", onPointerCancel), _el$5.$$contextmenu = stopContextMenu, _el$5.$$click = stopClick;
+      var _ref$3 = track;
+      typeof _ref$3 == "function" ? use(_ref$3, _el$5) : track = _el$5;
+      var _ref$4 = thumb;
+      return typeof _ref$4 == "function" ? use(_ref$4, _el$7) : thumb = _el$7, createRenderEffect((_p$) => {
+        var _v$10 = `ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-y-0 right-0 z-2 ${interactionSize()} touch-none select-none transition-[width,opacity] duration-160 ease-in-out [--ehpeek-position-bar-thumb-min:calc(var(--ui-control-size-md)*1.5)] [--ehpeek-position-bar-thumb-max:calc(var(--ui-control-size-xl)*4)] ${visible() ? "opacity-100" : "opacity-0 pointer-events-none"}`, _v$11 = props.ariaLabel, _v$12 = props.maxValue, _v$13 = minValue(), _v$14 = props.currentValue, _v$15 = `absolute inset-y-0 right-4px w-6px ${props.trackVisible === !1 ? "bg-transparent" : POSITION_BAR_TRACK}`, _v$16 = `ehpeek-position-bar-thumb absolute right-0 flex ${interactionSize()} items-center justify-end cursor-grab active:cursor-grabbing transition-[width,height] duration-160`, _v$17 = `clamp(var(--ehpeek-position-bar-thumb-min), ${visibleRatio() * 100}%, var(--ehpeek-position-bar-thumb-max))`, _v$18 = `${visualPosition()}%`, _v$19 = `translateY(-${visualPosition()}%)`, _v$20 = `block h-full rounded-l-md ${POSITION_BAR_FILL} ${fillSize()} shadow-[0_2px_10px_var(--color-shadow-control)] transition-[width,opacity] duration-160`, _v$21 = `scaleX(${props.pixelScale ?? 1})`;
+        return _v$10 !== _p$.e && className(_el$5, _p$.e = _v$10), _v$11 !== _p$.t && setAttribute(_el$5, "aria-label", _p$.t = _v$11), _v$12 !== _p$.a && setAttribute(_el$5, "aria-valuemax", _p$.a = _v$12), _v$13 !== _p$.o && setAttribute(_el$5, "aria-valuemin", _p$.o = _v$13), _v$14 !== _p$.i && setAttribute(_el$5, "aria-valuenow", _p$.i = _v$14), _v$15 !== _p$.n && className(_el$6, _p$.n = _v$15), _v$16 !== _p$.s && className(_el$7, _p$.s = _v$16), _v$17 !== _p$.h && setStyleProperty(_el$7, "height", _p$.h = _v$17), _v$18 !== _p$.r && setStyleProperty(_el$7, "top", _p$.r = _v$18), _v$19 !== _p$.d && setStyleProperty(_el$7, "transform", _p$.d = _v$19), _v$20 !== _p$.l && className(_el$8, _p$.l = _v$20), _v$21 !== _p$.u && setStyleProperty(_el$8, "transform", _p$.u = _v$21), _p$;
+      }, {
+        e: void 0,
+        t: void 0,
+        a: void 0,
+        o: void 0,
+        i: void 0,
+        n: void 0,
+        s: void 0,
+        h: void 0,
+        r: void 0,
+        d: void 0,
+        l: void 0,
+        u: void 0
       }), _el$5;
     })();
     return memo(() => horizontal ? renderHorizontal() : renderVertical());
@@ -5647,6 +5678,9 @@ Off`,
         get onInput() {
           return state2.onPositionInput;
         },
+        get pixelScale() {
+          return state2.pixelScale();
+        },
         get position() {
           return state2.horizontal ? void 0 : "absolute";
         },
@@ -5656,6 +5690,7 @@ Off`,
         get thickness() {
           return state2.thickness;
         },
+        trackClickEnabled: !1,
         trackVisible: !1,
         get visibleValueCount() {
           return state2.screenEndPageNum() - state2.screenStartPageNum() + 1;
@@ -6064,6 +6099,7 @@ Off`,
         scroller = element;
       },
       onWheel: () => flingAnimator.cancel(),
+      pixelScale,
       positionPage: scrollPositionPage,
       previewCache,
       rightToLeft,
@@ -7100,7 +7136,7 @@ Off`,
                 name: icon,
                 size: "var(--ui-icon-size-md)"
               })), createRenderEffect((_p$) => {
-                var _v$7 = `flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center gap-sm px-sm border-0 ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer [-webkit-tap-highlight-color:transparent] ${activeTab() === tab ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)]"}`, _v$8 = activeTab() === tab;
+                var _v$7 = `appearance-none flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center gap-sm px-sm !border-0 !text-[var(--color-site-text)] !shadow-none !outline-none [filter:none] font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer [-webkit-tap-highlight-color:transparent] ${activeTab() === tab ? "!bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent"}`, _v$8 = activeTab() === tab;
                 return _v$7 !== _p$.e && className(_el$29, _p$.e = _v$7), _v$8 !== _p$.t && setAttribute(_el$29, "aria-selected", _p$.t = _v$8), _p$;
               }, {
                 e: void 0,
@@ -7170,17 +7206,6 @@ Off`,
               return texts_default.settings.replacePreviewWithScrollLabel;
             },
             onChange: (value) => updateDraft("replacePreviewWithScroll", value)
-          }), null), insert(_el$14, createComponent(SwitchButton, {
-            get checked() {
-              return draft.floatingReadButtonEnabled;
-            },
-            get description() {
-              return texts_default.settings.floatingReadButtonHelp;
-            },
-            get label() {
-              return texts_default.settings.floatingReadButtonLabel;
-            },
-            onChange: (value) => updateDraft("floatingReadButtonEnabled", value)
           }), null), insert(_el$14, createComponent(SwitchButton, {
             get checked() {
               return draft.myTagsEnabled;
@@ -7258,7 +7283,7 @@ Off`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260805.0513", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260805.0617", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
@@ -9897,6 +9922,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .\\[container-type\\:size\\]{container-type:size;}
 .\\[direction\\:ltr\\]{direction:ltr;}
 .\\[direction\\:rtl\\]{direction:rtl;}
+.\\[filter\\:none\\]{filter:none;}
 .\\[font-size\\:min\\(25vw\\,35cqi\\,35cqb\\,180px\\)\\]{font-size:min(25vw,35cqi,35cqb,180px);}
 .\\[font-size\\:min\\(var\\(--ui-font-size-xl\\)\\,var\\(--reader-end-font-size\\)\\)\\]{font-size:min(var(--ui-font-size-xl),var(--reader-end-font-size));}
 .\\[font-size\\:var\\(--ui-font-size-md\\)\\]{font-size:var(--ui-font-size-md);}
@@ -9938,7 +9964,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .bottom-\\[calc\\(max\\(16px\\,env\\(safe-area-inset-bottom\\,0px\\)\\)_\\+_64px\\)\\]{bottom:calc(max(16px,env(safe-area-inset-bottom,0px)) + 64px);}
 .bottom-\\[calc\\(var\\(--ui-control-size-lg\\)\\*2\\+44px\\+env\\(safe-area-inset-bottom\\,0px\\)\\)\\]{bottom:calc(var(--ui-control-size-lg) * 2 + 44px + env(safe-area-inset-bottom,0px));}
 .bottom-\\[calc\\(var\\(--ui-control-size-xs\\)\\/2\\)\\]{bottom:calc(var(--ui-control-size-xs) / 2);}
-.bottom-\\[max\\(96px\\,env\\(safe-area-inset-bottom\\,0px\\)\\)\\]{bottom:max(96px,env(safe-area-inset-bottom,0px));}
 .bottom-0{bottom:0;}
 .bottom-4px{bottom:4px;}
 .bottom-sm{bottom:0.875rem;}
@@ -9955,7 +9980,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .right-\\[max\\(10px\\,env\\(safe-area-inset-right\\,0px\\)\\)\\]{right:max(10px,env(safe-area-inset-right,0px));}
 .right-\\[max\\(12px\\,env\\(safe-area-inset-right\\,0px\\)\\)\\]{right:max(12px,env(safe-area-inset-right,0px));}
 .right-\\[max\\(16px\\,env\\(safe-area-inset-right\\,0px\\)\\)\\]{right:max(16px,env(safe-area-inset-right,0px));}
-.right-\\[max\\(80px\\,env\\(safe-area-inset-right\\,0px\\)\\)\\]{right:max(80px,env(safe-area-inset-right,0px));}
 .right-0{right:0;}
 .right-10px{right:10px;}
 .right-24px{right:24px;}
@@ -10069,7 +10093,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .h-20px{height:20px;}
 .h-64px{height:64px;}
 .h-6px{height:6px;}
-.h-96px{height:96px;}
 .h-full{height:100%;}
 .h1{height:0.25rem;}
 .max-h-\\[60dvh\\]{max-height:60dvh;}
@@ -10131,7 +10154,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .w-36px{width:36px;}
 .w-42px{width:42px;}
 .w-6px{width:6px;}
-.w-96px{width:96px;}
 .w-auto{width:auto;}
 .w-fit{width:fit-content;}
 .w-max{width:max-content;}
@@ -10214,6 +10236,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .break-normal{overflow-wrap:normal;word-break:normal;}
 :root[data-ehpeek-ui-scale="large"] .large\\:border-8{border-width:8px;}
 .\\!border{border-width:1px !important;}
+.\\!border-0{border-width:0px !important;}
 .border{border-width:1px;}
 .border-0{border-width:0px;}
 .border-2px{border-width:2px;}
@@ -10248,6 +10271,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .rounded-t-md{border-top-left-radius:0.375rem;border-top-right-radius:0.375rem;}
 .border-solid{border-style:solid;}
 .\\!bg-\\[color-mix\\(in_srgb\\,var\\(--color-site-page\\)_82\\%\\,black\\)\\]{background-color:color-mix(in srgb,var(--color-site-page) 82%,black) !important;}
+.\\!bg-\\[var\\(--color-site-item-hover\\)\\]{background-color:var(--color-site-item-hover) !important;}
 .\\!bg-transparent,
 .\\[\\&_\\*\\]\\:\\!bg-transparent *{background-color:transparent !important;}
 .bg-\\[var\\(--color-background\\)\\]{background-color:var(--color-background);}
@@ -10375,6 +10399,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .focus-visible\\:opacity-100:focus-visible{opacity:1;}
 .disabled\\:opacity-40:disabled{opacity:0.4;}
 .disabled\\:opacity-50:disabled{opacity:0.5;}
+.\\!shadow-none{--un-shadow:0 0 var(--un-shadow-color, rgb(0 0 0 / 0)) !important;box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow) !important;}
 .shadow-\\[0_2px_10px_var\\(--color-shadow-control\\)\\]{--un-shadow:0 2px 10px var(--un-shadow-color, var(--color-shadow-control));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
 .shadow-\\[0_2px_10px_var\\(--color-shadow-panel\\)\\]{--un-shadow:0 2px 10px var(--un-shadow-color, var(--color-shadow-panel));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
 .shadow-\\[0_2px_8px_var\\(--color-shadow-panel\\)\\]{--un-shadow:0 2px 8px var(--un-shadow-color, var(--color-shadow-panel));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
@@ -10389,8 +10414,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .outline{outline-style:solid;}
 .focus-visible\\:outline:focus-visible{outline-style:solid;}
 .\\!outline-none{outline:2px solid transparent !important;outline-offset:2px !important;}
-.focus\\:\\!outline-none:focus{outline:2px solid transparent !important;outline-offset:2px !important;}
-.active\\:\\!outline-none:active{outline:2px solid transparent !important;outline-offset:2px !important;}
 .hover\\:brightness-108:hover{--un-brightness:brightness(1.08);filter:var(--un-blur) var(--un-brightness) var(--un-contrast) var(--un-drop-shadow) var(--un-grayscale) var(--un-hue-rotate) var(--un-invert) var(--un-saturate) var(--un-sepia);}
 .filter{filter:var(--un-blur) var(--un-brightness) var(--un-contrast) var(--un-drop-shadow) var(--un-grayscale) var(--un-hue-rotate) var(--un-invert) var(--un-saturate) var(--un-sepia);}
 .backdrop-filter{-webkit-backdrop-filter:var(--un-backdrop-blur) var(--un-backdrop-brightness) var(--un-backdrop-contrast) var(--un-backdrop-grayscale) var(--un-backdrop-hue-rotate) var(--un-backdrop-invert) var(--un-backdrop-opacity) var(--un-backdrop-saturate) var(--un-backdrop-sepia);backdrop-filter:var(--un-backdrop-blur) var(--un-backdrop-brightness) var(--un-backdrop-contrast) var(--un-backdrop-grayscale) var(--un-backdrop-hue-rotate) var(--un-backdrop-invert) var(--un-backdrop-opacity) var(--un-backdrop-saturate) var(--un-backdrop-sepia);}
@@ -10753,7 +10776,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
       return _el$.addEventListener("wheel", (event) => {
         let delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
         props.callbacks.onWheel(delta, event);
-      }), _el$.addEventListener("scroll", () => props.callbacks.onNativeScroll()), use((element) => {
+      }), _el$.addEventListener("scroll", () => props.callbacks.onNativeScroll()), _el$.$$dblclick = (event) => props.callbacks.onDoubleClick(event), use((element) => {
         scroller = element, scrollerApi = createPagesScroller(element);
       }, _el$), insert(_el$2, createComponent(For, {
         get each() {
@@ -11072,7 +11095,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
       width
     };
   }
-  delegateEvents(["pointerdown", "click"]);
+  delegateEvents(["dblclick", "pointerdown", "click"]);
 
   // src/components/Widgets/ProgressBar.css
   var ProgressBar_default = `.ehpeek-progress-bar::-webkit-slider-runnable-track {
@@ -11160,7 +11183,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
   delegateEvents(["pointerdown", "input", "pointerup"]);
 
   // src/components/Reader/Toolbar.tsx
-  var _tmpl$51 = /* @__PURE__ */ template("<div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>"), _tmpl$215 = /* @__PURE__ */ template("<div role=status><span>"), _tmpl$312 = /* @__PURE__ */ template('<div class="grid gap-md font-sans textsize-md"><details class="textsize-sm opacity-75"><summary class="cursor-pointer font-700"></summary><p class="m-0 mt-sm leading-[1.4]"></p><div class="mt-md flex flex-wrap items-center gap-x-md gap-y-sm"><span class=font-700>:'), _tmpl$411 = /* @__PURE__ */ template('<div class=contents><div><div class="ehpeek-reader-floating-actions flex flex-col gap-sm"><button type=button></button><button type=button></button><button type=button></button></div></div><div><div><div><button type=button></button><button type=button></button><button type=button>?</button><button type=button></button></div></div></div><div></div><div class="fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] [&amp;[data-open=false]]:opacity-0 [&amp;[data-open=false]]:translate-y-[calc(100%+16px)] [&amp;[data-open=false]]:pointer-events-none">'), _tmpl$59 = /* @__PURE__ */ template('<div class="ehpeek-reader-control-change fixed z-overlay top-1/2 left-1/2 w-max max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 pointer-events-none rounded-lg bg-[var(--color-badge)] ehp-color-text px-xl py-lg font-sans textsize-lg font-700 leading-[1.3] whitespace-pre-line text-center shadow-xl">'), _tmpl$69 = /* @__PURE__ */ template('<div class="grid gap-md"><button type=button><span class="textsize-md font-700"></span><span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75"></span></button><button type=button><span class="textsize-md font-700"></span><span class="textsize-sm opacity-75">'), _tmpl$77 = /* @__PURE__ */ template('<a class="text-[var(--color-accent)] hover:underline"rel="noopener noreferrer"target=_blank>'), READER_BUTTON_CLASS = ["inline-flex min-w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] items-center justify-center px-md py-0 rounded-md large:px-lg large:rounded-lg", "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:opacity-40 disabled:cursor-default"].join(" "), READER_TOOLBAR_BUTTON_CLASS = `${READER_BUTTON_CLASS} !w-[var(--ui-control-size-lg)] !min-w-0 !px-sm flex-none`, READER_FLOATING_ACTION_CLASS = [READER_BUTTON_CLASS, "!min-w-[var(--ui-control-size-lg)] !h-[var(--ui-control-size-lg)] opacity-85 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-160"].join(" "), READER_FLOATING_ICON_ACTION_CLASS = `${READER_FLOATING_ACTION_CLASS} !w-[calc(var(--ui-control-size-lg)*2)] px-0`, READER_ICON_SIZE = "var(--ui-icon-size-md)", TIME_FORMATTER = new Intl.DateTimeFormat(void 0, {
+  var _tmpl$51 = /* @__PURE__ */ template("<div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>"), _tmpl$215 = /* @__PURE__ */ template("<div role=status><span>"), _tmpl$312 = /* @__PURE__ */ template('<div class="grid gap-md font-sans textsize-md"><details class="textsize-sm opacity-75"><summary class="cursor-pointer font-700"></summary><p class="m-0 mt-sm leading-[1.4]"></p><div class="mt-md flex flex-wrap items-center gap-x-md gap-y-sm"><span class=font-700>:'), _tmpl$411 = /* @__PURE__ */ template('<div class=contents><div><div class="ehpeek-reader-floating-actions flex flex-col gap-sm"><button type=button></button><button type=button></button><button type=button></button></div></div><div><div><div><button type=button></button><button type=button></button><button type=button>?</button><button type=button></button></div></div></div><div></div><div class="fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] [&amp;[data-open=false]]:opacity-0 [&amp;[data-open=false]]:translate-y-[calc(100%+16px)] [&amp;[data-open=false]]:pointer-events-none">'), _tmpl$59 = /* @__PURE__ */ template('<div class="ehpeek-reader-control-change fixed z-overlay top-1/2 left-1/2 w-max max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 pointer-events-none rounded-lg bg-[var(--color-badge)] ehp-color-text px-xl py-lg font-sans textsize-lg font-700 leading-[1.3] whitespace-pre-line text-center shadow-xl">'), _tmpl$69 = /* @__PURE__ */ template('<div class="grid gap-md"><button type=button><span class="textsize-md font-700"></span><span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75"></span></button><button type=button><span class="textsize-md font-700"></span><span class="textsize-sm opacity-75">'), _tmpl$77 = /* @__PURE__ */ template('<a class="text-[var(--color-accent)] hover:underline"rel="noopener noreferrer"target=_blank>'), READER_BUTTON_CLASS = ["inline-flex min-w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] items-center justify-center px-md py-0 rounded-md large:px-lg large:rounded-lg", "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:opacity-40 disabled:cursor-default"].join(" "), READER_TOOLBAR_BUTTON_CLASS = `${READER_BUTTON_CLASS} !w-[var(--ui-control-size-lg)] !min-w-0 !px-sm flex-none`, READER_FLOATING_ACTION_CLASS = [READER_BUTTON_CLASS, "!min-w-[var(--ui-control-size-lg)] !h-[var(--ui-control-size-lg)] opacity-85 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-160"].join(" "), READER_FLOATING_ICON_ACTION_CLASS = `${READER_FLOATING_ACTION_CLASS} !w-[calc(var(--ui-control-size-lg)*2)] px-0`, READER_ICON_SIZE = "var(--ui-icon-size-md)", TIME_FORMATTER = new Intl.DateTimeFormat(void 0, {
     hour: "2-digit",
     minute: "2-digit"
   }), DOWNLOAD_OPTION_CLASS = ["flex w-full min-h-lg flex-col items-start justify-center gap-xs px-lg py-md rounded-md", "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer text-left", "hover:bg-[var(--color-badge)] disabled:opacity-40 disabled:cursor-default"].join(" ");
@@ -11199,7 +11222,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
       };
       window.addEventListener("keydown", closeOnEscape, !0), onCleanup(() => window.removeEventListener("keydown", closeOnEscape, !0));
     }), (() => {
-      var _el$ = _tmpl$411(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.nextSibling, _el$6 = _el$5.nextSibling, _el$7 = _el$2.nextSibling, _el$8 = _el$7.firstChild, _el$9 = _el$8.firstChild, _el$0 = _el$9.firstChild, _el$1 = _el$0.nextSibling, _el$10 = _el$1.nextSibling, _el$11 = _el$10.nextSibling, _el$20 = _el$7.nextSibling, _el$23 = _el$20.nextSibling;
+      var _el$ = _tmpl$411(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.nextSibling, _el$6 = _el$5.nextSibling, _el$7 = _el$2.nextSibling, _el$8 = _el$7.firstChild, _el$9 = _el$8.firstChild, _el$0 = _el$9.firstChild, _el$1 = _el$0.nextSibling, _el$10 = _el$1.nextSibling, _el$11 = _el$10.nextSibling, _el$19 = _el$7.nextSibling, _el$22 = _el$19.nextSibling;
       addEventListener(_el$2, "wheel", stopEvent), addEventListener(_el$2, "pointerdown", stopEvent, !0), addEventListener(_el$2, "click", stopEvent, !0), className(_el$2, "fixed z-2 flex justify-end transition-[opacity,transform] duration-160 ease-in-out " + (leftHandedControls ? "left-[max(12px,env(safe-area-inset-left,0px))] " : "right-[max(12px,env(safe-area-inset-right,0px))] ") + "bottom-[calc(var(--ui-control-size-lg)*2+44px+env(safe-area-inset-bottom,0px))] [&[data-open=false]]:opacity-0 [&[data-open=false]]:translate-y-[calc(100%+16px)] [&[data-open=false]]:pointer-events-none"), _el$4.$$click = () => props.callbacks.onOpenScrollPreviewClick(), className(_el$4, READER_FLOATING_ICON_ACTION_CLASS), insert(_el$4, createComponent(Icon2, {
         name: "grid",
         size: READER_ICON_SIZE
@@ -11225,7 +11248,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
           return moreOpen();
         },
         get children() {
-          var _el$12 = _tmpl$51(), _el$13 = _el$12.firstChild, _el$14 = _el$13.nextSibling, _el$15 = _el$14.nextSibling, _el$16 = _el$15.nextSibling, _el$17 = _el$16.nextSibling, _el$18 = _el$17.nextSibling, _el$19 = _el$18.nextSibling;
+          var _el$12 = _tmpl$51(), _el$13 = _el$12.firstChild, _el$14 = _el$13.nextSibling, _el$15 = _el$14.nextSibling, _el$16 = _el$15.nextSibling, _el$17 = _el$16.nextSibling, _el$18 = _el$17.nextSibling;
           return className(_el$12, `flex w-[calc(var(--ui-control-size-lg)*4+48px)] flex-row flex-wrap gap-md large:gap-lg${leftHandedControls ? " flex-row-reverse" : ""}`), _el$13.$$click = () => {
             let navigationMode = props.controls.navigationMode === "scroll" ? "paged" : "scroll";
             props.callbacks.onControlsChange({
@@ -11269,20 +11292,9 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
           }, className(_el$17, READER_TOOLBAR_BUTTON_CLASS), insert(_el$17, () => props.controls.rightTapAction === "previous" ? "R-" : "R+"), _el$18.$$click = () => props.callbacks.onViewportAdjustClick(), className(_el$18, READER_TOOLBAR_BUTTON_CLASS), insert(_el$18, createComponent(Icon2, {
             name: "viewport",
             size: READER_ICON_SIZE
-          })), _el$19.$$click = () => {
-            let doubleTapAction = props.controls.doubleTapAction === "zoom" ? "scroll-preview" : props.controls.doubleTapAction === "scroll-preview" ? "off" : "zoom";
-            props.callbacks.onControlsChange({
-              ...props.controls,
-              doubleTapAction
-            }), showControlChange(doubleTapAction === "zoom" ? texts_default.reader.doubleTapZoom : doubleTapAction === "scroll-preview" ? texts_default.reader.doubleTapScrollPreview : texts_default.reader.doubleTapOff);
-          }, className(_el$19, READER_TOOLBAR_BUTTON_CLASS), insert(_el$19, createComponent(Icon2, {
-            get name() {
-              return memo(() => props.controls.doubleTapAction === "zoom")() ? "zoom-in" : props.controls.doubleTapAction === "scroll-preview" ? "grid" : "close";
-            },
-            size: READER_ICON_SIZE
           })), createRenderEffect((_p$) => {
-            var _v$ = props.controls.navigationMode === "scroll" ? texts_default.reader.scrollMode : texts_default.reader.pagedMode, _v$2 = props.controls.navigationMode === "scroll" ? texts_default.reader.scrollMode : texts_default.reader.pagedMode, _v$3 = props.controls.direction === "rtl" ? texts_default.reader.directionRtl : props.controls.direction === "ltr" ? texts_default.reader.directionLtr : texts_default.reader.directionTtb, _v$4 = props.controls.pageLayout === "double" ? texts_default.reader.doublePageMode : texts_default.reader.singlePageMode, _v$5 = props.controls.navigationMode !== "paged", _v$6 = props.controls.firstPageSeparate, _v$7 = props.controls.firstPageSeparate ? texts_default.reader.pairSecondAndThirdPages : texts_default.reader.pairFirstAndSecondPages, _v$8 = props.controls.firstPageSeparate ? texts_default.reader.pairSecondAndThirdPages : texts_default.reader.pairFirstAndSecondPages, _v$9 = props.controls.navigationMode !== "paged" || props.controls.pageLayout !== "double", _v$0 = props.controls.rightTapAction === "previous" ? texts_default.reader.rightTapPrevious : texts_default.reader.rightTapNext, _v$1 = texts_default.reader.adjustScrollViewport, _v$10 = texts_default.reader.adjustScrollViewport, _v$11 = props.controls.navigationMode !== "scroll", _v$12 = props.controls.doubleTapAction === "zoom" ? texts_default.reader.doubleTapZoom : props.controls.doubleTapAction === "scroll-preview" ? texts_default.reader.doubleTapScrollPreview : texts_default.reader.doubleTapOff, _v$13 = props.controls.doubleTapAction === "zoom" ? texts_default.reader.doubleTapZoom : props.controls.doubleTapAction === "scroll-preview" ? texts_default.reader.doubleTapScrollPreview : texts_default.reader.doubleTapOff;
-            return _v$ !== _p$.e && setAttribute(_el$13, "aria-label", _p$.e = _v$), _v$2 !== _p$.t && setAttribute(_el$13, "title", _p$.t = _v$2), _v$3 !== _p$.a && setAttribute(_el$14, "aria-label", _p$.a = _v$3), _v$4 !== _p$.o && setAttribute(_el$15, "aria-label", _p$.o = _v$4), _v$5 !== _p$.i && (_el$15.disabled = _p$.i = _v$5), _v$6 !== _p$.n && setAttribute(_el$16, "aria-pressed", _p$.n = _v$6), _v$7 !== _p$.s && setAttribute(_el$16, "aria-label", _p$.s = _v$7), _v$8 !== _p$.h && setAttribute(_el$16, "title", _p$.h = _v$8), _v$9 !== _p$.r && (_el$16.disabled = _p$.r = _v$9), _v$0 !== _p$.d && setAttribute(_el$17, "aria-label", _p$.d = _v$0), _v$1 !== _p$.l && setAttribute(_el$18, "aria-label", _p$.l = _v$1), _v$10 !== _p$.u && setAttribute(_el$18, "title", _p$.u = _v$10), _v$11 !== _p$.c && (_el$18.disabled = _p$.c = _v$11), _v$12 !== _p$.w && setAttribute(_el$19, "aria-label", _p$.w = _v$12), _v$13 !== _p$.m && setAttribute(_el$19, "title", _p$.m = _v$13), _p$;
+            var _v$ = props.controls.navigationMode === "scroll" ? texts_default.reader.scrollMode : texts_default.reader.pagedMode, _v$2 = props.controls.navigationMode === "scroll" ? texts_default.reader.scrollMode : texts_default.reader.pagedMode, _v$3 = props.controls.direction === "rtl" ? texts_default.reader.directionRtl : props.controls.direction === "ltr" ? texts_default.reader.directionLtr : texts_default.reader.directionTtb, _v$4 = props.controls.pageLayout === "double" ? texts_default.reader.doublePageMode : texts_default.reader.singlePageMode, _v$5 = props.controls.navigationMode !== "paged", _v$6 = props.controls.firstPageSeparate, _v$7 = props.controls.firstPageSeparate ? texts_default.reader.pairSecondAndThirdPages : texts_default.reader.pairFirstAndSecondPages, _v$8 = props.controls.firstPageSeparate ? texts_default.reader.pairSecondAndThirdPages : texts_default.reader.pairFirstAndSecondPages, _v$9 = props.controls.navigationMode !== "paged" || props.controls.pageLayout !== "double", _v$0 = props.controls.rightTapAction === "previous" ? texts_default.reader.rightTapPrevious : texts_default.reader.rightTapNext, _v$1 = texts_default.reader.adjustScrollViewport, _v$10 = texts_default.reader.adjustScrollViewport, _v$11 = props.controls.navigationMode !== "scroll";
+            return _v$ !== _p$.e && setAttribute(_el$13, "aria-label", _p$.e = _v$), _v$2 !== _p$.t && setAttribute(_el$13, "title", _p$.t = _v$2), _v$3 !== _p$.a && setAttribute(_el$14, "aria-label", _p$.a = _v$3), _v$4 !== _p$.o && setAttribute(_el$15, "aria-label", _p$.o = _v$4), _v$5 !== _p$.i && (_el$15.disabled = _p$.i = _v$5), _v$6 !== _p$.n && setAttribute(_el$16, "aria-pressed", _p$.n = _v$6), _v$7 !== _p$.s && setAttribute(_el$16, "aria-label", _p$.s = _v$7), _v$8 !== _p$.h && setAttribute(_el$16, "title", _p$.h = _v$8), _v$9 !== _p$.r && (_el$16.disabled = _p$.r = _v$9), _v$0 !== _p$.d && setAttribute(_el$17, "aria-label", _p$.d = _v$0), _v$1 !== _p$.l && setAttribute(_el$18, "aria-label", _p$.l = _v$1), _v$10 !== _p$.u && setAttribute(_el$18, "title", _p$.u = _v$10), _v$11 !== _p$.c && (_el$18.disabled = _p$.c = _v$11), _p$;
           }, {
             e: void 0,
             t: void 0,
@@ -11296,31 +11308,29 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
             d: void 0,
             l: void 0,
             u: void 0,
-            c: void 0,
-            w: void 0,
-            m: void 0
+            c: void 0
           }), _el$12;
         }
       }), null);
       var _ref$ = pageNumber;
-      return typeof _ref$ == "function" ? use(_ref$, _el$20) : pageNumber = _el$20, className(_el$20, "ehpeek-reader-page-number fixed z-3 pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] " + (leftHandedControls ? "right-[max(10px,env(safe-area-inset-right,0px))] left-auto " : "left-[max(10px,env(safe-area-inset-left,0px))] right-auto ") + "min-w-0 max-w-[calc(100vw-20px)] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap " + (leftHandedControls ? "text-right" : "text-left")), insert(_el$20, () => pageNumberText(props.progress.pageNum, props.progress.totalPages, props.controls.navigationMode, props.controls.pageLayout, props.controls.firstPageSeparate)), insert(_el$, createComponent(Show, {
+      return typeof _ref$ == "function" ? use(_ref$, _el$19) : pageNumber = _el$19, className(_el$19, "ehpeek-reader-page-number fixed z-3 pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] " + (leftHandedControls ? "right-[max(10px,env(safe-area-inset-right,0px))] left-auto " : "left-[max(10px,env(safe-area-inset-left,0px))] right-auto ") + "min-w-0 max-w-[calc(100vw-20px)] py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap " + (leftHandedControls ? "text-right" : "text-left")), insert(_el$19, () => pageNumberText(props.progress.pageNum, props.progress.totalPages, props.controls.navigationMode, props.controls.pageLayout, props.controls.firstPageSeparate)), insert(_el$, createComponent(Show, {
         get when() {
           return props.fullscreenActive;
         },
         get children() {
-          var _el$21 = _tmpl$215(), _el$22 = _el$21.firstChild, _ref$2 = fullscreenStatus;
-          return typeof _ref$2 == "function" ? use(_ref$2, _el$21) : fullscreenStatus = _el$21, className(_el$21, "ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] " + (leftHandedControls ? "right-[max(10px,env(safe-area-inset-right,0px))] " : "left-[max(10px,env(safe-area-inset-left,0px))] ") + "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap"), insert(_el$22, fullscreenTime), _el$21;
+          var _el$20 = _tmpl$215(), _el$21 = _el$20.firstChild, _ref$2 = fullscreenStatus;
+          return typeof _ref$2 == "function" ? use(_ref$2, _el$20) : fullscreenStatus = _el$20, className(_el$20, "ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none top-[calc(10px+env(safe-area-inset-top,0px))] " + (leftHandedControls ? "right-[max(10px,env(safe-area-inset-right,0px))] " : "left-[max(10px,env(safe-area-inset-left,0px))] ") + "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap"), insert(_el$21, fullscreenTime), _el$20;
         }
-      }), _el$23), insert(_el$, createComponent(Show, {
+      }), _el$22), insert(_el$, createComponent(Show, {
         get when() {
           return controlChange();
         },
         keyed: !0,
         children: (message) => (() => {
-          var _el$31 = _tmpl$59();
-          return insert(_el$31, message), _el$31;
+          var _el$30 = _tmpl$59();
+          return insert(_el$30, message), _el$30;
         })()
-      }), _el$23), addEventListener(_el$23, "wheel", stopEvent), addEventListener(_el$23, "pointerdown", stopEvent, !0), addEventListener(_el$23, "click", stopEvent, !0), insert(_el$23, createComponent(ProgressBar, {
+      }), _el$22), addEventListener(_el$22, "wheel", stopEvent), addEventListener(_el$22, "pointerdown", stopEvent, !0), addEventListener(_el$22, "click", stopEvent, !0), insert(_el$22, createComponent(ProgressBar, {
         class: "ehpeek-reader-progress textsize-lg",
         get direction() {
           return props.controls.direction === "rtl" ? "rtl" : "ltr";
@@ -11365,39 +11375,39 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
             variant: "reader",
             width: "lg",
             get children() {
-              var _el$24 = _tmpl$312(), _el$25 = _el$24.firstChild, _el$26 = _el$25.firstChild, _el$27 = _el$26.nextSibling, _el$28 = _el$27.nextSibling, _el$29 = _el$28.firstChild, _el$30 = _el$29.firstChild;
-              return insert(_el$24, createComponent(For, {
+              var _el$23 = _tmpl$312(), _el$24 = _el$23.firstChild, _el$25 = _el$24.firstChild, _el$26 = _el$25.nextSibling, _el$27 = _el$26.nextSibling, _el$28 = _el$27.firstChild, _el$29 = _el$28.firstChild;
+              return insert(_el$23, createComponent(For, {
                 get each() {
                   return props.downloadInfos;
                 },
                 children: (downloadInfo) => (() => {
-                  var _el$32 = _tmpl$69(), _el$33 = _el$32.firstChild, _el$34 = _el$33.firstChild, _el$35 = _el$34.nextSibling, _el$36 = _el$33.nextSibling, _el$37 = _el$36.firstChild, _el$38 = _el$37.nextSibling;
-                  return _el$33.$$click = () => {
+                  var _el$31 = _tmpl$69(), _el$32 = _el$31.firstChild, _el$33 = _el$32.firstChild, _el$34 = _el$33.nextSibling, _el$35 = _el$32.nextSibling, _el$36 = _el$35.firstChild, _el$37 = _el$36.nextSibling;
+                  return _el$32.$$click = () => {
                     startImageDownload(downloadInfo.currentImageUrl, downloadInfo.currentFileName) && setDownloadDialogPageNum(null);
-                  }, className(_el$33, DOWNLOAD_OPTION_CLASS), insert(_el$34, () => `${texts_default.reader.downloadDisplayedImage} · ${downloadInfo.pageNum}`), insert(_el$35, () => downloadInfo.currentFileName), _el$36.$$click = () => {
+                  }, className(_el$32, DOWNLOAD_OPTION_CLASS), insert(_el$33, () => `${texts_default.reader.downloadDisplayedImage} · ${downloadInfo.pageNum}`), insert(_el$34, () => downloadInfo.currentFileName), _el$35.$$click = () => {
                     downloadInfo.originalImageUrl && startImageDownload(downloadInfo.originalImageUrl, downloadInfo.originalFileName) && setDownloadDialogPageNum(null);
-                  }, className(_el$36, DOWNLOAD_OPTION_CLASS), insert(_el$37, () => `${texts_default.reader.downloadOriginalImage} · ${downloadInfo.pageNum}`), insert(_el$38, (() => {
+                  }, className(_el$35, DOWNLOAD_OPTION_CLASS), insert(_el$36, () => `${texts_default.reader.downloadOriginalImage} · ${downloadInfo.pageNum}`), insert(_el$37, (() => {
                     var _c$ = memo(() => !!downloadInfo.originalImageUrl);
                     return () => _c$() ? texts_default.reader.originalImageSource : texts_default.reader.originalImageUnavailable;
-                  })()), createRenderEffect(() => _el$36.disabled = !downloadInfo.originalImageUrl), _el$32;
+                  })()), createRenderEffect(() => _el$35.disabled = !downloadInfo.originalImageUrl), _el$31;
                 })()
-              }), _el$25), insert(_el$26, () => texts_default.reader.downloadHelpLabel), insert(_el$27, () => texts_default.reader.downloadHelp), insert(_el$29, () => texts_default.reader.openImage, _el$30), insert(_el$28, createComponent(For, {
+              }), _el$24), insert(_el$25, () => texts_default.reader.downloadHelpLabel), insert(_el$26, () => texts_default.reader.downloadHelp), insert(_el$28, () => texts_default.reader.openImage, _el$29), insert(_el$27, createComponent(For, {
                 get each() {
                   return props.downloadInfos;
                 },
                 children: (downloadInfo) => [(() => {
-                  var _el$39 = _tmpl$77();
-                  return insert(_el$39, () => `${texts_default.reader.displayedImageShort} ${downloadInfo.pageNum}`), createRenderEffect(() => setAttribute(_el$39, "href", downloadInfo.currentImageUrl)), _el$39;
+                  var _el$38 = _tmpl$77();
+                  return insert(_el$38, () => `${texts_default.reader.displayedImageShort} ${downloadInfo.pageNum}`), createRenderEffect(() => setAttribute(_el$38, "href", downloadInfo.currentImageUrl)), _el$38;
                 })(), createComponent(Show, {
                   get when() {
                     return downloadInfo.originalImageUrl;
                   },
                   children: (originalImageUrl) => (() => {
-                    var _el$40 = _tmpl$77();
-                    return insert(_el$40, () => `${texts_default.reader.originalImageShort} ${downloadInfo.pageNum}`), createRenderEffect(() => setAttribute(_el$40, "href", originalImageUrl())), _el$40;
+                    var _el$39 = _tmpl$77();
+                    return insert(_el$39, () => `${texts_default.reader.originalImageShort} ${downloadInfo.pageNum}`), createRenderEffect(() => setAttribute(_el$39, "href", originalImageUrl())), _el$39;
                   })()
                 })]
-              }), null), _el$24;
+              }), null), _el$23;
             }
           });
         }
@@ -11412,8 +11422,8 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
           });
         }
       }), null), createRenderEffect((_p$) => {
-        var _v$14 = String(props.open), _v$15 = texts_default.gallery.scrollPreview, _v$16 = texts_default.gallery.scrollPreview, _v$17 = props.fullscreenActive ? texts_default.reader.exitFullscreen : texts_default.reader.fullscreen, _v$18 = props.fullscreenActive ? texts_default.reader.exitFullscreen : texts_default.reader.fullscreen, _v$19 = props.downloadInfos.length === 0, _v$20 = texts_default.reader.download, _v$21 = texts_default.reader.download, _v$22 = fullscreenToolbarTop(), _v$23 = `ehpeek-reader-toolbar-buttons flex flex-col ${leftHandedControls ? "items-start" : "items-end"} gap-md large:gap-lg pointer-events-auto${props.open ? "" : " !hidden"}`, _v$24 = texts_default.reader.readingOptions, _v$25 = texts_default.reader.readingOptions, _v$26 = moreOpen(), _v$27 = texts_default.help.title, _v$28 = texts_default.help.title, _v$29 = texts_default.button.close, _v$30 = texts_default.button.close, _v$31 = props.controls.navigationMode === "scroll" && !props.open && !props.fullscreenActive, _v$32 = String(props.open);
-        return _v$14 !== _p$.e && setAttribute(_el$2, "data-open", _p$.e = _v$14), _v$15 !== _p$.t && setAttribute(_el$4, "aria-label", _p$.t = _v$15), _v$16 !== _p$.a && setAttribute(_el$4, "title", _p$.a = _v$16), _v$17 !== _p$.o && setAttribute(_el$5, "aria-label", _p$.o = _v$17), _v$18 !== _p$.i && setAttribute(_el$5, "title", _p$.i = _v$18), _v$19 !== _p$.n && (_el$6.disabled = _p$.n = _v$19), _v$20 !== _p$.s && setAttribute(_el$6, "aria-label", _p$.s = _v$20), _v$21 !== _p$.h && setAttribute(_el$6, "title", _p$.h = _v$21), _v$22 !== _p$.r && setStyleProperty(_el$7, "top", _p$.r = _v$22), _v$23 !== _p$.d && className(_el$8, _p$.d = _v$23), _v$24 !== _p$.l && setAttribute(_el$1, "aria-label", _p$.l = _v$24), _v$25 !== _p$.u && setAttribute(_el$1, "title", _p$.u = _v$25), _v$26 !== _p$.c && setAttribute(_el$1, "aria-expanded", _p$.c = _v$26), _v$27 !== _p$.w && setAttribute(_el$10, "aria-label", _p$.w = _v$27), _v$28 !== _p$.m && setAttribute(_el$10, "title", _p$.m = _v$28), _v$29 !== _p$.f && setAttribute(_el$11, "aria-label", _p$.f = _v$29), _v$30 !== _p$.y && setAttribute(_el$11, "title", _p$.y = _v$30), _v$31 !== _p$.g && (_el$20.hidden = _p$.g = _v$31), _v$32 !== _p$.p && setAttribute(_el$23, "data-open", _p$.p = _v$32), _p$;
+        var _v$12 = String(props.open), _v$13 = texts_default.gallery.scrollPreview, _v$14 = texts_default.gallery.scrollPreview, _v$15 = props.fullscreenActive ? texts_default.reader.exitFullscreen : texts_default.reader.fullscreen, _v$16 = props.fullscreenActive ? texts_default.reader.exitFullscreen : texts_default.reader.fullscreen, _v$17 = props.downloadInfos.length === 0, _v$18 = texts_default.reader.download, _v$19 = texts_default.reader.download, _v$20 = fullscreenToolbarTop(), _v$21 = `ehpeek-reader-toolbar-buttons flex flex-col ${leftHandedControls ? "items-start" : "items-end"} gap-md large:gap-lg pointer-events-auto${props.open ? "" : " !hidden"}`, _v$22 = texts_default.reader.readingOptions, _v$23 = texts_default.reader.readingOptions, _v$24 = moreOpen(), _v$25 = texts_default.help.title, _v$26 = texts_default.help.title, _v$27 = texts_default.button.close, _v$28 = texts_default.button.close, _v$29 = props.controls.navigationMode === "scroll" && !props.open && !props.fullscreenActive, _v$30 = String(props.open);
+        return _v$12 !== _p$.e && setAttribute(_el$2, "data-open", _p$.e = _v$12), _v$13 !== _p$.t && setAttribute(_el$4, "aria-label", _p$.t = _v$13), _v$14 !== _p$.a && setAttribute(_el$4, "title", _p$.a = _v$14), _v$15 !== _p$.o && setAttribute(_el$5, "aria-label", _p$.o = _v$15), _v$16 !== _p$.i && setAttribute(_el$5, "title", _p$.i = _v$16), _v$17 !== _p$.n && (_el$6.disabled = _p$.n = _v$17), _v$18 !== _p$.s && setAttribute(_el$6, "aria-label", _p$.s = _v$18), _v$19 !== _p$.h && setAttribute(_el$6, "title", _p$.h = _v$19), _v$20 !== _p$.r && setStyleProperty(_el$7, "top", _p$.r = _v$20), _v$21 !== _p$.d && className(_el$8, _p$.d = _v$21), _v$22 !== _p$.l && setAttribute(_el$1, "aria-label", _p$.l = _v$22), _v$23 !== _p$.u && setAttribute(_el$1, "title", _p$.u = _v$23), _v$24 !== _p$.c && setAttribute(_el$1, "aria-expanded", _p$.c = _v$24), _v$25 !== _p$.w && setAttribute(_el$10, "aria-label", _p$.w = _v$25), _v$26 !== _p$.m && setAttribute(_el$10, "title", _p$.m = _v$26), _v$27 !== _p$.f && setAttribute(_el$11, "aria-label", _p$.f = _v$27), _v$28 !== _p$.y && setAttribute(_el$11, "title", _p$.y = _v$28), _v$29 !== _p$.g && (_el$19.hidden = _p$.g = _v$29), _v$30 !== _p$.p && setAttribute(_el$22, "data-open", _p$.p = _v$30), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -11555,8 +11565,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
         direction: navigationMode === "scroll" ? readerControls2.scrollDirection.value : readerControls2.pagedDirection.value,
         firstPageSeparate: !1,
         pageLayout: readerControls2.pageLayout.value,
-        rightTapAction: readerControls2.rightTapAction.value,
-        doubleTapAction: state.reader.doubleTapAction.value
+        rightTapAction: readerControls2.rightTapAction.value
       }, [controls, setControls] = createSignal(initialControls), initialPageNum = initialControls.navigationMode === "paged" && initialControls.pageLayout === "double" ? doublePagePairStart(initialPageNumber(options), initialControls.firstPageSeparate) : initialPageNumber(options), [toolbarOpen, setToolbarOpen] = createSignal(!1), [viewportWindow, setViewportWindow] = createSignal(
         initialViewportWindow(options, initialPageNum)
       ), [zoomImage, setZoomImage] = createSignal(null), [currentPageNum, setCurrentPageNum] = createSignal(initialPageNum), [direction, setDirection] = createSignal(1), [downloadInfos, setDownloadInfos] = createSignal([]), [maxProgressPageNum, setMaxProgressPageNum] = createSignal(initialMaxProgressPageNumber(options)), [progressInputActive, setProgressInputActive] = createSignal(!1), [scrollBarVisible, setScrollBarVisible] = createSignal(!1), [scrollBarExpanded, setScrollBarExpanded] = createSignal(!1), [scrollViewportAdjusting, setScrollViewportAdjusting] = createSignal(!1), [scrollViewportTtbScale, setScrollViewportTtbScale] = createSignal(
@@ -11700,7 +11709,12 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
       get onPointerDown() {
         return props.callbacks.onProgressPointerDown;
       },
+      get pixelScale() {
+        return props.pixelScale;
+      },
       position: "fixed",
+      trackClickEnabled: !1,
+      trackVisible: !1,
       get visible() {
         return props.visible;
       },
@@ -11856,9 +11870,9 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
   // src/components/Reader/index.tsx
   var _tmpl$70 = /* @__PURE__ */ template("<header class=contents>"), _tmpl$217 = /* @__PURE__ */ template('<div id=ehpeek-reader class="fixed inset-0 z-reader overflow-hidden ehp-color-reader font-sans textsize-sm leading-[1.4]">');
   registerGlobalStyle("ehpeek-reader-style", Reader_default);
-  var DEFAULT_WINDOW_SIZE2 = 10, PAGED_SWIPE_THRESHOLD = 24, PAGED_PREVIEW_SWIPE_THRESHOLD = 48, PAGED_PREVIEW_SWIPE_AXIS_LIMIT = 32, PAGED_WHEEL_THRESHOLD = 8, HORIZONTAL_SCROLL_WHEEL_FACTOR = 0.5, PROGRESS_IDLE_COMMIT_MS = 180, LOADED_IMAGE_INFO_CACHE_LIMIT = 160, PROGRESSIVE_IMAGE_SIZE_THRESHOLD = 2 * 1024 * 1024, CONCURRENT_IMAGE_BYTE_LIMIT = 6 * 1024 * 1024, MIN_CONCURRENT_IMAGE_LOADS = 3, SCROLL_GESTURE_IDLE_MS = 160, SCROLL_BAR_IDLE_MS = 900, SCROLL_BAR_SHOW_DISTANCE = 48, SCROLL_BAR_EXPAND_VIEWPORTS = 2, DOUBLE_TAP_MS = 220, DOUBLE_TAP_DISTANCE = 36, TAP_CANCEL_DISTANCE = 8, FALLBACK_ASPECT_RATIO2 = 1.42;
+  var DEFAULT_WINDOW_SIZE2 = 10, PAGED_SWIPE_THRESHOLD = 24, PAGED_PREVIEW_SWIPE_THRESHOLD = 48, PAGED_PREVIEW_SWIPE_AXIS_LIMIT = 32, PAGED_WHEEL_THRESHOLD = 8, HORIZONTAL_SCROLL_WHEEL_FACTOR = 0.5, PROGRESS_IDLE_COMMIT_MS = 180, LOADED_IMAGE_INFO_CACHE_LIMIT = 160, PROGRESSIVE_IMAGE_SIZE_THRESHOLD = 2 * 1024 * 1024, CONCURRENT_IMAGE_BYTE_LIMIT = 6 * 1024 * 1024, MIN_CONCURRENT_IMAGE_LOADS = 3, SCROLL_GESTURE_IDLE_MS = 160, SCROLL_BAR_IDLE_MS = 900, SCROLL_BAR_SHOW_DISTANCE = 48, SCROLL_BAR_EXPAND_VIEWPORTS = 2, MOUSE_HOLD_ZOOM_MS = 350, ZOOM_DOUBLE_TAP_MS = 300, ZOOM_DOUBLE_TAP_DISTANCE = 36, TAP_CANCEL_DISTANCE = 8, FALLBACK_ASPECT_RATIO2 = 1.42;
   function Reader(props) {
-    let options = untrack(() => props.options), totalPages = options.totalPages ?? 0, previewCache = untrack(() => props.previewCache), session = new ReaderSession(options), readerState = session.state, scrollFitPageNum = readerState.navi.currentPageNum(), readerCallbacks = wireReaderCallbacks(session, options, previewCache, untrack(() => props.coordinator)), coordinator = untrack(() => props.coordinator);
+    let overlayHost2 = useOverlayHost(), options = untrack(() => props.options), totalPages = options.totalPages ?? 0, previewCache = untrack(() => props.previewCache), session = new ReaderSession(options), readerState = session.state, scrollFitPageNum = readerState.navi.currentPageNum(), readerCallbacks = wireReaderCallbacks(session, options, previewCache, untrack(() => props.coordinator)), coordinator = untrack(() => props.coordinator);
     coordinator.attachReader({
       gotoPage: readerCallbacks.gotoPage
     });
@@ -11969,6 +11983,9 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
             get expanded() {
               return readerState.scrollBar.expanded();
             },
+            get pixelScale() {
+              return overlayHost2.fullscreenPixelScale();
+            },
             totalPages,
             get visible() {
               return readerState.scrollBar.visible();
@@ -12006,8 +12023,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
         direction: navigationMode === "scroll" ? controls.scrollDirection.value : controls.pagedDirection.value,
         firstPageSeparate: state2.ctrls.value().firstPageSeparate,
         pageLayout: controls.pageLayout.value,
-        rightTapAction: controls.rightTapAction.value,
-        doubleTapAction: state.reader.doubleTapAction.value
+        rightTapAction: controls.rightTapAction.value
       };
     }
     function updateControls(requestedControls) {
@@ -12015,10 +12031,26 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
         ...requestedControls,
         direction: requestedControls.navigationMode === "scroll" ? persistedControls.scrollDirection.value : persistedControls.pagedDirection.value
       };
-      persistedControls.navigationMode.set(controls.navigationMode), controls.navigationMode === "scroll" ? persistedControls.scrollDirection.set(controls.direction) : persistedControls.pagedDirection.set(controls.direction), persistedControls.pageLayout.set(controls.pageLayout), persistedControls.rightTapAction.set(controls.rightTapAction), state.reader.doubleTapAction.set(controls.doubleTapAction), state2.ctrls.update(controls), controls.navigationMode !== "scroll" && state2.scrollViewport.setAdjusting(!1), controls.navigationMode !== previous.navigationMode || controls.pageLayout !== previous.pageLayout || controls.firstPageSeparate !== previous.firstPageSeparate ? (viewportActions.stopMotion(), viewportActions.resetPosition(), setCurrentPageNumber(state2.navi.currentPageNum(), !0)) : controls.direction !== previous.direction && (syncViewportWindow(), scrollToCurrentPage());
+      persistedControls.navigationMode.set(controls.navigationMode), controls.navigationMode === "scroll" ? persistedControls.scrollDirection.set(controls.direction) : persistedControls.pagedDirection.set(controls.direction), persistedControls.pageLayout.set(controls.pageLayout), persistedControls.rightTapAction.set(controls.rightTapAction), state2.ctrls.update(controls), controls.navigationMode !== "scroll" && state2.scrollViewport.setAdjusting(!1), controls.navigationMode !== previous.navigationMode || controls.pageLayout !== previous.pageLayout || controls.firstPageSeparate !== previous.firstPageSeparate ? (viewportActions.stopMotion(), viewportActions.resetPosition(), setCurrentPageNumber(state2.navi.currentPageNum(), !0)) : controls.direction !== previous.direction && (syncViewportWindow(), scrollToCurrentPage());
     }
     function requestReaderClose() {
       closed || (closed = coordinator.requestCloseReader());
+    }
+    function imageAtPoint(point) {
+      let pageNum = viewportActions.pageNumAtPoint(point);
+      return pageNum === null || !viewportActions.pageImageReady(pageNum) ? null : loadedImages.get(pageNum) ?? null;
+    }
+    function prepareZoomAtPoint(point) {
+      let image2 = imageAtPoint(point);
+      if (!image2)
+        return !1;
+      viewportActions.stopMotion(), viewportActions.cancelDrag();
+      let zoomScale = viewportActions.pageZoomScale(image2.pageNum);
+      return state2.overlay.update(image2), zoomOverlay.reset({
+        centerX: point.clientX,
+        centerY: point.clientY,
+        scale: zoomScale
+      }), !0;
     }
     function setCurrentPageNumber(pageNumber, scrollIntoView, scrollMotion = "instant") {
       pagedTargetPageNumber = null;
@@ -12248,6 +12280,9 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
       return onCleanup(() => {
         session.clearTimeout(scrollBarTimer), session.clearTimeout(scrollGestureTimer);
       }), {
+        onDoubleClick: (event) => {
+          state2.overlay.image() !== null && (event.preventDefault(), event.stopPropagation(), state2.overlay.update(null));
+        },
         onNativeScroll: () => {
           if (state2.overlay.image() !== null || pagedMode() || state2.scrollViewport.adjusting() || (updateScrollBarActivity(), viewportActions.isDragging()))
             return;
@@ -12260,18 +12295,33 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
           viewportActions.resetPageError(pageNum) && (pages.has(pageNum) ? maintainLoadQueue() : loadMissingPages([pageNum], ++syncToken));
         },
         onWheel: (delta, event) => {
+          let deltaPixels = wheelDeltaPixels(delta, event.deltaMode);
           if (state2.overlay.image() !== null) {
             event.preventDefault(), zoomOverlay.moveWheel({
               centerX: event.clientX,
               centerY: event.clientY,
-              delta: wheelDeltaPixels(delta, event.deltaMode)
+              delta: deltaPixels
+            });
+            return;
+          }
+          if (event.ctrlKey || event.metaKey) {
+            if (event.preventDefault(), !pagedMode()) {
+              scrollViewport.startPinch() && (scrollViewport.movePinch(Math.exp(-clamp(deltaPixels, -100, 100) * 25e-4)), scrollViewport.endPinch());
+              return;
+            }
+            if (!prepareZoomAtPoint(event))
+              return;
+            zoomOverlay.moveWheel({
+              centerX: event.clientX,
+              centerY: event.clientY,
+              delta: deltaPixels
             });
             return;
           }
           if (!(!pagedMode() && state2.ctrls.value().direction === "ttb")) {
             if (event.preventDefault(), !pagedMode()) {
               let direction = state2.ctrls.value().direction === "rtl" ? -1 : 1;
-              viewportActions.moveToLeft(viewportActions.scrollLeft() + wheelDeltaPixels(delta, event.deltaMode) * direction * HORIZONTAL_SCROLL_WHEEL_FACTOR);
+              viewportActions.moveToLeft(viewportActions.scrollLeft() + deltaPixels * direction * HORIZONTAL_SCROLL_WHEEL_FACTOR);
               return;
             }
             !viewportActions.isDragging() && Math.abs(delta) >= PAGED_WHEEL_THRESHOLD && turnPageBy(delta > 0 ? 1 : -1);
@@ -12374,46 +12424,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
     function wireGesture() {
       let gesture2 = {
         dragAxis: "any"
-      }, tapTimer = null, pendingTap = null, clickSuppressionTimer = null, clearClickSuppression = () => {
-        document.removeEventListener("click", suppressClick, !0), clickSuppressionTimer !== null && (session.clearTimeout(clickSuppressionTimer), clickSuppressionTimer = null);
-      }, suppressClick = (event) => {
-        clearClickSuppression(), event.preventDefault(), event.stopImmediatePropagation();
-      }, suppressNextClick = () => {
-        clearClickSuppression(), document.addEventListener("click", suppressClick, !0), clickSuppressionTimer = session.setTimeout(clearClickSuppression, 400);
-      };
-      onCleanup(clearClickSuppression);
-      let isPageReloadButtonTarget = (event) => event.target instanceof Element && event.target.closest(".ehpeek-reader-page-reload") !== null, shouldStartDrag = (event) => state2.overlay.image() !== null || pagedMode() || state2.ctrls.value().direction !== "ttb" || event.pointerType === "mouse", isPreviewSwipe = (info) => pagedMode() ? state2.ctrls.value().direction === "ttb" ? Math.abs(info.dx) >= PAGED_PREVIEW_SWIPE_THRESHOLD && Math.abs(info.dy) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT : info.dy >= PAGED_PREVIEW_SWIPE_THRESHOLD && Math.abs(info.dx) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT : !1, imageAtPoint = (point) => {
-        let pageNum = viewportActions.pageNumAtPoint(point);
-        return pageNum === null || !viewportActions.pageImageReady(pageNum) ? null : loadedImages.get(pageNum) ?? null;
-      }, cancelPendingTap = () => {
-        tapTimer !== null && (session.clearTimeout(tapTimer), tapTimer = null), pendingTap = null;
-      }, toggleZoomAtPoint = (point) => {
-        if (state2.overlay.image() !== null)
-          return state2.overlay.update(null), !0;
-        let image2 = imageAtPoint(point);
-        if (!image2)
-          return !1;
-        viewportActions.stopMotion(), viewportActions.cancelDrag();
-        let zoomScale = viewportActions.pageZoomScale(image2.pageNum);
-        return state2.overlay.update(image2), zoomOverlay.reset({
-          centerX: point.clientX,
-          centerY: point.clientY,
-          scale: zoomScale
-        }), zoomOverlay.movePinch({
-          centerX: point.clientX,
-          centerY: point.clientY,
-          scale: 2
-        }), zoomOverlay.endPinch(), !0;
-      }, consumeDoubleTap = (info, event) => {
-        let now = event.timeStamp || performance.now(), nativeDoubleClick = event instanceof MouseEvent && event.detail >= 2, nearPendingTap = pendingTap ? now - pendingTap.time <= DOUBLE_TAP_MS && Math.hypot(info.clientX - pendingTap.info.clientX, info.clientY - pendingTap.info.clientY) <= DOUBLE_TAP_DISTANCE : !1;
-        if (!nativeDoubleClick && !nearPendingTap)
-          return !1;
-        if (cancelPendingTap(), state2.ctrls.value().doubleTapAction === "scroll-preview")
-          suppressNextClick(), coordinator.openPreviewPage(state2.navi.currentPageNum());
-        else if (!toggleZoomAtPoint(info))
-          return !1;
-        return event.preventDefault(), !0;
-      }, runSingleTap = (info, event) => {
+      }, lastZoomTouchTap = null, isPageReloadButtonTarget = (event) => event.target instanceof Element && event.target.closest(".ehpeek-reader-page-reload") !== null, shouldStartDrag = (event) => state2.overlay.image() !== null || pagedMode() || state2.ctrls.value().direction !== "ttb" || event.pointerType === "mouse", isPreviewSwipe = (info) => pagedMode() ? state2.ctrls.value().direction === "ttb" ? Math.abs(info.dx) >= PAGED_PREVIEW_SWIPE_THRESHOLD && Math.abs(info.dy) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT : info.dy >= PAGED_PREVIEW_SWIPE_THRESHOLD && Math.abs(info.dx) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT : !1, runSingleTap = (info, event) => {
         if (state2.overlay.image() !== null)
           event.preventDefault();
         else if (viewportActions.isHitEndPage(info))
@@ -12422,23 +12433,23 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
           let zone = info.clientX / viewportActions.viewportWidth();
           zone >= 1 / 3 && zone <= 2 / 3 ? state2.toolbar.toggle() : turnPageBy(zone < 1 / 3 ? state2.navi.leftTapDelta() : state2.navi.rightTapDelta());
         }
-      }, queueSingleTap = (info, event) => {
-        cancelPendingTap(), pendingTap = {
-          info,
-          event,
-          time: event.timeStamp || performance.now()
-        }, tapTimer = session.setTimeout(() => {
-          let pending = pendingTap;
-          pendingTap = null, tapTimer = null, pending && runSingleTap(pending.info, pending.event);
-        }, DOUBLE_TAP_MS);
       };
       return gesture2.onTap = (info, event) => {
-        if (viewportActions.cancelDrag(), state2.ctrls.value().doubleTapAction === "off") {
-          cancelPendingTap(), runSingleTap(info, event);
+        if (viewportActions.cancelDrag(), state2.overlay.image() !== null && event instanceof PointerEvent && event.pointerType === "touch") {
+          let now = event.timeStamp || performance.now(), doubleTap = lastZoomTouchTap !== null && now - lastZoomTouchTap.time <= ZOOM_DOUBLE_TAP_MS && Math.hypot(info.clientX - lastZoomTouchTap.clientX, info.clientY - lastZoomTouchTap.clientY) <= ZOOM_DOUBLE_TAP_DISTANCE;
+          lastZoomTouchTap = doubleTap ? null : {
+            clientX: info.clientX,
+            clientY: info.clientY,
+            time: now
+          }, doubleTap && state2.overlay.update(null), event.preventDefault();
           return;
         }
-        consumeDoubleTap(info, event) || queueSingleTap(info, event);
-      }, gesture2.onStart = () => {
+        lastZoomTouchTap = null, runSingleTap(info, event);
+      }, gesture2.holdDelay = MOUSE_HOLD_ZOOM_MS, gesture2.onHold = (info, event) => (event instanceof PointerEvent ? event.pointerType === "mouse" : event instanceof MouseEvent) ? (lastZoomTouchTap = null, state2.overlay.image() !== null ? (state2.overlay.update(null), "consume") : prepareZoomAtPoint(info) ? (zoomOverlay.movePinch({
+        centerX: info.clientX,
+        centerY: info.clientY,
+        scale: 2
+      }), zoomOverlay.endPinch(), "drag") : !1) : !1, gesture2.onStart = () => {
         if (state2.overlay.image() !== null) {
           zoomOverlay.startDrag();
           return;
@@ -12452,7 +12463,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
         viewportActions.moveDrag({
           dx: info.dx,
           dy: info.dy
-        }) && (Math.abs(info.dx) >= TAP_CANCEL_DISTANCE || Math.abs(info.dy) >= TAP_CANCEL_DISTANCE) && cancelPendingTap();
+        });
       }, gesture2.onEnd = (info) => {
         if (state2.overlay.image() === null) {
           if (viewportActions.cancelDrag(), isPreviewSwipe(info)) {
@@ -12470,7 +12481,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
           info.dx >= PAGED_SWIPE_THRESHOLD ? turnPageBy(state2.navi.rightDragDelta()) : info.dx <= -PAGED_SWIPE_THRESHOLD ? turnPageBy(state2.navi.leftDragDelta()) : scrollToCurrentPage("animated");
         }
       }, gesture2.onPinchStart = (info) => {
-        if (cancelPendingTap(), viewportActions.stopMotion(), viewportActions.cancelDrag(), !pagedMode() && state2.overlay.image() === null)
+        if (lastZoomTouchTap = null, viewportActions.stopMotion(), viewportActions.cancelDrag(), !pagedMode() && state2.overlay.image() === null)
           return scrollViewport.startPinch();
         if (state2.overlay.image() !== null)
           return zoomOverlay.startPinch({
@@ -12566,11 +12577,12 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
   }
 
   // src/App/Reader.tsx
+  var READER_THEME_COLOR = "#070707";
   function mountReaderSurface(options) {
     let host = document.createElement("div");
     options.overlayHost.element.append(host);
     let setFullscreenActive = (_active) => {
-    }, disposed = !1, unlockPageScroll = lockPageScroll(), disposeRoot;
+    }, disposed = !1, unlockPageScroll = lockPageScroll(), unlockPageThemeColor = lockPageThemeColor(READER_THEME_COLOR), disposeRoot;
     try {
       disposeRoot = render(() => {
         let [fullscreenActive, updateFullscreenActive] = createSignal(options.overlayHost.fullscreen.active());
@@ -12597,11 +12609,11 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
         });
       }, host);
     } catch (error) {
-      throw options.coordinator.attachReader(null), unlockPageScroll(), host.remove(), error;
+      throw options.coordinator.attachReader(null), unlockPageThemeColor(), unlockPageScroll(), host.remove(), error;
     }
     return {
       dispose: () => {
-        disposed || (disposed = !0, disposeRoot(), unlockPageScroll(), host.remove());
+        disposed || (disposed = !0, disposeRoot(), unlockPageThemeColor(), unlockPageScroll(), host.remove());
       },
       setFullscreenActive
     };
@@ -12896,7 +12908,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
   }
 
   // src/App/index.tsx
-  var _tmpl$71 = /* @__PURE__ */ template('<span class="ehpeek-continue-reading-page inline-block ml-auto opacity-72 textsize-xs font-600 whitespace-nowrap">'), _tmpl$218 = /* @__PURE__ */ template('<button type=button class="ehpeek-continue-reading flex box-border w-full max-w-full min-h-sm items-center gap-sm py-sm px-xs border-0 bg-transparent text-[var(--color-site-accent)] hover:bg-[var(--color-site-accent-hover)] shadow-none cursor-pointer text-left font-sans textsize-sm font-700 leading-[1.2]">'), _tmpl$314 = /* @__PURE__ */ template('<span class="ehpeek-continue-reading-page block mt-2px ehp-color-site-accent [font-size:var(--ui-font-size-prominent)] font-600 opacity-78 normal-case">'), _tmpl$413 = /* @__PURE__ */ template('<button type=button class="ehpeek-continue-reading ehpeek-touch-gallery-primary-button flex min-w-0 w-full h-full min-h-[var(--ui-control-size-xl)] flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-prominent)] font-700">'), _tmpl$510 = /* @__PURE__ */ template('<div class="fixed right-[max(80px,env(safe-area-inset-right,0px))] bottom-[max(96px,env(safe-area-inset-bottom,0px))] z-ui [touch-action:none]"><button type=button class="ehpeek-continue-reading inline-flex w-96px h-96px items-center justify-center p-0 rounded-full border ehp-color-site-border bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] !outline-none focus:!outline-none active:!outline-none active:scale-98">'), _tmpl$610 = /* @__PURE__ */ template("<a href=#>"), _tmpl$78 = /* @__PURE__ */ template("<div>"), FLOATING_READ_BUTTON_POSITION_KEY = "ehpeek:gallery:floating-read-button:position";
+  var _tmpl$71 = /* @__PURE__ */ template('<span class="ehpeek-continue-reading-page inline-block ml-auto opacity-72 textsize-xs font-600 whitespace-nowrap">'), _tmpl$218 = /* @__PURE__ */ template('<button type=button class="ehpeek-continue-reading flex box-border w-full max-w-full min-h-sm items-center gap-sm py-sm px-xs border-0 bg-transparent text-[var(--color-site-accent)] hover:bg-[var(--color-site-accent-hover)] shadow-none cursor-pointer text-left font-sans textsize-sm font-700 leading-[1.2]">'), _tmpl$314 = /* @__PURE__ */ template('<span class="ehpeek-continue-reading-page block mt-2px ehp-color-site-accent [font-size:var(--ui-font-size-prominent)] font-600 opacity-78 normal-case">'), _tmpl$413 = /* @__PURE__ */ template('<button type=button class="ehpeek-continue-reading ehpeek-touch-gallery-primary-button flex min-w-0 w-full h-full min-h-[var(--ui-control-size-xl)] flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-prominent)] font-700">'), _tmpl$510 = /* @__PURE__ */ template("<a href=#>"), _tmpl$610 = /* @__PURE__ */ template("<div>");
   function settingsMenuState(defaults = !1) {
     let read = (setting) => defaults ? setting.defaultValue : setting.value;
     return {
@@ -12906,7 +12918,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
       readerFullscreenEnabled: read(state.reader.fullscreen),
       replacePreviewWithScroll: read(state.gallery.replacePreviewWithScroll),
       enhanceThumbsGridsEnabled: read(state.gallery.enhanceThumbs),
-      floatingReadButtonEnabled: read(state.gallery.floatingReadButton),
       enhanceSearchGridsEnabled: read(state.search.enhance),
       myTagsEnabled: read(state.gallery.myTags),
       readHistoryEnabled: read(state.gallery.readHistory),
@@ -12916,7 +12927,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
     };
   }
   function applySettingsMenuState(next) {
-    next.floatingReadButtonEnabled || GM_deleteValue(FLOATING_READ_BUTTON_POSITION_KEY), next.touchUiEnabled || clearBackToTopPosition(), state.app.openGalleryInNewTab.set(next.openGalleryInNewTab), state.reader.enabled.set(next.readerEnabled), state.reader.exitOnFullscreenExit.set(next.exitReaderOnFullscreenExit), state.reader.fullscreen.set(next.readerFullscreenEnabled), state.gallery.replacePreviewWithScroll.set(next.replacePreviewWithScroll), state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled), state.gallery.floatingReadButton.set(next.floatingReadButtonEnabled), state.search.enhance.set(next.enhanceSearchGridsEnabled), state.gallery.myTags.set(next.myTagsEnabled), state.gallery.readHistory.set(next.readHistoryEnabled), state.gallery.includeUnreadHistory.set(next.includeUnreadHistoryEnabled), state.search.history.set(next.searchHistoryEnabled), state.touch.enabled.set(next.touchUiEnabled), window.location.reload();
+    next.touchUiEnabled || clearBackToTopPosition(), state.app.openGalleryInNewTab.set(next.openGalleryInNewTab), state.reader.enabled.set(next.readerEnabled), state.reader.exitOnFullscreenExit.set(next.exitReaderOnFullscreenExit), state.reader.fullscreen.set(next.readerFullscreenEnabled), state.gallery.replacePreviewWithScroll.set(next.replacePreviewWithScroll), state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled), state.search.enhance.set(next.enhanceSearchGridsEnabled), state.gallery.myTags.set(next.myTagsEnabled), state.gallery.readHistory.set(next.readHistoryEnabled), state.gallery.includeUnreadHistory.set(next.includeUnreadHistoryEnabled), state.search.history.set(next.searchHistoryEnabled), state.touch.enabled.set(next.touchUiEnabled), window.location.reload();
   }
   var gState = (() => {
     let settings2 = settingsMenuState(), [columnsEnabled, setColumnsEnabled] = createSignal(currentColumnsEnabled()), [leftHandedControls, setLeftHandedControls2] = createSignal(state.app.leftHandedControls.value), [settingsMenuOpen, setSettingsMenuOpen] = createSignal(!1), [uiScale, setUiScale] = createSignal(currentUiScale());
@@ -13029,76 +13040,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
       }), _el$3;
     })();
   }
-  function FloatingReadButton(props) {
-    let host, drag = null, dragged = !1, [visible, setVisible] = createSignal(window.scrollY <= 32), [position, setPosition] = createSignal(GM_getValue(FLOATING_READ_BUTTON_POSITION_KEY, null)), positionStyle = () => {
-      let current = position();
-      return current ? {
-        bottom: `${current.bottom}px`,
-        right: `${current.right}px`
-      } : void 0;
-    };
-    return onMount(() => {
-      let updateVisibility = () => setVisible(window.scrollY <= 32);
-      window.addEventListener("scroll", updateVisibility, {
-        passive: !0
-      }), onCleanup(() => window.removeEventListener("scroll", updateVisibility));
-    }), createComponent(Show, {
-      get when() {
-        return visible();
-      },
-      get children() {
-        var _el$5 = _tmpl$510(), _el$6 = _el$5.firstChild;
-        _el$5.$$pointerup = (event) => {
-          if (!drag || drag.pointerId !== event.pointerId)
-            return;
-          host.releasePointerCapture(event.pointerId), drag = null;
-          let current = position();
-          dragged && current && GM_setValue(FLOATING_READ_BUTTON_POSITION_KEY, current);
-        }, _el$5.$$pointermove = (event) => {
-          if (!drag || drag.pointerId !== event.pointerId)
-            return;
-          let dx = event.clientX - drag.x, dy = event.clientY - drag.y;
-          dragged || (dragged = Math.hypot(dx, dy) > 4), setPosition(clampFloatingReadButtonPosition({
-            bottom: drag.bottom - dy,
-            right: drag.right - dx
-          }, host));
-        }, _el$5.$$pointerdown = (event) => {
-          let rect = host.getBoundingClientRect();
-          dragged = !1, drag = {
-            bottom: window.innerHeight - rect.bottom,
-            pointerId: event.pointerId,
-            right: window.innerWidth - rect.right,
-            x: event.clientX,
-            y: event.clientY
-          }, host.setPointerCapture(event.pointerId);
-        };
-        var _ref$ = host;
-        return typeof _ref$ == "function" ? use(_ref$, _el$5) : host = _el$5, _el$6.$$click = (event) => {
-          if (event.preventDefault(), event.stopPropagation(), dragged) {
-            dragged = !1;
-            return;
-          }
-          props.onRead();
-        }, insert(_el$6, createComponent(Icon2, {
-          name: "play",
-          size: "var(--ui-icon-size-xl)"
-        })), createRenderEffect((_p$) => {
-          var _v$5 = positionStyle(), _v$6 = readButtonLabel(props.progress()), _v$7 = readButtonLabel(props.progress());
-          return _p$.e = style(_el$5, _v$5, _p$.e), _v$6 !== _p$.t && setAttribute(_el$6, "aria-label", _p$.t = _v$6), _v$7 !== _p$.a && setAttribute(_el$6, "title", _p$.a = _v$7), _p$;
-        }, {
-          e: void 0,
-          t: void 0,
-          a: void 0
-        }), _el$5;
-      }
-    });
-  }
-  function clampFloatingReadButtonPosition(position, element) {
-    return {
-      bottom: Math.min(Math.max(0, position.bottom), Math.max(0, window.innerHeight - element.offsetHeight)),
-      right: Math.min(Math.max(0, position.right), Math.max(0, window.innerWidth - element.offsetWidth))
-    };
-  }
   function installSettingsMenu() {
     typeof GM_registerMenuCommand == "function" && GM_registerMenuCommand(texts_default.settings.openSettings, () => {
       gState.setSettingsMenuOpen(!0);
@@ -13136,10 +13077,10 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
       allowFeatureFailure("Desktop settings entry", () => {
         let settingsMount = manageSettingsMenuMount();
         settingsMount && settingsMount.mount(() => (() => {
-          var _el$7 = _tmpl$610();
-          return _el$7.$$click = (event) => {
+          var _el$5 = _tmpl$510();
+          return _el$5.$$click = (event) => {
             event.preventDefault(), event.stopPropagation(), gState.setSettingsMenuOpen(!0);
-          }, insert(_el$7, () => texts_default.settings.menuLabel), _el$7;
+          }, insert(_el$5, () => texts_default.settings.menuLabel), _el$5;
         })());
       });
       return;
@@ -13231,21 +13172,12 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
           return coordinator.progress;
         }
       }));
-    }), gState.settings.floatingReadButtonEnabled && allowFeatureFailure("Floating Read button", () => {
-      createAppMount("contents").mount(() => createComponent(FloatingReadButton, {
-        get onRead() {
-          return coordinator.openFromReadButton;
-        },
-        get progress() {
-          return coordinator.progress;
-        }
-      }));
     }), previewMount && allowFeatureFailure("Gallery Preview enhancements", () => {
       gState.settings.replacePreviewWithScroll && preview.handle.removeOriginalPreview(), previewMount.mount(() => createComponent(OverlayHostProvider, {
         host: overlayHost,
         get children() {
-          var _el$8 = _tmpl$78();
-          return insert(_el$8, createComponent(ScrollPreview, {
+          var _el$6 = _tmpl$610();
+          return insert(_el$6, createComponent(ScrollPreview, {
             coordinator,
             get embeddedDirection() {
               return memo(() => !!gState.columnsEnabled())() ? state.gallery.embeddedScrollPreviewColumnsDirection.value : state.gallery.embeddedScrollPreviewSingleDirection.value;
@@ -13267,19 +13199,19 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
             get replaceOriginalPreview() {
               return gState.settings.replacePreviewWithScroll;
             }
-          }), null), insert(_el$8, (() => {
+          }), null), insert(_el$6, (() => {
             var _c$ = memo(() => !!(gState.settings.enhanceThumbsGridsEnabled && !gState.settings.replacePreviewWithScroll));
             return () => _c$() ? createComponent(ThumbsGrids, {
               coordinator,
               onLoadError: reportReaderOpenError,
               previewCache
             }) : null;
-          })(), null), createRenderEffect((_$p) => classList(_el$8, {
+          })(), null), createRenderEffect((_$p) => classList(_el$6, {
             contents: !gState.settings.replacePreviewWithScroll,
             "relative h-full w-full [--scroll-preview-height:100%]": gState.settings.replacePreviewWithScroll && gState.settings.touchUiEnabled && gState.columnsEnabled(),
             "relative [--scroll-preview-height:55lvh] [width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90lvh)] mx-auto": gState.settings.replacePreviewWithScroll && gState.settings.touchUiEnabled && !gState.columnsEnabled(),
             "relative [--scroll-preview-height:70svh] w-[min(calc(100%-32px),1212px)] mx-auto": gState.settings.replacePreviewWithScroll && !gState.settings.touchUiEnabled
-          }, _$p)), _el$8;
+          }, _$p)), _el$6;
         }
       }));
     });
@@ -13474,7 +13406,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
   startApp().catch((error) => {
     console.error("[ehpeek] App startup failed", error);
   });
-  delegateEvents(["click", "pointerdown", "pointermove", "pointerup"]);
+  delegateEvents(["click"]);
 })();
 /*! Bundled license information:
 
