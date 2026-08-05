@@ -18,6 +18,7 @@ import History from "lucide-solid/icons/history";
 import House from "lucide-solid/icons/house";
 import Hand from "lucide-solid/icons/hand";
 import Info from "lucide-solid/icons/info";
+import LocateFixed from "lucide-solid/icons/locate-fixed";
 import Maximize from "lucide-solid/icons/maximize";
 import Minimize from "lucide-solid/icons/minimize";
 import MoveHorizontal from "lucide-solid/icons/move-horizontal";
@@ -34,6 +35,7 @@ import Sparkles from "lucide-solid/icons/sparkles";
 import Star from "lucide-solid/icons/star";
 import X from "lucide-solid/icons/x";
 import ZoomIn from "lucide-solid/icons/zoom-in";
+import ZoomOut from "lucide-solid/icons/zoom-out";
 import { createMemo, For, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
@@ -60,6 +62,7 @@ export type IconName =
   | "history"
   | "home"
   | "info"
+  | "locate"
   | "menu"
   | "page"
   | "palette"
@@ -73,7 +76,8 @@ export type IconName =
   | "scroll-continuous"
   | "star"
   | "viewport"
-  | "zoom-in";
+  | "zoom-in"
+  | "zoom-out";
 
 export function Icon(props: {
   filled?: boolean;
@@ -134,6 +138,7 @@ const LUCIDE_ICONS: Record<LucideIconName, LucideIcon> = {
   history: History,
   home: House,
   info: Info,
+  locate: LocateFixed,
   menu: EllipsisVertical,
   page: File,
   palette: Palette,
@@ -147,6 +152,7 @@ const LUCIDE_ICONS: Record<LucideIconName, LucideIcon> = {
   star: Star,
   viewport: ScanLine,
   "zoom-in": ZoomIn,
+  "zoom-out": ZoomOut,
 };
 
 const FILLABLE_ICONS = new Set<IconName>(["heart", "star"]);

@@ -32,10 +32,11 @@ const OVERSCAN_ROWS = 4;
 const PREVIEW_CONCURRENT_LOADS = 2;
 const PREVIEW_LOAD_RADIUS = 2;
 const OVERLAY_PREVIEW_ACTION_CLASS = [
-  "inline-flex min-w-[var(--ui-control-size-lg)] h-[var(--ui-control-size-lg)] items-center justify-center px-md py-0 rounded-md large:(px-lg rounded-lg)",
-  "border border-[var(--color-site-border)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] cursor-pointer font-sans textsize-md font-700 leading-1",
+  "inline-flex h-[var(--ui-control-size-md)] items-center justify-center py-0 rounded-md border-0 bg-transparent text-[var(--color-site-text)] cursor-pointer font-sans textsize-sm font-700 leading-1",
   "opacity-90 hover:(opacity-100 bg-[var(--color-site-page)]) focus-visible:opacity-100 disabled:(opacity-40 cursor-default) transition-[opacity,background-color] duration-160",
 ].join(" ");
+const OVERLAY_PREVIEW_ICON_ACTION_CLASS =
+  `${OVERLAY_PREVIEW_ACTION_CLASS} w-[var(--ui-control-size-md)] px-0`;
 const DECODE_CACHE_BYTES = 64 * 1024 * 1024;
 const DECODE_CACHE_ITEMS = 160;
 const NEXT_SCROLL_PREVIEW_DIRECTION: Record<ReadDirection, ReadDirection> = {
@@ -172,7 +173,7 @@ function OverlayPreviewToolbar(props: {
       <div class={`flex flex-none gap-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
         <button
           type="button"
-          class={OVERLAY_PREVIEW_ACTION_CLASS}
+          class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
           aria-label={props.state.directionLabel}
           title={props.state.directionLabel}
           onClick={() => props.state.onDirectionChange()}
@@ -181,36 +182,42 @@ function OverlayPreviewToolbar(props: {
         </button>
         <button
           type="button"
-          class={OVERLAY_PREVIEW_ACTION_CLASS}
+          class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
+          aria-label={texts.reader.zoomOut}
+          title={texts.reader.zoomOut}
           disabled={props.state.zoomOutDisabled()}
           onClick={() => props.state.onZoomOut()}
         >
-          −
+          <Icon name="zoom-out" size="var(--ui-icon-size-md)" />
         </button>
         <button
           type="button"
-          class={OVERLAY_PREVIEW_ACTION_CLASS}
+          class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
+          aria-label={texts.reader.zoomIn}
+          title={texts.reader.zoomIn}
           disabled={props.state.zoomInDisabled()}
           onClick={() => props.state.onZoomIn()}
         >
-          +
+          <Icon name="zoom-in" size="var(--ui-icon-size-md)" />
         </button>
         <button
           type="button"
-          class={OVERLAY_PREVIEW_ACTION_CLASS}
+          class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
+          aria-label={texts.button.current}
+          title={texts.button.current}
           disabled={props.currentDisabled}
           onClick={() => props.onCurrent()}
         >
-          {texts.button.current}
+          <Icon name="locate" size="var(--ui-icon-size-md)" />
         </button>
         <button
           type="button"
-          class={OVERLAY_PREVIEW_ACTION_CLASS}
+          class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
           aria-label={texts.button.close}
           title={texts.button.close}
           onClick={() => props.onClose()}
         >
-          <span aria-hidden="true">X</span>
+          <Icon name="close" size="var(--ui-icon-size-md)" />
         </button>
       </div>
     </div>
@@ -251,18 +258,22 @@ function EmbeddedPreviewToolbar(props: {
         <button
           type="button"
           class={EMBEDDED_PREVIEW_ACTION_CLASS}
+          aria-label={texts.reader.zoomOut}
+          title={texts.reader.zoomOut}
           disabled={props.state.zoomOutDisabled()}
           onClick={() => props.state.onZoomOut()}
         >
-          −
+          <Icon name="zoom-out" size="var(--ui-icon-size-sm)" />
         </button>
         <button
           type="button"
           class={EMBEDDED_PREVIEW_ACTION_CLASS}
+          aria-label={texts.reader.zoomIn}
+          title={texts.reader.zoomIn}
           disabled={props.state.zoomInDisabled()}
           onClick={() => props.state.onZoomIn()}
         >
-          +
+          <Icon name="zoom-in" size="var(--ui-icon-size-sm)" />
         </button>
         <button
           type="button"

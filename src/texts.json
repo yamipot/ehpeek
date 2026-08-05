@@ -36,6 +36,8 @@
     "exitFullscreen": "Exit fullscreen",
     "adjustScrollViewport": "Adjust Scroll viewport size",
     "resizeScrollViewport": "Resize Scroll viewport",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
     "fit": "Fit",
     "applyGlobally": "Set Default",
     "pagedMode": "Paged mode",
