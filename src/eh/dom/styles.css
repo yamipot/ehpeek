@@ -951,12 +951,6 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   display: block !important;
 }
 
-/* Scope preview interaction visuals to one managed thumbnail root. */
-.ehpeek-suppress-thumbnail-tap-highlight a {
-  outline: none !important;
-  -webkit-tap-highlight-color: transparent;
-}
-
 .ehpeek-enable-preview-swipe-input {
   touch-action: pan-y;
   user-select: none;
@@ -1048,14 +1042,6 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 
 :root:not([data-ehpeek-ui-scale="large"]) .ehpeek-expand-file-search form {
   gap: 4px !important;
-}
-
-.ehpeek-suppress-thumbnail-tap-highlight > :is(:hover, :active) {
-  border-color: var(--color-site-border) !important;
-}
-
-.ehpeek-suppress-thumbnail-tap-highlight a:is(:focus, :active) {
-  outline: none !important;
 }
 
 /* The root state scopes original Gallery layout overrides to TouchUI pages. */

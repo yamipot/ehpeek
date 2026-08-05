@@ -27,6 +27,7 @@ export function createOverlayHost(
 ): OverlayHost {
   const element = document.createElement("div");
   element.dataset.ehpeekOverlayHost = "true";
+  element.dataset.ehpeekUiRoot = "true";
   parent.append(element);
 
   let uiScale = initialUiScale;

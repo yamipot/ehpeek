@@ -210,7 +210,7 @@ export function SettingsMenu(props: {
           <For each={SETTINGS_SECTIONS}>{([tab, label, icon]) => (
             <button
               type="button"
-              class={`appearance-none flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center gap-sm px-sm !border-0 !text-[var(--color-site-text)] !shadow-none !outline-none [filter:none] font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer [-webkit-tap-highlight-color:transparent] ${activeTab() === tab ? "!bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent"}`}
+              class={`flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center gap-sm px-sm border-0 ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer ${activeTab() === tab ? "bg-[var(--color-site-item-hover)] font-700" : "bg-transparent hover:bg-[var(--color-site-item-hover)]"}`}
               role="tab"
               aria-selected={activeTab() === tab}
               aria-controls={`ehpeek-settings-panel-${tab}`}

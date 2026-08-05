@@ -196,7 +196,6 @@ const gallery = {
     pageBarTop: cls("ptt"),
     thumbs: id("gdt", {
       apply: {
-        suppressTapHighlight: "ehpeek-suppress-thumbnail-tap-highlight",
         swipe: "ehpeek-enable-preview-swipe-input",
       },
       childs: {

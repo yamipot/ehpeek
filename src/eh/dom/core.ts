@@ -691,6 +691,7 @@ export class ManagedDomNode<
   mount(view: () => JSX.Element): void {
     mountedNodes.get(this.#node)?.();
     this.#node.replaceChildren();
+    this.#node.setAttribute("data-ehpeek-ui-root", "true");
     mountedNodes.set(this.#node, render(view, this.#node));
   }
 

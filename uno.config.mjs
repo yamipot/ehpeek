@@ -3,6 +3,7 @@ import { defineConfig, presetWind3, transformerVariantGroup } from "unocss";
 export default defineConfig({
   presets: [presetWind3()],
   transformers: [transformerVariantGroup()],
+  postprocess: [pointerHoverPostprocessor()],
   variants: [
     uiScaleVariant("large"),
     mediaVariant("desktop", "(min-width: 760px)"),
@@ -58,6 +59,15 @@ function mediaVariant(prefix, media) {
       matcher: matcher.slice(marker.length),
       parent: `@media ${media}`,
     };
+  };
+}
+
+function pointerHoverPostprocessor() {
+  return (utility) => {
+    if (utility.selector.includes(":hover")) {
+      utility.selector =
+        `:root[data-ehpeek-pointer="mouse"] ${utility.selector}`;
+    }
   };
 }
 

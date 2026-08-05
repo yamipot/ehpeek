@@ -305,7 +305,6 @@ export function manageGalleryPreview(
   const handle = {
     /** Opens thumbnail image links in EhPeek Reader instead of original navigation. */
     interceptPreviewImageOpen(onOpen: (url: string) => void): () => void {
-      elems.thumbs?.apply("suppressTapHighlight");
       const handleClick = (event: MouseEvent) => {
         const link = event.target instanceof Element
           ? DomNode.from(event.target).closest(domClass.common.links)

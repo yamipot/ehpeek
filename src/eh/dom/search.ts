@@ -541,7 +541,9 @@ function manageEhPeekGrid(
     male: "m",
     mixed: "x",
   };
-  resultList.addClasses(sharedApply.searchGrid);
+  resultList
+    .attribute("data-ehpeek-ui-root", "true")
+    .addClasses(sharedApply.searchGrid);
   if (mode === "ehpeek-lite") {
     resultList.addClasses(sharedApply.liteSearchGrid);
   }
@@ -620,6 +622,7 @@ function manageEhPeekGrid(
     galleryHref: string,
     title: string,
   ): void {
+    row.attribute("data-ehpeek-pressable", "true");
     const overlay = createManagedElement("a", {
       cover: "ehpeek-cover-search-grid-row",
     })

@@ -172,6 +172,91 @@ function setLeftHandedControls(enabled: boolean): void {
 }
 
 document.documentElement.setAttribute("data-ehpeek-site", eh.ehSiteTheme());
+document.documentElement.setAttribute(
+  "data-ehpeek-pointer",
+  window.matchMedia("(hover: hover) and (pointer: fine)").matches
+    ? "mouse"
+    : "touch",
+);
+const PRESS_MIN_VISIBLE_MS = 100;
+const PRESS_MOVE_TOLERANCE_PX = 8;
+let pressedInteraction: HTMLElement | undefined;
+let pressedClearTimer: number | undefined;
+let pendingPress: {
+  interaction: HTMLElement;
+  pointerId: number;
+  startX: number;
+  startY: number;
+} | undefined;
+const clearPressedInteraction = () => {
+  if (pressedClearTimer !== undefined) {
+    window.clearTimeout(pressedClearTimer);
+    pressedClearTimer = undefined;
+  }
+  pendingPress = undefined;
+  pressedInteraction?.removeAttribute("data-ehpeek-pressed");
+  pressedInteraction = undefined;
+};
+const showPressedInteraction = (interaction: HTMLElement) => {
+  pressedInteraction = interaction;
+  interaction.setAttribute("data-ehpeek-pressed", "true");
+};
+const releasePressedInteraction = () => {
+  pressedClearTimer = window.setTimeout(
+    clearPressedInteraction,
+    PRESS_MIN_VISIBLE_MS,
+  );
+};
+document.addEventListener("pointerdown", (event) => {
+  if (event.pointerType !== "mouse") {
+    document.documentElement.setAttribute("data-ehpeek-pointer", "touch");
+  }
+  clearPressedInteraction();
+  const interaction = event.target instanceof Element
+    ? event.target.closest<HTMLElement>("[data-ehpeek-pressable=true]") ??
+      event.target.closest<HTMLElement>(
+        "a[href], button, input[type=button], input[type=submit], [role=button], [role=tab]",
+      )
+    : null;
+  if (!interaction?.closest('[data-ehpeek-ui-root="true"]')) {
+    return;
+  }
+  pendingPress = {
+    interaction,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+  };
+}, { capture: true, passive: true });
+document.addEventListener("pointerup", (event) => {
+  if (pendingPress?.pointerId !== event.pointerId) {
+    return;
+  }
+  showPressedInteraction(pendingPress.interaction);
+  pendingPress = undefined;
+  releasePressedInteraction();
+}, {
+  capture: true,
+  passive: true,
+});
+document.addEventListener("pointercancel", clearPressedInteraction, {
+  capture: true,
+  passive: true,
+});
+document.addEventListener("pointermove", (event) => {
+  if (event.pointerType === "mouse") {
+    document.documentElement.setAttribute("data-ehpeek-pointer", "mouse");
+  }
+  if (
+    pendingPress?.pointerId === event.pointerId &&
+    Math.hypot(
+      event.clientX - pendingPress.startX,
+      event.clientY - pendingPress.startY,
+    ) > PRESS_MOVE_TOLERANCE_PX
+  ) {
+    clearPressedInteraction();
+  }
+}, { capture: true, passive: true });
 updateUiScale();
 registerGlobalStyle("ehpeek-uno-style", unoCss);
 registerGlobalStyle("ehpeek-theme-style", themeCss);
