@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260805.1001
+// @version      260805.1028
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -5425,7 +5425,7 @@ Next page`,
   };
 
   // src/components/Widgets/PositionBar.tsx
-  var _tmpl$8 = /* @__PURE__ */ template('<div aria-orientation=horizontal role=scrollbar><div></div><div class="ehpeek-position-bar-thumb absolute bottom-0 flex h-20px large:h-24px items-end cursor-grab active:cursor-grabbing"><span style=transform-origin:bottom>'), _tmpl$24 = /* @__PURE__ */ template("<div aria-orientation=vertical role=scrollbar><div></div><div><span style=transform-origin:right>"), VERTICAL_FILL = {
+  var _tmpl$8 = /* @__PURE__ */ template("<div aria-orientation=horizontal role=scrollbar><div></div><div><span style=transform-origin:bottom>"), _tmpl$24 = /* @__PURE__ */ template("<div aria-orientation=vertical role=scrollbar><div></div><div><span style=transform-origin:right>"), VERTICAL_FILL = {
     narrow: {
       collapsed: "w-10px large:w-12px",
       expanded: "w-18px large:w-24px"
@@ -5439,14 +5439,15 @@ Next page`,
     normal: "h-20px large:h-24px"
   }, POSITION_BAR_FILL = "bg-[var(--color-reader-scrollbar,var(--color-muted))]", POSITION_BAR_TRACK = "bg-[var(--color-reader-border,var(--color-border))]";
   function PositionBar(props) {
-    let [dragging, setDragging] = createSignal(!1), track, thumb, dragOffset = 0, axis = untrack(() => props.axis), thickness = untrack(() => props.thickness ?? "normal"), horizontal = axis === "horizontal", minValue = () => props.minValue ?? 1, valueRange = () => Math.max(0, props.maxValue - minValue()), expanded = () => !!props.expanded || dragging(), visible = () => props.visible !== !1 || dragging(), logicalPosition = () => valueRange() === 0 ? 0 : (props.currentValue - minValue()) / valueRange() * 100, visualPosition = () => horizontal && props.reversed ? 100 - logicalPosition() : logicalPosition(), visibleRatio = () => clamp((props.visibleValueCount ?? 1) / Math.max(1, valueRange() + 1), 0, 1), coordinate = (event) => horizontal ? event.clientX : event.clientY, valueAt = (pointerCoordinate) => {
+    let [dragging, setDragging] = createSignal(!1), track, thumb, dragOffset = 0, axis = untrack(() => props.axis), thickness = untrack(() => props.thickness ?? "normal"), horizontal = axis === "horizontal", minValue = () => props.minValue ?? 1, valueRange = () => Math.max(0, props.maxValue - minValue()), expanded = () => !!props.expanded || dragging(), visible = () => props.visible !== !1 || dragging(), logicalPosition = () => valueRange() === 0 ? 0 : (props.currentValue - minValue()) / valueRange() * 100, visualPosition = () => horizontal && props.reversed ? 100 - logicalPosition() : logicalPosition(), thumbRatio = () => clamp(props.visibleRatio ?? (props.visibleValueCount ?? 1) / Math.max(1, valueRange() + 1), 0, 1), draggable = () => valueRange() > 0 && thumbRatio() < 1, coordinate = (event) => horizontal ? event.clientX : event.clientY, valueAt = (pointerCoordinate) => {
       let trackRect = track.getBoundingClientRect(), trackStart = horizontal ? trackRect.left : trackRect.top, trackLength = horizontal ? trackRect.width : trackRect.height, thumbLength = horizontal ? thumb.offsetWidth : thumb.offsetHeight, visualRatio = clamp((pointerCoordinate - trackStart - dragOffset) / Math.max(1, trackLength - thumbLength), 0, 1), ratio = horizontal && props.reversed ? 1 - visualRatio : visualRatio;
       return Math.round(minValue() + ratio * valueRange());
     }, inputAt = (event) => {
       let value = valueAt(coordinate(event));
       return props.onInput(value), value;
     }, onPointerDown = (event) => {
-      event.preventDefault(), event.stopPropagation();
+      if (event.preventDefault(), event.stopPropagation(), !draggable())
+        return;
       let thumbPressed = event.target instanceof Node && thumb.contains(event.target);
       if (!thumbPressed && props.trackClickEnabled === !1)
         return;
@@ -5472,30 +5473,8 @@ Next page`,
       typeof _ref$ == "function" ? use(_ref$, _el$) : track = _el$;
       var _ref$2 = thumb;
       return typeof _ref$2 == "function" ? use(_ref$2, _el$3) : thumb = _el$3, createRenderEffect((_p$) => {
-        var _v$ = `ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-x-0 bottom-0 z-2 h-20px large:h-24px touch-none select-none`, _v$2 = props.ariaLabel, _v$3 = props.maxValue, _v$4 = minValue(), _v$5 = props.currentValue, _v$6 = `absolute inset-x-0 bottom-4px h-6px ${props.trackVisible === !1 ? "bg-transparent" : POSITION_BAR_TRACK}`, _v$7 = `${visualPosition()}%`, _v$8 = `translateX(-${visualPosition()}%)`, _v$9 = `clamp(var(--ui-control-size-md), ${visibleRatio() * 100}%, calc(var(--ui-control-size-xl) * 4))`, _v$0 = `block w-full ${HORIZONTAL_FILL[thickness]} rounded-t-md ${POSITION_BAR_FILL} shadow-[0_2px_10px_var(--color-shadow-control)]`, _v$1 = `scaleY(${props.pixelScale ?? 1})`;
-        return _v$ !== _p$.e && className(_el$, _p$.e = _v$), _v$2 !== _p$.t && setAttribute(_el$, "aria-label", _p$.t = _v$2), _v$3 !== _p$.a && setAttribute(_el$, "aria-valuemax", _p$.a = _v$3), _v$4 !== _p$.o && setAttribute(_el$, "aria-valuemin", _p$.o = _v$4), _v$5 !== _p$.i && setAttribute(_el$, "aria-valuenow", _p$.i = _v$5), _v$6 !== _p$.n && className(_el$2, _p$.n = _v$6), _v$7 !== _p$.s && setStyleProperty(_el$3, "left", _p$.s = _v$7), _v$8 !== _p$.h && setStyleProperty(_el$3, "transform", _p$.h = _v$8), _v$9 !== _p$.r && setStyleProperty(_el$3, "width", _p$.r = _v$9), _v$0 !== _p$.d && className(_el$4, _p$.d = _v$0), _v$1 !== _p$.l && setStyleProperty(_el$4, "transform", _p$.l = _v$1), _p$;
-      }, {
-        e: void 0,
-        t: void 0,
-        a: void 0,
-        o: void 0,
-        i: void 0,
-        n: void 0,
-        s: void 0,
-        h: void 0,
-        r: void 0,
-        d: void 0,
-        l: void 0
-      }), _el$;
-    })(), interactionSize = () => expanded() ? "w-36px large:w-64px" : "w-20px large:w-40px", fillSize = () => expanded() ? VERTICAL_FILL[thickness].expanded : VERTICAL_FILL[thickness].collapsed, renderVertical = () => (() => {
-      var _el$5 = _tmpl$24(), _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$7.firstChild;
-      _el$5.addEventListener("wheel", stopWheel), _el$5.$$pointerup = onPointerUp, _el$5.$$pointermove = onPointerMove, _el$5.$$pointerdown = onPointerDown, _el$5.addEventListener("pointercancel", onPointerCancel), _el$5.$$contextmenu = stopContextMenu, _el$5.$$click = stopClick;
-      var _ref$3 = track;
-      typeof _ref$3 == "function" ? use(_ref$3, _el$5) : track = _el$5;
-      var _ref$4 = thumb;
-      return typeof _ref$4 == "function" ? use(_ref$4, _el$7) : thumb = _el$7, createRenderEffect((_p$) => {
-        var _v$10 = `ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-y-0 right-0 z-2 ${interactionSize()} touch-none select-none transition-[width,opacity] duration-160 ease-in-out [--ehpeek-position-bar-thumb-min:calc(var(--ui-control-size-md)*1.5)] [--ehpeek-position-bar-thumb-max:calc(var(--ui-control-size-xl)*4)] ${visible() ? "opacity-100" : "opacity-0 pointer-events-none"}`, _v$11 = props.ariaLabel, _v$12 = props.maxValue, _v$13 = minValue(), _v$14 = props.currentValue, _v$15 = `absolute inset-y-0 right-4px w-6px ${props.trackVisible === !1 ? "bg-transparent" : POSITION_BAR_TRACK}`, _v$16 = `ehpeek-position-bar-thumb absolute right-0 flex ${interactionSize()} items-center justify-end cursor-grab active:cursor-grabbing transition-[width,height] duration-160`, _v$17 = `clamp(var(--ehpeek-position-bar-thumb-min), ${visibleRatio() * 100}%, var(--ehpeek-position-bar-thumb-max))`, _v$18 = `${visualPosition()}%`, _v$19 = `translateY(-${visualPosition()}%)`, _v$20 = `block h-full rounded-l-md ${POSITION_BAR_FILL} ${fillSize()} shadow-[0_2px_10px_var(--color-shadow-control)] transition-[width,opacity] duration-160`, _v$21 = `scaleX(${props.pixelScale ?? 1})`;
-        return _v$10 !== _p$.e && className(_el$5, _p$.e = _v$10), _v$11 !== _p$.t && setAttribute(_el$5, "aria-label", _p$.t = _v$11), _v$12 !== _p$.a && setAttribute(_el$5, "aria-valuemax", _p$.a = _v$12), _v$13 !== _p$.o && setAttribute(_el$5, "aria-valuemin", _p$.o = _v$13), _v$14 !== _p$.i && setAttribute(_el$5, "aria-valuenow", _p$.i = _v$14), _v$15 !== _p$.n && className(_el$6, _p$.n = _v$15), _v$16 !== _p$.s && className(_el$7, _p$.s = _v$16), _v$17 !== _p$.h && setStyleProperty(_el$7, "height", _p$.h = _v$17), _v$18 !== _p$.r && setStyleProperty(_el$7, "top", _p$.r = _v$18), _v$19 !== _p$.d && setStyleProperty(_el$7, "transform", _p$.d = _v$19), _v$20 !== _p$.l && className(_el$8, _p$.l = _v$20), _v$21 !== _p$.u && setStyleProperty(_el$8, "transform", _p$.u = _v$21), _p$;
+        var _v$ = `ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-x-0 bottom-0 z-2 h-20px large:h-24px touch-none select-none`, _v$2 = props.ariaLabel, _v$3 = !draggable(), _v$4 = props.maxValue, _v$5 = minValue(), _v$6 = props.currentValue, _v$7 = `absolute inset-x-0 bottom-4px h-6px ${props.trackVisible === !1 ? "bg-transparent" : POSITION_BAR_TRACK}`, _v$8 = `ehpeek-position-bar-thumb absolute bottom-0 flex h-20px large:h-24px items-end ${draggable() ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`, _v$9 = `${visualPosition()}%`, _v$0 = `translateX(-${visualPosition()}%)`, _v$1 = `clamp(var(--ui-control-size-md), ${thumbRatio() * 100}%, 100%)`, _v$10 = `block w-full ${HORIZONTAL_FILL[thickness]} rounded-t-md ${POSITION_BAR_FILL} shadow-[0_2px_10px_var(--color-shadow-control)]`, _v$11 = `scaleY(${props.pixelScale ?? 1})`;
+        return _v$ !== _p$.e && className(_el$, _p$.e = _v$), _v$2 !== _p$.t && setAttribute(_el$, "aria-label", _p$.t = _v$2), _v$3 !== _p$.a && setAttribute(_el$, "aria-disabled", _p$.a = _v$3), _v$4 !== _p$.o && setAttribute(_el$, "aria-valuemax", _p$.o = _v$4), _v$5 !== _p$.i && setAttribute(_el$, "aria-valuemin", _p$.i = _v$5), _v$6 !== _p$.n && setAttribute(_el$, "aria-valuenow", _p$.n = _v$6), _v$7 !== _p$.s && className(_el$2, _p$.s = _v$7), _v$8 !== _p$.h && className(_el$3, _p$.h = _v$8), _v$9 !== _p$.r && setStyleProperty(_el$3, "left", _p$.r = _v$9), _v$0 !== _p$.d && setStyleProperty(_el$3, "transform", _p$.d = _v$0), _v$1 !== _p$.l && setStyleProperty(_el$3, "width", _p$.l = _v$1), _v$10 !== _p$.u && className(_el$4, _p$.u = _v$10), _v$11 !== _p$.c && setStyleProperty(_el$4, "transform", _p$.c = _v$11), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -5508,7 +5487,32 @@ Next page`,
         r: void 0,
         d: void 0,
         l: void 0,
-        u: void 0
+        u: void 0,
+        c: void 0
+      }), _el$;
+    })(), interactionSize = () => expanded() ? "w-36px large:w-64px" : "w-20px large:w-40px", fillSize = () => expanded() ? VERTICAL_FILL[thickness].expanded : VERTICAL_FILL[thickness].collapsed, renderVertical = () => (() => {
+      var _el$5 = _tmpl$24(), _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$7.firstChild;
+      _el$5.addEventListener("wheel", stopWheel), _el$5.$$pointerup = onPointerUp, _el$5.$$pointermove = onPointerMove, _el$5.$$pointerdown = onPointerDown, _el$5.addEventListener("pointercancel", onPointerCancel), _el$5.$$contextmenu = stopContextMenu, _el$5.$$click = stopClick;
+      var _ref$3 = track;
+      typeof _ref$3 == "function" ? use(_ref$3, _el$5) : track = _el$5;
+      var _ref$4 = thumb;
+      return typeof _ref$4 == "function" ? use(_ref$4, _el$7) : thumb = _el$7, createRenderEffect((_p$) => {
+        var _v$12 = `ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-y-0 right-0 z-2 ${interactionSize()} touch-none select-none transition-[width,opacity] duration-160 ease-in-out [--ehpeek-position-bar-thumb-min:calc(var(--ui-control-size-md)*1.5)] ${visible() ? "opacity-100" : "opacity-0 pointer-events-none"}`, _v$13 = props.ariaLabel, _v$14 = !draggable(), _v$15 = props.maxValue, _v$16 = minValue(), _v$17 = props.currentValue, _v$18 = `absolute inset-y-0 right-4px w-6px ${props.trackVisible === !1 ? "bg-transparent" : POSITION_BAR_TRACK}`, _v$19 = `ehpeek-position-bar-thumb absolute right-0 flex ${interactionSize()} items-center justify-end ${draggable() ? "cursor-grab active:cursor-grabbing" : "cursor-default"} transition-[width,height] duration-160`, _v$20 = `clamp(var(--ehpeek-position-bar-thumb-min), ${thumbRatio() * 100}%, 100%)`, _v$21 = `${visualPosition()}%`, _v$22 = `translateY(-${visualPosition()}%)`, _v$23 = `block h-full rounded-l-md ${POSITION_BAR_FILL} ${fillSize()} shadow-[0_2px_10px_var(--color-shadow-control)] transition-[width,opacity] duration-160`, _v$24 = `scaleX(${props.pixelScale ?? 1})`;
+        return _v$12 !== _p$.e && className(_el$5, _p$.e = _v$12), _v$13 !== _p$.t && setAttribute(_el$5, "aria-label", _p$.t = _v$13), _v$14 !== _p$.a && setAttribute(_el$5, "aria-disabled", _p$.a = _v$14), _v$15 !== _p$.o && setAttribute(_el$5, "aria-valuemax", _p$.o = _v$15), _v$16 !== _p$.i && setAttribute(_el$5, "aria-valuemin", _p$.i = _v$16), _v$17 !== _p$.n && setAttribute(_el$5, "aria-valuenow", _p$.n = _v$17), _v$18 !== _p$.s && className(_el$6, _p$.s = _v$18), _v$19 !== _p$.h && className(_el$7, _p$.h = _v$19), _v$20 !== _p$.r && setStyleProperty(_el$7, "height", _p$.r = _v$20), _v$21 !== _p$.d && setStyleProperty(_el$7, "top", _p$.d = _v$21), _v$22 !== _p$.l && setStyleProperty(_el$7, "transform", _p$.l = _v$22), _v$23 !== _p$.u && className(_el$8, _p$.u = _v$23), _v$24 !== _p$.c && setStyleProperty(_el$8, "transform", _p$.c = _v$24), _p$;
+      }, {
+        e: void 0,
+        t: void 0,
+        a: void 0,
+        o: void 0,
+        i: void 0,
+        n: void 0,
+        s: void 0,
+        h: void 0,
+        r: void 0,
+        d: void 0,
+        l: void 0,
+        u: void 0,
+        c: void 0
       }), _el$5;
     })();
     return memo(() => horizontal ? renderHorizontal() : renderVertical());
@@ -5564,7 +5568,7 @@ Next page`,
   };
 
   // src/components/Enhance/ScrollPreview.tsx
-  var _tmpl$9 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$25 = /* @__PURE__ */ template('<div><span class="flex items-center gap-sm opacity-75"></span><div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>'), _tmpl$33 = /* @__PURE__ */ template('<div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] min-h-[var(--ui-control-size-xs)] flex-none items-center gap-xs px-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs"><span class="col-start-2 inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75"></span><div><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">'), _tmpl$43 = /* @__PURE__ */ template('<div class="relative min-h-0 w-full flex-1"><div class="absolute box-border bg-[var(--color-surface)] cursor-grab [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"><div class=relative>'), _tmpl$53 = /* @__PURE__ */ template("<div class=absolute>"), _tmpl$63 = /* @__PURE__ */ template('<div class="flex w-full justify-center my-sm"><button type=button class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98">'), _tmpl$72 = /* @__PURE__ */ template('<div><section class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]">'), _tmpl$82 = /* @__PURE__ */ template('<div class="relative flex w-full min-w-0 items-start overflow-hidden rounded-sm bg-[var(--color-background)]">'), _tmpl$92 = /* @__PURE__ */ template('<button type=button class="flex w-full h-full flex-col items-center justify-center gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"><span>'), _tmpl$0 = /* @__PURE__ */ template('<span class="pointer-events-none block flex-none"role=img>'), _tmpl$1 = /* @__PURE__ */ template('<a class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline">'), _tmpl$10 = /* @__PURE__ */ template('<span class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 large:border-8 border-solid border-[var(--color-danger)]"aria-hidden=true>'), _tmpl$11 = /* @__PURE__ */ template('<img class="pointer-events-none block object-contain select-none [-webkit-user-drag:none]"alt decoding=async>'), GRID_GAP = 8, HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6, MAX_TILE_WIDTH = 220, REFERENCE_PORTRAIT_ASPECT_RATIO = 7 / 5, MAX_CROSS_COUNT = 12, OVERSCAN_ROWS = 4, PREVIEW_CONCURRENT_LOADS = 2, PREVIEW_LOAD_RADIUS = 2, OVERLAY_PREVIEW_ACTION_CLASS = ["inline-flex h-[var(--ui-control-size-md)] items-center justify-center py-0 rounded-md border-0 bg-transparent text-[var(--color-site-text)] cursor-pointer font-sans textsize-sm font-700 leading-1", "opacity-90 hover:opacity-100 hover:bg-[var(--color-site-page)] focus-visible:opacity-100 disabled:opacity-40 disabled:cursor-default transition-[opacity,background-color] duration-160"].join(" "), OVERLAY_PREVIEW_ICON_ACTION_CLASS = `${OVERLAY_PREVIEW_ACTION_CLASS} w-[var(--ui-control-size-md)] px-0`, DECODE_CACHE_BYTES = 64 * 1024 * 1024, DECODE_CACHE_ITEMS = 160, NEXT_SCROLL_PREVIEW_DIRECTION = {
+  var _tmpl$9 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$25 = /* @__PURE__ */ template('<div><span class="flex items-center gap-sm opacity-75"></span><div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>'), _tmpl$33 = /* @__PURE__ */ template('<div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] min-h-[var(--ui-control-size-xs)] flex-none items-center gap-xs px-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs"><span class="col-start-2 inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75"></span><div><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">'), _tmpl$43 = /* @__PURE__ */ template('<div class="relative min-h-0 w-full flex-1"><div class="absolute box-border bg-[var(--color-surface)] cursor-grab [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"><div class=relative>'), _tmpl$53 = /* @__PURE__ */ template("<div class=absolute>"), _tmpl$63 = /* @__PURE__ */ template('<div class="flex w-full justify-center my-sm"><button type=button class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98">'), _tmpl$72 = /* @__PURE__ */ template('<div><section class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]">'), _tmpl$82 = /* @__PURE__ */ template('<div class="relative flex w-full min-w-0 items-start overflow-hidden rounded-sm bg-[var(--color-background)]">'), _tmpl$92 = /* @__PURE__ */ template('<button type=button class="flex w-full h-full flex-col items-center justify-center gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"><span>'), _tmpl$0 = /* @__PURE__ */ template('<span class="pointer-events-none block flex-none"role=img>'), _tmpl$1 = /* @__PURE__ */ template('<a class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline">'), _tmpl$10 = /* @__PURE__ */ template('<span class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 large:border-8 border-solid border-[var(--color-danger)]"aria-hidden=true>'), _tmpl$11 = /* @__PURE__ */ template('<img class="pointer-events-none block object-contain select-none [-webkit-user-drag:none]"alt decoding=async>'), GRID_GAP = 8, HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6, MAX_TILE_WIDTH = 220, REFERENCE_PORTRAIT_ASPECT_RATIO = 7 / 5, MAX_CROSS_COUNT = 12, OVERSCAN_ROWS = 4, SCROLL_PIXEL_EPSILON = 1, PREVIEW_CONCURRENT_LOADS = 2, PREVIEW_LOAD_RADIUS = 2, OVERLAY_PREVIEW_ACTION_CLASS = ["inline-flex h-[var(--ui-control-size-md)] items-center justify-center py-0 rounded-md border-0 bg-transparent text-[var(--color-site-text)] cursor-pointer font-sans textsize-sm font-700 leading-1", "opacity-90 hover:opacity-100 hover:bg-[var(--color-site-page)] focus-visible:opacity-100 disabled:opacity-40 disabled:cursor-default transition-[opacity,background-color] duration-160"].join(" "), OVERLAY_PREVIEW_ICON_ACTION_CLASS = `${OVERLAY_PREVIEW_ACTION_CLASS} w-[var(--ui-control-size-md)] px-0`, DECODE_CACHE_BYTES = 64 * 1024 * 1024, DECODE_CACHE_ITEMS = 160, NEXT_SCROLL_PREVIEW_DIRECTION = {
     ltr: "rtl",
     rtl: "ttb",
     ttb: "ltr"
@@ -5753,41 +5757,48 @@ Next page`,
             }), _el$19;
           })();
         }
-      })), insert(_el$16, createComponent(PositionBar, {
-        get ariaLabel() {
-          return texts_default.gallery.scrollPreview;
+      })), insert(_el$16, createComponent(Show, {
+        get when() {
+          return state2.positionBarVisible();
         },
-        get axis() {
-          return state2.horizontal ? "horizontal" : "vertical";
-        },
-        get currentValue() {
-          return state2.positionPage();
-        },
-        get expanded() {
-          return !state2.horizontal;
-        },
-        get maxValue() {
-          return state2.maxPageNum;
-        },
-        get onInput() {
-          return state2.onPositionInput;
-        },
-        get pixelScale() {
-          return state2.pixelScale();
-        },
-        get position() {
-          return state2.horizontal ? void 0 : "absolute";
-        },
-        get reversed() {
-          return memo(() => !!state2.horizontal)() && state2.rightToLeft;
-        },
-        get thickness() {
-          return state2.thickness;
-        },
-        trackClickEnabled: !1,
-        trackVisible: !1,
-        get visibleValueCount() {
-          return state2.screenEndPageNum() - state2.screenStartPageNum() + 1;
+        get children() {
+          return createComponent(PositionBar, {
+            get ariaLabel() {
+              return texts_default.gallery.scrollPreview;
+            },
+            get axis() {
+              return state2.horizontal ? "horizontal" : "vertical";
+            },
+            get currentValue() {
+              return state2.positionPage();
+            },
+            get expanded() {
+              return !state2.horizontal;
+            },
+            get maxValue() {
+              return state2.maxPageNum;
+            },
+            get onInput() {
+              return state2.onPositionInput;
+            },
+            get pixelScale() {
+              return state2.pixelScale();
+            },
+            get position() {
+              return state2.horizontal ? void 0 : "absolute";
+            },
+            get reversed() {
+              return memo(() => !!state2.horizontal)() && state2.rightToLeft;
+            },
+            get thickness() {
+              return state2.thickness;
+            },
+            trackClickEnabled: !1,
+            trackVisible: !1,
+            get visibleRatio() {
+              return state2.positionBarVisibleRatio();
+            }
+          });
         }
       }), null), createRenderEffect((_p$) => {
         var _v$25 = state2.scrollerClassList, _v$26 = state2.canvasHeight(), _v$27 = state2.canvasWidth();
@@ -5978,7 +5989,7 @@ Next page`,
     });
   }
   function ScrollPreviewPanel(props) {
-    let decodeCache = untrack(() => props.decodeCache), embedded = untrack(() => props.embedded), previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, aspectPreviewIndex = previewCache.previewIndexForPage(untrack(() => props.targetPageNum ?? props.targetPreviewIndex * initialPreview.data.pageSize + 1)), [tileAspectRatio, setTileAspectRatio] = createSignal(initialPreview.data.dominantAspectRatio), initialTileAspectRatio = untrack(tileAspectRatio), pixelScale = () => props.pixelScale, initialPixelScale = untrack(pixelScale), readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? texts_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? texts_default.gallery.scrollPreviewDirectionRtl : texts_default.gallery.scrollPreviewDirectionLtr, flingAnimator = new ScrollFlingAnimator(), crossCountOverride = () => props.crossCountOverride, [exitDragOffset, setExitDragOffset] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), [layout, setLayout] = createSignal({
+    let decodeCache = untrack(() => props.decodeCache), embedded = untrack(() => props.embedded), previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, aspectPreviewIndex = previewCache.previewIndexForPage(untrack(() => props.targetPageNum ?? props.targetPreviewIndex * initialPreview.data.pageSize + 1)), [tileAspectRatio, setTileAspectRatio] = createSignal(initialPreview.data.dominantAspectRatio), initialTileAspectRatio = untrack(tileAspectRatio), pixelScale = () => props.pixelScale, initialPixelScale = untrack(pixelScale), readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? texts_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? texts_default.gallery.scrollPreviewDirectionRtl : texts_default.gallery.scrollPreviewDirectionLtr, flingAnimator = new ScrollFlingAnimator(), crossCountOverride = () => props.crossCountOverride, [exitDragOffset, setExitDragOffset] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [positionBarReady, setPositionBarReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), [layout, setLayout] = createSignal({
       crossCount: 1,
       gap: GRID_GAP * initialPixelScale,
       horizontal,
@@ -5987,9 +5998,9 @@ Next page`,
       tileWidth: MAX_TILE_WIDTH * initialPixelScale,
       viewportHeight: 1,
       viewportWidth: 1
-    }), scroller, overlay, dragDirection = null, dragStartPosition = null, resizeAnchorPageNum = null, pinchStartCrossCount = 1, pinchMinimumCrossCount = 1, layoutFrame = null, scrollFrame = null, layoutWidth = 0, initialized = !1, disposed = !1, totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount)), totalMainSize = createMemo(() => Math.max(1, totalGroups() * layout().mainStride - layout().gap)), mainViewportSize = createMemo(() => horizontal ? layout().viewportWidth : layout().viewportHeight), mainCanvasSize = createMemo(() => Math.max(totalMainSize(), mainViewportSize())), visibleStartGroup = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS, 0, Math.max(0, totalGroups() - 1))), visibleEndGroup = createMemo(() => clamp(Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS, visibleStartGroup(), Math.max(0, totalGroups() - 1))), visibleStartPageNum = createMemo(() => visibleStartGroup() * layout().crossCount + 1), visibleEndPageNum = createMemo(() => Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)), screenStartPageNum = createMemo(() => Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1), screenEndPageNum = createMemo(() => {
+    }), scroller, overlay, dragDirection = null, dragStartPosition = null, resizeAnchorPageNum = null, pinchStartCrossCount = 1, pinchMinimumCrossCount = 1, layoutFrame = null, scrollFrame = null, layoutWidth = 0, initialized = !1, disposed = !1, totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount)), totalMainSize = createMemo(() => Math.max(1, totalGroups() * layout().mainStride - layout().gap)), mainViewportSize = createMemo(() => horizontal ? layout().viewportWidth : layout().viewportHeight), mainCanvasSize = createMemo(() => Math.max(totalMainSize(), mainViewportSize())), visibleStartGroup = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS, 0, Math.max(0, totalGroups() - 1))), visibleEndGroup = createMemo(() => clamp(Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS, visibleStartGroup(), Math.max(0, totalGroups() - 1))), visibleStartPageNum = createMemo(() => visibleStartGroup() * layout().crossCount + 1), visibleEndPageNum = createMemo(() => Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)), screenStartPageNum = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1, 1, totalImages)), screenEndPageNum = createMemo(() => {
       let end = Math.max(scrollOffset(), scrollOffset() + mainViewportSize() - 1), endGroup = Math.floor(end / layout().mainStride);
-      return Math.min(totalImages, (endGroup + 1) * layout().crossCount);
+      return clamp((endGroup + 1) * layout().crossCount, screenStartPageNum(), totalImages);
     }), visibleSlots = createMemo(() => {
       previewCache.previewDataVersion();
       let slots = [];
@@ -6025,7 +6036,10 @@ Next page`,
     }, scrollPositionPage = () => {
       let maxOffset = Math.max(0, totalMainSize() - mainViewportSize());
       return maxOffset === 0 || totalImages <= 1 ? 1 : Math.round(1 + clamp(scrollOffset() / maxOffset, 0, 1) * (totalImages - 1));
-    }, maxScrollOffset = () => Math.max(0, totalMainSize() - mainViewportSize()), readScrollOffset = () => horizontal ? rightToLeft ? maxScrollOffset() - scroller.scrollLeft : scroller.scrollLeft : scroller.scrollTop, updateScrollOffset = (value) => {
+    }, maxScrollOffset = () => Math.max(0, totalMainSize() - mainViewportSize()), readScrollOffset = () => {
+      let value = horizontal ? rightToLeft ? maxScrollOffset() - scroller.scrollLeft : scroller.scrollLeft : scroller.scrollTop;
+      return clamp(value, 0, maxScrollOffset());
+    }, updateScrollOffset = (value) => {
       let next = clamp(value, 0, maxScrollOffset());
       horizontal ? scroller.scrollLeft = rightToLeft ? maxScrollOffset() - next : next : scroller.scrollTop = next, setScrollOffset(next);
     }, scrollToPositionPage = (pageNum) => {
@@ -6134,7 +6148,7 @@ Next page`,
         viewportWidth: width
       };
       setLayout(next), layoutFrame !== null && window.cancelAnimationFrame(layoutFrame), layoutFrame = window.requestAnimationFrame(() => untrack(() => {
-        layoutFrame = null, scroller.isConnected && (initialized ? scrollToPage(anchorPageNum ?? centeredPageNum(), next) : (initialized = !0, props.targetPageNum === null ? scrollToPreview(props.targetPreviewIndex, next) : scrollToPage(props.targetPageNum, next)), setPreviewLoadReady(!0));
+        layoutFrame = null, scroller.isConnected && (initialized ? scrollToPage(anchorPageNum ?? centeredPageNum(), next) : (initialized = !0, props.targetPageNum === null ? scrollToPreview(props.targetPreviewIndex, next) : scrollToPage(props.targetPageNum, next)), setPreviewLoadReady(!0), setPositionBarReady(!0));
       }));
     };
     createEffect(() => {
@@ -6165,13 +6179,13 @@ Next page`,
       directionLabel,
       leftHanded: untrack(() => props.leftHandedControls),
       loading: () => loading.loadingCount() > 0,
-      rangeText: () => `${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`,
+      rangeText: () => `${screenStartPageNum()}–${screenEndPageNum()} / ${totalImages}`,
       zoomInDisabled: () => layout().crossCount <= minimumCrossCount(layout()),
       zoomOutDisabled: () => layout().crossCount >= Math.min(MAX_CROSS_COUNT, totalImages),
       onDirectionChange: requestDirectionChange,
       onZoomIn: () => resizeCrossCount(-1),
       onZoomOut: () => resizeCrossCount(1)
-    }, viewportState = {
+    }, positionBarVisibleRatio = () => clamp(mainViewportSize() / mainCanvasSize(), 0, 1), viewportState = {
       allowUpscale: () => embedded || crossCountOverride() !== null,
       canvasHeight: () => horizontal ? "100%" : `${totalMainSize()}px`,
       canvasWidth: () => horizontal ? `${mainCanvasSize()}px` : "100%",
@@ -6194,6 +6208,8 @@ Next page`,
       },
       onWheel: () => flingAnimator.cancel(),
       pixelScale,
+      positionBarVisible: () => positionBarReady() && maxScrollOffset() > SCROLL_PIXEL_EPSILON && positionBarVisibleRatio() < 1 && (screenStartPageNum() > 1 || screenEndPageNum() < totalImages),
+      positionBarVisibleRatio,
       positionPage: scrollPositionPage,
       previewCache,
       rightToLeft,
@@ -7377,7 +7393,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260805.1001", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260805.1028", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
@@ -9982,7 +9998,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .container\\!{max-width:1536px !important;}
 }
 /* layer: default */
-.\\[--ehpeek-position-bar-thumb-max\\:calc\\(var\\(--ui-control-size-xl\\)\\*4\\)\\]{--ehpeek-position-bar-thumb-max:calc(var(--ui-control-size-xl) * 4);}
 .\\[--ehpeek-position-bar-thumb-min\\:calc\\(var\\(--ui-control-size-md\\)\\*1\\.5\\)\\]{--ehpeek-position-bar-thumb-min:calc(var(--ui-control-size-md) * 1.5);}
 .\\[--ehpeek-touch-search-icon-size\\:var\\(--ui-icon-size-lg\\)\\]{--ehpeek-touch-search-icon-size:var(--ui-icon-size-lg);}
 .\\[--ehpeek-touch-top-bar-icon-size\\:var\\(--ui-control-size-xs\\)\\]{--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs);}
