@@ -11,7 +11,6 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
-import { fullscreenUiScale } from "../../App/viewport";
 import type { GalleryPreviewDom, GalleryPreviewItem } from "../../eh";
 import type { ReadDirection } from "../../state";
 import texts from "../../texts.json";
@@ -40,30 +39,6 @@ const NEXT_SCROLL_PREVIEW_DIRECTION: Record<ReadDirection, ReadDirection> = {
   rtl: "ttb",
   ttb: "ltr",
 };
-const OVERLAY_UI_TOKENS = [
-  "--ui-control-size-xs",
-  "--ui-control-size-sm",
-  "--ui-control-size-md",
-  "--ui-control-size-lg",
-  "--ui-control-size-xl",
-  "--ui-font-size-xs",
-  "--ui-font-size-sm",
-  "--ui-font-size-md",
-  "--ui-font-size-lg",
-  "--ui-font-size-xl",
-  "--ui-icon-size-sm",
-  "--ui-icon-size-md",
-  "--ui-icon-size-lg",
-  "--ui-icon-size-xl",
-] as const;
-
-function captureOverlayUiTokens(): Record<string, string> {
-  const rootStyle = getComputedStyle(document.documentElement);
-  return Object.fromEntries(
-    OVERLAY_UI_TOKENS.map((property) => [property, rootStyle.getPropertyValue(property)]),
-  );
-}
-
 type PreviewLayout = {
   crossCount: number;
   gap: number;
@@ -447,7 +422,6 @@ export function ScrollPreview(props: {
   replaceOriginalPreview: boolean;
 }) {
   const previewCache = untrack(() => props.previewCache);
-  const overlayUiTokens = captureOverlayUiTokens();
   const decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS);
   const onExitPreview = untrack(() => props.onExitPreview);
   const onOpenPage = untrack(() => props.onOpenPage);
@@ -457,7 +431,6 @@ export function ScrollPreview(props: {
   );
   const [embeddedReadDirection, setEmbeddedReadDirection] =
     createSignal<ReadDirection>(untrack(() => props.embeddedDirection));
-  const [portalMount, setPortalMount] = createSignal<HTMLElement>(document.body);
   const [crossCountOverride, setCrossCountOverride] = createSignal<number | null>(null);
   const [embeddedCrossCountOverride, setEmbeddedCrossCountOverride] =
     createSignal<number | null>(null);
@@ -494,11 +467,6 @@ export function ScrollPreview(props: {
   };
   const openPreview = (): void => {
     if (!open()) {
-      setPortalMount(
-        document.fullscreenElement instanceof HTMLElement
-          ? document.fullscreenElement
-          : document.body,
-      );
       const currentState = window.history.state;
       window.history.pushState({
         ...(currentState !== null && typeof currentState === "object" ? currentState : {}),
@@ -535,18 +503,8 @@ export function ScrollPreview(props: {
   });
   onMount(() => {
     window.addEventListener("popstate", onPopState);
-    const onFullscreenChange = () => {
-      const fullscreenElement = document.fullscreenElement;
-      setPortalMount(
-        fullscreenElement instanceof HTMLElement
-          ? fullscreenElement
-          : document.body,
-      );
-    };
-    document.addEventListener("fullscreenchange", onFullscreenChange);
     onCleanup(() => {
       window.removeEventListener("popstate", onPopState);
-      document.removeEventListener("fullscreenchange", onFullscreenChange);
     });
   });
   onCleanup(() => {
@@ -605,7 +563,7 @@ export function ScrollPreview(props: {
         </div>
       </Show>
       <Show when={open()}>
-        <Portal mount={portalMount()}>
+        <Portal>
           <Show when={readDirection()} keyed>{(direction) => (
             <ScrollPreviewPanel
               crossCountOverride={crossCountOverride()}
@@ -628,7 +586,6 @@ export function ScrollPreview(props: {
               }}
               previewCache={previewCache}
               readDirection={direction}
-              uiTokens={overlayUiTokens}
               targetPageNum={targetPageNum()}
               targetPreviewIndex={targetPreviewIndex()}
             />
@@ -653,7 +610,6 @@ function ScrollPreviewPanel(props: {
   onOpenPage: (pageUrl: string, pageNum: number) => void;
   previewCache: GalleryPreviewCache;
   readDirection: ReadDirection;
-  uiTokens?: Record<string, string>;
   targetPageNum: number | null;
   targetPreviewIndex: number;
 }) {
@@ -1050,7 +1006,7 @@ function ScrollPreviewPanel(props: {
     }
     const width = Math.max(1, scroller.clientWidth);
     const height = Math.max(1, scroller.clientHeight);
-    const scale = props.embedded ? 1 : fullscreenUiScale();
+    const scale = 1;
     const gap = GRID_GAP * scale;
     const aspectRatio = tileAspectRatio();
     const baseMaxTileWidth = MAX_TILE_WIDTH * scale;
@@ -1287,7 +1243,6 @@ function ScrollPreviewPanel(props: {
           "w-full": true,
         }}
         style={{
-          ...props.uiTokens,
           opacity: props.embedded
             ? "1"
             : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`,

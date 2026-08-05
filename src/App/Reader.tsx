@@ -10,6 +10,7 @@ import { state } from "../state";
 import texts from "../texts.json";
 import { render } from "solid-js/web";
 import { createSignal } from "solid-js";
+import type { ReaderPage } from "../readerTypes";
 import type { GalleryPreviewCache } from "./GalleryPreviewCache";
 import type { ReaderFullscreenController, ReaderViewport } from "./viewport";
 
@@ -233,6 +234,36 @@ function mountReader(
   const historyId = ++readerHistoryId;
   const close = () => requestClose();
 
+  async function openScrollPreview(pageNum: number): Promise<void> {
+    if (!fullscreen.active()) {
+      callbacks.onOpenScrollPreview(pageNum);
+      return;
+    }
+    keepReaderOpen = true;
+    try {
+      await fullscreen.exit();
+      callbacks.onOpenScrollPreview(pageNum);
+    } catch (error) {
+      keepReaderOpen = false;
+      console.warn("[ehpeek] Failed to exit fullscreen for Scroll Preview", error);
+    }
+  }
+
+  async function openOriginalPage(page: ReaderPage): Promise<void> {
+    if (!fullscreen.active()) {
+      callbacks.onOpenOriginalPage(page);
+      return;
+    }
+    keepReaderOpen = true;
+    try {
+      await fullscreen.exit();
+      callbacks.onOpenOriginalPage(page);
+    } catch (error) {
+      keepReaderOpen = false;
+      console.warn("[ehpeek] Failed to exit fullscreen for original page", error);
+    }
+  }
+
   function requestClose(): void {
     if (closing || closeRequested) {
       return;
@@ -316,6 +347,12 @@ function mountReader(
         callbacks={{
           ...callbacks,
           onClosed: requestClose,
+          onOpenScrollPreview: (pageNum) => {
+            void openScrollPreview(pageNum);
+          },
+          onOpenOriginalPage: (page) => {
+            void openOriginalPage(page);
+          },
           onFullscreenToggle: () => {
             if (fullscreen.active()) {
               keepReaderOpen = true;
