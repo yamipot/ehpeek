@@ -41,6 +41,7 @@ export function PositionBar(props: {
   trackVisible?: boolean;
   visible?: boolean;
   visibleValueCount?: number;
+  visibleRatio?: number;
 }) {
   const [dragging, setDragging] = createSignal(false);
   let track!: HTMLDivElement;
@@ -58,8 +59,13 @@ export function PositionBar(props: {
     : ((props.currentValue - minValue()) / valueRange()) * 100;
   const visualPosition = () =>
     horizontal && props.reversed ? 100 - logicalPosition() : logicalPosition();
-  const visibleRatio = () =>
-    clamp((props.visibleValueCount ?? 1) / Math.max(1, valueRange() + 1), 0, 1);
+  const thumbRatio = () => clamp(
+    props.visibleRatio ??
+      (props.visibleValueCount ?? 1) / Math.max(1, valueRange() + 1),
+    0,
+    1,
+  );
+  const draggable = () => valueRange() > 0 && thumbRatio() < 1;
   const coordinate = (event: PointerEvent): number =>
     horizontal ? event.clientX : event.clientY;
   const valueAt = (pointerCoordinate: number): number => {
@@ -84,6 +90,9 @@ export function PositionBar(props: {
   const onPointerDown = (event: PointerEvent): void => {
     event.preventDefault();
     event.stopPropagation();
+    if (!draggable()) {
+      return;
+    }
     const thumbPressed = event.target instanceof Node && thumb.contains(event.target);
     if (!thumbPressed && props.trackClickEnabled === false) {
       return;
@@ -131,6 +140,7 @@ export function PositionBar(props: {
         ref={track}
         class={`ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-x-0 bottom-0 z-2 h-20px large:h-24px touch-none select-none`}
         aria-label={props.ariaLabel}
+        aria-disabled={!draggable()}
         aria-orientation="horizontal"
         aria-valuemax={props.maxValue}
         aria-valuemin={minValue()}
@@ -151,11 +161,11 @@ export function PositionBar(props: {
         />
         <div
           ref={thumb}
-          class="ehpeek-position-bar-thumb absolute bottom-0 flex h-20px large:h-24px items-end cursor-grab active:cursor-grabbing"
+          class={`ehpeek-position-bar-thumb absolute bottom-0 flex h-20px large:h-24px items-end ${draggable() ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
           style={{
             left: `${visualPosition()}%`,
             transform: `translateX(-${visualPosition()}%)`,
-            width: `clamp(var(--ui-control-size-md), ${visibleRatio() * 100}%, calc(var(--ui-control-size-xl) * 4))`,
+            width: `clamp(var(--ui-control-size-md), ${thumbRatio() * 100}%, 100%)`,
           }}
         >
         <span
@@ -178,10 +188,11 @@ export function PositionBar(props: {
   const renderVertical = () => (
     <div
       ref={track}
-      class={`ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-y-0 right-0 z-2 ${interactionSize()} touch-none select-none transition-[width,opacity] duration-160 ease-in-out [--ehpeek-position-bar-thumb-min:calc(var(--ui-control-size-md)*1.5)] [--ehpeek-position-bar-thumb-max:calc(var(--ui-control-size-xl)*4)] ${
+      class={`ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-y-0 right-0 z-2 ${interactionSize()} touch-none select-none transition-[width,opacity] duration-160 ease-in-out [--ehpeek-position-bar-thumb-min:calc(var(--ui-control-size-md)*1.5)] ${
         visible() ? "opacity-100" : "opacity-0 pointer-events-none"
       }`}
       aria-label={props.ariaLabel}
+      aria-disabled={!draggable()}
       aria-orientation="vertical"
       aria-valuemax={props.maxValue}
       aria-valuemin={minValue()}
@@ -202,9 +213,9 @@ export function PositionBar(props: {
       />
       <div
         ref={thumb}
-        class={`ehpeek-position-bar-thumb absolute right-0 flex ${interactionSize()} items-center justify-end cursor-grab active:cursor-grabbing transition-[width,height] duration-160`}
+        class={`ehpeek-position-bar-thumb absolute right-0 flex ${interactionSize()} items-center justify-end ${draggable() ? "cursor-grab active:cursor-grabbing" : "cursor-default"} transition-[width,height] duration-160`}
         style={{
-          height: `clamp(var(--ehpeek-position-bar-thumb-min), ${visibleRatio() * 100}%, var(--ehpeek-position-bar-thumb-max))`,
+          height: `clamp(var(--ehpeek-position-bar-thumb-min), ${thumbRatio() * 100}%, 100%)`,
           top: `${visualPosition()}%`,
           transform: `translateY(-${visualPosition()}%)`,
         }}

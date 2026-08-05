@@ -29,6 +29,7 @@ const MAX_TILE_WIDTH = 220;
 const REFERENCE_PORTRAIT_ASPECT_RATIO = 7 / 5;
 const MAX_CROSS_COUNT = 12;
 const OVERSCAN_ROWS = 4;
+const SCROLL_PIXEL_EPSILON = 1;
 const PREVIEW_CONCURRENT_LOADS = 2;
 const PREVIEW_LOAD_RADIUS = 2;
 const OVERLAY_PREVIEW_ACTION_CLASS = [
@@ -306,6 +307,8 @@ type PreviewViewportState = {
   onScroller: (element: HTMLDivElement) => void;
   onWheel: () => void;
   pixelScale: Accessor<number>;
+  positionBarVisible: Accessor<boolean>;
+  positionBarVisibleRatio: Accessor<number>;
   positionPage: Accessor<number>;
   previewCache: GalleryPreviewCache;
   rightToLeft: boolean;
@@ -385,23 +388,23 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
           }}</For>
         </div>
       </div>
-      <PositionBar
-        ariaLabel={texts.gallery.scrollPreview}
-        axis={state.horizontal ? "horizontal" : "vertical"}
-        currentValue={state.positionPage()}
-        expanded={!state.horizontal}
-        maxValue={state.maxPageNum}
-        onInput={state.onPositionInput}
-        pixelScale={state.pixelScale()}
-        position={state.horizontal ? undefined : "absolute"}
-        reversed={state.horizontal && state.rightToLeft}
-        thickness={state.thickness}
-        trackClickEnabled={false}
-        trackVisible={false}
-        visibleValueCount={
-          state.screenEndPageNum() - state.screenStartPageNum() + 1
-        }
-      />
+      <Show when={state.positionBarVisible()}>
+        <PositionBar
+          ariaLabel={texts.gallery.scrollPreview}
+          axis={state.horizontal ? "horizontal" : "vertical"}
+          currentValue={state.positionPage()}
+          expanded={!state.horizontal}
+          maxValue={state.maxPageNum}
+          onInput={state.onPositionInput}
+          pixelScale={state.pixelScale()}
+          position={state.horizontal ? undefined : "absolute"}
+          reversed={state.horizontal && state.rightToLeft}
+          thickness={state.thickness}
+          trackClickEnabled={false}
+          trackVisible={false}
+          visibleRatio={state.positionBarVisibleRatio()}
+        />
+      </Show>
     </div>
   );
 }
@@ -665,6 +668,7 @@ function ScrollPreviewPanel(props: {
   const crossCountOverride = (): number | null => props.crossCountOverride;
   const [exitDragOffset, setExitDragOffset] = createSignal(0);
   const [previewLoadReady, setPreviewLoadReady] = createSignal(false);
+  const [positionBarReady, setPositionBarReady] = createSignal(false);
   const [scrollOffset, setScrollOffset] = createSignal(0);
   const [layout, setLayout] = createSignal<PreviewLayout>({
     crossCount: 1,
@@ -722,12 +726,20 @@ function ScrollPreviewPanel(props: {
     Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)
   );
   const screenStartPageNum = createMemo(() =>
-    Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1
+    clamp(
+      Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1,
+      1,
+      totalImages,
+    )
   );
   const screenEndPageNum = createMemo(() => {
     const end = Math.max(scrollOffset(), scrollOffset() + mainViewportSize() - 1);
     const endGroup = Math.floor(end / layout().mainStride);
-    return Math.min(totalImages, (endGroup + 1) * layout().crossCount);
+    return clamp(
+      (endGroup + 1) * layout().crossCount,
+      screenStartPageNum(),
+      totalImages,
+    );
   });
   const visibleSlots = createMemo<PreviewSlot[]>(() => {
     previewCache.previewDataVersion();
@@ -819,12 +831,12 @@ function ScrollPreviewPanel(props: {
   const maxScrollOffset = (): number =>
     Math.max(0, totalMainSize() - mainViewportSize());
   const readScrollOffset = (): number => {
-    if (!horizontal) {
-      return scroller.scrollTop;
-    }
-    return rightToLeft
+    const value = !horizontal
+      ? scroller.scrollTop
+      : rightToLeft
       ? maxScrollOffset() - scroller.scrollLeft
       : scroller.scrollLeft;
+    return clamp(value, 0, maxScrollOffset());
   };
   const updateScrollOffset = (value: number): void => {
     const next = clamp(value, 0, maxScrollOffset());
@@ -1132,6 +1144,7 @@ function ScrollPreviewPanel(props: {
         }
       }
       setPreviewLoadReady(true);
+      setPositionBarReady(true);
     }));
   };
 
@@ -1200,7 +1213,7 @@ function ScrollPreviewPanel(props: {
     leftHanded: untrack(() => props.leftHandedControls),
     loading: () => loading.loadingCount() > 0,
     rangeText: () =>
-      `${Math.min(totalImages, screenStartPageNum())}–${screenEndPageNum()} / ${totalImages}`,
+      `${screenStartPageNum()}–${screenEndPageNum()} / ${totalImages}`,
     zoomInDisabled: () =>
       layout().crossCount <= minimumCrossCount(layout()),
     zoomOutDisabled: () =>
@@ -1209,6 +1222,8 @@ function ScrollPreviewPanel(props: {
     onZoomIn: () => resizeCrossCount(-1),
     onZoomOut: () => resizeCrossCount(1),
   };
+  const positionBarVisibleRatio = (): number =>
+    clamp(mainViewportSize() / mainCanvasSize(), 0, 1);
   const viewportState: PreviewViewportState = {
     allowUpscale: () => embedded || crossCountOverride() !== null,
     canvasHeight: () => horizontal ? "100%" : `${totalMainSize()}px`,
@@ -1236,6 +1251,12 @@ function ScrollPreviewPanel(props: {
     },
     onWheel: () => flingAnimator.cancel(),
     pixelScale,
+    positionBarVisible: () =>
+      positionBarReady() &&
+      maxScrollOffset() > SCROLL_PIXEL_EPSILON &&
+      positionBarVisibleRatio() < 1 &&
+      (screenStartPageNum() > 1 || screenEndPageNum() < totalImages),
+    positionBarVisibleRatio,
     positionPage: scrollPositionPage,
     previewCache,
     rightToLeft,
