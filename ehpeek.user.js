@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260805.0617
+// @version      260805.1001
 // @description  A touch-optimized E-H/ExH viewer
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
@@ -1734,7 +1734,7 @@
       __privateGet(this, _node2).click();
     }
     mount(view) {
-      mountedNodes.get(__privateGet(this, _node2))?.(), __privateGet(this, _node2).replaceChildren(), mountedNodes.set(__privateGet(this, _node2), render(view, __privateGet(this, _node2)));
+      mountedNodes.get(__privateGet(this, _node2))?.(), __privateGet(this, _node2).replaceChildren(), __privateGet(this, _node2).setAttribute("data-ehpeek-ui-root", "true"), mountedNodes.set(__privateGet(this, _node2), render(view, __privateGet(this, _node2)));
     }
     remove() {
       mountedNodes.get(__privateGet(this, _node2))?.(), mountedNodes.delete(__privateGet(this, _node2)), __privateGet(this, _node2).remove();
@@ -1992,7 +1992,6 @@
       pageBarTop: cls("ptt"),
       thumbs: id("gdt", {
         apply: {
-          suppressTapHighlight: "ehpeek-suppress-thumbnail-tap-highlight",
           swipe: "ehpeek-enable-preview-swipe-input"
         },
         childs: {
@@ -2424,6 +2423,8 @@
       exitFullscreen: "Exit fullscreen",
       adjustScrollViewport: "Adjust Scroll viewport size",
       resizeScrollViewport: "Resize Scroll viewport",
+      zoomIn: "Zoom in",
+      zoomOut: "Zoom out",
       fit: "Fit",
       applyGlobally: "Set Default",
       pagedMode: "Paged mode",
@@ -2693,7 +2694,6 @@ Next page`,
     return elems.mount && elems.thumbs && elems.thumbs.before(elems.mount), { data, elems, handle: {
       /** Opens thumbnail image links in EhPeek Reader instead of original navigation. */
       interceptPreviewImageOpen(onOpen) {
-        elems.thumbs?.apply("suppressTapHighlight");
         let handleClick = (event) => {
           let link = event.target instanceof Element ? DomNode.from(event.target).closest(domClass.common.links) : null, href = link?.attribute("href") ?? "";
           !link || extractPageType(href).type !== "image" || !link.one(domClass.common.image) && !link.closest(domClass.gallery.preview.imageLinkHost) || (event.preventDefault(), event.stopPropagation(), onOpen(normalizeUrl(href, currentUrl)));
@@ -3480,6 +3480,7 @@ Next page`,
       }
     }
     function ensureEhPeekGridRowNavigation(row2, galleryLink, galleryHref, title) {
+      row2.attribute("data-ehpeek-pressable", "true");
       let overlay = createManagedElement("a", {
         cover: "ehpeek-cover-search-grid-row"
       }).attribute("href", galleryHref).attribute("aria-label", title || "Open gallery").replaceClasses("hidden large:block absolute inset-0 z-1").apply("cover");
@@ -4094,8 +4095,48 @@ Next page`,
     name: "info"
   }));
 
+  // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/locate-fixed.mjs
+  var iconNode20 = [["line", {
+    x1: "2",
+    x2: "5",
+    y1: "12",
+    y2: "12",
+    key: "bvdh0s"
+  }], ["line", {
+    x1: "19",
+    x2: "22",
+    y1: "12",
+    y2: "12",
+    key: "1tbv5k"
+  }], ["line", {
+    x1: "12",
+    x2: "12",
+    y1: "2",
+    y2: "5",
+    key: "11lu5j"
+  }], ["line", {
+    x1: "12",
+    x2: "12",
+    y1: "19",
+    y2: "22",
+    key: "x3vr5v"
+  }], ["circle", {
+    cx: "12",
+    cy: "12",
+    r: "7",
+    key: "fim9np"
+  }], ["circle", {
+    cx: "12",
+    cy: "12",
+    r: "3",
+    key: "1v7zrd"
+  }]], LocateFixed = (props) => createComponent(Icon, mergeProps(props, {
+    iconNode: iconNode20,
+    name: "locate-fixed"
+  }));
+
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/maximize.mjs
-  var iconNode20 = [["path", {
+  var iconNode21 = [["path", {
     d: "M8 3H5a2 2 0 0 0-2 2v3",
     key: "1dcmit"
   }], ["path", {
@@ -4108,12 +4149,12 @@ Next page`,
     d: "M16 21h3a2 2 0 0 0 2-2v-3",
     key: "18trek"
   }]], Maximize = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode20,
+    iconNode: iconNode21,
     name: "maximize"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/minimize.mjs
-  var iconNode21 = [["path", {
+  var iconNode22 = [["path", {
     d: "M8 3v3a2 2 0 0 1-2 2H3",
     key: "hohbtr"
   }], ["path", {
@@ -4126,12 +4167,12 @@ Next page`,
     d: "M16 21v-3a2 2 0 0 1 2-2h3",
     key: "ph8mxp"
   }]], Minimize = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode21,
+    iconNode: iconNode22,
     name: "minimize"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/move-horizontal.mjs
-  var iconNode22 = [["path", {
+  var iconNode23 = [["path", {
     d: "m18 8 4 4-4 4",
     key: "1ak13k"
   }], ["path", {
@@ -4141,12 +4182,12 @@ Next page`,
     d: "m6 8-4 4 4 4",
     key: "15zrgr"
   }]], MoveHorizontal = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode22,
+    iconNode: iconNode23,
     name: "move-horizontal"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/move-vertical.mjs
-  var iconNode23 = [["path", {
+  var iconNode24 = [["path", {
     d: "M12 2v20",
     key: "t6zp3m"
   }], ["path", {
@@ -4156,12 +4197,12 @@ Next page`,
     d: "m8 6 4-4 4 4",
     key: "ybng9g"
   }]], MoveVertical = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode23,
+    iconNode: iconNode24,
     name: "move-vertical"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/palette.mjs
-  var iconNode24 = [["path", {
+  var iconNode25 = [["path", {
     d: "M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z",
     key: "e79jfc"
   }], ["circle", {
@@ -4189,33 +4230,33 @@ Next page`,
     fill: "currentColor",
     key: "fotxhn"
   }]], Palette = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode24,
+    iconNode: iconNode25,
     name: "palette"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/pencil.mjs
-  var iconNode25 = [["path", {
+  var iconNode26 = [["path", {
     d: "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
     key: "1a8usu"
   }], ["path", {
     d: "m15 5 4 4",
     key: "1mk7zo"
   }]], Pencil = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode25,
+    iconNode: iconNode26,
     name: "pencil"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/play.mjs
-  var iconNode26 = [["path", {
+  var iconNode27 = [["path", {
     d: "M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z",
     key: "10ikf1"
   }]], Play = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode26,
+    iconNode: iconNode27,
     name: "play"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/refresh-cw.mjs
-  var iconNode27 = [["path", {
+  var iconNode28 = [["path", {
     d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8",
     key: "v9h5vc"
   }], ["path", {
@@ -4228,12 +4269,12 @@ Next page`,
     d: "M8 16H3v5",
     key: "1cv678"
   }]], RefreshCw = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode27,
+    iconNode: iconNode28,
     name: "refresh-cw"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/rows-3.mjs
-  var iconNode28 = [["rect", {
+  var iconNode29 = [["rect", {
     width: "18",
     height: "18",
     x: "3",
@@ -4247,12 +4288,12 @@ Next page`,
     d: "M21 15H3",
     key: "9uk58r"
   }]], Rows3 = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode28,
+    iconNode: iconNode29,
     name: "rows-3"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/scan-line.mjs
-  var iconNode29 = [["path", {
+  var iconNode30 = [["path", {
     d: "M3 7V5a2 2 0 0 1 2-2h2",
     key: "aa7l1z"
   }], ["path", {
@@ -4268,12 +4309,12 @@ Next page`,
     d: "M7 12h10",
     key: "b7w52i"
   }]], ScanLine = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode29,
+    iconNode: iconNode30,
     name: "scan-line"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/search.mjs
-  var iconNode30 = [["path", {
+  var iconNode31 = [["path", {
     d: "m21 21-4.34-4.34",
     key: "14j7rj"
   }], ["circle", {
@@ -4282,12 +4323,12 @@ Next page`,
     r: "8",
     key: "4ej97u"
   }]], Search = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode30,
+    iconNode: iconNode31,
     name: "search"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/settings.mjs
-  var iconNode31 = [["path", {
+  var iconNode32 = [["path", {
     d: "M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915",
     key: "1i5ecw"
   }], ["circle", {
@@ -4296,12 +4337,12 @@ Next page`,
     r: "3",
     key: "1v7zrd"
   }]], Settings = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode31,
+    iconNode: iconNode32,
     name: "settings"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/sparkles.mjs
-  var iconNode32 = [["path", {
+  var iconNode33 = [["path", {
     d: "M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z",
     key: "1s2grr"
   }], ["path", {
@@ -4316,33 +4357,33 @@ Next page`,
     r: "2",
     key: "6kqj1y"
   }]], Sparkles = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode32,
+    iconNode: iconNode33,
     name: "sparkles"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/star.mjs
-  var iconNode33 = [["path", {
+  var iconNode34 = [["path", {
     d: "M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z",
     key: "r04s7s"
   }]], Star = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode33,
+    iconNode: iconNode34,
     name: "star"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/x.mjs
-  var iconNode34 = [["path", {
+  var iconNode35 = [["path", {
     d: "M18 6 6 18",
     key: "1bl5f8"
   }], ["path", {
     d: "m6 6 12 12",
     key: "d8bk6v"
   }]], X = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode34,
+    iconNode: iconNode35,
     name: "x"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/zoom-in.mjs
-  var iconNode35 = [["circle", {
+  var iconNode36 = [["circle", {
     cx: "11",
     cy: "11",
     r: "8",
@@ -4366,8 +4407,31 @@ Next page`,
     y2: "11",
     key: "durymu"
   }]], ZoomIn = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode35,
+    iconNode: iconNode36,
     name: "zoom-in"
+  }));
+
+  // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/zoom-out.mjs
+  var iconNode37 = [["circle", {
+    cx: "11",
+    cy: "11",
+    r: "8",
+    key: "4ej97u"
+  }], ["line", {
+    x1: "21",
+    x2: "16.65",
+    y1: "21",
+    y2: "16.65",
+    key: "13gj7c"
+  }], ["line", {
+    x1: "8",
+    x2: "14",
+    y1: "11",
+    y2: "11",
+    key: "durymu"
+  }]], ZoomOut = (props) => createComponent(Icon, mergeProps(props, {
+    iconNode: iconNode37,
+    name: "zoom-out"
   }));
 
   // src/components/Widgets/Icon.tsx
@@ -4440,6 +4504,7 @@ Next page`,
     history: History,
     home: House,
     info: Info,
+    locate: LocateFixed,
     menu: EllipsisVertical,
     page: File,
     palette: Palette,
@@ -4452,7 +4517,8 @@ Next page`,
     "scroll-continuous": Rows3,
     star: Star,
     viewport: ScanLine,
-    "zoom-in": ZoomIn
+    "zoom-in": ZoomIn,
+    "zoom-out": ZoomOut
   }, FILLABLE_ICONS = /* @__PURE__ */ new Set(["heart", "star"]), PANDA_FILLED_PATHS = ["M7.2 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8Z", "M16.8 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8Z", "M7.6 9.8c.5-1.2 1.6-1.8 2.6-1.3s1.3 1.8.8 3-1.6 1.8-2.6 1.3-1.3-1.8-.8-3Z", "M13.8 8.5c1-.5 2.1.1 2.6 1.3s.2 2.5-.8 3-2.1-.1-2.6-1.3-.2-2.5.8-3Z", "M10.9 13.6c0-.6.5-.9 1.1-.9s1.1.3 1.1.9-.5 1-1.1 1-1.1-.4-1.1-1Z", "M5.2 13.7a2.8 1.9 0 1 0 0 3.8 2.8 1.9 0 0 0 0-3.8Z", "M18.8 14.1a2.8 1.9 0 1 0 0 3.8 2.8 1.9 0 0 0 0-3.8Z"], PANDA_PATHS = ["M5 17c-.8-6.4 2.1-10.8 7-10.8s7.8 4.4 7 10.8", "M12 14.6v.7c0 .7-.6 1.2-1.3 1.2m1.3-1.2c0 .7.6 1.2 1.3 1.2", "M2 17h20"];
   function PandaPeekIcon(props) {
     return (() => {
@@ -5245,7 +5311,7 @@ Next page`,
   // src/App/OverlayHost.tsx
   function createOverlayHost(parent, initialUiScale) {
     let element = document.createElement("div");
-    element.dataset.ehpeekOverlayHost = "true", parent.append(element);
+    element.dataset.ehpeekOverlayHost = "true", element.dataset.ehpeekUiRoot = "true", parent.append(element);
     let uiScale = initialUiScale, fullscreenScale = 1, [fullscreenPixelScale, setFullscreenPixelScale] = createSignal(1), applyScale = () => applyUiScale(uiScale, element, fullscreenScale), fullscreen = createFullscreenController(element, (factor) => {
       fullscreenScale = factor, setFullscreenPixelScale(factor), applyScale();
     });
@@ -5498,7 +5564,7 @@ Next page`,
   };
 
   // src/components/Enhance/ScrollPreview.tsx
-  var _tmpl$9 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$25 = /* @__PURE__ */ template('<div><span class="flex items-center gap-sm opacity-75"></span><div><button type=button></button><button type=button>−</button><button type=button>+</button><button type=button></button><button type=button><span aria-hidden=true>X'), _tmpl$33 = /* @__PURE__ */ template('<div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] min-h-[var(--ui-control-size-xs)] flex-none items-center gap-xs px-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs"><span class="col-start-2 inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75"></span><div><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">−</button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">+</button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">'), _tmpl$43 = /* @__PURE__ */ template('<div class="relative min-h-0 w-full flex-1"><div class="absolute box-border bg-[var(--color-surface)] cursor-grab [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"><div class=relative>'), _tmpl$53 = /* @__PURE__ */ template("<div class=absolute>"), _tmpl$63 = /* @__PURE__ */ template('<div class="flex w-full justify-center my-sm"><button type=button class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98">'), _tmpl$72 = /* @__PURE__ */ template('<div><section class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]">'), _tmpl$82 = /* @__PURE__ */ template('<div class="relative flex w-full min-w-0 items-start overflow-hidden rounded-sm bg-[var(--color-background)]">'), _tmpl$92 = /* @__PURE__ */ template('<button type=button class="flex w-full h-full flex-col items-center justify-center gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"><span>'), _tmpl$0 = /* @__PURE__ */ template('<span class="pointer-events-none block flex-none"role=img>'), _tmpl$1 = /* @__PURE__ */ template('<a class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline">'), _tmpl$10 = /* @__PURE__ */ template('<span class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 large:border-8 border-solid border-[var(--color-danger)]"aria-hidden=true>'), _tmpl$11 = /* @__PURE__ */ template('<img class="pointer-events-none block object-contain select-none [-webkit-user-drag:none]"alt decoding=async>'), GRID_GAP = 8, HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6, MAX_TILE_WIDTH = 220, REFERENCE_PORTRAIT_ASPECT_RATIO = 7 / 5, MAX_CROSS_COUNT = 12, OVERSCAN_ROWS = 4, PREVIEW_CONCURRENT_LOADS = 2, PREVIEW_LOAD_RADIUS = 2, OVERLAY_PREVIEW_ACTION_CLASS = ["inline-flex min-w-[var(--ui-control-size-lg)] h-[var(--ui-control-size-lg)] items-center justify-center px-md py-0 rounded-md large:px-lg large:rounded-lg", "border border-[var(--color-site-border)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] cursor-pointer font-sans textsize-md font-700 leading-1", "opacity-90 hover:opacity-100 hover:bg-[var(--color-site-page)] focus-visible:opacity-100 disabled:opacity-40 disabled:cursor-default transition-[opacity,background-color] duration-160"].join(" "), DECODE_CACHE_BYTES = 64 * 1024 * 1024, DECODE_CACHE_ITEMS = 160, NEXT_SCROLL_PREVIEW_DIRECTION = {
+  var _tmpl$9 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$25 = /* @__PURE__ */ template('<div><span class="flex items-center gap-sm opacity-75"></span><div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>'), _tmpl$33 = /* @__PURE__ */ template('<div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] min-h-[var(--ui-control-size-xs)] flex-none items-center gap-xs px-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs"><span class="col-start-2 inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75"></span><div><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">'), _tmpl$43 = /* @__PURE__ */ template('<div class="relative min-h-0 w-full flex-1"><div class="absolute box-border bg-[var(--color-surface)] cursor-grab [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"><div class=relative>'), _tmpl$53 = /* @__PURE__ */ template("<div class=absolute>"), _tmpl$63 = /* @__PURE__ */ template('<div class="flex w-full justify-center my-sm"><button type=button class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98">'), _tmpl$72 = /* @__PURE__ */ template('<div><section class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]">'), _tmpl$82 = /* @__PURE__ */ template('<div class="relative flex w-full min-w-0 items-start overflow-hidden rounded-sm bg-[var(--color-background)]">'), _tmpl$92 = /* @__PURE__ */ template('<button type=button class="flex w-full h-full flex-col items-center justify-center gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"><span>'), _tmpl$0 = /* @__PURE__ */ template('<span class="pointer-events-none block flex-none"role=img>'), _tmpl$1 = /* @__PURE__ */ template('<a class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline">'), _tmpl$10 = /* @__PURE__ */ template('<span class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 large:border-8 border-solid border-[var(--color-danger)]"aria-hidden=true>'), _tmpl$11 = /* @__PURE__ */ template('<img class="pointer-events-none block object-contain select-none [-webkit-user-drag:none]"alt decoding=async>'), GRID_GAP = 8, HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6, MAX_TILE_WIDTH = 220, REFERENCE_PORTRAIT_ASPECT_RATIO = 7 / 5, MAX_CROSS_COUNT = 12, OVERSCAN_ROWS = 4, PREVIEW_CONCURRENT_LOADS = 2, PREVIEW_LOAD_RADIUS = 2, OVERLAY_PREVIEW_ACTION_CLASS = ["inline-flex h-[var(--ui-control-size-md)] items-center justify-center py-0 rounded-md border-0 bg-transparent text-[var(--color-site-text)] cursor-pointer font-sans textsize-sm font-700 leading-1", "opacity-90 hover:opacity-100 hover:bg-[var(--color-site-page)] focus-visible:opacity-100 disabled:opacity-40 disabled:cursor-default transition-[opacity,background-color] duration-160"].join(" "), OVERLAY_PREVIEW_ICON_ACTION_CLASS = `${OVERLAY_PREVIEW_ACTION_CLASS} w-[var(--ui-control-size-md)] px-0`, DECODE_CACHE_BYTES = 64 * 1024 * 1024, DECODE_CACHE_ITEMS = 160, NEXT_SCROLL_PREVIEW_DIRECTION = {
     ltr: "rtl",
     rtl: "ttb",
     ttb: "ltr"
@@ -5549,14 +5615,26 @@ Next page`,
         get children() {
           return _tmpl$9();
         }
-      }), null), insert(_el$2, () => props.state.rangeText(), null), _el$5.$$click = () => props.state.onDirectionChange(), className(_el$5, OVERLAY_PREVIEW_ACTION_CLASS), insert(_el$5, createComponent(Icon2, {
+      }), null), insert(_el$2, () => props.state.rangeText(), null), _el$5.$$click = () => props.state.onDirectionChange(), className(_el$5, OVERLAY_PREVIEW_ICON_ACTION_CLASS), insert(_el$5, createComponent(Icon2, {
         get name() {
           return props.state.directionIcon;
         },
         size: "var(--ui-icon-size-md)"
-      })), _el$6.$$click = () => props.state.onZoomOut(), className(_el$6, OVERLAY_PREVIEW_ACTION_CLASS), _el$7.$$click = () => props.state.onZoomIn(), className(_el$7, OVERLAY_PREVIEW_ACTION_CLASS), _el$8.$$click = () => props.onCurrent(), className(_el$8, OVERLAY_PREVIEW_ACTION_CLASS), insert(_el$8, () => texts_default.button.current), _el$9.$$click = () => props.onClose(), className(_el$9, OVERLAY_PREVIEW_ACTION_CLASS), createRenderEffect((_p$) => {
-        var _v$ = `flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-site-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-site-border)] text-[var(--color-site-text)] textsize-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`, _v$2 = `flex flex-none gap-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`, _v$3 = props.state.directionLabel, _v$4 = props.state.directionLabel, _v$5 = props.state.zoomOutDisabled(), _v$6 = props.state.zoomInDisabled(), _v$7 = props.currentDisabled, _v$8 = texts_default.button.close, _v$9 = texts_default.button.close;
-        return _v$ !== _p$.e && className(_el$, _p$.e = _v$), _v$2 !== _p$.t && className(_el$4, _p$.t = _v$2), _v$3 !== _p$.a && setAttribute(_el$5, "aria-label", _p$.a = _v$3), _v$4 !== _p$.o && setAttribute(_el$5, "title", _p$.o = _v$4), _v$5 !== _p$.i && (_el$6.disabled = _p$.i = _v$5), _v$6 !== _p$.n && (_el$7.disabled = _p$.n = _v$6), _v$7 !== _p$.s && (_el$8.disabled = _p$.s = _v$7), _v$8 !== _p$.h && setAttribute(_el$9, "aria-label", _p$.h = _v$8), _v$9 !== _p$.r && setAttribute(_el$9, "title", _p$.r = _v$9), _p$;
+      })), _el$6.$$click = () => props.state.onZoomOut(), className(_el$6, OVERLAY_PREVIEW_ICON_ACTION_CLASS), insert(_el$6, createComponent(Icon2, {
+        name: "zoom-out",
+        size: "var(--ui-icon-size-md)"
+      })), _el$7.$$click = () => props.state.onZoomIn(), className(_el$7, OVERLAY_PREVIEW_ICON_ACTION_CLASS), insert(_el$7, createComponent(Icon2, {
+        name: "zoom-in",
+        size: "var(--ui-icon-size-md)"
+      })), _el$8.$$click = () => props.onCurrent(), className(_el$8, OVERLAY_PREVIEW_ICON_ACTION_CLASS), insert(_el$8, createComponent(Icon2, {
+        name: "locate",
+        size: "var(--ui-icon-size-md)"
+      })), _el$9.$$click = () => props.onClose(), className(_el$9, OVERLAY_PREVIEW_ICON_ACTION_CLASS), insert(_el$9, createComponent(Icon2, {
+        name: "close",
+        size: "var(--ui-icon-size-md)"
+      })), createRenderEffect((_p$) => {
+        var _v$ = `flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-site-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-site-border)] text-[var(--color-site-text)] textsize-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`, _v$2 = `flex flex-none gap-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`, _v$3 = props.state.directionLabel, _v$4 = props.state.directionLabel, _v$5 = texts_default.reader.zoomOut, _v$6 = texts_default.reader.zoomOut, _v$7 = props.state.zoomOutDisabled(), _v$8 = texts_default.reader.zoomIn, _v$9 = texts_default.reader.zoomIn, _v$0 = props.state.zoomInDisabled(), _v$1 = texts_default.button.current, _v$10 = texts_default.button.current, _v$11 = props.currentDisabled, _v$12 = texts_default.button.close, _v$13 = texts_default.button.close;
+        return _v$ !== _p$.e && className(_el$, _p$.e = _v$), _v$2 !== _p$.t && className(_el$4, _p$.t = _v$2), _v$3 !== _p$.a && setAttribute(_el$5, "aria-label", _p$.a = _v$3), _v$4 !== _p$.o && setAttribute(_el$5, "title", _p$.o = _v$4), _v$5 !== _p$.i && setAttribute(_el$6, "aria-label", _p$.i = _v$5), _v$6 !== _p$.n && setAttribute(_el$6, "title", _p$.n = _v$6), _v$7 !== _p$.s && (_el$6.disabled = _p$.s = _v$7), _v$8 !== _p$.h && setAttribute(_el$7, "aria-label", _p$.h = _v$8), _v$9 !== _p$.r && setAttribute(_el$7, "title", _p$.r = _v$9), _v$0 !== _p$.d && (_el$7.disabled = _p$.d = _v$0), _v$1 !== _p$.l && setAttribute(_el$8, "aria-label", _p$.l = _v$1), _v$10 !== _p$.u && setAttribute(_el$8, "title", _p$.u = _v$10), _v$11 !== _p$.c && (_el$8.disabled = _p$.c = _v$11), _v$12 !== _p$.w && setAttribute(_el$9, "aria-label", _p$.w = _v$12), _v$13 !== _p$.m && setAttribute(_el$9, "title", _p$.m = _v$13), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -5566,7 +5644,13 @@ Next page`,
         n: void 0,
         s: void 0,
         h: void 0,
-        r: void 0
+        r: void 0,
+        d: void 0,
+        l: void 0,
+        u: void 0,
+        c: void 0,
+        w: void 0,
+        m: void 0
       }), _el$;
     })();
   }
@@ -5585,12 +5669,18 @@ Next page`,
           return props.state.directionIcon;
         },
         size: "var(--ui-icon-size-sm)"
-      })), _el$13.$$click = () => props.state.onZoomOut(), _el$14.$$click = () => props.state.onZoomIn(), _el$15.$$click = () => props.onOpenOverlay(), insert(_el$15, createComponent(Icon2, {
+      })), _el$13.$$click = () => props.state.onZoomOut(), insert(_el$13, createComponent(Icon2, {
+        name: "zoom-out",
+        size: "var(--ui-icon-size-sm)"
+      })), _el$14.$$click = () => props.state.onZoomIn(), insert(_el$14, createComponent(Icon2, {
+        name: "zoom-in",
+        size: "var(--ui-icon-size-sm)"
+      })), _el$15.$$click = () => props.onOpenOverlay(), insert(_el$15, createComponent(Icon2, {
         name: "fullscreen",
         size: "var(--ui-icon-size-sm)"
       })), createRenderEffect((_p$) => {
-        var _v$0 = `flex flex-none items-center gap-xs ${props.state.leftHanded() ? "col-start-1 row-start-1 justify-self-start flex-row-reverse" : "col-start-3 justify-self-end"}`, _v$1 = props.state.directionLabel, _v$10 = props.state.directionLabel, _v$11 = props.state.zoomOutDisabled(), _v$12 = props.state.zoomInDisabled(), _v$13 = texts_default.gallery.openScrollPreview, _v$14 = texts_default.gallery.openScrollPreview;
-        return _v$0 !== _p$.e && className(_el$11, _p$.e = _v$0), _v$1 !== _p$.t && setAttribute(_el$12, "aria-label", _p$.t = _v$1), _v$10 !== _p$.a && setAttribute(_el$12, "title", _p$.a = _v$10), _v$11 !== _p$.o && (_el$13.disabled = _p$.o = _v$11), _v$12 !== _p$.i && (_el$14.disabled = _p$.i = _v$12), _v$13 !== _p$.n && setAttribute(_el$15, "aria-label", _p$.n = _v$13), _v$14 !== _p$.s && setAttribute(_el$15, "title", _p$.s = _v$14), _p$;
+        var _v$14 = `flex flex-none items-center gap-xs ${props.state.leftHanded() ? "col-start-1 row-start-1 justify-self-start flex-row-reverse" : "col-start-3 justify-self-end"}`, _v$15 = props.state.directionLabel, _v$16 = props.state.directionLabel, _v$17 = texts_default.reader.zoomOut, _v$18 = texts_default.reader.zoomOut, _v$19 = props.state.zoomOutDisabled(), _v$20 = texts_default.reader.zoomIn, _v$21 = texts_default.reader.zoomIn, _v$22 = props.state.zoomInDisabled(), _v$23 = texts_default.gallery.openScrollPreview, _v$24 = texts_default.gallery.openScrollPreview;
+        return _v$14 !== _p$.e && className(_el$11, _p$.e = _v$14), _v$15 !== _p$.t && setAttribute(_el$12, "aria-label", _p$.t = _v$15), _v$16 !== _p$.a && setAttribute(_el$12, "title", _p$.a = _v$16), _v$17 !== _p$.o && setAttribute(_el$13, "aria-label", _p$.o = _v$17), _v$18 !== _p$.i && setAttribute(_el$13, "title", _p$.i = _v$18), _v$19 !== _p$.n && (_el$13.disabled = _p$.n = _v$19), _v$20 !== _p$.s && setAttribute(_el$14, "aria-label", _p$.s = _v$20), _v$21 !== _p$.h && setAttribute(_el$14, "title", _p$.h = _v$21), _v$22 !== _p$.r && (_el$14.disabled = _p$.r = _v$22), _v$23 !== _p$.d && setAttribute(_el$15, "aria-label", _p$.d = _v$23), _v$24 !== _p$.l && setAttribute(_el$15, "title", _p$.l = _v$24), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -5598,7 +5688,11 @@ Next page`,
         o: void 0,
         i: void 0,
         n: void 0,
-        s: void 0
+        s: void 0,
+        h: void 0,
+        r: void 0,
+        d: void 0,
+        l: void 0
       }), _el$0;
     })();
   }
@@ -5649,8 +5743,8 @@ Next page`,
                 return state2.layout().tileWidth;
               }
             })), createRenderEffect((_p$) => {
-              var _v$18 = `${state2.layout().tileHeight}px`, _v$19 = `${left()}px`, _v$20 = `${top()}px`, _v$21 = `${state2.layout().tileWidth}px`;
-              return _v$18 !== _p$.e && setStyleProperty(_el$19, "height", _p$.e = _v$18), _v$19 !== _p$.t && setStyleProperty(_el$19, "left", _p$.t = _v$19), _v$20 !== _p$.a && setStyleProperty(_el$19, "top", _p$.a = _v$20), _v$21 !== _p$.o && setStyleProperty(_el$19, "width", _p$.o = _v$21), _p$;
+              var _v$28 = `${state2.layout().tileHeight}px`, _v$29 = `${left()}px`, _v$30 = `${top()}px`, _v$31 = `${state2.layout().tileWidth}px`;
+              return _v$28 !== _p$.e && setStyleProperty(_el$19, "height", _p$.e = _v$28), _v$29 !== _p$.t && setStyleProperty(_el$19, "left", _p$.t = _v$29), _v$30 !== _p$.a && setStyleProperty(_el$19, "top", _p$.a = _v$30), _v$31 !== _p$.o && setStyleProperty(_el$19, "width", _p$.o = _v$31), _p$;
             }, {
               e: void 0,
               t: void 0,
@@ -5696,8 +5790,8 @@ Next page`,
           return state2.screenEndPageNum() - state2.screenStartPageNum() + 1;
         }
       }), null), createRenderEffect((_p$) => {
-        var _v$15 = state2.scrollerClassList, _v$16 = state2.canvasHeight(), _v$17 = state2.canvasWidth();
-        return _p$.e = classList(_el$17, _v$15, _p$.e), _v$16 !== _p$.t && setStyleProperty(_el$18, "height", _p$.t = _v$16), _v$17 !== _p$.a && setStyleProperty(_el$18, "width", _p$.a = _v$17), _p$;
+        var _v$25 = state2.scrollerClassList, _v$26 = state2.canvasHeight(), _v$27 = state2.canvasWidth();
+        return _p$.e = classList(_el$17, _v$25, _p$.e), _v$26 !== _p$.t && setStyleProperty(_el$18, "height", _p$.t = _v$26), _v$27 !== _p$.a && setStyleProperty(_el$18, "width", _p$.a = _v$27), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -6146,16 +6240,16 @@ Next page`,
       }), null), insert(_el$23, createComponent(PreviewViewport, {
         state: viewportState
       }), null), createRenderEffect((_p$) => {
-        var _v$22 = {
+        var _v$32 = {
           contents: embedded,
           "fixed inset-0 z-[1300]": !embedded
-        }, _v$23 = {
+        }, _v$33 = {
           "absolute inset-0 bg-[var(--color-site-surface)] text-[var(--color-site-text)]": !embedded,
           "border ehp-color-site-border rounded-sm bg-[var(--color-site-elevated)]": embedded,
           "relative h-[var(--scroll-preview-height)]": embedded,
           "w-full": !0
-        }, _v$24 = embedded ? "1" : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`, _v$25 = embedded ? "none" : `translate3d(${horizontal ? 0 : exitDragOffset()}px, ${horizontal ? exitDragOffset() : 0}px, 0) scale(${1 - Math.min(0.03, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.03)})`;
-        return _p$.e = classList(_el$22, _v$22, _p$.e), _p$.t = classList(_el$23, _v$23, _p$.t), _v$24 !== _p$.a && setStyleProperty(_el$23, "opacity", _p$.a = _v$24), _v$25 !== _p$.o && setStyleProperty(_el$23, "transform", _p$.o = _v$25), _p$;
+        }, _v$34 = embedded ? "1" : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`, _v$35 = embedded ? "none" : `translate3d(${horizontal ? 0 : exitDragOffset()}px, ${horizontal ? exitDragOffset() : 0}px, 0) scale(${1 - Math.min(0.03, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.03)})`;
+        return _p$.e = classList(_el$22, _v$32, _p$.e), _p$.t = classList(_el$23, _v$33, _p$.t), _v$34 !== _p$.a && setStyleProperty(_el$23, "opacity", _p$.a = _v$34), _v$35 !== _p$.o && setStyleProperty(_el$23, "transform", _p$.o = _v$35), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -6189,8 +6283,8 @@ Next page`,
                 });
               }
             }), _el$26), insert(_el$26, () => props.pageNum), createRenderEffect((_p$) => {
-              var _v$30 = !!props.failed, _v$31 = !props.failed;
-              return _v$30 !== _p$.e && _el$25.classList.toggle("cursor-pointer", _p$.e = _v$30), _v$31 !== _p$.t && (_el$25.disabled = _p$.t = _v$31), _p$;
+              var _v$40 = !!props.failed, _v$41 = !props.failed;
+              return _v$40 !== _p$.e && _el$25.classList.toggle("cursor-pointer", _p$.e = _v$40), _v$41 !== _p$.t && (_el$25.disabled = _p$.t = _v$41), _p$;
             }, {
               e: void 0,
               t: void 0
@@ -6205,11 +6299,11 @@ Next page`,
             return (() => {
               var _el$30 = _tmpl$11();
               return setAttribute(_el$30, "draggable", !1), createRenderEffect((_p$) => {
-                var _v$44 = {
+                var _v$54 = {
                   "h-full w-full": props.allowUpscale,
                   "max-h-full max-w-full": !props.allowUpscale
-                }, _v$45 = item.thumbnail.url, _v$46 = item.thumbnail.width, _v$47 = item.thumbnail.height;
-                return _p$.e = classList(_el$30, _v$44, _p$.e), _v$45 !== _p$.t && setAttribute(_el$30, "src", _p$.t = _v$45), _v$46 !== _p$.a && setAttribute(_el$30, "width", _p$.a = _v$46), _v$47 !== _p$.o && setAttribute(_el$30, "height", _p$.o = _v$47), _p$;
+                }, _v$55 = item.thumbnail.url, _v$56 = item.thumbnail.width, _v$57 = item.thumbnail.height;
+                return _p$.e = classList(_el$30, _v$54, _p$.e), _v$55 !== _p$.t && setAttribute(_el$30, "src", _p$.t = _v$55), _v$56 !== _p$.a && setAttribute(_el$30, "width", _p$.a = _v$56), _v$57 !== _p$.o && setAttribute(_el$30, "height", _p$.o = _v$57), _p$;
               }, {
                 e: void 0,
                 t: void 0,
@@ -6221,8 +6315,8 @@ Next page`,
           get children() {
             var _el$27 = _tmpl$0();
             return createRenderEffect((_p$) => {
-              var _v$32 = `url(${JSON.stringify(item.thumbnail.url)})`, _v$33 = item.thumbnail.backgroundPosition, _v$34 = item.thumbnail.backgroundRepeat, _v$35 = item.thumbnail.backgroundSize, _v$36 = `${item.thumbnail.height}px`, _v$37 = `scale(${Math.min(props.allowUpscale ? Number.POSITIVE_INFINITY : 1, props.width / item.thumbnail.width, props.height / item.thumbnail.height)})`, _v$38 = props.alignment === "right" ? "right top" : props.alignment === "left" ? "left top" : "center top", _v$39 = `${item.thumbnail.width}px`, _v$40 = `Page ${item.pageNum}`;
-              return _v$32 !== _p$.e && setStyleProperty(_el$27, "background-image", _p$.e = _v$32), _v$33 !== _p$.t && setStyleProperty(_el$27, "background-position", _p$.t = _v$33), _v$34 !== _p$.a && setStyleProperty(_el$27, "background-repeat", _p$.a = _v$34), _v$35 !== _p$.o && setStyleProperty(_el$27, "background-size", _p$.o = _v$35), _v$36 !== _p$.i && setStyleProperty(_el$27, "height", _p$.i = _v$36), _v$37 !== _p$.n && setStyleProperty(_el$27, "transform", _p$.n = _v$37), _v$38 !== _p$.s && setStyleProperty(_el$27, "transform-origin", _p$.s = _v$38), _v$39 !== _p$.h && setStyleProperty(_el$27, "width", _p$.h = _v$39), _v$40 !== _p$.r && setAttribute(_el$27, "aria-label", _p$.r = _v$40), _p$;
+              var _v$42 = `url(${JSON.stringify(item.thumbnail.url)})`, _v$43 = item.thumbnail.backgroundPosition, _v$44 = item.thumbnail.backgroundRepeat, _v$45 = item.thumbnail.backgroundSize, _v$46 = `${item.thumbnail.height}px`, _v$47 = `scale(${Math.min(props.allowUpscale ? Number.POSITIVE_INFINITY : 1, props.width / item.thumbnail.width, props.height / item.thumbnail.height)})`, _v$48 = props.alignment === "right" ? "right top" : props.alignment === "left" ? "left top" : "center top", _v$49 = `${item.thumbnail.width}px`, _v$50 = `Page ${item.pageNum}`;
+              return _v$42 !== _p$.e && setStyleProperty(_el$27, "background-image", _p$.e = _v$42), _v$43 !== _p$.t && setStyleProperty(_el$27, "background-position", _p$.t = _v$43), _v$44 !== _p$.a && setStyleProperty(_el$27, "background-repeat", _p$.a = _v$44), _v$45 !== _p$.o && setStyleProperty(_el$27, "background-size", _p$.o = _v$45), _v$46 !== _p$.i && setStyleProperty(_el$27, "height", _p$.i = _v$46), _v$47 !== _p$.n && setStyleProperty(_el$27, "transform", _p$.n = _v$47), _v$48 !== _p$.s && setStyleProperty(_el$27, "transform-origin", _p$.s = _v$48), _v$49 !== _p$.h && setStyleProperty(_el$27, "width", _p$.h = _v$49), _v$50 !== _p$.r && setAttribute(_el$27, "aria-label", _p$.r = _v$50), _p$;
             }, {
               e: void 0,
               t: void 0,
@@ -6240,8 +6334,8 @@ Next page`,
           return _el$28.$$click = (event) => {
             event.preventDefault(), event.stopPropagation(), props.onOpenPage(item.pageUrl, item.pageNum);
           }, setAttribute(_el$28, "draggable", !1), createRenderEffect((_p$) => {
-            var _v$41 = item.pageUrl, _v$42 = `Page ${item.pageNum}`, _v$43 = props.highlighted ? "page" : void 0;
-            return _v$41 !== _p$.e && setAttribute(_el$28, "href", _p$.e = _v$41), _v$42 !== _p$.t && setAttribute(_el$28, "aria-label", _p$.t = _v$42), _v$43 !== _p$.a && setAttribute(_el$28, "aria-current", _p$.a = _v$43), _p$;
+            var _v$51 = item.pageUrl, _v$52 = `Page ${item.pageNum}`, _v$53 = props.highlighted ? "page" : void 0;
+            return _v$51 !== _p$.e && setAttribute(_el$28, "href", _p$.e = _v$51), _v$52 !== _p$.t && setAttribute(_el$28, "aria-label", _p$.t = _v$52), _v$53 !== _p$.a && setAttribute(_el$28, "aria-current", _p$.a = _v$53), _p$;
           }, {
             e: void 0,
             t: void 0,
@@ -6256,8 +6350,8 @@ Next page`,
           }
         })]
       })), createRenderEffect((_p$) => {
-        var _v$26 = props.alignment === "center", _v$27 = props.alignment === "left", _v$28 = props.alignment === "right", _v$29 = `${props.height}px`;
-        return _v$26 !== _p$.e && _el$24.classList.toggle("justify-center", _p$.e = _v$26), _v$27 !== _p$.t && _el$24.classList.toggle("justify-start", _p$.t = _v$27), _v$28 !== _p$.a && _el$24.classList.toggle("justify-end", _p$.a = _v$28), _v$29 !== _p$.o && setStyleProperty(_el$24, "height", _p$.o = _v$29), _p$;
+        var _v$36 = props.alignment === "center", _v$37 = props.alignment === "left", _v$38 = props.alignment === "right", _v$39 = `${props.height}px`;
+        return _v$36 !== _p$.e && _el$24.classList.toggle("justify-center", _p$.e = _v$36), _v$37 !== _p$.t && _el$24.classList.toggle("justify-start", _p$.t = _v$37), _v$38 !== _p$.a && _el$24.classList.toggle("justify-end", _p$.a = _v$38), _v$39 !== _p$.o && setStyleProperty(_el$24, "height", _p$.o = _v$39), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -6995,7 +7089,7 @@ Next page`,
           name: "close",
           size: "var(--ui-icon-size-md)"
         })), insert(_el$6, () => props.children), createRenderEffect((_p$) => {
-          var _v$ = props.label, _v$2 = `box-border flex w-full ${DIALOG_WIDTHS[props.width]} max-h-[min(calc(var(--ui-control-size-xl)*12.75),calc(100dvh-32px))] flex-col overflow-hidden rounded-lg border shadow-xl ${reader() ? "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)]" : "ehp-color-site-border ehp-color-site-elevated ehp-color-site-text"}`, _v$3 = `flex min-h-[var(--ui-control-size-lg)] flex-none items-center justify-between gap-md py-sm pl-lg pr-sm border-0 border-b ${reader() ? "border-[var(--color-border)]" : "ehp-color-site-border-subtle-b"}`, _v$4 = `inline-flex w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] flex-none items-center justify-center p-0 rounded-md border bg-transparent cursor-pointer ${reader() ? "border-[var(--color-border)] text-[var(--color-text)]" : "ehp-color-site-border ehp-color-site-text hover:bg-[var(--color-site-item-hover)]"}`, _v$5 = texts_default.button.close, _v$6 = texts_default.button.close, _v$7 = `min-h-0 overflow-y-auto overscroll-contain ${props.bodyClass}`;
+          var _v$ = props.label, _v$2 = `box-border flex w-full ${DIALOG_WIDTHS[props.width]} max-h-[min(calc(var(--ui-control-size-xl)*12.75),calc(100dvh-32px))] flex-col overflow-hidden rounded-lg border shadow-xl ${reader() ? "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)]" : "ehp-color-site-border ehp-color-site-elevated ehp-color-site-text"}`, _v$3 = `flex min-h-[var(--ui-control-size-lg)] flex-none items-center justify-between gap-md py-sm pl-lg pr-sm border-0 border-b ${reader() ? "border-[var(--color-border)]" : "ehp-color-site-border-subtle-b"}`, _v$4 = `inline-flex w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] flex-none items-center justify-center p-0 rounded-md border-0 bg-transparent cursor-pointer ${reader() ? "text-[var(--color-text)] hover:bg-[var(--color-badge)]" : "ehp-color-site-text hover:bg-[var(--color-site-item-hover)]"}`, _v$5 = texts_default.button.close, _v$6 = texts_default.button.close, _v$7 = `min-h-0 overflow-y-auto overscroll-contain ${props.bodyClass}`;
           return _v$ !== _p$.e && setAttribute(_el$, "aria-label", _p$.e = _v$), _v$2 !== _p$.t && className(_el$2, _p$.t = _v$2), _v$3 !== _p$.a && className(_el$3, _p$.a = _v$3), _v$4 !== _p$.o && className(_el$5, _p$.o = _v$4), _v$5 !== _p$.i && setAttribute(_el$5, "aria-label", _p$.i = _v$5), _v$6 !== _p$.n && setAttribute(_el$5, "title", _p$.n = _v$6), _v$7 !== _p$.s && className(_el$6, _p$.s = _v$7), _p$;
         }, {
           e: void 0,
@@ -7136,7 +7230,7 @@ Next page`,
                 name: icon,
                 size: "var(--ui-icon-size-md)"
               })), createRenderEffect((_p$) => {
-                var _v$7 = `appearance-none flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center gap-sm px-sm !border-0 !text-[var(--color-site-text)] !shadow-none !outline-none [filter:none] font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer [-webkit-tap-highlight-color:transparent] ${activeTab() === tab ? "!bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent"}`, _v$8 = activeTab() === tab;
+                var _v$7 = `flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center gap-sm px-sm border-0 ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer ${activeTab() === tab ? "bg-[var(--color-site-item-hover)] font-700" : "bg-transparent hover:bg-[var(--color-site-item-hover)]"}`, _v$8 = activeTab() === tab;
                 return _v$7 !== _p$.e && className(_el$29, _p$.e = _v$7), _v$8 !== _p$.t && setAttribute(_el$29, "aria-selected", _p$.t = _v$8), _p$;
               }, {
                 e: void 0,
@@ -7283,7 +7377,7 @@ Next page`,
               return texts_default.settings.includeUnreadHistoryLabel;
             },
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$18, "260805.0617", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
+          }), null), insert(_el$18, "260805.1001", null), _el$20.$$click = () => setHelpOpen(!0), insert(_el$21, () => texts_default.help.title), _el$22.$$click = () => setLicensesOpen(!0), insert(_el$23, () => texts_default.settings.licenses), insert(_el$24, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$26.$$click = (event) => {
@@ -8265,7 +8359,7 @@ Next page`,
   delegateEvents(["click"]);
 
   // src/components/TouchUI/TopBar.tsx
-  var _tmpl$40 = /* @__PURE__ */ template('<div class="absolute top-[calc(100%+4px)] left-0 z-overlay flex gap-xs p-xs overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"role=menu><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></button><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"><span>'), _tmpl$213 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-ui-menu relative"><button type=button class="ehpeek-touch-top-bar-ui-menu-button inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$310 = /* @__PURE__ */ template('<button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$49 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-180px large:w-[calc(100vw-32px)] max-w-[calc(100vw-12px)] large:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$57 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu relative"><button type=button class="ehpeek-touch-top-bar-menu-button inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$67 = /* @__PURE__ */ template('<nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full h-[var(--ui-control-size-xl)] items-center justify-between pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans"><div class="flex items-center gap-xs"><a class="ehpeek-touch-top-bar-project inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)] [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]"></a></div><div class="flex items-center gap-xs"><a class="ehpeek-touch-top-bar-home inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><a class="ehpeek-touch-top-bar-favorites inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><button type=button class="ehpeek-touch-top-bar-settings inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$75 = /* @__PURE__ */ template('<a class="ehpeek-touch-top-bar-history inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)", TOUCH_TOP_BAR_PROJECT_ICON_SIZE = "var(--ehpeek-touch-top-bar-project-icon-size)", TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE = "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
+  var _tmpl$40 = /* @__PURE__ */ template('<div class="absolute top-[calc(100%+4px)] left-0 z-overlay flex gap-xs p-xs overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"role=menu><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></button><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"><span>'), _tmpl$213 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-ui-menu relative"><button type=button class="ehpeek-touch-top-bar-ui-menu-button inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$310 = /* @__PURE__ */ template('<button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$49 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-180px large:w-[calc(100vw-32px)] max-w-[calc(100vw-12px)] large:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">'), _tmpl$57 = /* @__PURE__ */ template('<div class="ehpeek-touch-top-bar-menu relative"><button type=button class="ehpeek-touch-top-bar-menu-button inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$67 = /* @__PURE__ */ template('<nav class="ehpeek-touch-top-bar relative z-ui flex box-border w-full h-[var(--ui-control-size-xl)] items-center justify-between pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans"><div class="flex items-center gap-xs"><a class="ehpeek-touch-top-bar-project inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)] [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]"></a></div><div class="flex items-center gap-xs"><a class="ehpeek-touch-top-bar-home inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><a class="ehpeek-touch-top-bar-favorites inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><button type=button class="ehpeek-touch-top-bar-settings inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$75 = /* @__PURE__ */ template('<a class="ehpeek-touch-top-bar-history inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)", TOUCH_TOP_BAR_PROJECT_ICON_SIZE = "var(--ehpeek-touch-top-bar-project-icon-size)", TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE = "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
   var NEXT_UI_SCALE = {
     small: "medium",
     medium: "large",
@@ -9403,12 +9497,6 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   display: block !important;
 }
 
-/* Scope preview interaction visuals to one managed thumbnail root. */
-.ehpeek-suppress-thumbnail-tap-highlight a {
-  outline: none !important;
-  -webkit-tap-highlight-color: transparent;
-}
-
 .ehpeek-enable-preview-swipe-input {
   touch-action: pan-y;
   user-select: none;
@@ -9500,14 +9588,6 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 
 :root:not([data-ehpeek-ui-scale="large"]) .ehpeek-expand-file-search form {
   gap: 4px !important;
-}
-
-.ehpeek-suppress-thumbnail-tap-highlight > :is(:hover, :active) {
-  border-color: var(--color-site-border) !important;
-}
-
-.ehpeek-suppress-thumbnail-tap-highlight a:is(:focus, :active) {
-  outline: none !important;
 }
 
 /* The root state scopes original Gallery layout overrides to TouchUI pages. */
@@ -9880,7 +9960,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .ehp-color-site-accent{color:var(--color-site-accent);}
 .ehp-color-site-text{color:var(--color-site-text);}
 .ehp-color-text{color:var(--color-text);}
-.hover\\:ehp-color-site-accent:hover{color:var(--color-site-accent);}
+:root[data-ehpeek-pointer="mouse"] .hover\\:ehp-color-site-accent:hover{color:var(--color-site-accent);}
 @media (min-width: 640px){
 .container{max-width:640px;}
 .container\\!{max-width:640px !important;}
@@ -9922,7 +10002,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .\\[container-type\\:size\\]{container-type:size;}
 .\\[direction\\:ltr\\]{direction:ltr;}
 .\\[direction\\:rtl\\]{direction:rtl;}
-.\\[filter\\:none\\]{filter:none;}
 .\\[font-size\\:min\\(25vw\\,35cqi\\,35cqb\\,180px\\)\\]{font-size:min(25vw,35cqi,35cqb,180px);}
 .\\[font-size\\:min\\(var\\(--ui-font-size-xl\\)\\,var\\(--reader-end-font-size\\)\\)\\]{font-size:min(var(--ui-font-size-xl),var(--reader-end-font-size));}
 .\\[font-size\\:var\\(--ui-font-size-md\\)\\]{font-size:var(--ui-font-size-md);}
@@ -10079,7 +10158,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .h-\\[var\\(--reader-frame-height\\)\\]{height:var(--reader-frame-height);}
 .h-\\[var\\(--reader-page-height\\)\\]{height:var(--reader-page-height);}
 .h-\\[var\\(--scroll-preview-height\\)\\]{height:var(--scroll-preview-height);}
-.h-\\[var\\(--ui-control-size-lg\\)\\]{height:var(--ui-control-size-lg);}
 .h-\\[var\\(--ui-control-size-md\\)\\]{height:var(--ui-control-size-md);}
 .h-\\[var\\(--ui-control-size-xl\\)\\]{height:var(--ui-control-size-xl);}
 .h-\\[var\\(--ui-control-size-xs\\)\\]{height:var(--ui-control-size-xs);}
@@ -10123,7 +10201,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .min-h-\\[var\\(--ui-control-size-xs\\)\\]{min-height:var(--ui-control-size-xs);}
 .min-h-0{min-height:0;}
 .min-h-full{min-height:100%;}
-.min-w-\\[var\\(--ui-control-size-lg\\)\\]{min-width:var(--ui-control-size-lg);}
 .min-w-\\[var\\(--ui-control-size-md\\)\\]{min-width:var(--ui-control-size-md);}
 .min-w-0{min-width:0;}
 .min-w-285px{min-width:285px;}
@@ -10236,7 +10313,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .break-normal{overflow-wrap:normal;word-break:normal;}
 :root[data-ehpeek-ui-scale="large"] .large\\:border-8{border-width:8px;}
 .\\!border{border-width:1px !important;}
-.\\!border-0{border-width:0px !important;}
 .border{border-width:1px;}
 .border-0{border-width:0px;}
 .border-2px{border-width:2px;}
@@ -10261,7 +10337,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .border-\\[var\\(--color-site-border\\)\\]{border-color:var(--color-site-border);}
 .border-\\[var\\(--color-site-page\\)\\]{border-color:var(--color-site-page);}
 .border-\\[var\\(--color-site-swipe-border\\)\\]{border-color:var(--color-site-swipe-border);}
-.hover\\:border-\\[var\\(--color-site-border\\)\\]:hover{border-color:var(--color-site-border);}
+:root[data-ehpeek-pointer="mouse"] .hover\\:border-\\[var\\(--color-site-border\\)\\]:hover{border-color:var(--color-site-border);}
 .border-t-\\[var\\(--color-reader-accent\\)\\]{border-top-color:var(--color-reader-accent);}
 .border-t-\\[var\\(--color-site-border-subtle\\)\\]{border-top-color:var(--color-site-border-subtle);}
 .rounded{border-radius:0.25rem;}
@@ -10271,7 +10347,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .rounded-t-md{border-top-left-radius:0.375rem;border-top-right-radius:0.375rem;}
 .border-solid{border-style:solid;}
 .\\!bg-\\[color-mix\\(in_srgb\\,var\\(--color-site-page\\)_82\\%\\,black\\)\\]{background-color:color-mix(in srgb,var(--color-site-page) 82%,black) !important;}
-.\\!bg-\\[var\\(--color-site-item-hover\\)\\]{background-color:var(--color-site-item-hover) !important;}
 .\\!bg-transparent,
 .\\[\\&_\\*\\]\\:\\!bg-transparent *{background-color:transparent !important;}
 .bg-\\[var\\(--color-background\\)\\]{background-color:var(--color-background);}
@@ -10292,11 +10367,11 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .bg-\\[var\\(--color-surface\\)\\]{background-color:var(--color-surface);}
 .bg-black\\/65{background-color:rgb(0 0 0 / 0.65);}
 .bg-transparent{background-color:transparent;}
-.hover\\:\\!bg-\\[var\\(--color-site-item-hover\\)\\]:hover{background-color:var(--color-site-item-hover) !important;}
-.hover\\:bg-\\[var\\(--color-badge\\)\\]:hover{background-color:var(--color-badge);}
-.hover\\:bg-\\[var\\(--color-site-accent-hover\\)\\]:hover{background-color:var(--color-site-accent-hover);}
-.hover\\:bg-\\[var\\(--color-site-item-hover\\)\\]:hover{background-color:var(--color-site-item-hover);}
-.hover\\:bg-\\[var\\(--color-site-page\\)\\]:hover{background-color:var(--color-site-page);}
+:root[data-ehpeek-pointer="mouse"] .hover\\:\\!bg-\\[var\\(--color-site-item-hover\\)\\]:hover{background-color:var(--color-site-item-hover) !important;}
+:root[data-ehpeek-pointer="mouse"] .hover\\:bg-\\[var\\(--color-badge\\)\\]:hover{background-color:var(--color-badge);}
+:root[data-ehpeek-pointer="mouse"] .hover\\:bg-\\[var\\(--color-site-accent-hover\\)\\]:hover{background-color:var(--color-site-accent-hover);}
+:root[data-ehpeek-pointer="mouse"] .hover\\:bg-\\[var\\(--color-site-item-hover\\)\\]:hover{background-color:var(--color-site-item-hover);}
+:root[data-ehpeek-pointer="mouse"] .hover\\:bg-\\[var\\(--color-site-page\\)\\]:hover{background-color:var(--color-site-page);}
 .active\\:\\!bg-\\[var\\(--color-site-item-hover\\)\\]:active{background-color:var(--color-site-item-hover) !important;}
 .active\\:bg-\\[var\\(--color-site-accent-hover\\)\\]:active{background-color:var(--color-site-accent-hover);}
 .active\\:bg-\\[var\\(--color-site-item-hover\\)\\]:active{background-color:var(--color-site-item-hover);}
@@ -10349,7 +10424,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .text-\\[var\\(--color-site-text\\)\\]{color:var(--color-site-text);}
 .text-\\[var\\(--color-text\\)\\]{color:var(--color-text);}
 .visited\\:\\!text-\\[var\\(--color-site-text\\)\\]:visited{color:var(--color-site-text) !important;}
-.hover\\:\\!text-\\[var\\(--color-site-text\\)\\]:hover{color:var(--color-site-text) !important;}
+:root[data-ehpeek-pointer="mouse"] .hover\\:\\!text-\\[var\\(--color-site-text\\)\\]:hover{color:var(--color-site-text) !important;}
 .active\\:\\!text-\\[var\\(--color-site-text\\)\\]:active{color:var(--color-site-text) !important;}
 .\\[\\&_\\*\\]\\:\\!text-inherit *{color:inherit !important;}
 .font-400{font-weight:400;}
@@ -10376,10 +10451,10 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .lowercase{text-transform:lowercase;}
 .normal-case{text-transform:none;}
 .tabular-nums{--un-numeric-spacing:tabular-nums;font-variant-numeric:var(--un-ordinal) var(--un-slashed-zero) var(--un-numeric-figure) var(--un-numeric-spacing) var(--un-numeric-fraction);}
-.hover\\:underline:hover{text-decoration-line:underline;}
+:root[data-ehpeek-pointer="mouse"] .hover\\:underline:hover{text-decoration-line:underline;}
 .active\\:underline:active{text-decoration-line:underline;}
 .no-underline{text-decoration:none;}
-.hover\\:no-underline:hover{text-decoration:none;}
+:root[data-ehpeek-pointer="mouse"] .hover\\:no-underline:hover{text-decoration:none;}
 .active\\:no-underline:active{text-decoration:none;}
 .tab{-moz-tab-size:4;-o-tab-size:4;tab-size:4;}
 .accent-\\[var\\(--color-reader-accent\\)\\]{accent-color:var(--color-reader-accent);}
@@ -10395,11 +10470,10 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .opacity-82{opacity:0.82;}
 .opacity-85{opacity:0.85;}
 .opacity-90{opacity:0.9;}
-.hover\\:opacity-100:hover{opacity:1;}
+:root[data-ehpeek-pointer="mouse"] .hover\\:opacity-100:hover{opacity:1;}
 .focus-visible\\:opacity-100:focus-visible{opacity:1;}
 .disabled\\:opacity-40:disabled{opacity:0.4;}
 .disabled\\:opacity-50:disabled{opacity:0.5;}
-.\\!shadow-none{--un-shadow:0 0 var(--un-shadow-color, rgb(0 0 0 / 0)) !important;box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow) !important;}
 .shadow-\\[0_2px_10px_var\\(--color-shadow-control\\)\\]{--un-shadow:0 2px 10px var(--un-shadow-color, var(--color-shadow-control));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
 .shadow-\\[0_2px_10px_var\\(--color-shadow-panel\\)\\]{--un-shadow:0 2px 10px var(--un-shadow-color, var(--color-shadow-panel));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
 .shadow-\\[0_2px_8px_var\\(--color-shadow-panel\\)\\]{--un-shadow:0 2px 8px var(--un-shadow-color, var(--color-shadow-panel));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}
@@ -10413,8 +10487,7 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .focus-visible\\:outline-offset-3px:focus-visible{outline-offset:3px;}
 .outline{outline-style:solid;}
 .focus-visible\\:outline:focus-visible{outline-style:solid;}
-.\\!outline-none{outline:2px solid transparent !important;outline-offset:2px !important;}
-.hover\\:brightness-108:hover{--un-brightness:brightness(1.08);filter:var(--un-blur) var(--un-brightness) var(--un-contrast) var(--un-drop-shadow) var(--un-grayscale) var(--un-hue-rotate) var(--un-invert) var(--un-saturate) var(--un-sepia);}
+:root[data-ehpeek-pointer="mouse"] .hover\\:brightness-108:hover{--un-brightness:brightness(1.08);filter:var(--un-blur) var(--un-brightness) var(--un-contrast) var(--un-drop-shadow) var(--un-grayscale) var(--un-hue-rotate) var(--un-invert) var(--un-saturate) var(--un-sepia);}
 .filter{filter:var(--un-blur) var(--un-brightness) var(--un-contrast) var(--un-drop-shadow) var(--un-grayscale) var(--un-hue-rotate) var(--un-invert) var(--un-saturate) var(--un-sepia);}
 .backdrop-filter{-webkit-backdrop-filter:var(--un-backdrop-blur) var(--un-backdrop-brightness) var(--un-backdrop-contrast) var(--un-backdrop-grayscale) var(--un-backdrop-hue-rotate) var(--un-backdrop-invert) var(--un-backdrop-opacity) var(--un-backdrop-saturate) var(--un-backdrop-sepia);backdrop-filter:var(--un-backdrop-blur) var(--un-backdrop-brightness) var(--un-backdrop-contrast) var(--un-backdrop-grayscale) var(--un-backdrop-hue-rotate) var(--un-backdrop-invert) var(--un-backdrop-opacity) var(--un-backdrop-saturate) var(--un-backdrop-sepia);}
 .transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
@@ -10506,6 +10579,27 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
   --color-site-text: #f1f1f1;
   --color-site-accent: #f0b35a;
   --color-site-border: #8d7454;
+}
+
+[data-ehpeek-ui-root="true"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+[data-ehpeek-ui-root="true"] [data-ehpeek-pressed="true"] {
+  opacity: 0.72;
+}
+
+:root[data-ehpeek-pointer="mouse"] [data-ehpeek-ui-root="true"] :is(
+  a[href],
+  button,
+  input[type="button"],
+  input[type="submit"],
+  [role="button"],
+  [role="tab"],
+  [data-ehpeek-pressable="true"]
+):not(:disabled, [aria-disabled="true"], .cursor-default):hover {
+  filter: brightness(1.08);
+  cursor: pointer;
 }
 `;
 
@@ -12967,6 +13061,43 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
     state.app.leftHandedControls.set(enabled), gState.setLeftHandedControls(enabled);
   }
   document.documentElement.setAttribute("data-ehpeek-site", ehSiteTheme());
+  document.documentElement.setAttribute("data-ehpeek-pointer", window.matchMedia("(hover: hover) and (pointer: fine)").matches ? "mouse" : "touch");
+  var PRESS_MIN_VISIBLE_MS = 100, PRESS_MOVE_TOLERANCE_PX = 8, pressedInteraction, pressedClearTimer, pendingPress, clearPressedInteraction = () => {
+    pressedClearTimer !== void 0 && (window.clearTimeout(pressedClearTimer), pressedClearTimer = void 0), pendingPress = void 0, pressedInteraction?.removeAttribute("data-ehpeek-pressed"), pressedInteraction = void 0;
+  }, showPressedInteraction = (interaction) => {
+    pressedInteraction = interaction, interaction.setAttribute("data-ehpeek-pressed", "true");
+  }, releasePressedInteraction = () => {
+    pressedClearTimer = window.setTimeout(clearPressedInteraction, PRESS_MIN_VISIBLE_MS);
+  };
+  document.addEventListener("pointerdown", (event) => {
+    event.pointerType !== "mouse" && document.documentElement.setAttribute("data-ehpeek-pointer", "touch"), clearPressedInteraction();
+    let interaction = event.target instanceof Element ? event.target.closest("[data-ehpeek-pressable=true]") ?? event.target.closest("a[href], button, input[type=button], input[type=submit], [role=button], [role=tab]") : null;
+    interaction?.closest('[data-ehpeek-ui-root="true"]') && (pendingPress = {
+      interaction,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY
+    });
+  }, {
+    capture: !0,
+    passive: !0
+  });
+  document.addEventListener("pointerup", (event) => {
+    pendingPress?.pointerId === event.pointerId && (showPressedInteraction(pendingPress.interaction), pendingPress = void 0, releasePressedInteraction());
+  }, {
+    capture: !0,
+    passive: !0
+  });
+  document.addEventListener("pointercancel", clearPressedInteraction, {
+    capture: !0,
+    passive: !0
+  });
+  document.addEventListener("pointermove", (event) => {
+    event.pointerType === "mouse" && document.documentElement.setAttribute("data-ehpeek-pointer", "mouse"), pendingPress?.pointerId === event.pointerId && Math.hypot(event.clientX - pendingPress.startX, event.clientY - pendingPress.startY) > PRESS_MOVE_TOLERANCE_PX && clearPressedInteraction();
+  }, {
+    capture: !0,
+    passive: !0
+  });
   updateUiScale();
   registerGlobalStyle("ehpeek-uno-style", ehpeek_uno_default);
   registerGlobalStyle("ehpeek-theme-style", theme_default);
@@ -13298,11 +13429,12 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
       });
     };
     if (gState.settings.touchUiEnabled) {
+      initialResultsDom.elems.resultList.attribute("data-ehpeek-ui-root", "true");
       let touchResultsDom = injectSearchControls(page2);
       createEffect(() => {
         resultsDom().handle.updateResultColumns(gState.columnsEnabled());
       }), mountSearchPagination((source) => {
-        updateSearchPage(source), touchResultsDom.handle.updateTouchResultsLayout();
+        source.elems.resultList.attribute("data-ehpeek-ui-root", "true"), updateSearchPage(source), touchResultsDom.handle.updateTouchResultsLayout();
       });
     } else
       mountSearchPagination(updateSearchPage);
@@ -13437,6 +13569,7 @@ lucide-solid/dist/esm/icons/history.mjs:
 lucide-solid/dist/esm/icons/house.mjs:
 lucide-solid/dist/esm/icons/hand.mjs:
 lucide-solid/dist/esm/icons/info.mjs:
+lucide-solid/dist/esm/icons/locate-fixed.mjs:
 lucide-solid/dist/esm/icons/maximize.mjs:
 lucide-solid/dist/esm/icons/minimize.mjs:
 lucide-solid/dist/esm/icons/move-horizontal.mjs:
@@ -13453,6 +13586,7 @@ lucide-solid/dist/esm/icons/sparkles.mjs:
 lucide-solid/dist/esm/icons/star.mjs:
 lucide-solid/dist/esm/icons/x.mjs:
 lucide-solid/dist/esm/icons/zoom-in.mjs:
+lucide-solid/dist/esm/icons/zoom-out.mjs:
   (**
    * @license lucide-solid v1.26.0 - ISC
    *
