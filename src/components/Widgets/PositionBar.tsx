@@ -37,6 +37,7 @@ export function PositionBar(props: {
   position?: "absolute" | "fixed";
   reversed?: boolean;
   thickness?: PositionBarThickness;
+  trackClickEnabled?: boolean;
   trackVisible?: boolean;
   visible?: boolean;
   visibleValueCount?: number;
@@ -83,10 +84,14 @@ export function PositionBar(props: {
   const onPointerDown = (event: PointerEvent): void => {
     event.preventDefault();
     event.stopPropagation();
+    const thumbPressed = event.target instanceof Node && thumb.contains(event.target);
+    if (!thumbPressed && props.trackClickEnabled === false) {
+      return;
+    }
     setDragging(true);
     track.setPointerCapture(event.pointerId);
     const thumbRect = thumb.getBoundingClientRect();
-    dragOffset = event.target instanceof Node && thumb.contains(event.target)
+    dragOffset = thumbPressed
       ? coordinate(event) - (horizontal ? thumbRect.left : thumbRect.top)
       : (horizontal ? thumbRect.width : thumbRect.height) / 2;
     props.onPointerDown?.(event);

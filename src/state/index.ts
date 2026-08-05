@@ -54,7 +54,6 @@ export const state = {
   },
   gallery: {
     enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", true),
-    floatingReadButton: persisted("ehpeek:gallery:floating-read-button", false),
     replacePreviewWithScroll: persisted("ehpeek:scroll-preview:replace-original", false),
     embeddedScrollPreviewSingleDirection: persisted<ReadDirection>(
       "ehpeek:gallery-scroll-preview:single-direction",

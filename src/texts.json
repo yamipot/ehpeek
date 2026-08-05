@@ -117,8 +117,6 @@
     "exitReaderOnFullscreenExitHelp": "Closes the Reader when fullscreen is exited",
     "replacePreviewWithScrollLabel": "Embed Scroll Preview",
     "replacePreviewWithScrollHelp": "Replace the original gallery preview area with Scroll Preview",
-    "floatingReadButtonLabel": "Floating Read button",
-    "floatingReadButtonHelp": "Show a Read or Continue button near the bottom-right of Gallery pages",
     "readerOptions": "Options",
     "openGalleryInNewTabLabel": "Open Gallery in new tab",
     "openGalleryInNewTabHelp": "Opens gallery links in a new browser tab",

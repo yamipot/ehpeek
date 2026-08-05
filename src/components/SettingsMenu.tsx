@@ -22,7 +22,6 @@ type SettingsMenuState = {
   replacePreviewWithScroll: boolean;
   enhanceThumbsGridsEnabled: boolean;
   enhanceSearchGridsEnabled: boolean;
-  floatingReadButtonEnabled: boolean;
   myTagsEnabled: boolean;
   readHistoryEnabled: boolean;
   includeUnreadHistoryEnabled: boolean;
@@ -211,7 +210,7 @@ export function SettingsMenu(props: {
           <For each={SETTINGS_SECTIONS}>{([tab, label, icon]) => (
             <button
               type="button"
-              class={`flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center gap-sm px-sm border-0 ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer [-webkit-tap-highlight-color:transparent] ${activeTab() === tab ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)]"}`}
+              class={`appearance-none flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center gap-sm px-sm !border-0 !text-[var(--color-site-text)] !shadow-none !outline-none [filter:none] font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer [-webkit-tap-highlight-color:transparent] ${activeTab() === tab ? "!bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent"}`}
               role="tab"
               aria-selected={activeTab() === tab}
               aria-controls={`ehpeek-settings-panel-${tab}`}
@@ -276,12 +275,6 @@ export function SettingsMenu(props: {
               description={texts.settings.replacePreviewWithScrollHelp}
               label={texts.settings.replacePreviewWithScrollLabel}
               onChange={(value) => updateDraft("replacePreviewWithScroll", value)}
-            />
-            <SwitchButton
-              checked={draft.floatingReadButtonEnabled}
-              description={texts.settings.floatingReadButtonHelp}
-              label={texts.settings.floatingReadButtonLabel}
-              onChange={(value) => updateDraft("floatingReadButtonEnabled", value)}
             />
             <SwitchButton
               checked={draft.myTagsEnabled}

@@ -385,6 +385,7 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
         position={state.horizontal ? undefined : "absolute"}
         reversed={state.horizontal && state.rightToLeft}
         thickness={state.thickness}
+        trackClickEnabled={false}
         trackVisible={false}
         visibleValueCount={
           state.screenEndPageNum() - state.screenStartPageNum() + 1

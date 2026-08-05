@@ -1,6 +1,7 @@
 import { createEffect, onCleanup, onMount, Show, untrack } from "solid-js";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
 import type { GalleryCoordinator } from "../../App/GalleryCoordinator";
+import { useOverlayHost } from "../../App/OverlayHost";
 import texts from "../../texts.json";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
 import {
@@ -81,6 +82,7 @@ type ReaderProps = {
 };
 
 export function Reader(props: ReaderProps) {
+  const overlayHost = useOverlayHost();
   const options = untrack(() => props.options);
   const totalPages = options.totalPages ?? 0;
   const previewCache = untrack(() => props.previewCache);
@@ -180,6 +182,7 @@ export function Reader(props: ReaderProps) {
           callbacks={readerCallbacks.toolbar}
           currentPage={readerState.navi.currentPageNum()}
           expanded={readerState.scrollBar.expanded()}
+          pixelScale={overlayHost.fullscreenPixelScale()}
           totalPages={totalPages}
           visible={readerState.scrollBar.visible()}
         />
