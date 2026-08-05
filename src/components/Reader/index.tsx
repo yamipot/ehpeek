@@ -286,8 +286,7 @@ function wireReaderCallbacks(
     if (closed) {
       return;
     }
-    closed = true;
-    coordinator.requestCloseReader();
+    closed = coordinator.requestCloseReader();
   }
 
   function setCurrentPageNumber(pageNumber: number, scrollIntoView: boolean, scrollMotion: ScrollMotion = "instant"): void {

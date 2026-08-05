@@ -25,7 +25,7 @@ type OverlaySurface = "preview" | "reader";
 
 type OverlayHistoryState = {
   depth: number;
-  id: number;
+  sessionId: string;
   surface: OverlaySurface;
 };
 
@@ -43,12 +43,10 @@ export type GalleryCoordinator = {
   progress: Accessor<ReadingProgress>;
   readerActivePageChanged: (page: ReaderPage) => void;
   requestClosePreview: (previewIndex: number) => void;
-  requestCloseReader: () => void;
+  requestCloseReader: () => boolean;
   selectPreviewPage: (pageUrl: string, pageNum: number) => void;
   toggleReaderFullscreen: () => void;
 };
-
-let nextCoordinatorId = 0;
 
 export function createGalleryCoordinator(options: {
   enhanceThumbsGridsEnabled: boolean;
@@ -75,7 +73,7 @@ export function createGalleryCoordinator(options: {
     options.readHistoryEnabled,
     options.includeUnreadHistoryEnabled,
   );
-  const historyId = ++nextCoordinatorId;
+  const historySessionId = crypto.randomUUID();
   const surfaces: OverlaySurface[] = [];
   let reader: ReaderSurface | null = null;
   let readerActions: ReaderActions | null = null;
@@ -103,7 +101,7 @@ export function createGalleryCoordinator(options: {
       ...(currentState !== null && typeof currentState === "object" ? currentState : {}),
       ehpeekOverlay: {
         depth: surfaces.length,
-        id: historyId,
+        sessionId: historySessionId,
         surface,
       } satisfies OverlayHistoryState,
     }, "", window.location.href);
@@ -156,19 +154,19 @@ export function createGalleryCoordinator(options: {
     if (!activeReader) {
       return;
     }
-    await exitFullscreen();
+    reader = null;
     const index = surfaces.lastIndexOf("reader");
     if (index >= 0) {
       surfaces.splice(index, 1);
     }
-    reader = null;
+    await exitFullscreen();
     activeReader.dispose();
     syncReaderExit();
   };
 
   const reconcileHistory = async (event: PopStateEvent): Promise<void> => {
     const marker = overlayHistoryState(event.state);
-    const depth = marker?.id === historyId ? marker.depth : 0;
+    const depth = marker?.sessionId === historySessionId ? marker.depth : 0;
     while (surfaces.length > depth) {
       if (topSurface() === "preview") {
         closePreview();
@@ -230,6 +228,16 @@ export function createGalleryCoordinator(options: {
       eh.clearPeekLocation();
     }
     window.history.back();
+  };
+
+  const requestReaderClose = (): boolean => {
+    if (!reader || topSurface() !== "reader") {
+      return false;
+    }
+    eh.clearPeekLocation();
+    void closeReader();
+    window.history.back();
+    return true;
   };
 
   const toggleFullscreen = (): void => {
@@ -396,7 +404,7 @@ export function createGalleryCoordinator(options: {
     requestClosePreview: (previewIndex: number) => {
       requestClose("preview", () => syncPreviewExit(previewIndex));
     },
-    requestCloseReader: () => requestClose("reader"),
+    requestCloseReader: requestReaderClose,
     selectPreviewPage: (pageUrl: string, pageNum: number) => {
       requestClose("preview", () => {
         void openReader(pageUrl, pageNum, true).catch(reportReaderOpenError);
@@ -464,7 +472,7 @@ function overlayHistoryState(value: unknown): OverlayHistoryState | null {
     marker === null ||
     typeof marker !== "object" ||
     typeof (marker as { depth?: unknown }).depth !== "number" ||
-    typeof (marker as { id?: unknown }).id !== "number"
+    typeof (marker as { sessionId?: unknown }).sessionId !== "string"
   ) {
     return null;
   }

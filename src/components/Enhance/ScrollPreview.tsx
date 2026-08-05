@@ -19,9 +19,6 @@ import texts from "../../texts.json";
 import { clamp } from "../../utils";
 import { ScrollFlingAnimator } from "../animation";
 import { createPointerGestureElement } from "../PointerGesture";
-import {
-  READER_FLOATING_ACTION_CLASS,
-} from "../Reader/Toolbar";
 import { Icon } from "../Widgets/Icon";
 import { PositionBar } from "../Widgets/PositionBar";
 import { PriorityLoadQueue } from "../Widgets/PriorityLoadQueue";
@@ -34,6 +31,11 @@ const MAX_CROSS_COUNT = 12;
 const OVERSCAN_ROWS = 4;
 const PREVIEW_CONCURRENT_LOADS = 2;
 const PREVIEW_LOAD_RADIUS = 2;
+const OVERLAY_PREVIEW_ACTION_CLASS = [
+  "inline-flex min-w-[var(--ui-control-size-lg)] h-[var(--ui-control-size-lg)] items-center justify-center px-md py-0 rounded-md large:(px-lg rounded-lg)",
+  "border border-[var(--color-site-border)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] cursor-pointer font-sans textsize-md font-700 leading-1",
+  "opacity-90 hover:(opacity-100 bg-[var(--color-site-page)]) focus-visible:opacity-100 disabled:(opacity-40 cursor-default) transition-[opacity,background-color] duration-160",
+].join(" ");
 const DECODE_CACHE_BYTES = 64 * 1024 * 1024;
 const DECODE_CACHE_ITEMS = 160;
 const NEXT_SCROLL_PREVIEW_DIRECTION: Record<ReadDirection, ReadDirection> = {
@@ -160,7 +162,7 @@ function OverlayPreviewToolbar(props: {
   state: PreviewToolbarState;
 }) {
   return (
-    <div class={`flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-border)] textsize-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
+    <div class={`flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-site-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-site-border)] text-[var(--color-site-text)] textsize-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
       <span class="flex items-center gap-sm opacity-75">
         <Show when={props.state.loading()}>
           <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
@@ -170,7 +172,7 @@ function OverlayPreviewToolbar(props: {
       <div class={`flex flex-none gap-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
         <button
           type="button"
-          class={READER_FLOATING_ACTION_CLASS}
+          class={OVERLAY_PREVIEW_ACTION_CLASS}
           aria-label={props.state.directionLabel}
           title={props.state.directionLabel}
           onClick={() => props.state.onDirectionChange()}
@@ -179,7 +181,7 @@ function OverlayPreviewToolbar(props: {
         </button>
         <button
           type="button"
-          class={READER_FLOATING_ACTION_CLASS}
+          class={OVERLAY_PREVIEW_ACTION_CLASS}
           disabled={props.state.zoomOutDisabled()}
           onClick={() => props.state.onZoomOut()}
         >
@@ -187,7 +189,7 @@ function OverlayPreviewToolbar(props: {
         </button>
         <button
           type="button"
-          class={READER_FLOATING_ACTION_CLASS}
+          class={OVERLAY_PREVIEW_ACTION_CLASS}
           disabled={props.state.zoomInDisabled()}
           onClick={() => props.state.onZoomIn()}
         >
@@ -195,7 +197,7 @@ function OverlayPreviewToolbar(props: {
         </button>
         <button
           type="button"
-          class={READER_FLOATING_ACTION_CLASS}
+          class={OVERLAY_PREVIEW_ACTION_CLASS}
           disabled={props.currentDisabled}
           onClick={() => props.onCurrent()}
         >
@@ -203,7 +205,7 @@ function OverlayPreviewToolbar(props: {
         </button>
         <button
           type="button"
-          class={READER_FLOATING_ACTION_CLASS}
+          class={OVERLAY_PREVIEW_ACTION_CLASS}
           aria-label={texts.button.close}
           title={texts.button.close}
           onClick={() => props.onClose()}
@@ -1251,7 +1253,8 @@ function ScrollPreviewPanel(props: {
         ref={overlay}
         class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]"
         classList={{
-          "absolute inset-0 bg-[var(--color-background)]": !embedded,
+          "absolute inset-0 bg-[var(--color-site-surface)] text-[var(--color-site-text)]":
+            !embedded,
           "border ehp-color-site-border rounded-sm bg-[var(--color-site-elevated)]":
             embedded,
           "relative h-[var(--scroll-preview-height)]": embedded,
