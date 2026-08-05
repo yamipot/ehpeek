@@ -1,6 +1,4 @@
 :root {
-  -webkit-tap-highlight-color: transparent;
-
   /* --color-background: #070707;
   --color-surface: #151515;
   --color-elevated: #232323;
@@ -69,6 +67,10 @@
   --color-site-text: #f1f1f1;
   --color-site-accent: #f0b35a;
   --color-site-border: #8d7454;
+}
+
+[data-ehpeek-ui-root="true"] {
+  -webkit-tap-highlight-color: transparent;
 }
 
 [data-ehpeek-ui-root="true"] [data-ehpeek-pressed="true"] {

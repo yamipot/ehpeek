@@ -541,9 +541,7 @@ function manageEhPeekGrid(
     male: "m",
     mixed: "x",
   };
-  resultList
-    .attribute("data-ehpeek-ui-root", "true")
-    .addClasses(sharedApply.searchGrid);
+  resultList.addClasses(sharedApply.searchGrid);
   if (mode === "ehpeek-lite") {
     resultList.addClasses(sharedApply.liteSearchGrid);
   }

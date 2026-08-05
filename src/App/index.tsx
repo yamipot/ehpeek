@@ -738,11 +738,13 @@ function injectSearchPage(
   };
 
   if (gState.settings.touchUiEnabled) {
+    initialResultsDom.elems.resultList.attribute("data-ehpeek-ui-root", "true");
     const touchResultsDom = injectSearchControls(page);
     createEffect(() => {
       resultsDom().handle.updateResultColumns(gState.columnsEnabled());
     });
     mountSearchPagination((source) => {
+      source.elems.resultList.attribute("data-ehpeek-ui-root", "true");
       updateSearchPage(source);
       touchResultsDom.handle.updateTouchResultsLayout();
     });
