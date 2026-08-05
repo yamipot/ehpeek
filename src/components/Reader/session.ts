@@ -55,7 +55,6 @@ export class ReaderSession {
       firstPageSeparate: false,
       pageLayout: readerControls.pageLayout.value,
       rightTapAction: readerControls.rightTapAction.value,
-      doubleTapAction: appState.reader.doubleTapAction.value,
     };
     const [controls, setControls] = createSignal(initialControls);
     const initialPageNum = initialControls.navigationMode === "paged" &&

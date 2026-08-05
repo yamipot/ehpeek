@@ -4,7 +4,6 @@ import {
   type NavigationMode,
   type PageLayout,
   type ReadDirection,
-  type ReaderDoubleTapAction,
   type RightTapAction,
 } from "../../state";
 import texts from "../../texts.json";
@@ -20,7 +19,6 @@ export type ReaderControls = {
   firstPageSeparate: boolean;
   pageLayout: PageLayout;
   rightTapAction: RightTapAction;
-  doubleTapAction: ReaderDoubleTapAction;
 };
 
 export type PageProgress = {
@@ -379,45 +377,6 @@ export function Toolbar(props: {
                 onClick={() => props.callbacks.onViewportAdjustClick()}
               >
                 <Icon name="viewport" size={READER_ICON_SIZE} />
-              </button>
-              <button
-                type="button"
-                class={READER_TOOLBAR_BUTTON_CLASS}
-                aria-label={props.controls.doubleTapAction === "zoom"
-                  ? texts.reader.doubleTapZoom
-                  : props.controls.doubleTapAction === "scroll-preview"
-                    ? texts.reader.doubleTapScrollPreview
-                    : texts.reader.doubleTapOff}
-                title={props.controls.doubleTapAction === "zoom"
-                  ? texts.reader.doubleTapZoom
-                  : props.controls.doubleTapAction === "scroll-preview"
-                    ? texts.reader.doubleTapScrollPreview
-                    : texts.reader.doubleTapOff}
-                onClick={() => {
-                  const doubleTapAction: ReaderDoubleTapAction =
-                    props.controls.doubleTapAction === "zoom"
-                      ? "scroll-preview"
-                      : props.controls.doubleTapAction === "scroll-preview"
-                        ? "off"
-                        : "zoom";
-                  props.callbacks.onControlsChange({ ...props.controls, doubleTapAction });
-                  showControlChange(
-                    doubleTapAction === "zoom"
-                      ? texts.reader.doubleTapZoom
-                      : doubleTapAction === "scroll-preview"
-                        ? texts.reader.doubleTapScrollPreview
-                        : texts.reader.doubleTapOff,
-                  );
-                }}
-              >
-                <Icon
-                  name={props.controls.doubleTapAction === "zoom"
-                    ? "zoom-in"
-                    : props.controls.doubleTapAction === "scroll-preview"
-                      ? "grid"
-                      : "close"}
-                  size={READER_ICON_SIZE}
-                />
               </button>
             </div>
           </Show>

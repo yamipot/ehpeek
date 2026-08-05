@@ -18,6 +18,7 @@ type PointerDragTap = PointerDragEnd & {
   startTarget: EventTarget | null;
 };
 type PointerDragAxis = "any" | "x" | "y";
+type PointerHoldResult = "consume" | "drag";
 
 type PointerPinchStart = {
   clientX: number;
@@ -38,11 +39,16 @@ export type PointerGestureCallbacks = {
   dragAxis?: PointerDragAxis;
   dragIntentRatio?: number;
   dragStartThreshold?: number;
+  holdDelay?: number;
   shouldCaptureDrag?: (event: PointerEvent | MouseEvent) => boolean;
   shouldObserveTap?: (event: PointerEvent | MouseEvent) => boolean;
   onStart?: (info: PointerDragStart, event: PointerEvent | MouseEvent) => void;
   onMove?: (info: PointerDragMove, event: PointerEvent | MouseEvent) => void;
   onEnd?: (info: PointerDragEnd, event: PointerEvent | MouseEvent) => void;
+  onHold?: (
+    info: PointerDragStart,
+    event: PointerEvent | MouseEvent,
+  ) => PointerHoldResult | false;
   onTap?: (info: PointerDragTap, event: PointerEvent | MouseEvent) => void;
   onPinchStart?: (info: PointerPinchStart, event: PointerEvent) => boolean;
   onPinchMove?: (info: PointerPinchMove, event: PointerEvent) => void;
@@ -53,6 +59,7 @@ export type PointerGestureCallbacks = {
 class PointerGesture {
   private readonly pinchPointers = new Map<number, { clientX: number; clientY: number }>();
   private drag: GesturePointer | null = null;
+  private holdTimer: number | null = null;
   private suppressClick = false;
   private suppressClickTimer: number | null = null;
   private pinch: {
@@ -76,6 +83,7 @@ class PointerGesture {
     }
 
     this.drag = null;
+    this.clearHold();
     this.setDragging(false);
     this.clearPinch();
     this.removePointerListeners();
@@ -103,6 +111,7 @@ class PointerGesture {
     }
 
     this.drag = null;
+    this.clearHold();
     this.setDragging(false);
     this.removePointerListeners();
     this.removeMouseListeners();
@@ -200,6 +209,7 @@ class PointerGesture {
       lastClientX: clientX,
       lastClientY: clientY,
       lastMoveTime: event.timeStamp,
+      holdConsumed: false,
       startTarget: event.target,
       tapCancelled: false,
       velocityX: 0,
@@ -214,6 +224,7 @@ class PointerGesture {
     }
 
     this.addPointerListeners();
+    this.startHold(this.drag, event);
   }
 
   private onPointerMove = (event: PointerEvent): void => {
@@ -265,12 +276,18 @@ class PointerGesture {
       return;
     }
 
+    if (drag.holdConsumed) {
+      event.preventDefault();
+      return;
+    }
+
     const dx = clientX - drag.startClientX;
     const dy = clientY - drag.startClientY;
 
     const tapMoveThreshold = this.tapMoveThreshold();
     if (Math.abs(dx) >= tapMoveThreshold || Math.abs(dy) >= tapMoveThreshold) {
       drag.tapCancelled = true;
+      this.clearHold();
     }
 
     if (!drag.canDrag) {
@@ -325,6 +342,7 @@ class PointerGesture {
     }
 
     this.drag = null;
+    this.clearHold();
     this.setDragging(false);
     this.releaseCapture(drag);
     this.removePointerListeners();
@@ -339,6 +357,11 @@ class PointerGesture {
       velocityX: drag.velocityX,
       velocityY: drag.velocityY,
     };
+
+    if (drag.holdConsumed) {
+      this.suppressNextClick();
+      return;
+    }
 
     const tapMoveThreshold = this.tapMoveThreshold();
     const isTap = !drag.tapCancelled &&
@@ -509,6 +532,40 @@ class PointerGesture {
     return this.callbacks().tapMoveThreshold ?? DEFAULT_TAP_MOVE_THRESHOLD_PX;
   }
 
+  private startHold(drag: GesturePointer, event: PointerEvent | MouseEvent): void {
+    const callbacks = this.callbacks();
+    if (callbacks.holdDelay === undefined || !callbacks.onHold) {
+      return;
+    }
+    this.holdTimer = window.setTimeout(() => {
+      this.holdTimer = null;
+      if (this.drag !== drag || drag.active || drag.tapCancelled) {
+        return;
+      }
+      const result = this.callbacks().onHold?.({
+        clientX: drag.startClientX,
+        clientY: drag.startClientY,
+        pointerId: drag.pointerId,
+      }, event);
+      if (!result) {
+        return;
+      }
+      drag.tapCancelled = true;
+      if (result === "consume") {
+        drag.holdConsumed = true;
+      } else {
+        this.activateDrag(drag, event);
+      }
+    }, callbacks.holdDelay);
+  }
+
+  private clearHold(): void {
+    if (this.holdTimer !== null) {
+      window.clearTimeout(this.holdTimer);
+      this.holdTimer = null;
+    }
+  }
+
   private dragStartThreshold(): number {
     return this.callbacks().dragStartThreshold ?? DEFAULT_DRAG_START_THRESHOLD_PX;
   }
@@ -613,6 +670,7 @@ type GesturePointer = {
   active: boolean;
   canDrag: boolean;
   captureTarget: Element | null;
+  holdConsumed: boolean;
   pointerId: number;
   pointerType: string;
   startClientX: number;

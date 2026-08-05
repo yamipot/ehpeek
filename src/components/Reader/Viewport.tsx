@@ -100,6 +100,7 @@ type CachedPageImage = {
 };
 
 export type PagesViewportCallbacks = {
+  onDoubleClick: (event: MouseEvent) => void;
   onNativeScroll: () => void;
   onReloadPage: (pageNum: number) => void;
   onWheel: (delta: number, event: WheelEvent) => void;
@@ -786,6 +787,7 @@ export function PagesViewport(props: {
         "[#ehpeek-reader[data-navigation-mode=paged]_&]:(overflow-hidden touch-none select-none)"
       }
       tabIndex={-1}
+      onDblClick={(event: MouseEvent) => props.callbacks.onDoubleClick(event)}
       onScroll={() => props.callbacks.onNativeScroll()}
       onWheel={(event: WheelEvent) => {
         const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;

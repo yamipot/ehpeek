@@ -18,7 +18,7 @@
         "**Tap** the center to show or hide the toolbar.",
         "**Swipe or scroll** in the reading direction; tap either side or use the **Arrow keys** to turn pages.",
         "In **Paged mode**, pull down or swipe sideways across the reading direction to open Scroll Preview.",
-        "**Pinch** to zoom the image. The **double-tap** action can be changed in Reading options."
+        "**Pinch** to zoom. With a mouse, **press and hold** an image or use **Ctrl/⌘ + wheel** to zoom; while zoomed, press and hold, double-click, or double-tap to exit."
       ],
       "Browse": [
         "Choose EhPeek or EhPeekLite from the **layout menu** to replace the original result layout.",
@@ -46,9 +46,6 @@
     "scrollMode": "Scroll mode",
     "rightTapPrevious": "Right side action:\nPrevious page",
     "rightTapNext": "Right side action:\nNext page",
-    "doubleTapZoom": "Double-tap action:\nZoom",
-    "doubleTapScrollPreview": "Double-tap action:\nScroll Preview",
-    "doubleTapOff": "Double-tap action:\nOff",
     "directionRtl": "Reading direction:\n Right to left",
     "directionLtr": "Reading direction:\n Left to right",
     "directionTtb": "Reading direction:\n Top to bottom",
