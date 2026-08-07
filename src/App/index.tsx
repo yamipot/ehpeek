@@ -339,7 +339,7 @@ function TouchGalleryReadButton(props: GalleryReadButtonProps) {
   return (
     <button
       type="button"
-      class="flex min-w-0 w-full h-full ui-hit-min-h-xl flex-col items-center justify-center ui-gap-md ui-py-md ui-px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-lg)] font-700"
+      class="flex min-w-0 w-full h-full ui-hit-min-h-xl flex-col items-center justify-center ui-gap-xs ui-py-md ui-px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-lg)] font-700"
       aria-label={readButtonLabel(props.progress())}
       title={readButtonLabel(props.progress())}
       onClick={(event) => {
@@ -350,7 +350,7 @@ function TouchGalleryReadButton(props: GalleryReadButtonProps) {
     >
       {readButtonLabel(props.progress())}
       <Show when={props.progress().hasHistory}>
-        <span class="block mt-2px ehp-color-site-accent [font-size:var(--ui-font-size-lg)] font-600 opacity-78 normal-case">
+        <span class="block ehp-color-site-accent [font-size:var(--ui-font-size-sm)] font-600 opacity-78 normal-case">
           {readButtonProgress(props.progress())}
         </span>
       </Show>

@@ -241,8 +241,8 @@ export function GalleryInfoPanel(props: {
         <div
           class="flex min-w-0 border-0 border-solid border-[var(--color-site-page)] [direction:ltr]"
           classList={{
-            "border-r-4": props.leftHandedControls(),
-            "border-l-4": !props.leftHandedControls(),
+            "border-r-6": props.leftHandedControls(),
+            "border-l-6": !props.leftHandedControls(),
           }}
         >
           {props.primaryAction}
@@ -845,7 +845,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
     <div class="relative z-2 min-w-0">
       <button
         type="button"
-        class="flex min-w-0 w-full h-full min-h-[var(--ui-control-size-xl)] flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-lg)] font-700 normal-case"
+        class="flex min-w-0 w-full h-full ui-hit-min-h-xl flex-col items-center justify-center ui-gap-xs ui-py-md ui-px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-lg)] font-700 normal-case"
         style={{ color: favorite().color ?? undefined }}
         aria-haspopup="menu"
         aria-expanded={open()}
@@ -860,10 +860,14 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
       >
         <span class="block leading-[1.15]">{favorite().label}</span>
         <span
-          class="block mt-2px opacity-78 normal-case"
+          class="block opacity-78 normal-case"
           aria-hidden="true"
         >
-          <Icon name="heart" filled={favorited()} />
+          <Icon
+            name="heart"
+            size="var(--ui-icon-size-lg)"
+            filled={favorited()}
+          />
         </span>
       </button>
       <Show when={open()}>
