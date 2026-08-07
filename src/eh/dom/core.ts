@@ -1,6 +1,6 @@
 import type { JSX } from "solid-js";
 import { render } from "solid-js/web";
-import { markUiRoot } from "../../uiRoot";
+import { markUiRoot } from "../../ui";
 
 const MANAGED_DOM_NODE_CLASS = "ehpeek-managed";
 const EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor";

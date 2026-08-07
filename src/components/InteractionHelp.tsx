@@ -1,8 +1,6 @@
 import { For } from "solid-js";
-import texts from "../texts.json";
+import texts from "../i18n";
 import { Dialog } from "./Widgets/Dialog";
-
-const SECTIONS = Object.entries(texts.help.content);
 
 export function InteractionHelp(props: {
   onClose: () => void;
@@ -18,11 +16,11 @@ export function InteractionHelp(props: {
       width="lg"
     >
       <div class="grid ui-gap-lg text-left textsize-md leading-[1.45]">
-        <For each={SECTIONS}>{([title, items]) => (
+        <For each={texts.help.sections}>{(section) => (
           <section>
-            <h3 class="m-0 ui-mb-sm textsize-md font-700">{title}</h3>
+            <h3 class="m-0 ui-mb-sm textsize-md font-700">{section.title}</h3>
             <ul class="m-0 ui-pl-xl">
-              <For each={items}>{(item) => (
+              <For each={section.items}>{(item) => (
                 <li class="ui-mb-xs last:mb-0"><HelpText text={item} /></li>
               )}</For>
             </ul>

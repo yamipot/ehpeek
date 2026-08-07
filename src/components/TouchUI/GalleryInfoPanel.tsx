@@ -14,7 +14,7 @@ import type {
   MyTagMode,
 } from "../../eh";
 import { sharedApply, type GalleryInfoDom, type GalleryInfoTagGroup } from "../../eh";
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import { state } from "../../state";
 import { refreshMyTags } from "../Enhance/MyTags";
 import { WelcomeIcon } from "../WelcomeIcon";
@@ -182,7 +182,7 @@ export function GalleryInfoPanel(props: {
                 <button
                   type="button"
                   class="flex w-[65%] max-w-full flex-none self-end flex-col items-end ui-gap-xs mt-auto p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-right cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:ui-rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
-                  aria-label="Rate gallery"
+                  aria-label={texts.gallery.rate}
                   onClick={() => {
                     const preview = ratingPointerType === "mouse"
                       ? ratingPreview()
@@ -288,7 +288,7 @@ export function GalleryInfoPanel(props: {
                 setTagging((enabled) => !enabled);
               }}
             >
-              <span>Tagging</span>
+              <span>{texts.gallery.tagging}</span>
               <span
                 class={`block flex-none ui-w-md ui-h-md rounded-full ${tagging() ? "bg-[var(--color-state-on)]" : "bg-[var(--color-state-off)]"}`}
                 aria-hidden="true"
@@ -320,16 +320,19 @@ export function GalleryInfoPanel(props: {
       <Show when={ratingPickerOpen()}>
         <Dialog
           bodyClass="flex flex-col ui-gap-lg ui-pt-lg ui-px-lg"
-          label="Rate gallery"
+          label={texts.gallery.rate}
           onClose={closeRatingPicker}
-          title="Rate gallery"
+          title={texts.gallery.rate}
           variant="site"
           width="md"
         >
           <button
             type="button"
             class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:ui-rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
-            aria-label={`Rate gallery: ${displayedRating().toFixed(1)} stars`}
+            aria-label={texts.gallery.rateWithStars.replace(
+              "{rating}",
+              displayedRating().toFixed(1),
+            )}
             onClick={(event: MouseEvent) => {
               setRatingPreview(
                 ratingFromPointer(
@@ -375,14 +378,14 @@ export function GalleryInfoPanel(props: {
                 }
               }}
             >
-              Submit
+              {texts.common.actions.submit}
             </button>
             <button
               type="button"
               class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]`}
               onClick={closeRatingPicker}
             >
-              {texts.button.close}
+              {texts.common.actions.close}
             </button>
           </div>
         </Dialog>
@@ -612,7 +615,7 @@ function TouchGalleryTagMenu(props: {
         >
           <Show
             when={!updating()}
-            fallback={<WelcomeIcon embedded label={texts.reader.loading} showIcon={false} />}
+            fallback={<WelcomeIcon embedded label={texts.common.status.loading} showIcon={false} />}
           >
             <DomNode node={props.source.elems.tagMenuAction} />
             <Show when={state.gallery.myTags.value}>
@@ -664,7 +667,7 @@ function TouchGalleryTagMenu(props: {
         >
           <Show
             when={!updating()}
-            fallback={<WelcomeIcon embedded label={texts.reader.loading} showIcon={false} />}
+            fallback={<WelcomeIcon embedded label={texts.common.status.loading} showIcon={false} />}
           >
               <div class="flex flex-col ui-gap-sm ehp-color-site-text textsize-md font-600">
                 <span>{texts.gallery.tagCollection}</span>
@@ -733,7 +736,7 @@ function TouchGalleryTagMenu(props: {
                   class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]`}
                   onClick={closeFavoriteTagDialog}
                 >
-                  {texts.button.close}
+                  {texts.common.actions.close}
                 </button>
                 <button
                   type="button"
@@ -746,7 +749,7 @@ function TouchGalleryTagMenu(props: {
                   }}
                 >
                   <Icon name="heart" />
-                  <span>{texts.button.confirm}</span>
+                  <span>{texts.common.actions.confirm}</span>
                 </button>
               </div>
           </Show>
@@ -897,10 +900,10 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
           width="md"
         >
           <Show when={loadingState() === "loading"}>
-            <WelcomeIcon embedded label={texts.reader.loading} showIcon={false} />
+            <WelcomeIcon embedded label={texts.common.status.loading} showIcon={false} />
           </Show>
           <Show when={loadingState() === "failed"}>
-            <TouchGalleryFavoriteStatus text="Failed" />
+            <TouchGalleryFavoriteStatus text={texts.common.status.failed} />
           </Show>
           <Show when={loadingState() === "idle"}>
             <Show
@@ -946,7 +949,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
                     class="min-h-[var(--ui-control-size-md)] ui-rounded-md border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] font-inherit textsize-md font-700"
                     onClick={() => setEditingNote(false)}
                   >
-                    {texts.button.confirm}
+                    {texts.common.actions.confirm}
                   </button>
                 </div>
               </div>

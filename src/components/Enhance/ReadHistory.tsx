@@ -10,7 +10,7 @@ import {
   READ_HISTORY_LIMIT,
   removeReadHistory,
 } from "../../state/readHistory";
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import { PageSwipe } from "./PageSwipe";
 import { ScrollPageBar } from "./ScrollPageBar";
 
@@ -168,14 +168,14 @@ export function ReadHistoryPage(props: {
               class="ui-hit-min-h-xs ui-px-sm ui-rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
               onClick={() => historyFileInput.click()}
             >
-              {texts.button.importHistory}
+              {texts.history.actions.import}
             </button>
             <button
               type="button"
               class="ui-hit-min-h-xs ui-px-sm ui-rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
               onClick={exportHistoryFile}
             >
-              {texts.button.exportHistory}
+              {texts.history.actions.export}
             </button>
             {items().length > 0 && (
               <button
@@ -183,7 +183,7 @@ export function ReadHistoryPage(props: {
                 class="ui-hit-min-h-xs ui-px-sm ui-rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
                 onClick={clearHistory}
               >
-                {texts.button.clearHistory}
+                {texts.history.actions.clear}
               </button>
             )}
           </div>

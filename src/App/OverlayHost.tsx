@@ -7,8 +7,7 @@ import {
   useContext,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { applyUiScale, type UiScale } from "../uiScale";
-import { markUiRoot } from "../uiRoot";
+import { applyUiScale, markUiRoot, type UiScale } from "../ui";
 import {
   createFullscreenController,
   type FullscreenController,

@@ -1,4 +1,4 @@
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import { galleryIdentityFromUrl, type PageType } from "../url";
 import { requestPage } from "../request";
 import type {
@@ -82,7 +82,9 @@ function createReadHistoryGridRow(
   }
   appendMetadata(info?.uploader, "ehpeek-search-meta-uploader");
   appendMetadata(
-    item.totalPages ? `${item.totalPages} pages` : undefined,
+    item.totalPages
+      ? `${item.totalPages} ${texts.gallery.pages.toLowerCase()}`
+      : undefined,
     "ehpeek-search-meta-pages",
   );
 
@@ -94,7 +96,7 @@ function createReadHistoryGridRow(
     .replaceClasses(
       "relative z-2 ui-hit-min-h-lg ui-py-xs ui-px-lg ui-rounded-md border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] ehp-color-site-text font-inherit textsize-md font-700 text-center cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]",
     );
-  removeButton.setTextUnlessInput(texts.button.removeHistory);
+  removeButton.setTextUnlessInput(texts.history.actions.remove);
   const historyActions = createManagedElement("div")
     .replaceClasses("ehpeek-read-history-actions box-border flex items-center justify-end ui-gap-md ui-pr-sm ui-pb-xs")
     .append(removeButton);
@@ -906,7 +908,7 @@ function manageFavoritesCategories(
   container.inplace(domClass.search.favorites.categories.apply).apply("hide");
 
   const categories = [
-    ...(all ? [{ ...all, count: total, label: texts.favorites.all }] : []),
+    ...(all ? [{ ...all, count: total }] : []),
     ...favorites,
   ];
   return {

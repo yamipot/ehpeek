@@ -1,6 +1,6 @@
 import { type JSX, onCleanup, onMount } from "solid-js";
 import { OverlayPortal } from "../../App/OverlayHost";
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import { Icon } from "./Icon";
 
 const DIALOG_WIDTHS = {
@@ -86,8 +86,8 @@ export function Dialog(props: {
                   ? "text-[var(--color-text)] hover:bg-[var(--color-badge)]"
                   : "ehp-color-site-text hover:bg-[var(--color-site-item-hover)]"
               }`}
-              aria-label={texts.button.close}
-              title={texts.button.close}
+              aria-label={texts.common.actions.close}
+              title={texts.common.actions.close}
               onClick={() => props.onClose()}
             >
               <Icon name="close" size="var(--ui-icon-size-md)" />

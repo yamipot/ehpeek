@@ -1,5 +1,5 @@
 import { createEffect, Show, type JSX } from "solid-js";
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import { READER_BUTTON_CLASS } from "./Toolbar";
 
 const MIN_SCALE_PERCENT = 10;
@@ -139,10 +139,10 @@ export function ViewportCanvas(props: {
               {texts.reader.applyGlobally}
             </button>
             <button type="button" class={`${READER_BUTTON_CLASS} w-full`} onClick={() => props.callbacks.onApply()}>
-              {texts.button.apply}
+              {texts.common.actions.apply}
             </button>
             <button type="button" class={`${READER_BUTTON_CLASS} w-full`} onClick={() => props.callbacks.onClose()}>
-              {texts.button.close}
+              {texts.common.actions.close}
             </button>
           </div>
         </div>

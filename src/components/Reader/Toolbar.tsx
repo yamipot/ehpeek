@@ -6,7 +6,7 @@ import {
   type ReadDirection,
   type RightTapAction,
 } from "../../state";
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import { stopEvent } from "../../utils";
 import { Dialog } from "../Widgets/Dialog";
 import { Icon } from "../Widgets/Icon";
@@ -255,8 +255,8 @@ export function Toolbar(props: {
           <button
             type="button"
             class={READER_TOOLBAR_BUTTON_CLASS}
-            aria-label={texts.button.close}
-            title={texts.button.close}
+            aria-label={texts.common.actions.close}
+            title={texts.common.actions.close}
             onClick={() => props.callbacks.onCloseClick()}
           >
             <Icon name="close" size={READER_ICON_SIZE} />

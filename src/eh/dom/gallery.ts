@@ -1,6 +1,6 @@
 import { requestPage } from "../request";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import { normalizeUrl } from "../../utils";
 import type { ImagePageInfo } from "../types";
 import type { MyTagAppearance, MyTagSetOption } from "../../state";

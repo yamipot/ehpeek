@@ -7,7 +7,7 @@ import {
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
 import type { GalleryCoordinator } from "../../App/GalleryCoordinator";
 import * as eh from "../../eh";
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import { createPointerGestureElement, type PointerDragEnd } from "../PointerGesture";
 import { LoadingOverlay } from "../Widgets/Loading";
 import { SwipeIndicator, type SwipeIndicatorState } from "../Widgets/SwipeIndicator";
@@ -172,7 +172,7 @@ export function ThumbsGrids(props: {
   return (
     <>
       <LoadingOverlay
-        label={texts.reader.loading}
+        label={texts.common.status.loading}
         visible={props.previewCache.loading()}
       />
       <SwipeIndicator state={swipeIndicatorState()} />

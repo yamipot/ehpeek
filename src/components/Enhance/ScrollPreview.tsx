@@ -15,7 +15,7 @@ import type { GalleryCoordinator } from "../../App/GalleryCoordinator";
 import { OverlayPortal, useOverlayHost } from "../../App/OverlayHost";
 import type { GalleryPreviewDom, GalleryPreviewItem } from "../../eh";
 import type { ReadDirection } from "../../state";
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import { clamp } from "../../utils";
 import { ScrollFlingAnimator } from "../animation";
 import { createPointerGestureElement } from "../PointerGesture";
@@ -184,8 +184,8 @@ function OverlayPreviewToolbar(props: {
         <button
           type="button"
           class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
-          aria-label={texts.reader.zoomOut}
-          title={texts.reader.zoomOut}
+          aria-label={texts.common.actions.zoomOut}
+          title={texts.common.actions.zoomOut}
           disabled={props.state.zoomOutDisabled()}
           onClick={() => props.state.onZoomOut()}
         >
@@ -194,8 +194,8 @@ function OverlayPreviewToolbar(props: {
         <button
           type="button"
           class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
-          aria-label={texts.reader.zoomIn}
-          title={texts.reader.zoomIn}
+          aria-label={texts.common.actions.zoomIn}
+          title={texts.common.actions.zoomIn}
           disabled={props.state.zoomInDisabled()}
           onClick={() => props.state.onZoomIn()}
         >
@@ -204,8 +204,8 @@ function OverlayPreviewToolbar(props: {
         <button
           type="button"
           class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
-          aria-label={texts.button.current}
-          title={texts.button.current}
+          aria-label={texts.common.actions.current}
+          title={texts.common.actions.current}
           disabled={props.currentDisabled}
           onClick={() => props.onCurrent()}
         >
@@ -214,8 +214,8 @@ function OverlayPreviewToolbar(props: {
         <button
           type="button"
           class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
-          aria-label={texts.button.close}
-          title={texts.button.close}
+          aria-label={texts.common.actions.close}
+          title={texts.common.actions.close}
           onClick={() => props.onClose()}
         >
           <Icon name="close" size="var(--ui-icon-size-md)" />
@@ -259,8 +259,8 @@ function EmbeddedPreviewToolbar(props: {
         <button
           type="button"
           class={EMBEDDED_PREVIEW_ACTION_CLASS}
-          aria-label={texts.reader.zoomOut}
-          title={texts.reader.zoomOut}
+          aria-label={texts.common.actions.zoomOut}
+          title={texts.common.actions.zoomOut}
           disabled={props.state.zoomOutDisabled()}
           onClick={() => props.state.onZoomOut()}
         >
@@ -269,8 +269,8 @@ function EmbeddedPreviewToolbar(props: {
         <button
           type="button"
           class={EMBEDDED_PREVIEW_ACTION_CLASS}
-          aria-label={texts.reader.zoomIn}
-          title={texts.reader.zoomIn}
+          aria-label={texts.common.actions.zoomIn}
+          title={texts.common.actions.zoomIn}
           disabled={props.state.zoomInDisabled()}
           onClick={() => props.state.onZoomIn()}
         >

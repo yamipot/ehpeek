@@ -37,7 +37,7 @@ import {
 import * as eh from "../eh";
 import { state } from "../state";
 import { dispatchReady } from "../state/events";
-import texts from "../texts.json";
+import texts from "../i18n";
 import { registerGlobalStyle } from "../utils";
 import ehDomCss from "../eh/dom/styles.css";
 import unoCss from "ehpeek:uno.css";
@@ -57,12 +57,13 @@ import {
   OverlayHostProvider,
   type OverlayHost,
 } from "./OverlayHost";
-import { applyUiScale, type UiScale } from "../uiScale";
 import {
-  configureUiRoots,
+  applyUiScale,
+  configureUi,
   markUiRoot,
   setUiPointer,
-} from "../uiRoot";
+  type UiScale,
+} from "../ui";
 
 function settingsMenuState(defaults = false) {
   const read = <T,>(setting: { defaultValue: T; value: T }): T =>
@@ -179,7 +180,7 @@ function setLeftHandedControls(enabled: boolean): void {
   gState.setLeftHandedControls(enabled);
 }
 
-configureUiRoots({
+configureUi({
   pointer: window.matchMedia("(hover: hover) and (pointer: fine)").matches
     ? "mouse"
     : "touch",
@@ -402,7 +403,7 @@ function injectCommon(page: eh.PageType): void {
             gState.setSettingsMenuOpen(true);
           }}
         >
-          {texts.settings.menuLabel}
+          {__EHPEEK_NAME__}
         </a>
       ));
     });

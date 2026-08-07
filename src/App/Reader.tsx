@@ -4,7 +4,7 @@ import {
   Reader,
   type ReaderOptions,
 } from "../components/Reader";
-import texts from "../texts.json";
+import texts from "../i18n";
 import type { GalleryPreviewCache } from "./GalleryPreviewCache";
 import type { GalleryCoordinator } from "./GalleryCoordinator";
 import {

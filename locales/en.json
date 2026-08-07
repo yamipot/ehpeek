@@ -1,34 +1,50 @@
 {
-  "description": "A touch-optimized E-H/ExH viewer",
-  "button": {
-    "apply": "Apply",
-    "clearHistory": "Clear All",
-    "close": "Close",
-    "confirm": "Confirm",
-    "current": "Current",
-    "default": "Default",
-    "exportHistory": "Export",
-    "importHistory": "Import",
-    "removeHistory": "Delete"
+  "metadata": {
+    "description": "A touch-optimized E-H/ExH viewer"
+  },
+  "common": {
+    "actions": {
+      "apply": "Apply",
+      "close": "Close",
+      "confirm": "Confirm",
+      "current": "Current",
+      "default": "Default",
+      "submit": "Submit",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out"
+    },
+    "status": {
+      "failed": "Failed",
+      "loading": "Loading..."
+    }
   },
   "help": {
     "title": "Help",
-    "content": {
-      "Reader": [
-        "**Tap** the center to show or hide the toolbar.",
-        "**Swipe or scroll** in the reading direction; tap either side or use the **Arrow keys** to turn pages.",
-        "In **Paged mode**, pull down or swipe sideways across the reading direction to open Scroll Preview.",
-        "**Pinch** to zoom. With a mouse, **press and hold** an image or use **Ctrl/⌘ + wheel** to zoom; while zoomed, press and hold, double-click, or double-tap to exit."
-      ],
-      "Browse": [
-        "Choose EhPeek or EhPeekLite from the **layout menu** to replace the original result layout.",
-        "When **Enhance > Search Swipe** is enabled, **swipe** horizontally to change search result pages."
-      ],
-      "Gallery": [
-        "When **Enhance > Preview Swipe** is enabled, **swipe** horizontally to change preview pages.",
-        "The Page Bar in Gallery can be **dragged** to adjust the range."
-      ]
-    }
+    "sections": [
+      {
+        "title": "Reader",
+        "items": [
+          "**Tap** the center to show or hide the toolbar.",
+          "**Swipe or scroll** in the reading direction; tap either side or use the **Arrow keys** to turn pages.",
+          "In **Paged mode**, pull down or swipe sideways across the reading direction to open Scroll Preview.",
+          "**Pinch** to zoom. With a mouse, **press and hold** an image or use **Ctrl/⌘ + wheel** to zoom; while zoomed, press and hold, double-click, or double-tap to exit."
+        ]
+      },
+      {
+        "title": "Browse",
+        "items": [
+          "Choose EhPeek or EhPeekLite from the **layout menu** to replace the original result layout.",
+          "When **Enhance > Search Swipe** is enabled, **swipe** horizontally to change search result pages."
+        ]
+      },
+      {
+        "title": "Gallery",
+        "items": [
+          "When **Enhance > Preview Swipe** is enabled, **swipe** horizontally to change preview pages.",
+          "The Page Bar in Gallery can be **dragged** to adjust the range."
+        ]
+      }
+    ]
   },
   "reader": {
     "readingOptions": "Reading options",
@@ -36,8 +52,6 @@
     "exitFullscreen": "Exit fullscreen",
     "adjustScrollViewport": "Adjust Scroll viewport size",
     "resizeScrollViewport": "Resize Scroll viewport",
-    "zoomIn": "Zoom in",
-    "zoomOut": "Zoom out",
     "fit": "Fit",
     "applyGlobally": "Set Default",
     "pagedMode": "Paged mode",
@@ -63,28 +77,32 @@
     "originalImageUnavailable": "Original image unavailable",
     "startReading": "Read",
     "continueReading": "Continue",
-    "loading": "Loading...",
-    "pages": "Pages",
     "endPage": "End",
     "end": "End of gallery. Tap to exit.",
-    "failedPrefix": "Failed",
     "reloadPage": "Reload page"
   },
-  "favorites": {
-    "all": "All"
-  },
   "history": {
+    "actions": {
+      "clear": "Clear All",
+      "export": "Export",
+      "import": "Import",
+      "remove": "Delete"
+    },
     "clearConfirm": "Clear all reading history?",
     "empty": "No reading history",
     "exported": "History exported",
     "importFailed": "History import failed",
-    "imported": "Imported {count} histories",
+    "imported": "Imported {count} history entries",
     "limit": "(max {limit})",
     "visitedLabel": "VISITED",
-    "range": "{start}-{end} in {total} histories",
+    "range": "{start}–{end} of {total} history entries",
     "removeConfirm": "Remove this gallery from Read History?"
   },
   "gallery": {
+    "pages": "Pages",
+    "rate": "Rate gallery",
+    "rateWithStars": "Rate gallery: {rating} stars",
+    "tagging": "Tagging",
     "scrollPreview": "Scroll Preview",
     "confirmScrollPreviewDirection": "Change Scroll Preview direction?",
     "openScrollPreview": "Open full-screen Scroll Preview",
@@ -103,7 +121,6 @@
   },
   "settings": {
     "openSettings": "Settings",
-    "menuLabel": "Ehpeek",
     "on": "On",
     "off": "Off",
     "discardChanges": "Discard unsaved settings changes?",
@@ -112,15 +129,14 @@
     "about": "About",
     "licenses": "Licenses",
     "readerLabel": "Reader",
-    "readerHelp": "Opens gallery images in Ehpeek's reader",
+    "readerHelp": "Opens gallery images in EhPeek's reader",
     "readerFullscreenLabel": "Open Reader in Fullscreen",
     "readerFullscreenHelp": "Enters fullscreen when the Reader opens",
-    "exitReaderOnFullscreenExitLabel": "Close Reader on Fullscreen exit",
+    "exitReaderOnFullscreenExitLabel": "Close Reader on Fullscreen Exit",
     "exitReaderOnFullscreenExitHelp": "Closes the Reader when fullscreen is exited",
     "replacePreviewWithScrollLabel": "Embed Scroll Preview",
-    "replacePreviewWithScrollHelp": "Replace the original gallery preview area with Scroll Preview",
-    "readerOptions": "Options",
-    "openGalleryInNewTabLabel": "Open Gallery in new tab",
+    "replacePreviewWithScrollHelp": "Replaces the original gallery preview area with Scroll Preview",
+    "openGalleryInNewTabLabel": "Open Gallery in New Tab",
     "openGalleryInNewTabHelp": "Opens gallery links in a new browser tab",
     "uiControlsLabel": "UI Layout",
     "uiScaleLabel": "UI Scale",
@@ -132,16 +148,16 @@
     "enhanceThumbsLabel": "Preview Swipe",
     "enhanceThumbsHelp": "Swipe between preview pages; makes the page bar draggable",
     "myTagsLabel": "My Tags Color",
-    "myTagsHelp": "Colors my tags in gallery",
+    "myTagsHelp": "Colors my tags in galleries",
     "historyLabel": "History",
     "readHistoryLabel": "Read History",
-    "readHistoryHelp": "Remembers reading progress and add a history page",
+    "readHistoryHelp": "Adds galleries to Read History and remembers reading progress",
     "includeUnreadHistoryLabel": "Include Unread History",
-    "includeUnreadHistoryHelp": "Records opened but unread galleries to read history",
+    "includeUnreadHistoryHelp": "Records opened but unread galleries in Read History",
     "searchHistoryLabel": "Search History",
-    "searchHistoryHelp": "Remembers searches keywords histories",
+    "searchHistoryHelp": "Keeps a history of search keywords",
     "touchUiLabel": "Touch UI",
-    "touchUiHelp": "Uses touch-friendly navigation UI."
+    "touchUiHelp": "Uses touch-friendly navigation UI"
   },
   "search": {
     "advancedOptions": "Advanced Options",
@@ -153,7 +169,6 @@
     "downloadFailed": "Download failed",
     "loadFailed": "Load failed",
     "imageLoadFailed": "Image load failed",
-    "previewPageSizeUnknown": "Cannot determine gallery preview page size",
     "searchPageContentNotFound": "Cannot find search page content"
   }
 }

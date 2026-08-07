@@ -9,7 +9,13 @@ import unoConfig from "./uno.config.mjs";
 
 const packageDir = path.dirname(fileURLToPath(import.meta.url));
 const outfile = path.join(packageDir, "dist/ehpeek.user.js");
-const texts = JSON.parse(readFileSync(path.join(packageDir, "src/texts.json"), "utf-8"));
+const appName = "EhPeek";
+const defaultLocale = "en";
+const localeTexts = readLocaleTexts();
+const texts = localeTexts.get(defaultLocale);
+if (!texts) {
+  throw new Error(`Missing default locale: ${defaultLocale}`);
+}
 const releaseBuild = process.env.EHPEEK_RELEASE_BUILD === "true";
 const releaseBranch = process.env.EHPEEK_RELEASE_BRANCH || "master";
 const debugBuild = process.env.EHPEEK_DEBUG === "true";
@@ -21,9 +27,9 @@ const projectIconUrl = "https://raw.githubusercontent.com/yamipot/ehpeek/master/
 
 const metadata = [
   "// ==UserScript==",
-  `// @name         EhPeek`,
+  `// @name         ${appName}`,
   `// @version      ${version}`,
-  `// @description  ${texts.description}`,
+  ...localizedDescriptionMetadata(localeTexts, defaultLocale),
   `// @icon         ${projectIconUrl}`,
   `// @icon64       ${projectIconUrl}`,
   `// @license      MIT`,
@@ -78,12 +84,53 @@ await build({
   },
   define: {
     __EHPEEK_DEBUG__: JSON.stringify(debugBuild),
+    __EHPEEK_NAME__: JSON.stringify(appName),
     __EHPEEK_VERSION__: JSON.stringify(version),
   },
   outfile,
 });
 
 console.log("[ehpeek] built dist/ehpeek.user.js");
+
+function readLocaleTexts() {
+  const localesDir = path.join(packageDir, "locales");
+  return new Map(
+    readdirSync(localesDir)
+      .filter((fileName) => fileName.endsWith(".json"))
+      .sort()
+      .map((fileName) => {
+        const locale = path.basename(fileName, ".json");
+        const texts = JSON.parse(
+          readFileSync(path.join(localesDir, fileName), "utf-8"),
+        );
+        return [locale, texts];
+      }),
+  );
+}
+
+function localizedDescriptionMetadata(locales, defaultLocale) {
+  const defaultTexts = locales.get(defaultLocale);
+  if (!defaultTexts) {
+    throw new Error(`Missing default locale: ${defaultLocale}`);
+  }
+
+  return [
+    `// @description  ${localeDescription(defaultLocale, defaultTexts)}`,
+    ...Array.from(locales)
+      .filter(([locale]) => locale !== defaultLocale)
+      .map(([locale, texts]) =>
+        `// @description:${locale}  ${localeDescription(locale, texts)}`
+      ),
+  ];
+}
+
+function localeDescription(locale, texts) {
+  const description = texts?.metadata?.description;
+  if (typeof description !== "string" || !description.trim()) {
+    throw new Error(`Missing metadata.description in locale: ${locale}`);
+  }
+  return description;
+}
 
 function commitTimeVersion() {
   return execFileSync("git", ["log", "-1", "--format=%cd", "--date=format-local:%y%m%d.%H%M"], {

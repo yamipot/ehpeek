@@ -1,6 +1,6 @@
 import { createEffect, createSignal, untrack, type JSX } from "solid-js";
 import type { SearchPanelDom } from "../../eh";
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import { DomNode } from "../Widgets/ExternalDom";
 import { Icon } from "../Widgets/Icon";
 

@@ -2,7 +2,7 @@ import { createEffect, onCleanup, onMount, Show, untrack } from "solid-js";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
 import type { GalleryCoordinator } from "../../App/GalleryCoordinator";
 import { useOverlayHost } from "../../App/OverlayHost";
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
 import {
   currentReaderControlsState,

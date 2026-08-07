@@ -5,7 +5,7 @@ import type {
   ReaderScrollSizeScale,
   ReadDirection,
 } from "../../state";
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import { clamp, normalizedAspectRatio, positiveNumber } from "../../utils";
 import { ScrollAnimator, ScrollFlingAnimator, type ScrollMotion } from "../animation";
 import { createPointerGestureElement, type PointerGestureCallbacks } from "../PointerGesture";
@@ -901,7 +901,7 @@ function PageSlotView(props: {
           <span
             class="pointer-events-none absolute [right:var(--ui-space-sm)] [bottom:var(--ui-space-sm)] z-1 block w-[var(--ui-icon-size-xl)] h-[var(--ui-icon-size-xl)] box-border animate-spin rounded-full border-2px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]"
             role="status"
-            aria-label={texts.reader.loading}
+            aria-label={texts.common.status.loading}
           />
         </Show>
       </div>
@@ -968,7 +968,7 @@ function PageSlotPlaceholder(props: {
               : "[font-size:min(25vw,35cqi,35cqb,180px)] font-mono font-850 leading-[1] [font-variant-numeric:tabular-nums]")
       }
       role={props.content.state === "loading" ? "status" : undefined}
-      aria-label={props.content.state === "loading" ? `${texts.reader.loading} ${props.text}` : undefined}
+      aria-label={props.content.state === "loading" ? `${texts.common.status.loading} ${props.text}` : undefined}
     >
       <Show when={props.content.state === "error"} fallback={
         <Show when={props.content.state === "loading"} fallback={props.text}>
@@ -994,7 +994,7 @@ function PageSlotPlaceholder(props: {
           <Icon name="refresh" size="var(--ui-icon-size-xl)" />
         </button>
         <div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">
-          {texts.reader.failedPrefix}
+          {texts.common.status.failed}
         </div>
         <Show when={props.content.errorMessage}>
           <div class="max-w-[min(86vw,760px)] opacity-80 break-anywhere textsize-sm font-500 leading-[1.4] [direction:ltr] [unicode-bidi:plaintext]">
@@ -1187,7 +1187,7 @@ function createPagesScroller(element: HTMLElement) {
 
 function slotPlaceholderText(content: SlotContent): string {
   if (content.state === "error") {
-    return texts.reader.failedPrefix;
+    return texts.common.status.failed;
   }
 
   if (content.kind === "end") {

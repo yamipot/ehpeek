@@ -11,8 +11,8 @@ import {
   nextUiScale,
   type UiScale,
   uiScaleLevel,
-} from "../../uiScale";
-import texts from "../../texts.json";
+} from "../../ui";
+import texts from "../../i18n";
 import { Icon } from "../Widgets/Icon";
 
 const TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)";

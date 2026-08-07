@@ -1,6 +1,6 @@
 import { createSignal, onCleanup, onMount, untrack } from "solid-js";
 import * as eh from "../../eh";
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import { LoadingOverlay } from "../Widgets/Loading";
 import { PageSwipe, type PageSwipeDirection } from "./PageSwipe";
 
@@ -66,7 +66,7 @@ export function EnhanceSearchGrids(props: {
         }}
         target={gestureTarget}
       />
-      <LoadingOverlay label={texts.reader.loading} visible={loading()} />
+      <LoadingOverlay label={texts.common.status.loading} visible={loading()} />
     </>
   );
 }

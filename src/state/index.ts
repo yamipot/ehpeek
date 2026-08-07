@@ -1,4 +1,4 @@
-import { UI_SCALE_NAMES, type UiScale } from "../uiScale";
+import { UI_SCALE_NAMES, type UiScale } from "../ui";
 
 export type NavigationMode = "scroll" | "paged";
 export type ReadDirection = "ltr" | "rtl" | "ttb";

@@ -9,7 +9,7 @@ declare module "ehpeek:uno.css" {
 }
 
 declare module "ehpeek:spectrum-ui-sizes" {
-  type UiSizeScale = import("./uiScale").UiSizeScale;
+  type UiSizeScale = import("./ui").UiSizeScale;
 
   const sizes: {
     control: UiSizeScale;
@@ -22,6 +22,7 @@ declare module "ehpeek:spectrum-ui-sizes" {
 }
 
 declare const __EHPEEK_DEBUG__: boolean;
+declare const __EHPEEK_NAME__: string;
 declare const __EHPEEK_VERSION__: string;
 declare const GM_getValue: <T>(key: string, defaultValue: T) => T;
 declare const GM_setValue: <T>(key: string, value: T) => void;

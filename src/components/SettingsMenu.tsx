@@ -9,12 +9,12 @@ import {
   type Accessor,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import texts from "../texts.json";
+import texts from "../i18n";
 import {
   UI_SCALE_NAMES,
   type UiScale,
   uiScaleLevel,
-} from "../uiScale";
+} from "../ui";
 import { InteractionHelp } from "./InteractionHelp";
 import { Dialog } from "./Widgets/Dialog";
 import { Icon, type IconName } from "./Widgets/Icon";
@@ -238,7 +238,7 @@ export function SettingsMenu(props: {
         <div
           class="grid grid-cols-4 flex-none ui-gap-xs ui-mb-sm ui-rounded-md border ehp-color-site-border overflow-hidden"
           role="tablist"
-          aria-label={texts.settings.menuLabel}
+          aria-label={texts.settings.openSettings}
         >
           <For each={SETTINGS_SECTIONS}>{([tab, label, icon]) => (
             <button
@@ -373,7 +373,7 @@ export function SettingsMenu(props: {
             hidden={activeTab() !== "about"}
           >
             <div class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] font-700">
-              Ehpeek
+              {__EHPEEK_NAME__}
             </div>
             <a
               class="flex w-full min-h-[var(--ui-control-size-lg)] items-center overflow-hidden text-ellipsis whitespace-nowrap ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline [font-size:var(--ui-font-size-md)] font-700 hover:bg-[var(--color-site-item-hover)]"
@@ -411,7 +411,7 @@ export function SettingsMenu(props: {
               props.onApply({ ...draft });
             }}
           >
-            {texts.button.apply}
+            {texts.common.actions.apply}
           </button>
           <button
             type="button"
@@ -422,7 +422,7 @@ export function SettingsMenu(props: {
               setDraft({ ...props.defaultState });
             }}
           >
-            {texts.button.default}
+            {texts.common.actions.default}
           </button>
           <button
             type="button"
@@ -432,7 +432,7 @@ export function SettingsMenu(props: {
               close();
             }}
           >
-            {texts.button.close}
+            {texts.common.actions.close}
           </button>
         </div>
         <Show when={helpOpen()}>

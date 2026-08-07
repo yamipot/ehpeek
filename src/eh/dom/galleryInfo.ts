@@ -1,4 +1,4 @@
-import texts from "../../texts.json";
+import texts from "../../i18n";
 import type { MyTagMode } from "../request";
 import {
   addMyTag,
@@ -378,7 +378,7 @@ export function manageGalleryInfo(
     summary: [
       meta.language,
       preview?.totalImages
-        ? `${preview.totalImages} ${texts.reader.pages.toLowerCase()}`
+        ? `${preview.totalImages} ${texts.gallery.pages.toLowerCase()}`
         : undefined,
       meta.fileSize,
       meta.favorited,

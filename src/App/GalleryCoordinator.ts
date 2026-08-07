@@ -11,7 +11,7 @@ import {
   type ReadingProgress,
   updateReadHistoryGalleryInfo,
 } from "../state/readHistory";
-import texts from "../texts.json";
+import texts from "../i18n";
 import type { GalleryPreviewCache } from "./GalleryPreviewCache";
 import type { OverlayHost } from "./OverlayHost";
 import {
