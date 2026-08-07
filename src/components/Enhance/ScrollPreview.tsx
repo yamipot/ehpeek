@@ -164,7 +164,7 @@ function OverlayPreviewToolbar(props: {
   state: PreviewToolbarState;
 }) {
   return (
-    <div class={`flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-site-elevated)] pt-[max(8px,env(safe-area-inset-top,0px))] pr-[max(8px,env(safe-area-inset-right,0px))] pb-sm pl-[max(8px,env(safe-area-inset-left,0px))] border-0 border-b border-[var(--color-site-border)] text-[var(--color-site-text)] textsize-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
+    <div class={`flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-site-elevated)] safe-pt-sm safe-pr-sm pb-sm safe-pl-sm border-0 border-b border-[var(--color-site-border)] text-[var(--color-site-text)] textsize-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
       <span class="flex items-center gap-sm opacity-75">
         <Show when={props.state.loading()}>
           <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
@@ -1287,7 +1287,7 @@ function ScrollPreviewPanel(props: {
     >
       <section
         ref={overlay}
-        class="ehpeek-scroll-preview box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]"
+        class="box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]"
         classList={{
           "absolute inset-0 bg-[var(--color-site-surface)] text-[var(--color-site-text)]":
             !embedded,

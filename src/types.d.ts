@@ -8,23 +8,17 @@ declare module "ehpeek:uno.css" {
   export default css;
 }
 
-declare module "ehpeek:spectrum-ui-scales" {
-  type SizeScale = Record<"xs" | "sm" | "md" | "lg" | "xl", string>;
-  type FontScale = SizeScale & Record<"prominent" | "title", string>;
-  type IconScale = Record<"sm" | "md" | "lg" | "xl", string>;
+declare module "ehpeek:spectrum-ui-sizes" {
+  type UiSizeScale = import("./uiScale").UiSizeScale;
 
-  const scales: Record<
-    import("./state").UiScale,
-    {
-      control: SizeScale;
-      font: FontScale;
-      icon: IconScale;
-      statusDot: Record<"md" | "lg", string>;
-      space: SizeScale;
-      radius: SizeScale;
-    }
-  >;
-  export default scales;
+  const sizes: {
+    control: UiSizeScale;
+    font: UiSizeScale;
+    icon: UiSizeScale;
+    space: UiSizeScale;
+    radius: UiSizeScale;
+  };
+  export default sizes;
 }
 
 declare const __EHPEEK_DEBUG__: boolean;

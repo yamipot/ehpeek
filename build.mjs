@@ -10,14 +10,13 @@ import unoConfig from "./uno.config.mjs";
 const packageDir = path.dirname(fileURLToPath(import.meta.url));
 const outfile = path.join(packageDir, "dist/ehpeek.user.js");
 const texts = JSON.parse(readFileSync(path.join(packageDir, "src/texts.json"), "utf-8"));
-const uiScales = JSON.parse(readFileSync(path.join(packageDir, "src/uiScales.json"), "utf-8"));
 const releaseBuild = process.env.EHPEEK_RELEASE_BUILD === "true";
 const releaseBranch = process.env.EHPEEK_RELEASE_BRANCH || "master";
 const debugBuild = process.env.EHPEEK_DEBUG === "true";
 const installUrl = userscriptInstallUrl();
 const version = userscriptVersion();
 const unoCss = await generateUnoCss();
-const spectrumUiScales = readSpectrumUiScales();
+const spectrumUiSizes = readSpectrumUiSizes();
 const projectIconUrl = "https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg";
 
 const metadata = [
@@ -70,7 +69,7 @@ await build({
       },
     }),
     unoCssPlugin(unoCss),
-    spectrumUiScalePlugin(spectrumUiScales),
+    spectrumUiSizePlugin(spectrumUiSizes),
   ],
   minifySyntax: !debugBuild,
   sourcemap: releaseBuild ? false : "linked",
@@ -182,79 +181,42 @@ function unoCssPlugin(css) {
   };
 }
 
-function readSpectrumUiScales() {
+function readSpectrumUiSizes() {
   // Only selected upstream values enter the userscript; the token package remains a build dependency.
   const layout = readSpectrumTokenFile("layout.json");
-  const layoutComponent = readSpectrumTokenFile("layout-component.json");
   const typography = readSpectrumTokenFile("typography.json");
-  const definition = {
-    set: "desktop",
-    control: {
+  const resolveDesktop = (tokens, keys) => Object.fromEntries(
+    Object.entries(keys).map(([name, key]) => [
+      name,
+      tokens[key].sets.desktop.value,
+    ]),
+  );
+
+  return {
+    control: resolveDesktop(layout, {
       xs: "component-height-75",
       sm: "component-height-100",
       md: "component-height-200",
       lg: "component-height-300",
       xl: "component-height-400",
-    },
-    font: {
+    }),
+    font: resolveDesktop(typography, {
       xs: "font-size-25",
       sm: "font-size-100",
       md: "font-size-200",
-      prominent: "font-size-300",
-      title: "font-size-400",
-      lg: "font-size-500",
+      lg: "font-size-400",
       xl: "font-size-700",
-    },
-    icon: {
+    }),
+    icon: resolveDesktop(layout, {
+      xs: "workflow-icon-size-50",
       sm: "workflow-icon-size-75",
       md: "workflow-icon-size-100",
       lg: "workflow-icon-size-200",
       xl: "workflow-icon-size-300",
-    },
-    statusDot: {
-      md: "status-light-dot-size-medium",
-      lg: "status-light-dot-size-large",
-    },
-  };
-  const resolve = (tokens, keys, set) => Object.fromEntries(
-    Object.entries(keys).map(([name, key]) => [
-      name,
-      tokens[key].sets[set].value,
-    ]),
-  );
-
-  const resolved = {
-    control: resolve(layout, definition.control, definition.set),
-    font: resolve(typography, definition.font, definition.set),
-    icon: resolve(layout, definition.icon, definition.set),
-    statusDot: resolve(layoutComponent, definition.statusDot, definition.set),
+    }),
     space: { xs: "4px", sm: "8px", md: "12px", lg: "16px", xl: "24px" },
     radius: { xs: "3px", sm: "4px", md: "6px", lg: "8px", xl: "10px" },
   };
-
-  return Object.fromEntries(
-    Object.entries(uiScales).map(([name, factor]) => [
-      name,
-      scaleSpectrumUiValues(resolved, factor),
-    ]),
-  );
-}
-
-function scaleSpectrumUiValues(groups, factor) {
-  return Object.fromEntries(
-    Object.entries(groups).map(([group, values]) => [
-      group,
-      Object.fromEntries(
-        Object.entries(values).map(([name, value]) => {
-          const pixels = /^([\d.]+)px$/.exec(value)?.[1];
-          const scaled = pixels === undefined
-            ? value
-            : `${Math.round(Number(pixels) * factor * 1000) / 1000}px`;
-          return [name, scaled];
-        }),
-      ),
-    ]),
-  );
 }
 
 function readSpectrumTokenFile(fileName) {
@@ -264,18 +226,18 @@ function readSpectrumTokenFile(fileName) {
   return JSON.parse(readFileSync(file, "utf-8"));
 }
 
-function spectrumUiScalePlugin(scales) {
+function spectrumUiSizePlugin(sizes) {
   return {
-    name: "ehpeek-spectrum-ui-scales",
+    name: "ehpeek-spectrum-ui-sizes",
     setup(build) {
-      build.onResolve({ filter: /^ehpeek:spectrum-ui-scales$/ }, (args) => ({
-        namespace: "ehpeek-spectrum-ui-scales",
+      build.onResolve({ filter: /^ehpeek:spectrum-ui-sizes$/ }, (args) => ({
+        namespace: "ehpeek-spectrum-ui-sizes",
         path: args.path,
       }));
       build.onLoad(
-        { filter: /.*/, namespace: "ehpeek-spectrum-ui-scales" },
+        { filter: /.*/, namespace: "ehpeek-spectrum-ui-sizes" },
         () => ({
-          contents: JSON.stringify(scales),
+          contents: JSON.stringify(sizes),
           loader: "json",
         }),
       );

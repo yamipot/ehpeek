@@ -1,4 +1,4 @@
-import uiScales from "../uiScales.json";
+import { UI_SCALE_NAMES, type UiScale } from "../uiScale";
 
 export type NavigationMode = "scroll" | "paged";
 export type ReadDirection = "ltr" | "rtl" | "ttb";
@@ -7,7 +7,6 @@ export type RightTapAction = "previous" | "next";
 export type ReaderScrollSizeScale = number | "one-to-one" | null;
 export type ReaderOrientation = "portrait" | "landscape";
 export type GalleryTitlePreference = "main" | "sub";
-export type UiScale = keyof typeof uiScales;
 export type SearchGridMode = "ehpeek" | "ehpeek-lite";
 export type MyTagAppearance = {
   backgroundColor: string;
@@ -31,7 +30,6 @@ type StateValue<T> = {
 };
 
 const touchUiDefault = window.matchMedia("(pointer: coarse)").matches;
-const uiScaleNames = Object.keys(uiScales) as UiScale[];
 const portraitUiScaleDefault: UiScale = touchUiDefault ? "large" : "small";
 const landscapeUiScaleDefault: UiScale = touchUiDefault &&
     Math.min(window.screen.width, window.screen.height) >= 600
@@ -43,8 +41,8 @@ export const state = {
     ehSyringeDetected: persisted("ehpeek:ehsyringe:detected", false),
     leftHandedControls: persisted("ehpeek:left-handed-controls", false),
     openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", false),
-    portraitUiScale: persistedEnum("ehpeek:ui-scale:portrait", portraitUiScaleDefault, uiScaleNames),
-    landscapeUiScale: persistedEnum("ehpeek:ui-scale:landscape", landscapeUiScaleDefault, uiScaleNames),
+    portraitUiScale: persistedEnum("ehpeek:ui-scale:portrait", portraitUiScaleDefault, UI_SCALE_NAMES),
+    landscapeUiScale: persistedEnum("ehpeek:ui-scale:landscape", landscapeUiScaleDefault, UI_SCALE_NAMES),
   },
   reader: {
     enabled: persisted("ehpeek:reader:enabled", true),

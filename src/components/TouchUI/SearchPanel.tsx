@@ -5,9 +5,9 @@ import { DomNode } from "../Widgets/ExternalDom";
 import { Icon } from "../Widgets/Icon";
 
 const TOUCH_SEARCH_OPTION_CLASS =
-  "appearance-none inline-flex min-h-[max(32px,var(--ui-control-size-sm))] items-center ui-px-md border-0 ui-rounded-sm bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]";
+  "appearance-none inline-flex ui-hit-min-h-sm items-center ui-px-md border-0 ui-rounded-sm bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]";
 const TOUCH_SEARCH_ACTION_CLASS =
-  "appearance-none inline-flex box-border w-[calc(60px*var(--ui-scale-factor))] h-[calc(60px*var(--ui-scale-factor))] items-center justify-center p-0 ui-rounded-sm border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-120 [touch-action:manipulation] active:(scale-96 bg-[var(--color-site-item-hover)]) [--ehpeek-touch-search-icon-size:var(--ui-icon-size-lg)]";
+  "appearance-none inline-flex box-border w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center p-0 ui-rounded-sm border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-120 [touch-action:manipulation] active:(scale-96 bg-[var(--color-site-item-hover)]) [--ehpeek-touch-search-icon-size:var(--ui-icon-size-lg)]";
 
 export function TouchSearchPanel(props: { after?: JSX.Element; source: SearchPanelDom }) {
   return (

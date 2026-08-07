@@ -1,5 +1,7 @@
 import { defineConfig, presetWind3, transformerVariantGroup } from "unocss";
 
+const SIZE_NAMES = ["xs", "sm", "md", "lg", "xl"];
+
 export default defineConfig({
   presets: [presetWind3()],
   transformers: [transformerVariantGroup()],
@@ -36,10 +38,12 @@ export default defineConfig({
     "textsize-sm": "text-[length:var(--ui-font-size-sm)]",
     "textsize-xs": "text-[length:var(--ui-font-size-xs)]",
     ...variableShortcuts(
-      ["p", "px", "py", "pt", "pr", "pb", "pl", "m", "mx", "my", "mt", "mr", "mb", "ml", "gap", "gap-x", "gap-y"],
+      ["w", "h", "min-w", "min-h", "p", "px", "py", "pt", "pr", "pb", "pl", "m", "mx", "my", "mt", "mr", "mb", "ml", "gap", "gap-x", "gap-y"],
       "space",
     ),
     ...variableShortcuts(["rounded"], "radius"),
+    ...hitSizeShortcuts(),
+    ...safeAreaShortcuts({ sm: 8, md: 12, lg: 16 }),
   },
 });
 
@@ -54,11 +58,46 @@ function pixelShortcuts(properties, sizes) {
 function variableShortcuts(properties, group) {
   return Object.fromEntries(
     properties.flatMap((property) =>
-      ["xs", "sm", "md", "lg", "xl"].map((name) => [
+      SIZE_NAMES.map((name) => [
         `ui-${property}-${name}`,
         `${property}-[var(--ui-${group}-${name})]`,
       ]),
     ),
+  );
+}
+
+function hitSizeShortcuts() {
+  return Object.fromEntries(
+    SIZE_NAMES.flatMap((name) => [
+      [`ui-hit-w-${name}`, `w-[var(--ui-hit-size-${name})]`],
+      [`ui-hit-h-${name}`, `h-[var(--ui-hit-size-${name})]`],
+      [`ui-hit-min-w-${name}`, `min-w-[var(--ui-hit-size-${name})]`],
+      [`ui-hit-min-h-${name}`, `min-h-[var(--ui-hit-size-${name})]`],
+      [`ui-hit-square-${name}`, `w-[var(--ui-hit-size-${name})] h-[var(--ui-hit-size-${name})]`],
+    ]),
+  );
+}
+
+function safeAreaShortcuts(sizes) {
+  const directions = {
+    top: ["top", "pt", "mt"],
+    right: ["right", "pr", "mr"],
+    bottom: ["bottom", "pb", "mb"],
+    left: ["left", "pl", "ml"],
+  };
+  return Object.fromEntries(
+    Object.entries(sizes).flatMap(([name, size]) => [
+      ...Object.entries(directions).flatMap(([direction, properties]) =>
+        properties.map((property) => [
+          `safe-${property}-${name}`,
+          `${property}-[max(${size}px,env(safe-area-inset-${direction},0px))]`,
+        ]),
+      ),
+      [
+        `safe-px-${name}`,
+        `pl-[max(${size}px,env(safe-area-inset-left,0px))] pr-[max(${size}px,env(safe-area-inset-right,0px))]`,
+      ],
+    ]),
   );
 }
 

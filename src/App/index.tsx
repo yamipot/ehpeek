@@ -35,7 +35,7 @@ import {
   TouchTopBar,
 } from "../components/TouchUI";
 import * as eh from "../eh";
-import { state, type UiScale } from "../state";
+import { state } from "../state";
 import { dispatchReady } from "../state/events";
 import texts from "../texts.json";
 import { registerGlobalStyle } from "../utils";
@@ -57,7 +57,7 @@ import {
   OverlayHostProvider,
   type OverlayHost,
 } from "./OverlayHost";
-import { applyUiScale } from "./uiScale";
+import { applyUiScale, type UiScale } from "../uiScale";
 
 function settingsMenuState(defaults = false) {
   const read = <T,>(setting: { defaultValue: T; value: T }): T =>
@@ -309,7 +309,7 @@ function GalleryReadButton(props: GalleryReadButtonProps) {
   return (
     <button
       type="button"
-      class="ehpeek-continue-reading flex box-border w-full max-w-full min-h-sm items-center gap-sm py-sm px-xs border-0 bg-transparent text-[var(--color-site-accent)] hover:bg-[var(--color-site-accent-hover)] shadow-none cursor-pointer text-left font-sans textsize-sm font-700 leading-[1.2]"
+      class="flex box-border w-full max-w-full ui-hit-min-h-sm items-center ui-gap-sm ui-py-sm ui-px-xs border-0 bg-transparent text-[var(--color-site-accent)] hover:bg-[var(--color-site-accent-hover)] shadow-none cursor-pointer text-left font-sans textsize-sm font-700 leading-[1.2]"
       aria-label={readButtonLabel(props.progress())}
       title={readButtonLabel(props.progress())}
       onClick={(event) => {
@@ -320,7 +320,7 @@ function GalleryReadButton(props: GalleryReadButtonProps) {
     >
       {readButtonLabel(props.progress())}
       <Show when={props.progress().hasHistory}>
-        <span class="ehpeek-continue-reading-page inline-block ml-auto opacity-72 textsize-xs font-600 whitespace-nowrap">
+        <span class="inline-block ml-auto opacity-72 textsize-xs font-600 whitespace-nowrap">
           {readButtonProgress(props.progress())}
         </span>
       </Show>
@@ -332,7 +332,7 @@ function TouchGalleryReadButton(props: GalleryReadButtonProps) {
   return (
     <button
       type="button"
-      class="ehpeek-continue-reading ehpeek-touch-gallery-primary-button flex min-w-0 w-full h-full min-h-[var(--ui-control-size-xl)] flex-col items-center justify-center gap-md py-md px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-prominent)] font-700"
+      class="flex min-w-0 w-full h-full ui-hit-min-h-xl flex-col items-center justify-center ui-gap-md ui-py-md ui-px-lg border-0 bg-transparent ehp-color-site-accent text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-lg)] font-700"
       aria-label={readButtonLabel(props.progress())}
       title={readButtonLabel(props.progress())}
       onClick={(event) => {
@@ -343,7 +343,7 @@ function TouchGalleryReadButton(props: GalleryReadButtonProps) {
     >
       {readButtonLabel(props.progress())}
       <Show when={props.progress().hasHistory}>
-        <span class="ehpeek-continue-reading-page block mt-2px ehp-color-site-accent [font-size:var(--ui-font-size-prominent)] font-600 opacity-78 normal-case">
+        <span class="block mt-2px ehp-color-site-accent [font-size:var(--ui-font-size-lg)] font-600 opacity-78 normal-case">
           {readButtonProgress(props.progress())}
         </span>
       </Show>
@@ -444,7 +444,7 @@ function injectCommon(page: eh.PageType): void {
     page.type === "readHistory"
   ) {
     allowFeatureFailure("Back to top", () => {
-      const host = createAppMount("ehpeek-back-to-top-host");
+      const host = createAppMount();
       host.mount(() => <BackToTop leftHanded={gState.leftHandedControls} />);
     });
   }

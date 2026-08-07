@@ -45,7 +45,7 @@ const SETTINGS_APPLY_BUTTON_COLOR =
 const SETTINGS_CLOSE_BUTTON_COLOR =
   "border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]";
 const SETTINGS_DOT_CLASS =
-  "block flex-none w-[var(--ui-status-dot-size-md)] h-[var(--ui-status-dot-size-md)] rounded-full";
+  "block flex-none ui-w-md ui-h-md rounded-full";
 const LICENSES = [
   {
     href: "https://github.com/yamipot/ehpeek/blob/master/LICENSE",
@@ -197,9 +197,9 @@ export function SettingsMenu(props: {
     <Show when={props.open}>
       <div
         ref={menu}
-        class="ehpeek-settings-menu pointer-events-auto fixed top-[max(8px,env(safe-area-inset-top,0px))] right-[max(8px,env(safe-area-inset-right,0px))] z-overlay box-border flex w-[calc(var(--ui-control-size-xl)*6)] max-w-[calc(100vw-16px)] max-h-[calc(100dvh-16px)] flex-col overflow-hidden ui-p-md border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated ehp-color-site-text [font-size:var(--ui-font-size-md)] leading-[1.2]"
+        class="pointer-events-auto fixed safe-top-sm safe-right-sm z-overlay box-border flex w-[calc(var(--ui-control-size-xl)*6)] max-w-[calc(100vw-16px)] max-h-[calc(100dvh-16px)] flex-col overflow-hidden ui-p-md border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated ehp-color-site-text [font-size:var(--ui-font-size-md)] leading-[1.2]"
         classList={{
-          "!right-auto left-[max(8px,env(safe-area-inset-left,0px))]": props.leftHandedControls(),
+          "!right-auto safe-left-sm": props.leftHandedControls(),
         }}
       >
         <div
@@ -362,10 +362,10 @@ export function SettingsMenu(props: {
             </button>
           </div>
         </div>
-        <div class="ehpeek-settings-actions grid grid-cols-3 flex-none gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
+        <div class="grid grid-cols-3 flex-none gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
           <button
             type="button"
-            class={`ehpeek-settings-apply ${SETTINGS_ACTION_BUTTON_CLASS} ${SETTINGS_APPLY_BUTTON_COLOR}`}
+            class={`${SETTINGS_ACTION_BUTTON_CLASS} ${SETTINGS_APPLY_BUTTON_COLOR}`}
             onClick={(event: MouseEvent) => {
               event.stopPropagation();
               props.onApply({ ...draft });
@@ -375,7 +375,7 @@ export function SettingsMenu(props: {
           </button>
           <button
             type="button"
-            class={`ehpeek-settings-default ${SETTINGS_ACTION_BUTTON_CLASS} ${SETTINGS_CLOSE_BUTTON_COLOR}`}
+            class={`${SETTINGS_ACTION_BUTTON_CLASS} ${SETTINGS_CLOSE_BUTTON_COLOR}`}
             onClick={(event: MouseEvent) => {
               event.stopPropagation();
               setChanged(true);
@@ -386,7 +386,7 @@ export function SettingsMenu(props: {
           </button>
           <button
             type="button"
-            class={`ehpeek-settings-close ${SETTINGS_ACTION_BUTTON_CLASS} ${SETTINGS_CLOSE_BUTTON_COLOR}`}
+            class={`${SETTINGS_ACTION_BUTTON_CLASS} ${SETTINGS_CLOSE_BUTTON_COLOR}`}
             onClick={(event: MouseEvent) => {
               event.stopPropagation();
               close();

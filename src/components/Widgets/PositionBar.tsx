@@ -5,18 +5,18 @@ type PositionBarThickness = "narrow" | "normal";
 
 const VERTICAL_FILL = {
   narrow: {
-    collapsed: "w-[calc(10px*var(--ui-scale-factor))]",
-    expanded: "w-[calc(18px*var(--ui-scale-factor))]",
+    collapsed: "ui-w-sm",
+    expanded: "ui-w-lg",
   },
   normal: {
-    collapsed: "w-[calc(20px*var(--ui-scale-factor))]",
-    expanded: "w-[calc(36px*var(--ui-scale-factor))]",
+    collapsed: "ui-w-xl",
+    expanded: "ui-hit-w-sm",
   },
 } satisfies Record<PositionBarThickness, Record<string, string>>;
 
 const HORIZONTAL_FILL = {
-  narrow: "h-[calc(10px*var(--ui-scale-factor))]",
-  normal: "h-[calc(20px*var(--ui-scale-factor))]",
+  narrow: "ui-h-sm",
+  normal: "ui-h-xl",
 } satisfies Record<PositionBarThickness, string>;
 
 const POSITION_BAR_FILL = "bg-[var(--color-reader-scrollbar,var(--color-muted))]";
@@ -25,7 +25,6 @@ const POSITION_BAR_TRACK = "bg-[var(--color-reader-border,var(--color-border))]"
 export function PositionBar(props: {
   ariaLabel: string;
   axis: "horizontal" | "vertical";
-  class?: string;
   currentValue: number;
   expanded?: boolean;
   maxValue: number;
@@ -138,7 +137,7 @@ export function PositionBar(props: {
   const renderHorizontal = () => (
       <div
         ref={track}
-        class={`ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-x-0 bottom-0 z-2 h-[calc(20px*var(--ui-scale-factor))] touch-none select-none`}
+        class={`${props.position === "fixed" ? "fixed" : "absolute"} inset-x-0 bottom-0 z-2 ui-h-xl touch-none select-none`}
         aria-label={props.ariaLabel}
         aria-disabled={!draggable()}
         aria-orientation="horizontal"
@@ -161,7 +160,7 @@ export function PositionBar(props: {
         />
         <div
           ref={thumb}
-          class={`ehpeek-position-bar-thumb absolute bottom-0 flex h-[calc(20px*var(--ui-scale-factor))] items-end ${draggable() ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
+          class={`absolute bottom-0 flex ui-h-xl items-end ${draggable() ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
           style={{
             left: `${visualPosition()}%`,
             transform: `translateX(-${visualPosition()}%)`,
@@ -180,15 +179,15 @@ export function PositionBar(props: {
   );
 
   const interactionSize = () => expanded()
-    ? "w-[calc(36px*var(--ui-scale-factor))]"
-    : "w-[calc(20px*var(--ui-scale-factor))]";
+    ? "ui-hit-w-sm"
+    : "ui-w-xl";
   const fillSize = () => expanded()
     ? VERTICAL_FILL[thickness].expanded
     : VERTICAL_FILL[thickness].collapsed;
   const renderVertical = () => (
     <div
       ref={track}
-      class={`ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-y-0 right-0 z-2 ${interactionSize()} touch-none select-none transition-[width,opacity] duration-160 ease-in-out [--ehpeek-position-bar-thumb-min:calc(var(--ui-control-size-md)*1.5)] ${
+      class={`${props.position === "fixed" ? "fixed" : "absolute"} inset-y-0 right-0 z-2 ${interactionSize()} touch-none select-none transition-[width,opacity] duration-160 ease-in-out [--ehpeek-position-bar-thumb-min:calc(var(--ui-control-size-md)*1.5)] ${
         visible() ? "opacity-100" : "opacity-0 pointer-events-none"
       }`}
       aria-label={props.ariaLabel}
@@ -213,7 +212,7 @@ export function PositionBar(props: {
       />
       <div
         ref={thumb}
-        class={`ehpeek-position-bar-thumb absolute right-0 flex ${interactionSize()} items-center justify-end ${draggable() ? "cursor-grab active:cursor-grabbing" : "cursor-default"} transition-[width,height] duration-160`}
+        class={`absolute right-0 flex ${interactionSize()} items-center justify-end ${draggable() ? "cursor-grab active:cursor-grabbing" : "cursor-default"} transition-[width,height] duration-160`}
         style={{
           height: `clamp(var(--ehpeek-position-bar-thumb-min), ${thumbRatio() * 100}%, 100%)`,
           top: `${visualPosition()}%`,

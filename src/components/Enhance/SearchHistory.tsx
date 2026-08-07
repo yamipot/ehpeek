@@ -92,7 +92,7 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
       {(currentPosition) => (
         <section
           ref={dropdown}
-          class="ehpeek-search-history fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-hidden overflow-y-auto overscroll-contain rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"
+          class="fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-hidden overflow-y-auto overscroll-contain rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"
           style={{
             left: `${currentPosition.left}px`,
             top: `${currentPosition.top}px`,

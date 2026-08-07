@@ -45,9 +45,9 @@ export function BackToTop(props: { leftHanded: Accessor<boolean> }) {
       <button
         ref={button}
         type="button"
-        class="ehpeek-back-to-top fixed right-[max(16px,env(safe-area-inset-right,0px))] bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_64px)] z-ui inline-flex w-lg h-lg items-center justify-center rounded-full border-0 bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96"
+        class="fixed safe-right-lg bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_64px)] z-ui inline-flex w-lg h-lg items-center justify-center rounded-full border-0 bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96"
         classList={{
-          "!right-auto left-[max(16px,env(safe-area-inset-left,0px))]":
+          "!right-auto safe-left-lg":
             props.leftHanded() && position() === null,
         }}
         style={positionStyle()}

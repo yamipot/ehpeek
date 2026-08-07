@@ -29,7 +29,7 @@ export type PageProgress = {
 };
 
 export const READER_BUTTON_CLASS = [
-  "inline-flex min-w-[max(32px,var(--ui-control-size-md))] h-[max(32px,var(--ui-control-size-md))] items-center justify-center ui-px-md py-0 ui-rounded-md",
+  "inline-flex ui-hit-min-w-md ui-hit-h-md items-center justify-center ui-px-md py-0 ui-rounded-md",
   "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:(opacity-40 cursor-default)",
 ].join(" ");
 const READER_TOOLBAR_BUTTON_CLASS =
@@ -170,8 +170,8 @@ export function Toolbar(props: {
         class={
           "fixed z-2 flex justify-end transition-[opacity,transform] duration-160 ease-in-out " +
           (leftHandedControls
-            ? "left-[max(12px,env(safe-area-inset-left,0px))] "
-            : "right-[max(12px,env(safe-area-inset-right,0px))] ") +
+            ? "safe-left-md "
+            : "safe-right-md ") +
           "bottom-[calc(var(--ui-control-size-lg)*2+44px+env(safe-area-inset-bottom,0px))] " +
           "[&[data-open=false]]:(opacity-0 translate-y-[calc(100%+16px)] pointer-events-none)"
         }
@@ -180,7 +180,7 @@ export function Toolbar(props: {
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div class="ehpeek-reader-floating-actions flex flex-col gap-sm">
+        <div class="flex flex-col gap-sm">
           <button
             type="button"
             class={READER_FLOATING_ICON_ACTION_CLASS}
@@ -216,15 +216,15 @@ export function Toolbar(props: {
           "ehpeek-reader-toolbar fixed z-3 flex justify-end pointer-events-none " +
           "top-[calc(10px+env(safe-area-inset-top,0px))] " +
           (leftHandedControls
-            ? "left-[max(8px,env(safe-area-inset-left,0px))] "
-            : "right-[max(8px,env(safe-area-inset-right,0px))] ")
+            ? "safe-left-sm "
+            : "safe-right-sm ")
         }
         style={{ top: fullscreenToolbarTop() }}
         onClick={stopEvent}
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div class={`ehpeek-reader-toolbar-buttons flex flex-col ${leftHandedControls ? "items-start" : "items-end"} ui-gap-md pointer-events-auto${props.open ? "" : " !hidden"}`}>
+        <div class={`flex flex-col ${leftHandedControls ? "items-start" : "items-end"} ui-gap-md pointer-events-auto${props.open ? "" : " !hidden"}`}>
           <div class={`flex flex-row ui-gap-md${leftHandedControls ? " flex-row-reverse" : ""}`}>
           <button
             type="button"
@@ -387,8 +387,8 @@ export function Toolbar(props: {
           "ehpeek-reader-page-number fixed z-3 pointer-events-none " +
           "top-[calc(10px+env(safe-area-inset-top,0px))] " +
           (leftHandedControls
-            ? "right-[max(10px,env(safe-area-inset-right,0px))] left-auto "
-            : "left-[max(10px,env(safe-area-inset-left,0px))] right-auto ") +
+            ? "safe-right-sm left-auto "
+            : "safe-left-sm right-auto ") +
           "min-w-0 max-w-[calc(100vw-20px)] " +
           "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text " +
           "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap " +
@@ -411,8 +411,8 @@ export function Toolbar(props: {
             "ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none " +
             "top-[calc(10px+env(safe-area-inset-top,0px))] " +
             (leftHandedControls
-              ? "right-[max(10px,env(safe-area-inset-right,0px))] "
-              : "left-[max(10px,env(safe-area-inset-left,0px))] ") +
+              ? "safe-right-sm "
+              : "safe-left-sm ") +
             "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text " +
             "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap"
           }
@@ -423,7 +423,7 @@ export function Toolbar(props: {
       </Show>
       <Show when={controlChange()} keyed>
         {(message) => (
-          <div class="ehpeek-reader-control-change fixed z-overlay top-1/2 left-1/2 w-max max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 pointer-events-none rounded-lg bg-[var(--color-badge)] ehp-color-text px-xl py-lg font-sans textsize-lg font-700 leading-[1.3] whitespace-pre-line text-center shadow-xl">
+          <div class="fixed z-overlay top-1/2 left-1/2 w-max max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 pointer-events-none rounded-lg bg-[var(--color-badge)] ehp-color-text px-xl py-lg font-sans textsize-lg font-700 leading-[1.3] whitespace-pre-line text-center shadow-xl">
             {message}
           </div>
         )}
@@ -431,7 +431,7 @@ export function Toolbar(props: {
       <div
         class={
           "fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out " +
-          "right-[max(12px,env(safe-area-inset-right,0px))] bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-[max(12px,env(safe-area-inset-left,0px))] " +
+          "safe-right-md bottom-[calc(12px+env(safe-area-inset-bottom,0px))] safe-left-md " +
           "[&[data-open=false]]:(opacity-0 translate-y-[calc(100%+16px)] pointer-events-none)"
         }
         data-open={String(props.open)}
@@ -440,7 +440,7 @@ export function Toolbar(props: {
         onWheel={stopEvent}
       >
         <ProgressBar
-          class="ehpeek-reader-progress textsize-lg"
+          class="textsize-lg"
           direction={props.controls.direction === "rtl" ? "rtl" : "ltr"}
           fillPercent={progressFillPercent(props.progress)}
           keepInputValue={props.progress.keepInputValue}

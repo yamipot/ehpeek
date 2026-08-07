@@ -7,9 +7,8 @@ import {
   type Accessor,
 } from "solid-js";
 import type { TopBarDom } from "../../eh";
-import type { UiScale } from "../../state";
+import { nextUiScale, type UiScale } from "../../uiScale";
 import texts from "../../texts.json";
-import uiScales from "../../uiScales.json";
 import { Icon } from "../Widgets/Icon";
 
 const TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)";
@@ -19,12 +18,6 @@ const TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE =
   "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
 const TOUCH_ICON_BUTTON_CLASS =
   "inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]";
-const UI_SCALE_ORDER = Object.keys(uiScales) as UiScale[];
-
-function nextUiScale(scale: UiScale): UiScale {
-  return UI_SCALE_ORDER[(UI_SCALE_ORDER.indexOf(scale) + 1) % UI_SCALE_ORDER.length]!;
-}
-
 function TouchTopBarUiMenu(props: {
   uiScale: {
     value: Accessor<UiScale>;
@@ -56,10 +49,10 @@ function TouchTopBarUiMenu(props: {
   });
 
   return (
-    <div ref={root} class="ehpeek-touch-top-bar-ui-menu relative">
+    <div ref={root} class="relative">
       <button
         type="button"
-        class={`ehpeek-touch-top-bar-ui-menu-button ${TOUCH_ICON_BUTTON_CLASS}`}
+        class={TOUCH_ICON_BUTTON_CLASS}
         aria-label={texts.settings.uiControlsLabel}
         aria-haspopup="menu"
         aria-expanded={open()}
@@ -151,10 +144,10 @@ function TouchTopBarMenu(props: {
   });
 
   return (
-    <div ref={root} class="ehpeek-touch-top-bar-menu relative">
+    <div ref={root} class="relative">
       <button
         type="button"
-        class={`ehpeek-touch-top-bar-menu-button ${TOUCH_ICON_BUTTON_CLASS}`}
+        class={TOUCH_ICON_BUTTON_CLASS}
         aria-haspopup="menu"
         aria-expanded={open()}
         onClick={(event: MouseEvent) => {
@@ -166,7 +159,7 @@ function TouchTopBarMenu(props: {
       </button>
       <Show when={open()}>
         <div
-          class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-[min(calc(180px*var(--ui-scale-factor)),calc(100vw-32px))] max-w-[calc(100vw-12px)] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated"
+          class="absolute top-[calc(100%+4px)] right-0 z-overlay flex w-max min-w-180px max-w-[calc(100vw-12px)] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated"
           classList={{ "!right-auto left-0": props.leftHanded() }}
         >
           <For each={props.navItems}>{(item) => {
@@ -198,7 +191,7 @@ export function TouchTopBar(props: {
 }) {
   return (
     <nav
-      class="ehpeek-touch-top-bar relative z-ui flex box-border w-full h-[var(--ui-control-size-xl)] items-center justify-between pl-[max(12px,env(safe-area-inset-left,0px))] pr-[max(12px,env(safe-area-inset-right,0px))] ehp-color-site-surface ehp-color-site-text font-sans"
+      class="relative z-ui flex box-border w-full h-[var(--ui-control-size-xl)] items-center justify-between safe-px-md ehp-color-site-surface ehp-color-site-text font-sans"
       classList={{ "flex-row-reverse": props.leftHandedControls.enabled() }}
     >
       <div
@@ -206,7 +199,7 @@ export function TouchTopBar(props: {
         classList={{ "flex-row-reverse": props.leftHandedControls.enabled() }}
       >
         <a
-          class={`ehpeek-touch-top-bar-project ${TOUCH_ICON_BUTTON_CLASS} [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]`}
+          class={`${TOUCH_ICON_BUTTON_CLASS} [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]`}
           href={props.source.data.homeHref}
         >
           <Icon name="panda-peek" size={TOUCH_TOP_BAR_PROJECT_ICON_SIZE} strokeWidth={1.8} />
@@ -222,13 +215,13 @@ export function TouchTopBar(props: {
         classList={{ "flex-row-reverse": props.leftHandedControls.enabled() }}
       >
         <a
-          class={`ehpeek-touch-top-bar-home ${TOUCH_ICON_BUTTON_CLASS}`}
+          class={TOUCH_ICON_BUTTON_CLASS}
           href={props.source.data.homeHref}
         >
           <Icon name="search" size={TOUCH_TOP_BAR_ICON_SIZE} />
         </a>
         <a
-          class={`ehpeek-touch-top-bar-favorites ${TOUCH_ICON_BUTTON_CLASS}`}
+          class={TOUCH_ICON_BUTTON_CLASS}
           href={props.source.data.favoritesHref}
         >
           <Icon name="heart" size={TOUCH_TOP_BAR_ICON_SIZE} />
@@ -236,7 +229,7 @@ export function TouchTopBar(props: {
         <Show when={props.historyHref}>
           {(historyHref) => (
             <a
-              class={`ehpeek-touch-top-bar-history ${TOUCH_ICON_BUTTON_CLASS}`}
+              class={TOUCH_ICON_BUTTON_CLASS}
               href={historyHref()}
             >
               <Icon name="history" size={TOUCH_TOP_BAR_ICON_SIZE} />
@@ -245,7 +238,7 @@ export function TouchTopBar(props: {
         </Show>
         <button
           type="button"
-          class={`ehpeek-touch-top-bar-settings ${TOUCH_ICON_BUTTON_CLASS}`}
+          class={TOUCH_ICON_BUTTON_CLASS}
           onClick={(event: MouseEvent) => {
             event.stopPropagation();
             props.onSettingsMenuOpen();

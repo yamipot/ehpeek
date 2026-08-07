@@ -6,7 +6,7 @@
 
 .ehs-injected .eh-syringe-lite-auto-complete-list .auto-complete-item {
   box-sizing: border-box;
-  min-height: max(32px, calc(52px * var(--ui-scale-factor)));
+  min-height: var(--ui-hit-size-xl);
   padding: var(--ui-space-sm) var(--ui-space-lg) !important;
   font-size: var(--ui-font-size-lg) !important;
   line-height: 1.25 !important;
@@ -608,7 +608,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 .ehpeek-overlay-search-actions {
   box-sizing: border-box !important;
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) calc(60px * var(--ui-scale-factor)) !important;
+  grid-template-columns: minmax(0, 1fr) var(--ui-control-size-xl) !important;
   align-items: start !important;
   gap: 0 !important;
   min-width: 0 !important;
@@ -620,7 +620,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] {
   grid-template-columns:
     minmax(0, 1fr)
-    repeat(2, calc(60px * var(--ui-scale-factor))) !important;
+    repeat(2, var(--ui-control-size-xl)) !important;
 }
 
 .ehpeek-expand-search-input {
@@ -630,13 +630,13 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   grid-row: 1 !important;
   min-width: 0 !important;
   width: 100% !important;
-  height: calc(60px * var(--ui-scale-factor)) !important;
+  height: var(--ui-control-size-xl) !important;
   margin: 0 !important;
   padding:
     0
-    calc(72px * var(--ui-scale-factor))
+    calc(var(--ui-control-size-xl) + var(--ui-space-lg))
     0
-    calc(10px * var(--ui-scale-factor)) !important;
+    var(--ui-space-md) !important;
   border: 1px solid var(--color-site-border) !important;
   border-radius: var(--ui-radius-sm) !important;
   outline: none !important;
@@ -647,7 +647,8 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 }
 
 .ehpeek-overlay-search-actions[data-ehpeek-has-clear="true"] .ehpeek-expand-search-input {
-  padding-right: calc(132px * var(--ui-scale-factor)) !important;
+  padding-right:
+    calc((var(--ui-control-size-xl) * 2) + var(--ui-space-lg)) !important;
 }
 
 .ehpeek-expand-search-input:focus {
@@ -673,7 +674,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 .ehpeek-layout-search-categories > tbody {
   display: grid !important;
   grid-template-columns:
-    repeat(auto-fit, minmax(calc(80px * var(--ui-scale-factor)), 1fr)) !important;
+    repeat(auto-fit, minmax(80px, 1fr)) !important;
   gap: var(--ui-space-xs) !important;
 }
 
@@ -692,7 +693,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   justify-content: center !important;
   min-width: 0 !important;
   width: 100% !important;
-  height: max(32px, var(--ui-control-size-sm)) !important;
+  height: var(--ui-hit-size-sm) !important;
   padding-inline: var(--ui-space-sm) !important;
   border: 1px solid var(--color-site-border) !important;
   border-radius: var(--ui-radius-sm) !important;
@@ -725,7 +726,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   justify-content: flex-start !important;
   gap:
     var(--ui-space-xs)
-    calc(6px * var(--ui-scale-factor)) !important;
+    var(--ui-space-sm) !important;
   width: 100% !important;
   padding: 0 !important;
   font-size: 0 !important;
@@ -735,8 +736,8 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   appearance: none !important;
   display: inline-flex !important;
   align-items: center !important;
-  min-height: max(32px, var(--ui-control-size-sm)) !important;
-  padding-inline: calc(10px * var(--ui-scale-factor)) !important;
+  min-height: var(--ui-hit-size-sm) !important;
+  padding-inline: var(--ui-space-md) !important;
   border: 0 !important;
   border-radius: var(--ui-radius-sm) !important;
   background: transparent !important;
@@ -841,7 +842,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   display: block !important;
   position: static !important;
   float: none !important;
-  min-height: max(32px, calc(52px * var(--ui-scale-factor))) !important;
+  min-height: var(--ui-hit-size-xl) !important;
   width: 100% !important;
   height: auto !important;
   margin: 0 !important;
@@ -882,7 +883,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   box-sizing: border-box !important;
   flex: 1 1 auto !important;
   min-width: 0 !important;
-  height: max(32px, var(--ui-control-size-md)) !important;
+  height: var(--ui-hit-size-md) !important;
   padding-inline: var(--ui-space-md) !important;
   border: 1px solid var(--color-site-border) !important;
   border-radius: var(--ui-radius-xs) !important;
@@ -900,7 +901,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 .ehpeek-layout-new-tag-form #newtagbutton {
   box-sizing: border-box !important;
   flex: 0 0 auto !important;
-  height: max(32px, var(--ui-control-size-md)) !important;
+  height: var(--ui-hit-size-md) !important;
   padding-inline: var(--ui-space-lg) !important;
   border: 1px solid var(--color-site-accent) !important;
   border-radius: var(--ui-radius-xs) !important;
@@ -934,7 +935,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   display: flex !important;
   align-items: center !important;
   gap: var(--ui-space-md) !important;
-  min-height: max(32px, calc(52px * var(--ui-scale-factor))) !important;
+  min-height: var(--ui-hit-size-xl) !important;
   width: 100% !important;
   padding: var(--ui-space-md) var(--ui-space-lg) !important;
   border: 0 !important;
@@ -975,7 +976,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 
 .ehpeek-touch-gallery-summary-has-cover {
   grid-template-columns:
-    minmax(calc(60px * var(--ui-scale-factor)), 38%)
+    minmax(60px, 38%)
     minmax(0, 1fr);
 }
 
@@ -1066,7 +1067,7 @@ body.ehpeek-touch-gallery-page #cdiv {
 }
 
 body.ehpeek-touch-gallery-page #cdiv .c6 {
-  font-size: var(--ui-font-size-prominent) !important;
+  font-size: var(--ui-font-size-lg) !important;
   line-height: 1.5 !important;
   overflow-wrap: anywhere;
 }
@@ -1093,7 +1094,7 @@ body.ehpeek-touch-gallery-page #postnewcomment {
 
 body.ehpeek-touch-gallery-page #postnewcomment a {
   display: inline-flex !important;
-  min-height: max(32px, var(--ui-control-size-sm));
+  min-height: var(--ui-hit-size-sm);
   align-items: center;
   padding: var(--ui-space-md) var(--ui-space-lg);
   border: 1px solid var(--color-site-border);
@@ -1132,7 +1133,7 @@ body.ehpeek-touch-gallery-page #cdiv :is(
   select
 ) {
   box-sizing: border-box !important;
-  min-height: max(32px, var(--ui-control-size-sm)) !important;
+  min-height: var(--ui-hit-size-sm) !important;
   padding: var(--ui-space-md) var(--ui-space-lg) !important;
   border-radius: var(--ui-radius-md) !important;
   font: inherit !important;

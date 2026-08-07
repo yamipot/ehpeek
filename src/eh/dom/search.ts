@@ -138,9 +138,7 @@ function createReadHistoryGridRow(
   metadata.append(...metadataItems);
   galleryLink.append(detail.append(title));
   contentCell.append(
-    createManagedElement("div")
-      .replaceClasses("ehpeek-read-history-content h-full")
-      .append(metadata, galleryLink),
+    createManagedElement("div").replaceClasses("h-full").append(metadata, galleryLink),
   );
   row.append(thumbnailCell, contentCell);
 

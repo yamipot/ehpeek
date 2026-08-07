@@ -16,7 +16,6 @@ export function ReaderScrollBar(props: {
     <PositionBar
       ariaLabel="Reader position"
       axis="vertical"
-      class="ehpeek-reader-scrollbar"
       currentValue={props.currentPage}
       expanded={props.expanded}
       maxValue={props.totalPages}
