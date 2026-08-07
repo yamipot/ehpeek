@@ -558,6 +558,7 @@ function injectGalleryPreview(
             embeddedDirection={gState.columnsEnabled()
               ? state.gallery.embeddedScrollPreviewColumnsDirection.value
               : state.gallery.embeddedScrollPreviewSingleDirection.value}
+            fillEmbeddedContainer={gState.columnsEnabled}
             leftHandedControls={gState.leftHandedControls}
             onLoadError={reportReaderOpenError}
             onEmbeddedDirectionChange={(direction) => {

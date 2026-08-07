@@ -418,6 +418,7 @@ export type ScrollPreviewActions = {
 export type ScrollPreviewProps = {
   coordinator: GalleryCoordinator;
   embeddedDirection: ReadDirection;
+  fillEmbeddedContainer: Accessor<boolean>;
   leftHandedControls: Accessor<boolean>;
   onLoadError: (error: unknown) => void;
   onEmbeddedDirectionChange: (direction: ReadDirection) => void;
@@ -471,6 +472,8 @@ export function ScrollPreview(props: ScrollPreviewProps) {
       setOpen(true);
     }
   };
+
+  createEffect(() => setEmbeddedReadDirection(props.embeddedDirection));
 
   coordinator.attachPreview({
     close: () => setOpen(false),
@@ -531,6 +534,7 @@ function EmbeddedScrollPreview(props: {
           crossCountOverride={session.embeddedCrossCountOverride()}
           decodeCache={session.decodeCache}
           embedded
+          fillEmbeddedContainer={source.fillEmbeddedContainer}
           highlightedPageNum={session.continuePageNum}
           leftHandedControls={source.leftHandedControls}
           onDirectionChange={(next, pageNum) => {
@@ -590,6 +594,7 @@ function ScrollPreviewOverlay(props: {
             crossCountOverride={session.crossCountOverride()}
             decodeCache={session.decodeCache}
             embedded={false}
+            fillEmbeddedContainer={() => false}
             highlightedPageNum={session.highlightedPageNum}
             leftHandedControls={source.leftHandedControls}
             onClose={source.coordinator.requestClosePreview}
@@ -617,6 +622,7 @@ function ScrollPreviewPanel(props: {
   crossCountOverride: number | null;
   decodeCache: PreviewDecodeCache;
   embedded: boolean;
+  fillEmbeddedContainer: Accessor<boolean>;
   highlightedPageNum: Accessor<number | null>;
   leftHandedControls: Accessor<boolean>;
   onClose?: (previewIndex: number) => void;
@@ -691,6 +697,7 @@ function ScrollPreviewPanel(props: {
   let pinchMinimumCrossCount = 1;
   let layoutFrame: number | null = null;
   let scrollFrame: number | null = null;
+  let layoutHeight = 0;
   let layoutWidth = 0;
   let initialized = false;
   let disposed = false;
@@ -782,6 +789,8 @@ function ScrollPreviewPanel(props: {
       ? targetPageNum
       : centeredPageNum();
   };
+  const maximumCrossCount = (): number =>
+    horizontal ? Math.min(MAX_CROSS_COUNT, totalImages) : MAX_CROSS_COUNT;
   const minimumCrossCount = (currentLayout: PreviewLayout): number => {
     const aspectRatio = tileAspectRatio();
     const crossSize = currentLayout.horizontal
@@ -812,7 +821,7 @@ function ScrollPreviewPanel(props: {
       clamp(
         currentLayout.crossCount + delta,
         minimumCrossCount(currentLayout),
-        Math.min(MAX_CROSS_COUNT, totalImages),
+        maximumCrossCount(),
       ),
     );
     queueMicrotask(() => {
@@ -1069,11 +1078,11 @@ function ScrollPreviewPanel(props: {
       : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap)));
     const automaticCrossCount = horizontal
       ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow))
-      : Math.min(itemsPerRow, totalImages);
+      : Math.min(itemsPerRow, maximumCrossCount());
     const crossCount = clamp(
       crossCountOverride() ?? automaticCrossCount,
       1,
-      totalImages,
+      maximumCrossCount(),
     );
     const availableTileHeight = Math.max(
       1,
@@ -1105,11 +1114,23 @@ function ScrollPreviewPanel(props: {
       : crossCountOverridden
         ? overriddenTileWidth
         : Math.max(1, (width - gap * (crossCount - 1)) / crossCount);
-    if (embedded && horizontal) {
-      const fittedScrollerHeight =
-        crossCount * tileHeight + (crossCount - 1) * gap;
+    const fitEmbeddedHeight = embedded && !props.fillEmbeddedContainer();
+    let viewportHeight = height;
+    if (fitEmbeddedHeight && horizontal) {
+      viewportHeight = crossCount * tileHeight + (crossCount - 1) * gap;
       overlay.style.height =
-        `${Math.ceil(overlay.clientHeight - height + fittedScrollerHeight)}px`;
+        `${Math.ceil(overlay.clientHeight - height + viewportHeight)}px`;
+    } else if (fitEmbeddedHeight) {
+      const groupCount = Math.ceil(totalImages / crossCount);
+      const fittedScrollerHeight =
+        groupCount * tileHeight + (groupCount - 1) * gap;
+      viewportHeight = Math.min(height, fittedScrollerHeight);
+      if (viewportHeight < height) {
+        overlay.style.height =
+          `${Math.ceil(overlay.clientHeight - height + viewportHeight)}px`;
+      } else {
+        overlay.style.removeProperty("height");
+      }
     } else if (embedded) {
       overlay.style.removeProperty("height");
     }
@@ -1120,7 +1141,7 @@ function ScrollPreviewPanel(props: {
       mainStride: (horizontal ? tileWidth : tileHeight) + gap,
       tileHeight,
       tileWidth,
-      viewportHeight: height,
+      viewportHeight,
       viewportWidth: width,
     };
     setLayout(next);
@@ -1150,6 +1171,7 @@ function ScrollPreviewPanel(props: {
 
   createEffect(() => {
     crossCountOverride();
+    props.fillEmbeddedContainer();
     pixelScale();
     tileAspectRatio();
     if (initialized) {
@@ -1181,13 +1203,19 @@ function ScrollPreviewPanel(props: {
     }
     const resizeObserver = new ResizeObserver(() => untrack(() => {
       const width = scroller.clientWidth;
-      if (Math.abs(width - layoutWidth) <= 1) {
+      const height = scroller.clientHeight;
+      if (
+        Math.abs(width - layoutWidth) <= 1 &&
+        Math.abs(height - layoutHeight) <= 1
+      ) {
         return;
       }
+      layoutHeight = height;
       layoutWidth = width;
       updateLayout(true);
     }));
     resizeObserver.observe(scroller);
+    layoutHeight = scroller.clientHeight;
     layoutWidth = scroller.clientWidth;
     updateLayout(true);
     onCleanup(() => {
@@ -1217,7 +1245,7 @@ function ScrollPreviewPanel(props: {
     zoomInDisabled: () =>
       layout().crossCount <= minimumCrossCount(layout()),
     zoomOutDisabled: () =>
-      layout().crossCount >= Math.min(MAX_CROSS_COUNT, totalImages),
+      layout().crossCount >= maximumCrossCount(),
     onDirectionChange: requestDirectionChange,
     onZoomIn: () => resizeCrossCount(-1),
     onZoomOut: () => resizeCrossCount(1),
