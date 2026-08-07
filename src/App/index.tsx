@@ -81,6 +81,7 @@ function settingsMenuState(defaults = false) {
     includeUnreadHistoryEnabled: read(state.gallery.includeUnreadHistory),
     searchHistoryEnabled: read(state.search.history),
     touchUiEnabled: read(state.touch.enabled),
+    uiScale: read(currentUiScaleSetting()),
   };
 }
 
@@ -102,6 +103,7 @@ function applySettingsMenuState(
   state.gallery.includeUnreadHistory.set(next.includeUnreadHistoryEnabled);
   state.search.history.set(next.searchHistoryEnabled);
   state.touch.enabled.set(next.touchUiEnabled);
+  currentUiScaleSetting().set(next.uiScale);
   window.location.reload();
 }
 
@@ -126,9 +128,13 @@ const gState = (() => {
 })();
 
 function currentUiScale(): UiScale {
+  return currentUiScaleSetting().value;
+}
+
+function currentUiScaleSetting() {
   return window.matchMedia("(orientation: landscape)").matches
-    ? state.app.landscapeUiScale.value
-    : state.app.portraitUiScale.value;
+    ? state.app.landscapeUiScale
+    : state.app.portraitUiScale;
 }
 
 function currentColumnsEnabled(): boolean {
@@ -162,10 +168,7 @@ function setCurrentColumnsEnabled(enabled: boolean): void {
 }
 
 function setCurrentUiScale(scale: UiScale): void {
-  const setting = window.matchMedia("(orientation: landscape)").matches
-    ? state.app.landscapeUiScale
-    : state.app.portraitUiScale;
-  setting.set(scale);
+  currentUiScaleSetting().set(scale);
   gState.setUiScale(scale);
   applyUiScale(scale);
   overlayHost?.setUiScale(scale);
@@ -313,7 +316,7 @@ function GalleryReadButton(props: GalleryReadButtonProps) {
   return (
     <button
       type="button"
-      class="flex box-border w-full max-w-full ui-hit-min-h-sm items-center ui-gap-sm ui-py-sm ui-px-xs border-0 bg-transparent text-[var(--color-site-accent)] hover:bg-[var(--color-site-accent-hover)] shadow-none cursor-pointer text-left font-sans textsize-sm font-700 leading-[1.2]"
+      class="flex box-border w-full max-w-full min-h-sm items-center gap-sm py-sm px-xs border-0 bg-transparent text-[var(--color-site-accent)] hover:bg-[var(--color-site-accent-hover)] shadow-none cursor-pointer text-left font-inherit [font-size:1.05em] font-700 leading-[1.2]"
       aria-label={readButtonLabel(props.progress())}
       title={readButtonLabel(props.progress())}
       onClick={(event) => {
@@ -324,7 +327,7 @@ function GalleryReadButton(props: GalleryReadButtonProps) {
     >
       {readButtonLabel(props.progress())}
       <Show when={props.progress().hasHistory}>
-        <span class="inline-block ml-auto opacity-72 textsize-xs font-600 whitespace-nowrap">
+        <span class="inline-block ml-auto opacity-72 [font-size:0.9em] font-600 whitespace-nowrap">
           {readButtonProgress(props.progress())}
         </span>
       </Show>
@@ -373,7 +376,7 @@ function installSettingsMenu(): void {
         leftHandedControls={gState.leftHandedControls}
         open={gState.settingsMenuOpen()}
         defaultState={settingsMenuState(true)}
-        initState={gState.settings}
+        initState={{ ...gState.settings, uiScale: gState.uiScale() }}
         onApply={(next) => {
           applySettingsMenuState(next);
         }}

@@ -455,7 +455,7 @@ export function Toolbar(props: {
       </div>
       <Show when={downloadDialogPageNum() !== null && props.downloadInfos.length > 0}>
         <Dialog
-          bodyClass="p-lg"
+          bodyClass="ui-pt-lg ui-px-lg"
           label={texts.reader.download}
           onClose={() => setDownloadDialogPageNum(null)}
           title={`${texts.reader.download} · ${props.downloadInfos.map((info) => info.pageNum).join(", ")}`}

@@ -23,6 +23,10 @@ export function nextUiScale(scale: UiScale): UiScale {
   return UI_SCALE_NAMES[(index + 1) % UI_SCALE_NAMES.length]!;
 }
 
+export function uiScaleLevel(scale: UiScale): number {
+  return UI_SCALE_NAMES.indexOf(scale) + 1;
+}
+
 export function applyUiScale(
   scale: UiScale,
   root?: HTMLElement,

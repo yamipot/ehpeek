@@ -75,10 +75,6 @@ html:has(#ehpeek-ui-state.ehpeek-site-exhentai)
   -webkit-tap-highlight-color: transparent;
 }
 
-.ehpeek-ui-root :is(button, [role="button"]) {
-  min-block-size: var(--ui-hit-size-xs);
-}
-
 .ehpeek-ui-root [data-ehpeek-pressed="true"] {
   opacity: 0.72;
 }

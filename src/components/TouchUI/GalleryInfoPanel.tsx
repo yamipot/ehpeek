@@ -25,6 +25,9 @@ import { Icon } from "../Widgets/Icon";
 const RATING_STAR_INDEXES = [0, 1, 2, 3, 4];
 const RATING_ACTION_BUTTON_CLASS =
   "flex w-full min-h-[var(--ui-control-size-md)] items-center justify-center py-xs px-md rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default";
+const GALLERY_FAVORITE_ROW_CLASS =
+  "flex box-border w-full ui-hit-min-h-md items-center ui-gap-md ui-py-xs ui-px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left";
+const GALLERY_FAVORITE_ICON_SIZE = "var(--ui-icon-size-lg)";
 
 type GalleryPanelTagGroup = GalleryInfoTagGroup;
 
@@ -298,7 +301,7 @@ export function GalleryInfoPanel(props: {
       />
       <Show when={ratingPickerOpen()}>
         <Dialog
-          bodyClass="flex flex-col gap-lg p-lg"
+          bodyClass="flex flex-col ui-gap-lg ui-pt-lg ui-px-lg"
           label="Rate gallery"
           onClose={closeRatingPicker}
           title="Rate gallery"
@@ -634,7 +637,7 @@ function TouchGalleryTagMenu(props: {
       </div>
       <Show when={favoriteDialogOpen()}>
         <Dialog
-          bodyClass="flex flex-col gap-lg p-lg"
+          bodyClass="flex flex-col ui-gap-lg ui-pt-lg ui-px-lg"
           label={texts.gallery.favoriteTag}
           onClose={closeFavoriteTagDialog}
           title={texts.gallery.favoriteTag}
@@ -865,7 +868,6 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
       </button>
       <Show when={open()}>
         <Dialog
-          bodyClass="p-0"
           label={favorite().label}
           onClose={closeMenu}
           title={editingNote() ? texts.gallery.editFavoriteNote : favorite().label}
@@ -892,11 +894,11 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
                     )}</For>
                   <button
                     type="button"
-                    class="flex w-full min-h-[var(--ui-control-size-lg)] items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left"
+                    class={`${GALLERY_FAVORITE_ROW_CLASS} cursor-pointer`}
                     onClick={() => setEditingNote(true)}
                   >
                     <span class="flex-none ehp-color-site-text" aria-hidden="true">
-                      <Icon name="edit" />
+                      <Icon name="edit" size={GALLERY_FAVORITE_ICON_SIZE} />
                     </span>
                     <span>{texts.gallery.editFavoriteNote}</span>
                   </button>
@@ -910,7 +912,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
                 </>
               }
             >
-              <div class="flex flex-col gap-md p-lg">
+              <div class="flex flex-col ui-gap-md ui-pt-lg ui-px-lg">
                 <textarea
                   class="box-border min-h-[calc(var(--ui-control-size-xl)*3)] w-full resize-y rounded-md border ehp-color-site-border bg-[var(--color-site-surface)] p-md ehp-color-site-text font-inherit textsize-md leading-[1.4]"
                   value={noteDraft()}
@@ -936,7 +938,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
 
 function TouchGalleryFavoriteStatus(props: { text: string }) {
   return (
-    <div class="flex min-h-[var(--ui-control-size-lg)] items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left">
+    <div class={GALLERY_FAVORITE_ROW_CLASS}>
       {props.text}
     </div>
   );
@@ -949,7 +951,7 @@ function TouchGalleryFavoriteOption(props: {
   return (
     <button
       type="button"
-      class="flex w-full min-h-[var(--ui-control-size-lg)] items-center gap-md py-md px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left cursor-pointer"
+      class={`${GALLERY_FAVORITE_ROW_CLASS} cursor-pointer`}
       aria-pressed={props.option.selected}
       onClick={(event: MouseEvent) => {
         event.stopPropagation();
@@ -961,7 +963,11 @@ function TouchGalleryFavoriteOption(props: {
         style={{ color: props.option.color ?? undefined }}
         aria-hidden="true"
       >
-        <Icon name="heart" filled={props.option.value !== "favdel"} />
+        <Icon
+          name="heart"
+          size={GALLERY_FAVORITE_ICON_SIZE}
+          filled={props.option.value !== "favdel"}
+        />
       </span>
       <span>{props.option.label}</span>
       <span
@@ -969,7 +975,7 @@ function TouchGalleryFavoriteOption(props: {
         style={{ color: props.option.color ?? undefined }}
         aria-hidden="true"
       >
-        <Icon name="check" />
+        <Icon name="check" size="var(--ui-icon-size-sm)" />
       </span>
     </button>
   );

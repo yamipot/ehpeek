@@ -7,7 +7,11 @@ import {
   type Accessor,
 } from "solid-js";
 import type { TopBarDom } from "../../eh";
-import { nextUiScale, type UiScale } from "../../uiScale";
+import {
+  nextUiScale,
+  type UiScale,
+  uiScaleLevel,
+} from "../../uiScale";
 import texts from "../../texts.json";
 import { Icon } from "../Widgets/Icon";
 
@@ -75,8 +79,8 @@ function TouchTopBarUiMenu(props: {
           <button
             type="button"
             class={TOUCH_ICON_BUTTON_CLASS}
-            aria-label={`${texts.settings.uiScaleLabel}: ${props.uiScale.value()}`}
-            title={`${texts.settings.uiScaleLabel}: ${props.uiScale.value()}`}
+            aria-label={`${texts.settings.uiScaleLabel}: ${uiScaleLevel(props.uiScale.value())}`}
+            title={`${texts.settings.uiScaleLabel}: ${uiScaleLevel(props.uiScale.value())}`}
             onClick={() =>
           props.uiScale.onChange(nextUiScale(props.uiScale.value()))}
           >

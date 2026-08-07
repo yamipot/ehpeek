@@ -1275,7 +1275,7 @@ function ScrollPreviewPanel(props: {
       "overscroll-contain [touch-action:none]": !embedded,
     },
     slots: visibleSlots,
-    thickness: !embedded && !horizontal ? "narrow" : "normal",
+    thickness: embedded || !horizontal ? "narrow" : "normal",
   };
 
   return (

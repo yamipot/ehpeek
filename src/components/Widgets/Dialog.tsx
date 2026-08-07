@@ -9,7 +9,7 @@ const DIALOG_WIDTHS = {
 } as const;
 
 export function Dialog(props: {
-  bodyClass: string;
+  bodyClass?: string;
   children: JSX.Element;
   label: string;
   onClose: () => void;
@@ -53,7 +53,7 @@ export function Dialog(props: {
   return (
     <OverlayPortal>
       <div
-        class="fixed inset-0 z-dialog flex items-center justify-center overflow-hidden p-lg bg-black/65 pointer-events-auto font-sans"
+        class="fixed inset-0 z-dialog box-border flex items-center justify-center overflow-hidden ui-p-lg bg-black/65 pointer-events-auto font-sans"
         role="dialog"
         aria-modal="true"
         aria-label={props.label}
@@ -67,13 +67,13 @@ export function Dialog(props: {
         onWheel={(event: WheelEvent) => event.stopPropagation()}
       >
         <div
-          class={`box-border flex w-full ${DIALOG_WIDTHS[props.width]} max-h-[min(calc(var(--ui-control-size-xl)*12.75),calc(100dvh-32px))] flex-col overflow-hidden rounded-lg border shadow-xl ${
+          class={`box-border flex w-full ${DIALOG_WIDTHS[props.width]} max-h-[min(calc(var(--ui-control-size-xl)*12.75),calc(100dvh_-_var(--ui-space-lg)_-_var(--ui-space-lg)))] flex-col overflow-hidden rounded-lg border shadow-xl ${
             reader()
               ? "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)]"
               : "ehp-color-site-border ehp-color-site-elevated ehp-color-site-text"
           }`}
         >
-          <div class={`flex min-h-[var(--ui-control-size-lg)] flex-none items-center justify-between gap-md py-sm pl-lg pr-sm border-0 border-b ${
+          <div class={`flex box-border min-h-[var(--ui-control-size-lg)] flex-none items-center justify-between ui-gap-md ui-py-sm ui-pl-lg ui-pr-sm border-0 border-b ${
             reader()
               ? "border-[var(--color-border)]"
               : "ehp-color-site-border-subtle-b"
@@ -93,7 +93,7 @@ export function Dialog(props: {
               <Icon name="close" size="var(--ui-icon-size-md)" />
             </button>
           </div>
-          <div class={`min-h-0 overflow-y-auto overscroll-contain ${props.bodyClass}`}>
+          <div class={`min-h-0 overflow-y-auto overscroll-contain ui-pb-lg [&>:last-child]:!border-b-0 ${props.bodyClass ?? ""}`}>
             {props.children}
           </div>
         </div>

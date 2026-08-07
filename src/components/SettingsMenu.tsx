@@ -10,6 +10,11 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import texts from "../texts.json";
+import {
+  UI_SCALE_NAMES,
+  type UiScale,
+  uiScaleLevel,
+} from "../uiScale";
 import { InteractionHelp } from "./InteractionHelp";
 import { Dialog } from "./Widgets/Dialog";
 import { Icon, type IconName } from "./Widgets/Icon";
@@ -27,6 +32,7 @@ type SettingsMenuState = {
   includeUnreadHistoryEnabled: boolean;
   searchHistoryEnabled: boolean;
   touchUiEnabled: boolean;
+  uiScale: UiScale;
 };
 
 type SettingsTab = "general" | "enhance" | "options" | "about";
@@ -116,6 +122,33 @@ function SwitchButton(props: {
   );
 }
 
+function UiScaleSelect(props: {
+  onChange: (value: UiScale) => void;
+  value: UiScale;
+}) {
+  return (
+    <label class="flex box-border w-full min-h-[var(--ui-control-size-lg)] items-center justify-between gap-md px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] cursor-pointer">
+      <span>{texts.settings.uiScaleLabel}</span>
+      <select
+        class="box-border min-h-[var(--ui-control-size-sm)] min-w-[var(--ui-control-size-xl)] px-sm rounded-xs border ehp-color-site-border bg-[var(--color-site-surface)] ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer"
+        value={props.value}
+        onChange={(event) => {
+          const value = UI_SCALE_NAMES.find(
+            (scale) => scale === event.currentTarget.value,
+          );
+          if (value) {
+            props.onChange(value);
+          }
+        }}
+      >
+        <For each={UI_SCALE_NAMES}>{(scale) => (
+          <option value={scale}>{uiScaleLevel(scale)}</option>
+        )}</For>
+      </select>
+    </label>
+  );
+}
+
 export function SettingsMenu(props: {
   historyHref: string;
   leftHandedControls: Accessor<boolean>;
@@ -148,7 +181,7 @@ export function SettingsMenu(props: {
 
   createEffect(() => {
     if (props.open) {
-      setDraft({ ...props.initState });
+      setDraft(untrack(() => ({ ...props.initState })));
       setActiveTab("general");
       setHelpOpen(false);
       setLicensesOpen(false);
@@ -325,6 +358,13 @@ export function SettingsMenu(props: {
               label={texts.settings.includeUnreadHistoryLabel}
               onChange={(value) => updateDraft("includeUnreadHistoryEnabled", value)}
             />
+            <UiScaleSelect
+              value={draft.uiScale}
+              onChange={(value) => {
+                setChanged(true);
+                setDraft("uiScale", value);
+              }}
+            />
           </div>
           <div
             id="ehpeek-settings-panel-about"
@@ -401,7 +441,6 @@ export function SettingsMenu(props: {
       </div>
       <Show when={licensesOpen()}>
         <Dialog
-          bodyClass="p-0"
           label={texts.settings.licenses}
           onClose={() => setLicensesOpen(false)}
           title={texts.settings.licenses}

@@ -23,7 +23,7 @@ export function FavoritesCategorySelect(props: { source: TouchResultsPageDom }) 
     <div ref={container} class="box-border w-full min-w-0 overflow-hidden ui-rounded-xs border ehp-color-site-border bg-[var(--color-site-elevated)]">
       <button
         type="button"
-        class="flex box-border w-full ui-hit-min-h-xs items-center justify-between ui-gap-sm ui-px-sm ui-py-xs ui-rounded-xs border-0 !bg-transparent ehp-color-site-text text-left textsize-sm font-700 font-inherit cursor-pointer hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)]"
+        class="flex box-border w-full ui-hit-min-h-lg items-center justify-between ui-gap-sm ui-px-sm ui-py-xs ui-rounded-xs border-0 !bg-transparent ehp-color-site-text text-left textsize-sm font-700 font-inherit cursor-pointer hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)]"
         aria-expanded={open()}
         onClick={() => setOpen((value) => !value)}
       >
@@ -42,7 +42,7 @@ export function FavoritesCategorySelect(props: { source: TouchResultsPageDom }) 
           <For each={props.source.data.favoritesCategory?.categories}>{(category, index) => (
             <button
               type="button"
-              class={`flex box-border w-full ui-hit-min-h-xs items-center ui-px-sm ui-py-xs border-0 border-b ehp-color-site-border-subtle-b last:border-b-0 text-left textsize-sm font-inherit no-underline cursor-pointer ${category.selected ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent font-700" : "!bg-transparent ehp-color-site-text hover:!bg-[var(--color-site-item-hover)]"}`}
+              class={`flex box-border w-full ui-hit-min-h-lg items-center ui-px-sm ui-py-xs border-0 border-b ehp-color-site-border-subtle-b last:border-b-0 text-left textsize-sm font-inherit no-underline cursor-pointer ${category.selected ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent font-700" : "!bg-transparent ehp-color-site-text hover:!bg-[var(--color-site-item-hover)]"}`}
               onClick={() => props.source.handle.activateFavoriteCategory(index())}
             >
               <span class="flex min-w-0 items-center gap-sm">
