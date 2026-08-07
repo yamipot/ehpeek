@@ -223,10 +223,9 @@ document.addEventListener("pointerdown", (event) => {
   }
   clearPressedInteraction();
   const interaction = event.target instanceof Element
-    ? event.target.closest<HTMLElement>("[data-ehpeek-pressable=true]") ??
-      event.target.closest<HTMLElement>(
-        "a[href], button, input[type=button], input[type=submit], [role=button], [role=tab]",
-      )
+    ? event.target.closest<HTMLElement>(
+      "[data-ehpeek-pressable=true], a[href], button, input, select, textarea, label, [onclick], [role=button], [role=tab]",
+    )
     : null;
   if (!interaction?.closest(".ehpeek-ui-root")) {
     return;

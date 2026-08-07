@@ -88,15 +88,15 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
   });
 
   return (
-    <Show when={visiblePosition()} keyed>
+    <Show when={visiblePosition()}>
       {(currentPosition) => (
         <section
           ref={dropdown}
-          class="fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-hidden overflow-y-auto overscroll-contain ui-rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"
+          class="fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-x-hidden overflow-y-auto overscroll-contain ui-rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"
           style={{
-            left: `${currentPosition.left}px`,
-            top: `${currentPosition.top}px`,
-            width: `${currentPosition.width}px`,
+            left: `${currentPosition().left}px`,
+            top: `${currentPosition().top}px`,
+            width: `${currentPosition().width}px`,
           }}
           role="list"
         >
