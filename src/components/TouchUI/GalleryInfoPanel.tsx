@@ -60,6 +60,7 @@ export function GalleryInfoPanel(props: {
     GalleryPanelTagGroup["tags"][number] | null
   >(null);
   const [tagging, setTagging] = createSignal(false);
+  let ratingPointerType = "";
   const hasNewTag = () => source.elems.newTag !== null;
   const displayedRating = createMemo(() => ratingPreview() ?? ratingValue());
   const closeRatingPicker = () => {
@@ -75,6 +76,17 @@ export function GalleryInfoPanel(props: {
       ? `Rated ${ratingValue().toFixed(1)} stars`
       : ratingValueLabel();
   });
+  const previewRatingFromPointer = (event: PointerEvent): void => {
+    if (event.pointerType !== "mouse") {
+      return;
+    }
+    setRatingPreview(
+      ratingFromPointer(
+        event.clientX,
+        event.currentTarget as HTMLElement,
+      ),
+    );
+  };
 
   onMount(() => {
     const stopObservingTags = source.handle.observeGalleryTagGroups(setTagGroups);
@@ -172,30 +184,36 @@ export function GalleryInfoPanel(props: {
                   class="flex w-[65%] max-w-full flex-none self-end flex-col items-end ui-gap-xs mt-auto p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-right cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:ui-rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
                   aria-label="Rate gallery"
                   onClick={() => {
+                    const preview = ratingPointerType === "mouse"
+                      ? ratingPreview()
+                      : null;
+                    ratingPointerType = "";
+                    if (preview !== null) {
+                      submitRating(preview);
+                      return;
+                    }
                     setRatingPreview(null);
                     setRatingPickerOpen(true);
-                  }}
-                  onPointerLeave={() => {
-                    setRatingPreview(null);
                   }}
                   onBlur={() => {
                     setRatingPreview(null);
                   }}
+                  onPointerCancel={() => {
+                    ratingPointerType = "";
+                    setRatingPreview(null);
+                  }}
+                  onPointerDown={(event: PointerEvent) => {
+                    ratingPointerType = event.pointerType;
+                    if (event.pointerType !== "mouse") {
+                      setRatingPreview(null);
+                    }
+                  }}
                 >
                   <div
                     class="relative inline-flex [&_.ehpeek-icon]:w-[var(--ui-icon-size-lg)] [&_.ehpeek-icon]:h-[var(--ui-icon-size-lg)]"
-                    onPointerMove={(event: PointerEvent) => {
-                      if (event.pointerType !== "mouse") {
-                        return;
-                      }
-
-                      setRatingPreview(
-                        ratingFromPointer(
-                          event.clientX,
-                          event.currentTarget as HTMLElement,
-                        ),
-                      );
-                    }}
+                    onPointerDown={previewRatingFromPointer}
+                    onPointerMove={previewRatingFromPointer}
+                    onPointerLeave={() => setRatingPreview(null)}
                   >
                     <span
                       class="flex gap-1px text-[var(--color-muted)] opacity-40"
