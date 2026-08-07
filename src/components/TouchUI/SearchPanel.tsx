@@ -5,13 +5,13 @@ import { DomNode } from "../Widgets/ExternalDom";
 import { Icon } from "../Widgets/Icon";
 
 const TOUCH_SEARCH_OPTION_CLASS =
-  "appearance-none inline-flex min-h-[var(--ui-control-size-sm)] items-center px-md border-0 rounded-sm large:rounded-md bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]";
+  "appearance-none inline-flex min-h-[max(32px,var(--ui-control-size-sm))] items-center ui-px-md border-0 ui-rounded-sm bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]";
 const TOUCH_SEARCH_ACTION_CLASS =
-  "appearance-none inline-flex box-border w-[60px] h-[60px] large:w-[90px] large:h-[90px] items-center justify-center p-0 rounded-sm large:rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-120 [touch-action:manipulation] active:(scale-96 bg-[var(--color-site-item-hover)]) [--ehpeek-touch-search-icon-size:var(--ui-icon-size-lg)]";
+  "appearance-none inline-flex box-border w-[calc(60px*var(--ui-scale-factor))] h-[calc(60px*var(--ui-scale-factor))] items-center justify-center p-0 ui-rounded-sm border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-120 [touch-action:manipulation] active:(scale-96 bg-[var(--color-site-item-hover)]) [--ehpeek-touch-search-icon-size:var(--ui-icon-size-lg)]";
 
 export function TouchSearchPanel(props: { after?: JSX.Element; source: SearchPanelDom }) {
   return (
-    <section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_16px)] large:w-[calc(100%_-_32px)] max-w-960px flex-col gap-sm large:gap-md mx-auto mb-sm large:mb-lg p-sm large:p-lg border ehp-color-site-border rounded-sm large:rounded-lg ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans">
+    <section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_16px)] max-w-960px flex-col ui-gap-sm mx-auto ui-mb-sm ui-p-sm border ehp-color-site-border ui-rounded-sm ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans">
       <DomNode node={props.source.elems.searchBox} />
       <DomNode node={props.source.elems.fileSearch} />
       {props.after}

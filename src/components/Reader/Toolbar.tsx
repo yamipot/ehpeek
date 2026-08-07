@@ -29,7 +29,7 @@ export type PageProgress = {
 };
 
 export const READER_BUTTON_CLASS = [
-  "inline-flex min-w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] items-center justify-center px-md py-0 rounded-md large:(px-lg rounded-lg)",
+  "inline-flex min-w-[max(32px,var(--ui-control-size-md))] h-[max(32px,var(--ui-control-size-md))] items-center justify-center ui-px-md py-0 ui-rounded-md",
   "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:(opacity-40 cursor-default)",
 ].join(" ");
 const READER_TOOLBAR_BUTTON_CLASS =
@@ -216,17 +216,16 @@ export function Toolbar(props: {
           "ehpeek-reader-toolbar fixed z-3 flex justify-end pointer-events-none " +
           "top-[calc(10px+env(safe-area-inset-top,0px))] " +
           (leftHandedControls
-            ? "left-10px large:left-8px "
-            : "right-10px large:right-8px ") +
-          "large:top-[calc(8px+env(safe-area-inset-top,0px))]"
+            ? "left-[max(8px,env(safe-area-inset-left,0px))] "
+            : "right-[max(8px,env(safe-area-inset-right,0px))] ")
         }
         style={{ top: fullscreenToolbarTop() }}
         onClick={stopEvent}
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div class={`ehpeek-reader-toolbar-buttons flex flex-col ${leftHandedControls ? "items-start" : "items-end"} gap-md large:gap-lg pointer-events-auto${props.open ? "" : " !hidden"}`}>
-          <div class={`flex flex-row gap-md large:gap-lg${leftHandedControls ? " flex-row-reverse" : ""}`}>
+        <div class={`ehpeek-reader-toolbar-buttons flex flex-col ${leftHandedControls ? "items-start" : "items-end"} ui-gap-md pointer-events-auto${props.open ? "" : " !hidden"}`}>
+          <div class={`flex flex-row ui-gap-md${leftHandedControls ? " flex-row-reverse" : ""}`}>
           <button
             type="button"
             class={READER_TOOLBAR_BUTTON_CLASS}
@@ -264,7 +263,7 @@ export function Toolbar(props: {
           </button>
           </div>
           <Show when={moreOpen()}>
-            <div class={`flex w-[calc(var(--ui-control-size-lg)*4+48px)] flex-row flex-wrap gap-md large:gap-lg${leftHandedControls ? " flex-row-reverse" : ""}`}>
+            <div class={`flex w-[calc(var(--ui-control-size-lg)*4+var(--ui-space-md)*4)] flex-row flex-wrap ui-gap-md${leftHandedControls ? " flex-row-reverse" : ""}`}>
               <button
                 type="button"
                 class={READER_TOOLBAR_BUTTON_CLASS}

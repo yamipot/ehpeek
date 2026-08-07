@@ -1,3 +1,5 @@
+import uiScales from "../uiScales.json";
+
 export type NavigationMode = "scroll" | "paged";
 export type ReadDirection = "ltr" | "rtl" | "ttb";
 export type PageLayout = "single" | "double";
@@ -5,7 +7,7 @@ export type RightTapAction = "previous" | "next";
 export type ReaderScrollSizeScale = number | "one-to-one" | null;
 export type ReaderOrientation = "portrait" | "landscape";
 export type GalleryTitlePreference = "main" | "sub";
-export type UiScale = "xsmall" | "small" | "medium" | "large" | "xlarge";
+export type UiScale = keyof typeof uiScales;
 export type SearchGridMode = "ehpeek" | "ehpeek-lite";
 export type MyTagAppearance = {
   backgroundColor: string;
@@ -29,6 +31,7 @@ type StateValue<T> = {
 };
 
 const touchUiDefault = window.matchMedia("(pointer: coarse)").matches;
+const uiScaleNames = Object.keys(uiScales) as UiScale[];
 const portraitUiScaleDefault: UiScale = touchUiDefault ? "large" : "small";
 const landscapeUiScaleDefault: UiScale = touchUiDefault &&
     Math.min(window.screen.width, window.screen.height) >= 600
@@ -40,8 +43,8 @@ export const state = {
     ehSyringeDetected: persisted("ehpeek:ehsyringe:detected", false),
     leftHandedControls: persisted("ehpeek:left-handed-controls", false),
     openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", false),
-    portraitUiScale: persisted<UiScale>("ehpeek:ui-scale:portrait", portraitUiScaleDefault),
-    landscapeUiScale: persisted<UiScale>("ehpeek:ui-scale:landscape", landscapeUiScaleDefault),
+    portraitUiScale: persistedEnum("ehpeek:ui-scale:portrait", portraitUiScaleDefault, uiScaleNames),
+    landscapeUiScale: persistedEnum("ehpeek:ui-scale:landscape", landscapeUiScaleDefault, uiScaleNames),
   },
   reader: {
     enabled: persisted("ehpeek:reader:enabled", true),
@@ -142,6 +145,34 @@ function persisted<T>(key: string, defaultValue: T): StateValue<T> {
     },
   };
 
+  return item;
+}
+
+function persistedEnum<T extends string>(
+  key: string,
+  defaultValue: T,
+  values: readonly T[],
+): StateValue<T> {
+  const read = () => {
+    const value = GM_getValue<unknown>(key, defaultValue);
+    if (values.includes(value as T)) {
+      return value as T;
+    }
+    GM_setValue(key, defaultValue);
+    return defaultValue;
+  };
+  const item: StateValue<T> = {
+    defaultValue,
+    value: read(),
+    set(value) {
+      item.value = value;
+      GM_setValue(key, value);
+    },
+    reload() {
+      item.value = read();
+      return item.value;
+    },
+  };
   return item;
 }
 

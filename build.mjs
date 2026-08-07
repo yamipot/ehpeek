@@ -10,6 +10,7 @@ import unoConfig from "./uno.config.mjs";
 const packageDir = path.dirname(fileURLToPath(import.meta.url));
 const outfile = path.join(packageDir, "dist/ehpeek.user.js");
 const texts = JSON.parse(readFileSync(path.join(packageDir, "src/texts.json"), "utf-8"));
+const uiScales = JSON.parse(readFileSync(path.join(packageDir, "src/uiScales.json"), "utf-8"));
 const releaseBuild = process.env.EHPEEK_RELEASE_BUILD === "true";
 const releaseBranch = process.env.EHPEEK_RELEASE_BRANCH || "master";
 const debugBuild = process.env.EHPEEK_DEBUG === "true";
@@ -186,93 +187,33 @@ function readSpectrumUiScales() {
   const layout = readSpectrumTokenFile("layout.json");
   const layoutComponent = readSpectrumTokenFile("layout-component.json");
   const typography = readSpectrumTokenFile("typography.json");
-  const table = {
-    small: {
-      set: "desktop",
-      control: {
-        xs: "component-height-75",
-        sm: "component-height-100",
-        md: "component-height-200",
-        lg: "component-height-300",
-        xl: "component-height-400",
-      },
-      font: {
-        xs: "font-size-25",
-        sm: "font-size-100",
-        md: "font-size-200",
-        prominent: "font-size-300",
-        title: "font-size-400",
-        lg: "font-size-500",
-        xl: "font-size-700",
-      },
-      icon: {
-        sm: "workflow-icon-size-75",
-        md: "workflow-icon-size-100",
-        lg: "workflow-icon-size-200",
-        xl: "workflow-icon-size-300",
-      },
-      statusDot: {
-        md: "status-light-dot-size-medium",
-        lg: "status-light-dot-size-large",
-      },
+  const definition = {
+    set: "desktop",
+    control: {
+      xs: "component-height-75",
+      sm: "component-height-100",
+      md: "component-height-200",
+      lg: "component-height-300",
+      xl: "component-height-400",
     },
-    medium: {
-      set: "desktop",
-      control: {
-        xs: "component-height-100",
-        sm: "component-height-200",
-        md: "component-height-300",
-        lg: "component-height-400",
-        xl: "component-height-500",
-      },
-      font: {
-        xs: "font-size-50",
-        sm: "font-size-200",
-        md: "font-size-400",
-        prominent: "font-size-500",
-        title: "font-size-600",
-        lg: "font-size-700",
-        xl: "font-size-900",
-      },
-      icon: {
-        sm: "workflow-icon-size-100",
-        md: "workflow-icon-size-200",
-        lg: "workflow-icon-size-300",
-        xl: "workflow-icon-size-300",
-      },
-      statusDot: {
-        md: "status-light-dot-size-large",
-        lg: "status-light-dot-size-extra-large",
-      },
+    font: {
+      xs: "font-size-25",
+      sm: "font-size-100",
+      md: "font-size-200",
+      prominent: "font-size-300",
+      title: "font-size-400",
+      lg: "font-size-500",
+      xl: "font-size-700",
     },
-    large: {
-      set: "mobile",
-      control: {
-        xs: "component-height-100",
-        sm: "component-height-200",
-        md: "component-height-300",
-        lg: "component-height-400",
-        xl: "component-height-500",
-      },
-      font: {
-        xs: "font-size-50",
-        sm: "font-size-200",
-        md: "font-size-400",
-        prominent: "font-size-500",
-        title: "font-size-600",
-        lg: "font-size-700",
-        xl: "font-size-900",
-      },
-      icon: {
-        sm: "workflow-icon-size-100",
-        md: "workflow-icon-size-200",
-        lg: "workflow-icon-size-300",
-        xl: "workflow-icon-size-300",
-      },
-      statusDot: {
-        md: "status-light-dot-size-large",
-        lg: "status-light-dot-size-extra-large",
-      },
+    icon: {
+      sm: "workflow-icon-size-75",
+      md: "workflow-icon-size-100",
+      lg: "workflow-icon-size-200",
+      xl: "workflow-icon-size-300",
+    },
+    statusDot: {
+      md: "status-light-dot-size-medium",
+      lg: "status-light-dot-size-large",
     },
   };
   const resolve = (tokens, keys, set) => Object.fromEntries(
@@ -282,26 +223,21 @@ function readSpectrumUiScales() {
     ]),
   );
 
-  const resolved = Object.fromEntries(
-    Object.entries(table).map(([name, definition]) => [
+  const resolved = {
+    control: resolve(layout, definition.control, definition.set),
+    font: resolve(typography, definition.font, definition.set),
+    icon: resolve(layout, definition.icon, definition.set),
+    statusDot: resolve(layoutComponent, definition.statusDot, definition.set),
+    space: { xs: "4px", sm: "8px", md: "12px", lg: "16px", xl: "24px" },
+    radius: { xs: "3px", sm: "4px", md: "6px", lg: "8px", xl: "10px" },
+  };
+
+  return Object.fromEntries(
+    Object.entries(uiScales).map(([name, factor]) => [
       name,
-      {
-        control: resolve(layout, definition.control, definition.set),
-        font: resolve(typography, definition.font, definition.set),
-        icon: resolve(layout, definition.icon, definition.set),
-        statusDot: resolve(
-          layoutComponent,
-          definition.statusDot,
-          definition.set,
-        ),
-      },
+      scaleSpectrumUiValues(resolved, factor),
     ]),
   );
-  return {
-    xsmall: scaleSpectrumUiValues(resolved.small, 0.8),
-    ...resolved,
-    xlarge: scaleSpectrumUiValues(resolved.large, 1.25),
-  };
 }
 
 function scaleSpectrumUiValues(groups, factor) {

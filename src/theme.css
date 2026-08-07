@@ -73,6 +73,10 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+[data-ehpeek-ui-root="true"] :is(button, [role="button"]) {
+  min-block-size: 32px;
+}
+
 [data-ehpeek-ui-root="true"] [data-ehpeek-pressed="true"] {
   opacity: 0.72;
 }

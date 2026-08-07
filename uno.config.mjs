@@ -5,9 +5,8 @@ export default defineConfig({
   transformers: [transformerVariantGroup()],
   postprocess: [pointerHoverPostprocessor()],
   variants: [
-    uiScaleVariant("large", "xlarge"),
-    mediaVariant("desktop", "(min-width: 760px)"),
-    mediaVariant("landscape", "(orientation: landscape)"),
+    containerVariant("search-panel-compact", "(max-width: 540px)"),
+    containerVariant("viewport-toolbar-compact", "(max-width: 430px)"),
   ],
   shortcuts: {
     "ehp-color-reader": "bg-[var(--color-reader-background)] text-[var(--color-reader-text)]",
@@ -36,6 +35,11 @@ export default defineConfig({
     "textsize-md": "text-[length:var(--ui-font-size-md)]",
     "textsize-sm": "text-[length:var(--ui-font-size-sm)]",
     "textsize-xs": "text-[length:var(--ui-font-size-xs)]",
+    ...variableShortcuts(
+      ["p", "px", "py", "pt", "pr", "pb", "pl", "m", "mx", "my", "mt", "mr", "mb", "ml", "gap", "gap-x", "gap-y"],
+      "space",
+    ),
+    ...variableShortcuts(["rounded"], "radius"),
   },
 });
 
@@ -47,17 +51,26 @@ function pixelShortcuts(properties, sizes) {
   );
 }
 
-function mediaVariant(prefix, media) {
+function variableShortcuts(properties, group) {
+  return Object.fromEntries(
+    properties.flatMap((property) =>
+      ["xs", "sm", "md", "lg", "xl"].map((name) => [
+        `ui-${property}-${name}`,
+        `${property}-[var(--ui-${group}-${name})]`,
+      ]),
+    ),
+  );
+}
+
+function containerVariant(prefix, condition) {
   return (matcher) => {
     const marker = `${prefix}:`;
-
     if (!matcher.startsWith(marker)) {
       return matcher;
     }
-
     return {
       matcher: matcher.slice(marker.length),
-      parent: `@media ${media}`,
+      parent: `@container ${condition}`,
     };
   };
 }
@@ -68,24 +81,5 @@ function pointerHoverPostprocessor() {
       utility.selector =
         `:root[data-ehpeek-pointer="mouse"] ${utility.selector}`;
     }
-  };
-}
-
-function uiScaleVariant(...scales) {
-  return (matcher) => {
-    const marker = `${scales[0]}:`;
-
-    if (!matcher.startsWith(marker)) {
-      return matcher;
-    }
-
-    return {
-      matcher: matcher.slice(marker.length),
-      selector: (selector) =>
-        scales
-          .map((scale) =>
-            `:root[data-ehpeek-ui-scale="${scale}"] ${selector}`)
-          .join(", "),
-    };
   };
 }

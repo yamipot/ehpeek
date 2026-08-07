@@ -537,7 +537,7 @@ function injectGalleryPreview(
               gState.settings.replacePreviewWithScroll &&
               gState.settings.touchUiEnabled &&
               gState.columnsEnabled(),
-            "relative [--scroll-preview-height:55lvh] [width:calc(100%-(var(--touch-gallery-gutter)*2))] landscape:[width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90lvh)] mx-auto":
+            "relative [--scroll-preview-height:55lvh] [width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90lvh)] mx-auto":
               gState.settings.replacePreviewWithScroll &&
               gState.settings.touchUiEnabled &&
               !gState.columnsEnabled(),

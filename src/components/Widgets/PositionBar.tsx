@@ -5,18 +5,18 @@ type PositionBarThickness = "narrow" | "normal";
 
 const VERTICAL_FILL = {
   narrow: {
-    collapsed: "w-10px large:w-12px",
-    expanded: "w-18px large:w-24px",
+    collapsed: "w-[calc(10px*var(--ui-scale-factor))]",
+    expanded: "w-[calc(18px*var(--ui-scale-factor))]",
   },
   normal: {
-    collapsed: "w-20px large:w-24px",
-    expanded: "w-36px large:w-48px",
+    collapsed: "w-[calc(20px*var(--ui-scale-factor))]",
+    expanded: "w-[calc(36px*var(--ui-scale-factor))]",
   },
 } satisfies Record<PositionBarThickness, Record<string, string>>;
 
 const HORIZONTAL_FILL = {
-  narrow: "h-10px large:h-12px",
-  normal: "h-20px large:h-24px",
+  narrow: "h-[calc(10px*var(--ui-scale-factor))]",
+  normal: "h-[calc(20px*var(--ui-scale-factor))]",
 } satisfies Record<PositionBarThickness, string>;
 
 const POSITION_BAR_FILL = "bg-[var(--color-reader-scrollbar,var(--color-muted))]";
@@ -138,7 +138,7 @@ export function PositionBar(props: {
   const renderHorizontal = () => (
       <div
         ref={track}
-        class={`ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-x-0 bottom-0 z-2 h-20px large:h-24px touch-none select-none`}
+        class={`ehpeek-position-bar ${props.class ?? ""} ${props.position === "fixed" ? "fixed" : "absolute"} inset-x-0 bottom-0 z-2 h-[calc(20px*var(--ui-scale-factor))] touch-none select-none`}
         aria-label={props.ariaLabel}
         aria-disabled={!draggable()}
         aria-orientation="horizontal"
@@ -161,7 +161,7 @@ export function PositionBar(props: {
         />
         <div
           ref={thumb}
-          class={`ehpeek-position-bar-thumb absolute bottom-0 flex h-20px large:h-24px items-end ${draggable() ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
+          class={`ehpeek-position-bar-thumb absolute bottom-0 flex h-[calc(20px*var(--ui-scale-factor))] items-end ${draggable() ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
           style={{
             left: `${visualPosition()}%`,
             transform: `translateX(-${visualPosition()}%)`,
@@ -180,8 +180,8 @@ export function PositionBar(props: {
   );
 
   const interactionSize = () => expanded()
-    ? "w-36px large:w-64px"
-    : "w-20px large:w-40px";
+    ? "w-[calc(36px*var(--ui-scale-factor))]"
+    : "w-[calc(20px*var(--ui-scale-factor))]";
   const fillSize = () => expanded()
     ? VERTICAL_FILL[thickness].expanded
     : VERTICAL_FILL[thickness].collapsed;

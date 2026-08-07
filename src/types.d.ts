@@ -14,12 +14,14 @@ declare module "ehpeek:spectrum-ui-scales" {
   type IconScale = Record<"sm" | "md" | "lg" | "xl", string>;
 
   const scales: Record<
-    "xsmall" | "small" | "medium" | "large" | "xlarge",
+    import("./state").UiScale,
     {
       control: SizeScale;
       font: FontScale;
       icon: IconScale;
       statusDot: Record<"md" | "lg", string>;
+      space: SizeScale;
+      radius: SizeScale;
     }
   >;
   export default scales;

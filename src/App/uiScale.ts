@@ -1,5 +1,6 @@
 import spectrumUiScales from "ehpeek:spectrum-ui-scales";
 import type { UiScale } from "../state";
+import uiScales from "../uiScales.json";
 
 export function applyUiScale(
   scale: UiScale,
@@ -9,10 +10,13 @@ export function applyUiScale(
   const values = spectrumUiScales[scale];
 
   root.dataset.ehpeekUiScale = scale;
+  root.style.setProperty("--ui-scale-factor", String(uiScales[scale] * factor));
   applySizeScale(root, "--ui-control-size", values.control, factor);
   applySizeScale(root, "--ui-font-size", values.font, factor);
   applySizeScale(root, "--ui-icon-size", values.icon, factor);
   applySizeScale(root, "--ui-status-dot-size", values.statusDot, factor);
+  applySizeScale(root, "--ui-space", values.space, factor);
+  applySizeScale(root, "--ui-radius", values.radius, factor);
 }
 
 function applySizeScale(

@@ -9,6 +9,7 @@ import {
 import type { TopBarDom } from "../../eh";
 import type { UiScale } from "../../state";
 import texts from "../../texts.json";
+import uiScales from "../../uiScales.json";
 import { Icon } from "../Widgets/Icon";
 
 const TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)";
@@ -18,13 +19,11 @@ const TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE =
   "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
 const TOUCH_ICON_BUTTON_CLASS =
   "inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]";
-const NEXT_UI_SCALE: Record<UiScale, UiScale> = {
-  xsmall: "small",
-  small: "medium",
-  medium: "large",
-  large: "xlarge",
-  xlarge: "xsmall",
-};
+const UI_SCALE_ORDER = Object.keys(uiScales) as UiScale[];
+
+function nextUiScale(scale: UiScale): UiScale {
+  return UI_SCALE_ORDER[(UI_SCALE_ORDER.indexOf(scale) + 1) % UI_SCALE_ORDER.length]!;
+}
 
 function TouchTopBarUiMenu(props: {
   uiScale: {
@@ -86,7 +85,7 @@ function TouchTopBarUiMenu(props: {
             aria-label={`${texts.settings.uiScaleLabel}: ${props.uiScale.value()}`}
             title={`${texts.settings.uiScaleLabel}: ${props.uiScale.value()}`}
             onClick={() =>
-              props.uiScale.onChange(NEXT_UI_SCALE[props.uiScale.value()])}
+          props.uiScale.onChange(nextUiScale(props.uiScale.value()))}
           >
             <Icon name="viewport" size={TOUCH_TOP_BAR_ICON_SIZE} />
           </button>
@@ -167,7 +166,7 @@ function TouchTopBarMenu(props: {
       </button>
       <Show when={open()}>
         <div
-          class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-180px large:w-[calc(100vw-32px)] max-w-[calc(100vw-12px)] large:max-w-360px flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"
+          class="ehpeek-touch-top-bar-menu-panel absolute top-[calc(100%+4px)] right-0 z-overlay flex w-[min(calc(180px*var(--ui-scale-factor)),calc(100vw-32px))] max-w-[calc(100vw-12px)] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated"
           classList={{ "!right-auto left-0": props.leftHanded() }}
         >
           <For each={props.navItems}>{(item) => {

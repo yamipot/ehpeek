@@ -542,6 +542,10 @@ function manageEhPeekGrid(
     mixed: "x",
   };
   resultList.addClasses(sharedApply.searchGrid);
+  DomNode.from(resultList.Component())
+    .parent()
+    ?.inplace()
+    .addClasses("[container-type:inline-size]");
   if (mode === "ehpeek-lite") {
     resultList.addClasses(sharedApply.liteSearchGrid);
   }
@@ -626,7 +630,7 @@ function manageEhPeekGrid(
     })
       .attribute("href", galleryHref)
       .attribute("aria-label", title || "Open gallery")
-      .replaceClasses("hidden large:block absolute inset-0 z-1")
+      .replaceClasses("hidden search-panel-compact:block absolute inset-0 z-1")
       .apply("cover");
     row
       .append(overlay)

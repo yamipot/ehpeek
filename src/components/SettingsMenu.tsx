@@ -197,9 +197,9 @@ export function SettingsMenu(props: {
     <Show when={props.open}>
       <div
         ref={menu}
-        class="ehpeek-settings-menu pointer-events-auto fixed top-24px right-24px large:top-8px large:right-8px z-overlay box-border flex w-[calc(var(--ui-control-size-xl)*6)] max-w-[calc(100vw-48px)] large:max-w-[calc(100vw-16px)] max-h-[calc(100vh-48px)] large:max-h-[calc(100dvh-16px)] flex-col overflow-hidden p-md border ehp-color-site-border rounded-sm ehp-color-site-elevated ehp-color-site-text [font-size:var(--ui-font-size-md)] leading-[1.2]"
+        class="ehpeek-settings-menu pointer-events-auto fixed top-[max(8px,env(safe-area-inset-top,0px))] right-[max(8px,env(safe-area-inset-right,0px))] z-overlay box-border flex w-[calc(var(--ui-control-size-xl)*6)] max-w-[calc(100vw-16px)] max-h-[calc(100dvh-16px)] flex-col overflow-hidden ui-p-md border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated ehp-color-site-text [font-size:var(--ui-font-size-md)] leading-[1.2]"
         classList={{
-          "!right-auto left-24px large:left-8px": props.leftHandedControls(),
+          "!right-auto left-[max(8px,env(safe-area-inset-left,0px))]": props.leftHandedControls(),
         }}
       >
         <div
