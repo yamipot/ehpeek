@@ -71,6 +71,7 @@ function settingsMenuState(defaults = false) {
 
   return {
     openGalleryInNewTab: read(state.app.openGalleryInNewTab),
+    locale: read(state.app.locale),
     readerEnabled: read(state.reader.enabled),
     exitReaderOnFullscreenExit: read(state.reader.exitOnFullscreenExit),
     readerFullscreenEnabled: read(state.reader.fullscreen),
@@ -93,6 +94,7 @@ function applySettingsMenuState(
     clearBackToTopPosition();
   }
   state.app.openGalleryInNewTab.set(next.openGalleryInNewTab);
+  state.app.locale.set(next.locale);
   state.reader.enabled.set(next.readerEnabled);
   state.reader.exitOnFullscreenExit.set(next.exitReaderOnFullscreenExit);
   state.reader.fullscreen.set(next.readerFullscreenEnabled);

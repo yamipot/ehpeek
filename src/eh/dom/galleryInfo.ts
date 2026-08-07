@@ -227,7 +227,7 @@ export function manageGalleryInfo(
         : "",
       color: slot === undefined ? null : `var(--color-site-favorite-${slot})`,
       favorited,
-      label: favorited ? displayed : "Not Favorited",
+      label: favorited ? displayed : texts.gallery.notFavorited,
     };
   };
 

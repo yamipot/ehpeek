@@ -1,0 +1,175 @@
+{
+  "metadata": {
+    "description": "タッチ操作向けの E-H/ExH リーダー"
+  },
+  "common": {
+    "actions": {
+      "apply": "適用",
+      "close": "閉じる",
+      "confirm": "確定",
+      "current": "現在位置",
+      "default": "デフォルト",
+      "submit": "送信",
+      "zoomIn": "拡大",
+      "zoomOut": "縮小"
+    },
+    "status": {
+      "failed": "失敗",
+      "loading": "読み込み中..."
+    }
+  },
+  "help": {
+    "title": "ヘルプ",
+    "sections": [
+      {
+        "title": "リーダー",
+        "items": [
+          "中央を**タップ**すると、ツールバーの表示と非表示を切り替えられます。",
+          "閲覧方向に**スワイプまたはスクロール**します。左右をタップするか、**矢印キー**でもページをめくれます。",
+          "**ページモード**では、下へ引くか閲覧方向と交差する向きにスワイプすると、スクロールプレビューを開けます。",
+          "**ピンチ**で拡大縮小できます。マウスでは画像を**長押し**するか、**Ctrl/⌘ + ホイール**を使用します。拡大中に長押し、ダブルクリック、またはダブルタップすると終了します。"
+        ]
+      },
+      {
+        "title": "ブラウズ",
+        "items": [
+          "**レイアウトメニュー**から EhPeek または EhPeekLite を選択すると、元の検索結果レイアウトを置き換えます。",
+          "**拡張 > 検索スワイプ**を有効にすると、**横方向にスワイプ**して検索結果ページを切り替えられます。"
+        ]
+      },
+      {
+        "title": "ギャラリー",
+        "items": [
+          "**拡張 > プレビュースワイプ**を有効にすると、**横方向にスワイプ**してプレビューページを切り替えられます。",
+          "ギャラリーのページバーを**ドラッグ**して範囲を調整できます。"
+        ]
+      }
+    ]
+  },
+  "reader": {
+    "readingOptions": "閲覧オプション",
+    "fullscreen": "フルスクリーン",
+    "exitFullscreen": "フルスクリーンを終了",
+    "adjustScrollViewport": "スクロール表示領域のサイズを調整",
+    "resizeScrollViewport": "スクロール表示領域をリサイズ",
+    "fit": "フィット",
+    "applyGlobally": "デフォルトに設定",
+    "pagedMode": "ページモード",
+    "singlePageMode": "単ページレイアウト",
+    "doublePageMode": "見開きレイアウト",
+    "pairFirstAndSecondPages": "1+2ページを組み合わせる",
+    "pairSecondAndThirdPages": "2+3ページを組み合わせる",
+    "scrollMode": "スクロールモード",
+    "rightTapPrevious": "右側の操作：\n前のページ",
+    "rightTapNext": "右側の操作：\n次のページ",
+    "directionRtl": "閲覧方向：\n 右から左",
+    "directionLtr": "閲覧方向：\n 左から右",
+    "directionTtb": "閲覧方向：\n 上から下",
+    "download": "ダウンロード",
+    "downloadHelpLabel": "ダウンロードできませんか？",
+    "downloadHelp": "ユーザースクリプトマネージャーでブラウザーのダウンロード API を有効にできます。たとえば Violentmonkey では「ブラウザーのダウンロード API を使用」を有効にしてください。",
+    "openImage": "画像を開く",
+    "displayedImageShort": "表示中",
+    "originalImageShort": "オリジナル",
+    "downloadDisplayedImage": "表示中の画像",
+    "downloadOriginalImage": "オリジナル画像",
+    "originalImageSource": "E-Hentai が提供するオリジナル画像",
+    "originalImageUnavailable": "オリジナル画像は利用できません",
+    "startReading": "読む",
+    "continueReading": "続きから読む",
+    "endPage": "終了",
+    "end": "ギャラリーの最後です。タップして終了します。",
+    "reloadPage": "ページを再読み込み"
+  },
+  "history": {
+    "actions": {
+      "clear": "すべて消去",
+      "export": "エクスポート",
+      "import": "インポート",
+      "remove": "削除"
+    },
+    "clearConfirm": "閲覧履歴をすべて消去しますか？",
+    "empty": "閲覧履歴はありません",
+    "exported": "履歴をエクスポートしました",
+    "importFailed": "履歴のインポートに失敗しました",
+    "imported": "{count} 件の履歴をインポートしました",
+    "limit": "（最大 {limit} 件）",
+    "visitedLabel": "閲覧済み",
+    "range": "全 {total} 件中 {start}–{end} 件",
+    "removeConfirm": "このギャラリーを閲覧履歴から削除しますか？"
+  },
+  "gallery": {
+    "pages": "ページ",
+    "notFavorited": "お気に入り未登録",
+    "rate": "ギャラリーを評価",
+    "rateWithStars": "ギャラリーを評価：{rating} 星",
+    "tagging": "タグ操作",
+    "scrollPreview": "スクロールプレビュー",
+    "confirmScrollPreviewDirection": "スクロールプレビューの方向を変更しますか？",
+    "openScrollPreview": "全画面スクロールプレビューを開く",
+    "scrollPreviewDirectionTtb": "スクロールプレビュー：上から下",
+    "scrollPreviewDirectionLtr": "スクロールプレビュー：左から右",
+    "scrollPreviewDirectionRtl": "スクロールプレビュー：右から左",
+    "favoriteTag": "マイタグを追加",
+    "editFavoriteNote": "メモを編集",
+    "discardFavoriteNote": "メモの変更を破棄しますか？",
+    "removeFavoriteTag": "マイタグを削除",
+    "tagCollection": "コレクション",
+    "tagBehavior": "動作",
+    "markTag": "マーク",
+    "watchTag": "ウォッチ",
+    "hideTag": "非表示"
+  },
+  "settings": {
+    "openSettings": "設定",
+    "on": "オン",
+    "off": "オフ",
+    "discardChanges": "未適用の設定変更を破棄しますか？",
+    "general": "一般",
+    "options": "オプション",
+    "about": "情報",
+    "licenses": "ライセンス",
+    "readerLabel": "リーダー",
+    "readerHelp": "ギャラリー画像を EhPeek のリーダーで開きます",
+    "readerFullscreenLabel": "リーダーをフルスクリーンで開く",
+    "readerFullscreenHelp": "リーダーを開いたときにフルスクリーンにします",
+    "exitReaderOnFullscreenExitLabel": "フルスクリーン終了時にリーダーを閉じる",
+    "exitReaderOnFullscreenExitHelp": "フルスクリーンを終了するとリーダーを閉じます",
+    "replacePreviewWithScrollLabel": "スクロールプレビューを埋め込む",
+    "replacePreviewWithScrollHelp": "元のギャラリープレビュー領域をスクロールプレビューに置き換えます",
+    "openGalleryInNewTabLabel": "ギャラリーを新しいタブで開く",
+    "openGalleryInNewTabHelp": "ギャラリーリンクをブラウザーの新しいタブで開きます",
+    "uiControlsLabel": "UI レイアウト",
+    "uiScaleLabel": "UI スケール",
+    "leftHandedControlsLabel": "左手用コントロール",
+    "columnsLabel": "2 列",
+    "enhance": "拡張",
+    "enhanceSearchLabel": "検索スワイプ",
+    "enhanceSearchHelp": "スワイプして検索結果ページを切り替えます",
+    "enhanceThumbsLabel": "プレビュースワイプ",
+    "enhanceThumbsHelp": "スワイプしてプレビューページを切り替え、ページバーをドラッグ可能にします",
+    "myTagsLabel": "マイタグの色",
+    "myTagsHelp": "ギャラリー内のマイタグに色を付けます",
+    "historyLabel": "履歴",
+    "readHistoryLabel": "閲覧履歴",
+    "readHistoryHelp": "ギャラリーを閲覧履歴に追加し、閲覧進捗を保存します",
+    "includeUnreadHistoryLabel": "未読の履歴を含める",
+    "includeUnreadHistoryHelp": "開いたものの未読のギャラリーを閲覧履歴に記録します",
+    "searchHistoryLabel": "検索履歴",
+    "searchHistoryHelp": "検索キーワードの履歴を保存します",
+    "touchUiLabel": "タッチ UI",
+    "touchUiHelp": "タッチ操作に適したナビゲーション UI を使用します"
+  },
+  "search": {
+    "advancedOptions": "詳細オプション",
+    "categories": "カテゴリ",
+    "fileSearch": "ファイル検索"
+  },
+  "errors": {
+    "imageNotFound": "画像が見つかりません",
+    "downloadFailed": "ダウンロードに失敗しました",
+    "loadFailed": "読み込みに失敗しました",
+    "imageLoadFailed": "画像の読み込みに失敗しました",
+    "searchPageContentNotFound": "検索ページの内容が見つかりません"
+  }
+}

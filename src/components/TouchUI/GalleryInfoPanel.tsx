@@ -851,7 +851,9 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
         ...favorite(),
         color: option.color,
         favorited: option.value !== "favdel",
-        label: option.value === "favdel" ? "Not Favorited" : option.label,
+        label: option.value === "favdel"
+          ? texts.gallery.notFavorited
+          : option.label,
       });
       setNote(noteDraft());
       setLoadingState("idle");

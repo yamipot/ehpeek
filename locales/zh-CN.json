@@ -1,0 +1,175 @@
+{
+  "metadata": {
+    "description": "为触屏优化的 E-H/ExH 阅读器"
+  },
+  "common": {
+    "actions": {
+      "apply": "应用",
+      "close": "关闭",
+      "confirm": "确认",
+      "current": "当前位置",
+      "default": "默认",
+      "submit": "提交",
+      "zoomIn": "放大",
+      "zoomOut": "缩小"
+    },
+    "status": {
+      "failed": "失败",
+      "loading": "加载中..."
+    }
+  },
+  "help": {
+    "title": "帮助",
+    "sections": [
+      {
+        "title": "阅读器",
+        "items": [
+          "**点击**中央区域可显示或隐藏工具栏。",
+          "沿阅读方向**滑动或滚动**；点击两侧或使用**方向键**翻页。",
+          "在**分页模式**下，下拉或沿阅读方向的垂直方向滑动可打开滚动预览。",
+          "通过**双指捏合**缩放。使用鼠标时，可**长按**图像或使用 **Ctrl/⌘ + 滚轮**缩放；缩放后，长按、双击鼠标或双击屏幕可退出缩放。"
+        ]
+      },
+      {
+        "title": "浏览",
+        "items": [
+          "在**布局菜单**中选择 EhPeek 或 EhPeekLite，以替换原始结果布局。",
+          "启用**增强 > 搜索滑动**后，可**水平滑动**切换搜索结果页。"
+        ]
+      },
+      {
+        "title": "画廊",
+        "items": [
+          "启用**增强 > 预览滑动**后，可**水平滑动**切换预览页。",
+          "可以**拖动画廊中的页码条**来调整范围。"
+        ]
+      }
+    ]
+  },
+  "reader": {
+    "readingOptions": "阅读选项",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
+    "adjustScrollViewport": "调整滚动视口大小",
+    "resizeScrollViewport": "调整滚动视口",
+    "fit": "适应",
+    "applyGlobally": "设为默认",
+    "pagedMode": "分页模式",
+    "singlePageMode": "单页布局",
+    "doublePageMode": "双页布局",
+    "pairFirstAndSecondPages": "组合第 1+2 页",
+    "pairSecondAndThirdPages": "组合第 2+3 页",
+    "scrollMode": "滚动模式",
+    "rightTapPrevious": "右侧操作：\n上一页",
+    "rightTapNext": "右侧操作：\n下一页",
+    "directionRtl": "阅读方向：\n 从右向左",
+    "directionLtr": "阅读方向：\n 从左向右",
+    "directionTtb": "阅读方向：\n 从上向下",
+    "download": "下载",
+    "downloadHelpLabel": "无法下载？",
+    "downloadHelp": "你可以在用户脚本管理器中启用浏览器下载 API。例如，在 Violentmonkey 中启用“使用浏览器下载 API”。",
+    "openImage": "打开图像",
+    "displayedImageShort": "当前显示",
+    "originalImageShort": "原图",
+    "downloadDisplayedImage": "当前显示的图像",
+    "downloadOriginalImage": "原始图像",
+    "originalImageSource": "由 E-Hentai 提供的原图来源",
+    "originalImageUnavailable": "原始图像不可用",
+    "startReading": "阅读",
+    "continueReading": "继续",
+    "endPage": "结束",
+    "end": "已到画廊末尾。点击退出。",
+    "reloadPage": "重新加载页面"
+  },
+  "history": {
+    "actions": {
+      "clear": "全部清除",
+      "export": "导出",
+      "import": "导入",
+      "remove": "删除"
+    },
+    "clearConfirm": "清除全部阅读历史？",
+    "empty": "没有阅读历史",
+    "exported": "历史记录已导出",
+    "importFailed": "历史记录导入失败",
+    "imported": "已导入 {count} 条历史记录",
+    "limit": "（最多 {limit} 条）",
+    "visitedLabel": "已访问",
+    "range": "第 {start}–{end} 条，共 {total} 条历史记录",
+    "removeConfirm": "从阅读历史中删除此画廊？"
+  },
+  "gallery": {
+    "pages": "页",
+    "notFavorited": "未收藏",
+    "rate": "为画廊评分",
+    "rateWithStars": "为画廊评分：{rating} 星",
+    "tagging": "标签操作",
+    "scrollPreview": "滚动预览",
+    "confirmScrollPreviewDirection": "更改滚动预览方向？",
+    "openScrollPreview": "打开全屏滚动预览",
+    "scrollPreviewDirectionTtb": "滚动预览：从上向下",
+    "scrollPreviewDirectionLtr": "滚动预览：从左向右",
+    "scrollPreviewDirectionRtl": "滚动预览：从右向左",
+    "favoriteTag": "添加我的标签",
+    "editFavoriteNote": "编辑备注",
+    "discardFavoriteNote": "放弃备注修改？",
+    "removeFavoriteTag": "移除我的标签",
+    "tagCollection": "标签集",
+    "tagBehavior": "行为",
+    "markTag": "标记",
+    "watchTag": "关注",
+    "hideTag": "隐藏"
+  },
+  "settings": {
+    "openSettings": "设置",
+    "on": "开",
+    "off": "关",
+    "discardChanges": "放弃尚未应用的设置修改？",
+    "general": "常规",
+    "options": "选项",
+    "about": "关于",
+    "licenses": "许可证",
+    "readerLabel": "阅读器",
+    "readerHelp": "使用 EhPeek 阅读器打开画廊图像",
+    "readerFullscreenLabel": "以全屏方式打开阅读器",
+    "readerFullscreenHelp": "打开阅读器时进入全屏",
+    "exitReaderOnFullscreenExitLabel": "退出全屏时关闭阅读器",
+    "exitReaderOnFullscreenExitHelp": "退出全屏后关闭阅读器",
+    "replacePreviewWithScrollLabel": "嵌入滚动预览",
+    "replacePreviewWithScrollHelp": "使用滚动预览替换原始画廊预览区域",
+    "openGalleryInNewTabLabel": "在新标签页中打开画廊",
+    "openGalleryInNewTabHelp": "在新的浏览器标签页中打开画廊链接",
+    "uiControlsLabel": "界面布局",
+    "uiScaleLabel": "界面缩放",
+    "leftHandedControlsLabel": "左手控制",
+    "columnsLabel": "双栏",
+    "enhance": "增强",
+    "enhanceSearchLabel": "搜索滑动",
+    "enhanceSearchHelp": "通过滑动切换搜索结果页",
+    "enhanceThumbsLabel": "预览滑动",
+    "enhanceThumbsHelp": "通过滑动切换预览页，并使页码条可拖动",
+    "myTagsLabel": "我的标签颜色",
+    "myTagsHelp": "在画廊中为我的标签着色",
+    "historyLabel": "历史记录",
+    "readHistoryLabel": "阅读历史",
+    "readHistoryHelp": "将画廊加入阅读历史并记住阅读进度",
+    "includeUnreadHistoryLabel": "包括未读记录",
+    "includeUnreadHistoryHelp": "将打开但尚未阅读的画廊记录到阅读历史",
+    "searchHistoryLabel": "搜索历史",
+    "searchHistoryHelp": "保存搜索关键词历史",
+    "touchUiLabel": "触控界面",
+    "touchUiHelp": "使用适合触控操作的导航界面"
+  },
+  "search": {
+    "advancedOptions": "高级选项",
+    "categories": "分类",
+    "fileSearch": "文件搜索"
+  },
+  "errors": {
+    "imageNotFound": "未找到图像",
+    "downloadFailed": "下载失败",
+    "loadFailed": "加载失败",
+    "imageLoadFailed": "图像加载失败",
+    "searchPageContentNotFound": "无法找到搜索页面内容"
+  }
+}

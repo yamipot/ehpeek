@@ -1,4 +1,10 @@
 import { UI_SCALE_NAMES, type UiScale } from "../ui";
+import {
+  APP_LOCALES,
+  APP_LOCALE_SETTING_KEY,
+  DEFAULT_APP_LOCALE,
+  type AppLocale,
+} from "../i18n";
 
 export type NavigationMode = "scroll" | "paged";
 export type ReadDirection = "ltr" | "rtl" | "ttb";
@@ -39,6 +45,11 @@ const landscapeUiScaleDefault: UiScale = touchUiDefault &&
 export const state = {
   app: {
     ehSyringeDetected: persisted("ehpeek:ehsyringe:detected", false),
+    locale: persistedEnum<AppLocale>(
+      APP_LOCALE_SETTING_KEY,
+      DEFAULT_APP_LOCALE,
+      APP_LOCALES,
+    ),
     leftHandedControls: persisted("ehpeek:left-handed-controls", false),
     openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", false),
     portraitUiScale: persistedEnum("ehpeek:ui-scale:portrait", portraitUiScaleDefault, UI_SCALE_NAMES),

@@ -100,6 +100,7 @@
   },
   "gallery": {
     "pages": "Pages",
+    "notFavorited": "Not Favorited",
     "rate": "Rate gallery",
     "rateWithStars": "Rate gallery: {rating} stars",
     "tagging": "Tagging",

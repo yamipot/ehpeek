@@ -674,7 +674,10 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 .ehpeek-layout-search-categories > tbody {
   display: grid !important;
   grid-template-columns:
-    repeat(auto-fit, minmax(var(--ui-control-size-xl), 1fr)) !important;
+    repeat(
+      auto-fit,
+      minmax(min(100%, calc(var(--ui-control-size-xl) * 2)), 1fr)
+    ) !important;
   gap: var(--ui-space-xs) !important;
 }
 
