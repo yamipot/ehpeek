@@ -13,8 +13,8 @@ import {
 } from "../components/Enhance/ScrollPreview";
 import { ReadHistoryPage } from "../components/Enhance/ReadHistory";
 import {
+  loadDisplayReadHistoryRecords,
   loadReadHistory,
-  loadReadHistoryRecords,
   ReadingProgressSession,
   type ReadingProgress,
 } from "../state/readHistory";
@@ -780,7 +780,7 @@ function injectReadHistoryPage(
   page: Extract<eh.PageType, { type: "readHistory" }>,
 ): void {
   const pageSize = 25;
-  const records = loadReadHistoryRecords();
+  const records = loadDisplayReadHistoryRecords();
   const pageCount = Math.max(1, Math.ceil(records.length / pageSize));
   const pageIndex = Math.min(page.pageIndex, pageCount - 1);
   const items = records.map((record) => ({

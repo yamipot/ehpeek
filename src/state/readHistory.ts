@@ -19,6 +19,10 @@ export type ReadHistoryRecord = {
   updatedAt: number;
 };
 
+export type DisplayReadHistoryRecord = ReadHistoryRecord & {
+  gallery: GalleryHistoryInfo;
+};
+
 export type ReadingProgress = {
   currentPage: number;
   hasHistory: boolean;
@@ -164,6 +168,12 @@ export function loadReadHistoryRecords(): ReadHistoryRecord[] {
       return record?.queueOrder === queueOrderFromKey(key) ? record : null;
     })
     .filter((record): record is StoredReadHistoryRecord => record !== null);
+}
+
+export function loadDisplayReadHistoryRecords(): DisplayReadHistoryRecord[] {
+  return loadReadHistoryRecords().filter(
+    (record): record is DisplayReadHistoryRecord => record.gallery !== undefined,
+  );
 }
 
 export function exportReadHistory(): string {

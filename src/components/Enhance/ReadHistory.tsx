@@ -6,7 +6,7 @@ import {
   clearReadHistory,
   exportReadHistory,
   importReadHistory,
-  loadReadHistoryRecords,
+  loadDisplayReadHistoryRecords,
   READ_HISTORY_LIMIT,
   removeReadHistory,
 } from "../../state/readHistory";
@@ -70,7 +70,7 @@ export function ReadHistoryPage(props: {
   const importHistoryFile = async (file: File): Promise<void> => {
     try {
       const count = importReadHistory(await file.text());
-      setItems(loadReadHistoryRecords().map((record) => ({
+      setItems(loadDisplayReadHistoryRecords().map((record) => ({
         currentPage: record.pageNum,
         galleryId: record.galleryId,
         info: record.gallery,
