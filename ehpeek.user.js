@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260807.0754
+// @version      260807.1338
 // @description  A touch-optimized E-H/ExH viewer
 // @description:ja  タッチ操作向けの E-H/ExH リーダー
 // @description:zh-CN  为触屏优化的 E-H/ExH 阅读器
@@ -3843,7 +3843,10 @@ Next page`,
         let update = () => callbacks.onInput(
           elems.input.inputValue(),
           document.activeElement === elems.input.Component()
-        ), submitValue = () => callbacks.onSubmit(elems.input.inputValue()), outsidePointer = (event) => {
+        ), submitValue = () => callbacks.onSubmit(elems.input.inputValue()), positionChange = (event) => {
+          let target = event.target;
+          target instanceof Node && overlay()?.contains(target) || callbacks.onPositionChange();
+        }, outsidePointer = (event) => {
           let target = event.target;
           target instanceof Node && (elems.input.isNode(target) || overlay()?.contains(target)) || callbacks.onOutsidePointer();
         }, disconnect = [
@@ -3854,8 +3857,8 @@ Next page`,
           elems.submit.listen("click", submitValue),
           ...elems.form ? [elems.form.listen("submit", submitValue)] : []
         ];
-        return document.addEventListener("pointerdown", outsidePointer, !0), document.addEventListener("scroll", callbacks.onPositionChange, !0), window.addEventListener("resize", callbacks.onPositionChange), () => {
-          disconnect.forEach((cleanup) => cleanup()), document.removeEventListener("pointerdown", outsidePointer, !0), document.removeEventListener("scroll", callbacks.onPositionChange, !0), window.removeEventListener("resize", callbacks.onPositionChange);
+        return document.addEventListener("pointerdown", outsidePointer, !0), document.addEventListener("scroll", positionChange, !0), window.addEventListener("resize", callbacks.onPositionChange), () => {
+          disconnect.forEach((cleanup) => cleanup()), document.removeEventListener("pointerdown", outsidePointer, !0), document.removeEventListener("scroll", positionChange, !0), window.removeEventListener("resize", callbacks.onPositionChange);
         };
       },
       /** Locates the overlay directly below the original search input. */
@@ -7307,7 +7310,7 @@ Next page`,
   delegateEvents(["click"]);
 
   // src/components/Enhance/SearchHistory.tsx
-  var _tmpl$13 = /* @__PURE__ */ template('<section class="fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-hidden overflow-y-auto overscroll-contain ui-rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"role=list>'), _tmpl$27 = /* @__PURE__ */ template('<div class="flex min-w-0 flex-none items-stretch border-0 border-b ehp-color-site-border-subtle-b last:border-b-0"role=listitem><button type=button></button><button type=button class="appearance-none inline-flex ui-hit-w-lg ui-hit-min-h-lg flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text textsize-xl font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]">×');
+  var _tmpl$13 = /* @__PURE__ */ template('<section class="fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-x-hidden overflow-y-auto overscroll-contain ui-rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"role=list>'), _tmpl$27 = /* @__PURE__ */ template('<div class="flex min-w-0 flex-none items-stretch border-0 border-b ehp-color-site-border-subtle-b last:border-b-0"role=listitem><button type=button></button><button type=button class="appearance-none inline-flex ui-hit-w-lg ui-hit-min-h-lg flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text textsize-xl font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]">×');
   function SearchHistory(props) {
     let dropdown, [searchValue, setSearchValue] = createSignal(untrack(() => props.source.data.value)), [history, setHistory] = createSignal(loadSearchHistory()), [open, setOpen] = createSignal(!1), [activeIndex, setActiveIndex] = createSignal(-1), [position, setPosition] = createSignal(null), itemButtons = [], visiblePosition = () => open() && !searchValue().trim() && history().length > 0 ? position() : null, selectHistory = (item) => {
       props.source.handle.applySearchSelection(item), setOpen(!1);
@@ -7352,7 +7355,6 @@ Next page`,
       get when() {
         return visiblePosition();
       },
-      keyed: !0,
       children: (currentPosition) => (() => {
         var _el$ = _tmpl$13(), _ref$ = dropdown;
         return typeof _ref$ == "function" ? use(_ref$, _el$) : dropdown = _el$, insert(_el$, createComponent(For, {
@@ -7368,7 +7370,7 @@ Next page`,
             }, createRenderEffect(() => className(_el$3, `appearance-none block min-w-0 ui-hit-min-h-lg flex-1 overflow-hidden text-ellipsis whitespace-nowrap ui-px-lg border-0 ehp-color-site-text text-left textsize-lg font-inherit cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] ${activeIndex() === index() ? "bg-[var(--color-site-item-hover)]" : "bg-transparent"}`)), _el$2;
           })()
         })), createRenderEffect((_p$) => {
-          var _v$ = `${currentPosition.left}px`, _v$2 = `${currentPosition.top}px`, _v$3 = `${currentPosition.width}px`;
+          var _v$ = `${currentPosition().left}px`, _v$2 = `${currentPosition().top}px`, _v$3 = `${currentPosition().width}px`;
           return _v$ !== _p$.e && setStyleProperty(_el$, "left", _p$.e = _v$), _v$2 !== _p$.t && setStyleProperty(_el$, "top", _p$.t = _v$2), _v$3 !== _p$.a && setStyleProperty(_el$, "width", _p$.a = _v$3), _p$;
         }, {
           e: void 0,
@@ -7936,7 +7938,7 @@ Next page`,
             onChange: (value) => {
               setChanged(!0), setDraft("locale", value);
             }
-          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260807.0754", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => i18n_default.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => i18n_default.settings.licenses), insert(_el$28, createComponent(Icon2, {
+          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260807.1338", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => i18n_default.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => i18n_default.settings.licenses), insert(_el$28, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$30.$$click = (event) => {
@@ -13525,7 +13527,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
   };
   document.addEventListener("pointerdown", (event) => {
     event.pointerType !== "mouse" && setUiPointer("touch"), clearPressedInteraction();
-    let interaction = event.target instanceof Element ? event.target.closest("[data-ehpeek-pressable=true]") ?? event.target.closest("a[href], button, input[type=button], input[type=submit], [role=button], [role=tab]") : null;
+    let interaction = event.target instanceof Element ? event.target.closest("[data-ehpeek-pressable=true], a[href], button, input, select, textarea, label, [onclick], [role=button], [role=tab]") : null;
     interaction?.closest(".ehpeek-ui-root") && (pendingPress = {
       interaction,
       pointerId: event.pointerId,
