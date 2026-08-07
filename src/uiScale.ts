@@ -1,4 +1,8 @@
 import spectrumUiSizes from "ehpeek:spectrum-ui-sizes";
+import { uiStateStyle } from "./uiRoot";
+
+const UI_SCALE_SELECTOR =
+  '.ehpeek-ui-root, body.ehpeek-touch-gallery-page, .eh-syringe-lite-auto-complete-list';
 
 const UI_SCALE_FACTORS = {
   xsmall: 0.8,
@@ -21,42 +25,58 @@ export function nextUiScale(scale: UiScale): UiScale {
 
 export function applyUiScale(
   scale: UiScale,
-  root: HTMLElement = document.documentElement,
+  root?: HTMLElement,
   pixelFactor = 1,
 ): void {
   const factor = UI_SCALE_FACTORS[scale] * pixelFactor;
 
-  root.dataset.ehpeekUiScale = scale;
-  applySizeScale(root, "--ui-control-size", spectrumUiSizes.control, factor);
-  applyHitSizeScale(root, spectrumUiSizes.control, factor);
-  applySizeScale(root, "--ui-font-size", spectrumUiSizes.font, factor);
-  applySizeScale(root, "--ui-icon-size", spectrumUiSizes.icon, factor);
-  applySizeScale(root, "--ui-space", spectrumUiSizes.space, factor);
-  applySizeScale(root, "--ui-radius", spectrumUiSizes.radius, factor);
-}
-
-function applyHitSizeScale(
-  root: HTMLElement,
-  values: UiSizeScale,
-  factor: number,
-): void {
-  for (const [name, value] of Object.entries(values)) {
-    root.style.setProperty(
-      `--ui-hit-size-${name}`,
-      `${Math.max(32, scaledPixelValue(value, factor))}px`,
-    );
+  if (!root) {
+    applyGlobalUiScale(factor);
+    return;
+  }
+  for (const [property, value] of uiScaleDeclarations(factor)) {
+    root.style.setProperty(property, value);
   }
 }
 
-function applySizeScale(
-  root: HTMLElement,
+function applyGlobalUiScale(factor: number): void {
+  const style = uiStateStyle();
+  const declarations = uiScaleDeclarations(factor)
+    .map(([property, value]) => `${property}:${value}`)
+    .join(";");
+  style.textContent = `${UI_SCALE_SELECTOR}{${declarations}}`;
+}
+
+function uiScaleDeclarations(factor: number): Array<readonly [string, string]> {
+  return [
+    ...sizeScaleDeclarations("--ui-control-size", spectrumUiSizes.control, factor),
+    ...hitSizeScaleDeclarations(spectrumUiSizes.control, factor),
+    ...sizeScaleDeclarations("--ui-font-size", spectrumUiSizes.font, factor),
+    ...sizeScaleDeclarations("--ui-icon-size", spectrumUiSizes.icon, factor),
+    ...sizeScaleDeclarations("--ui-space", spectrumUiSizes.space, factor),
+    ...sizeScaleDeclarations("--ui-radius", spectrumUiSizes.radius, factor),
+  ];
+}
+
+function sizeScaleDeclarations(
   prefix: string,
   values: UiSizeScale,
   factor: number,
-): void {
-  for (const [name, value] of Object.entries(values)) {
-    root.style.setProperty(`${prefix}-${name}`, `${scaledPixelValue(value, factor)}px`);
-  }
+): Array<readonly [string, string]> {
+  return Object.entries(values).map(([name, value]) => [
+    `${prefix}-${name}`,
+    `${scaledPixelValue(value, factor)}px`,
+  ] as const);
+}
+
+function hitSizeScaleDeclarations(
+  values: UiSizeScale,
+  factor: number,
+): Array<readonly [string, string]> {
+  return Object.entries(values).map(([name, value]) => [
+    `--ui-hit-size-${name}`,
+    `${Math.max(32, scaledPixelValue(value, factor))}px`,
+  ] as const);
 }
 
 function scaledPixelValue(value: string, factor: number): number {

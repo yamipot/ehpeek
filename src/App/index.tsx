@@ -58,6 +58,11 @@ import {
   type OverlayHost,
 } from "./OverlayHost";
 import { applyUiScale, type UiScale } from "../uiScale";
+import {
+  configureUiRoots,
+  markUiRoot,
+  setUiPointer,
+} from "../uiRoot";
 
 function settingsMenuState(defaults = false) {
   const read = <T,>(setting: { defaultValue: T; value: T }): T =>
@@ -171,13 +176,12 @@ function setLeftHandedControls(enabled: boolean): void {
   gState.setLeftHandedControls(enabled);
 }
 
-document.documentElement.setAttribute("data-ehpeek-site", eh.ehSiteTheme());
-document.documentElement.setAttribute(
-  "data-ehpeek-pointer",
-  window.matchMedia("(hover: hover) and (pointer: fine)").matches
+configureUiRoots({
+  pointer: window.matchMedia("(hover: hover) and (pointer: fine)").matches
     ? "mouse"
     : "touch",
-);
+  site: eh.ehSiteTheme(),
+});
 const PRESS_MIN_VISIBLE_MS = 100;
 const PRESS_MOVE_TOLERANCE_PX = 8;
 let pressedInteraction: HTMLElement | undefined;
@@ -209,7 +213,7 @@ const releasePressedInteraction = () => {
 };
 document.addEventListener("pointerdown", (event) => {
   if (event.pointerType !== "mouse") {
-    document.documentElement.setAttribute("data-ehpeek-pointer", "touch");
+    setUiPointer("touch");
   }
   clearPressedInteraction();
   const interaction = event.target instanceof Element
@@ -218,7 +222,7 @@ document.addEventListener("pointerdown", (event) => {
         "a[href], button, input[type=button], input[type=submit], [role=button], [role=tab]",
       )
     : null;
-  if (!interaction?.closest('[data-ehpeek-ui-root="true"]')) {
+  if (!interaction?.closest(".ehpeek-ui-root")) {
     return;
   }
   pendingPress = {
@@ -245,7 +249,7 @@ document.addEventListener("pointercancel", clearPressedInteraction, {
 });
 document.addEventListener("pointermove", (event) => {
   if (event.pointerType === "mouse") {
-    document.documentElement.setAttribute("data-ehpeek-pointer", "mouse");
+    setUiPointer("mouse");
   }
   if (
     pendingPress?.pointerId === event.pointerId &&
@@ -636,6 +640,7 @@ function injectSearchControls(
     if (!searchPanelDom) {
       return;
     }
+    markUiRoot(searchPanelDom.elems.form.Component());
     searchPanelDom.elems.mount.mount(() => (
       <TouchSearchPanel
         source={searchPanelDom}
@@ -674,6 +679,7 @@ function injectSearchPage(
   const [resultsDom, setResultsDom] = createSignal(
     initialResultsDom,
   );
+  markUiRoot(initialResultsDom.elems.resultList.Component());
 
   const updateSearchGridModeSelector = () => {
     eh.mutateSearchGridModeSelect(
@@ -738,13 +744,12 @@ function injectSearchPage(
   };
 
   if (gState.settings.touchUiEnabled) {
-    initialResultsDom.elems.resultList.attribute("data-ehpeek-ui-root", "true");
     const touchResultsDom = injectSearchControls(page);
     createEffect(() => {
       resultsDom().handle.updateResultColumns(gState.columnsEnabled());
     });
     mountSearchPagination((source) => {
-      source.elems.resultList.attribute("data-ehpeek-ui-root", "true");
+      markUiRoot(source.elems.resultList.Component());
       updateSearchPage(source);
       touchResultsDom.handle.updateTouchResultsLayout();
     });
@@ -787,6 +792,7 @@ function injectReadHistoryPage(
       state.search.grid.value ?? "ehpeek-lite",
     ),
   );
+  markUiRoot(historyDom.elems.resultList.Component());
   if (gState.settings.touchUiEnabled) {
     createEffect(() => {
       historyDom.handle.updateResultColumns(gState.columnsEnabled());

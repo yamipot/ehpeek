@@ -118,7 +118,7 @@ function pointerHoverPostprocessor() {
   return (utility) => {
     if (utility.selector.includes(":hover")) {
       utility.selector =
-        `:root[data-ehpeek-pointer="mouse"] ${utility.selector}`;
+        `html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root ${utility.selector}`;
     }
   };
 }

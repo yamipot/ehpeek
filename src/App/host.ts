@@ -2,7 +2,7 @@ import { createManagedElement } from "../eh";
 
 export function createAppMount(
   className = "",
-  host = document.body ?? document.documentElement,
+  host = document.body,
 ) {
   const mount = createManagedElement("div");
   if (className) {

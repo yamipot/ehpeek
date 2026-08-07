@@ -1,5 +1,6 @@
 import type { JSX } from "solid-js";
 import { render } from "solid-js/web";
+import { markUiRoot } from "../../uiRoot";
 
 const MANAGED_DOM_NODE_CLASS = "ehpeek-managed";
 const EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor";
@@ -691,7 +692,7 @@ export class ManagedDomNode<
   mount(view: () => JSX.Element): void {
     mountedNodes.get(this.#node)?.();
     this.#node.replaceChildren();
-    this.#node.setAttribute("data-ehpeek-ui-root", "true");
+    markUiRoot(this.#node);
     mountedNodes.set(this.#node, render(view, this.#node));
   }
 

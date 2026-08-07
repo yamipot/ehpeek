@@ -1,4 +1,4 @@
-:root {
+:is(.ehpeek-ui-root, body.ehpeek-touch-gallery-page) {
   /* --color-background: #070707;
   --color-surface: #151515;
   --color-elevated: #232323;
@@ -51,7 +51,8 @@
   --color-site-swipe-border: color-mix(in srgb, var(--color-site-border) 38%, transparent);
 }
 
-:root[data-ehpeek-site="e-hentai"] {
+html:has(#ehpeek-ui-state.ehpeek-site-e-hentai)
+  :is(.ehpeek-ui-root, body.ehpeek-touch-gallery-page) {
   --color-site-page: #e3e0d1;
   --color-site-surface: #edebdf;
   --color-site-elevated: #f3f0e0;
@@ -60,7 +61,8 @@
   --color-site-border: #5c0d12;
 }
 
-:root[data-ehpeek-site="exhentai"] {
+html:has(#ehpeek-ui-state.ehpeek-site-exhentai)
+  :is(.ehpeek-ui-root, body.ehpeek-touch-gallery-page) {
   --color-site-page: #34353b;
   --color-site-surface: #4f535b;
   --color-site-elevated: #3f4249;
@@ -69,19 +71,19 @@
   --color-site-border: #8d7454;
 }
 
-[data-ehpeek-ui-root="true"] {
+.ehpeek-ui-root {
   -webkit-tap-highlight-color: transparent;
 }
 
-[data-ehpeek-ui-root="true"] :is(button, [role="button"]) {
+.ehpeek-ui-root :is(button, [role="button"]) {
   min-block-size: var(--ui-hit-size-xs);
 }
 
-[data-ehpeek-ui-root="true"] [data-ehpeek-pressed="true"] {
+.ehpeek-ui-root [data-ehpeek-pressed="true"] {
   opacity: 0.72;
 }
 
-:root[data-ehpeek-pointer="mouse"] [data-ehpeek-ui-root="true"] :is(
+html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
   a[href],
   button,
   input[type="button"],

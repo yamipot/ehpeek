@@ -8,6 +8,7 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { applyUiScale, type UiScale } from "../uiScale";
+import { markUiRoot } from "../uiRoot";
 import {
   createFullscreenController,
   type FullscreenController,
@@ -26,8 +27,8 @@ export function createOverlayHost(
 ): OverlayHost {
   const element = document.createElement("div");
   element.dataset.ehpeekOverlayHost = "true";
-  element.dataset.ehpeekUiRoot = "true";
   parent.append(element);
+  markUiRoot(element);
 
   let uiScale = initialUiScale;
   let fullscreenScale = 1;
