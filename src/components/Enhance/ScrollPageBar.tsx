@@ -13,7 +13,7 @@ const PAGE_BAR_TABLE_CLASS = "border-separate border-spacing-[var(--ui-space-xs)
 type PageBarItemState = "link" | "current" | "disabled";
 
 export function GalleryPageDescription(props: { text: string }) {
-  return <div class="w-full mb-xs text-center textsize-sm">{props.text}</div>;
+  return <div class="w-full ui-mb-xs text-center textsize-sm">{props.text}</div>;
 }
 
 export function ScrollPageBar(props: {

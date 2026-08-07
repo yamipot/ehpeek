@@ -45,7 +45,7 @@ export function BackToTop(props: { leftHanded: Accessor<boolean> }) {
       <button
         ref={button}
         type="button"
-        class="fixed safe-right-lg bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_64px)] z-ui inline-flex w-lg h-lg items-center justify-center rounded-full border-0 bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96"
+        class="fixed safe-right-lg bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_var(--ui-hit-size-lg)_+_var(--ui-space-md))] z-ui inline-flex ui-hit-square-lg items-center justify-center rounded-full border-0 bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96"
         classList={{
           "!right-auto safe-left-lg":
             props.leftHanded() && position() === null,
@@ -94,7 +94,7 @@ export function BackToTop(props: { leftHanded: Accessor<boolean> }) {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
       >
-        <Icon name="arrow-up" />
+        <Icon name="arrow-up" size="var(--ui-icon-size-lg)" />
       </button>
     </Show>
   );

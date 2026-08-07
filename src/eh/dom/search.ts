@@ -92,11 +92,11 @@ function createReadHistoryGridRow(
   const removeButton = createManagedElement("button")
     .setAttributes({ type: "button", "data-ehpeek-remove-history": "true" })
     .replaceClasses(
-      "relative z-2 min-h-lg py-xs px-lg rounded-md border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] ehp-color-site-text font-inherit textsize-md font-700 text-center cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]",
+      "relative z-2 ui-hit-min-h-lg ui-py-xs ui-px-lg ui-rounded-md border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] ehp-color-site-text font-inherit textsize-md font-700 text-center cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]",
     );
   removeButton.setTextUnlessInput(texts.button.removeHistory);
   const historyActions = createManagedElement("div")
-    .replaceClasses("ehpeek-read-history-actions box-border flex items-center justify-end gap-md pr-sm pb-xs")
+    .replaceClasses("ehpeek-read-history-actions box-border flex items-center justify-end ui-gap-md ui-pr-sm ui-pb-xs")
     .append(removeButton);
   const titleText = titlePreference === "sub"
     ? info?.titleSub || info?.title

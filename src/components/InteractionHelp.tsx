@@ -17,13 +17,13 @@ export function InteractionHelp(props: {
       variant={props.variant}
       width="lg"
     >
-      <div class="grid gap-lg text-left textsize-md leading-[1.45]">
+      <div class="grid ui-gap-lg text-left textsize-md leading-[1.45]">
         <For each={SECTIONS}>{([title, items]) => (
           <section>
-            <h3 class="m-0 mb-sm textsize-md font-700">{title}</h3>
-            <ul class="m-0 pl-xl">
+            <h3 class="m-0 ui-mb-sm textsize-md font-700">{title}</h3>
+            <ul class="m-0 ui-pl-xl">
               <For each={items}>{(item) => (
-                <li class="mb-xs last:mb-0"><HelpText text={item} /></li>
+                <li class="ui-mb-xs last:mb-0"><HelpText text={item} /></li>
               )}</For>
             </ul>
           </section>

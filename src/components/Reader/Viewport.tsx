@@ -899,7 +899,7 @@ function PageSlotView(props: {
         </Show>
         <Show when={imageLoading()}>
           <span
-            class="pointer-events-none absolute right-sm bottom-sm z-1 block w-sm h-sm box-border animate-spin rounded-full border-2px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]"
+            class="pointer-events-none absolute [right:var(--ui-space-sm)] [bottom:var(--ui-space-sm)] z-1 block w-[var(--ui-icon-size-xl)] h-[var(--ui-icon-size-xl)] box-border animate-spin rounded-full border-2px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]"
             role="status"
             aria-label={texts.reader.loading}
           />
@@ -961,7 +961,7 @@ function PageSlotPlaceholder(props: {
     <div
       class={
         props.content.state === "error"
-          ? "flex w-full h-full flex-col items-center justify-center gap-lg bg-[var(--color-reader-surface)] p-xl text-[var(--color-danger)] text-center textsize-md font-700 leading-1"
+          ? "flex w-full h-full flex-col items-center justify-center ui-gap-lg bg-[var(--color-reader-surface)] ui-p-xl text-[var(--color-danger)] text-center textsize-md font-700 leading-1"
           : "relative flex w-full h-full items-center justify-center bg-[var(--color-reader-surface)] text-[var(--color-reader-muted)] text-center " +
             (props.content.kind === "end"
               ? "p-[var(--reader-end-padding)] [direction:ltr] [font-size:min(var(--ui-font-size-xl),var(--reader-end-font-size))] font-700 leading-[1.3] [unicode-bidi:plaintext]"
@@ -972,17 +972,17 @@ function PageSlotPlaceholder(props: {
     >
       <Show when={props.content.state === "error"} fallback={
         <Show when={props.content.state === "loading"} fallback={props.text}>
-          <span class="flex w-full h-full flex-col items-center justify-center gap-xl overflow-hidden" aria-hidden="true">
+          <span class="flex w-full h-full flex-col items-center justify-center ui-gap-xl overflow-hidden" aria-hidden="true">
             <span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]">
               {props.text}
             </span>
-            <span class="block w-md h-md flex-none box-border animate-spin rounded-full border-4px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]" />
+            <span class="block w-[var(--ui-icon-size-xl)] h-[var(--ui-icon-size-xl)] flex-none box-border animate-spin rounded-full border-4px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]" />
           </span>
         </Show>
       }>
         <button
           type="button"
-          class="ehpeek-reader-page-reload appearance-none inline-flex w-64px h-64px items-center justify-center border border-[var(--color-border)] rounded-md bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-lg font-700 leading-1 hover:bg-[var(--color-badge)] active:scale-96 [touch-action:manipulation]"
+          class="ehpeek-reader-page-reload appearance-none inline-flex ui-hit-square-xl items-center justify-center border border-[var(--color-border)] ui-rounded-md bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-lg font-700 leading-1 hover:bg-[var(--color-badge)] active:scale-96 [touch-action:manipulation]"
           aria-label={`${texts.reader.reloadPage} ${props.content.pageNum}`}
           title={texts.reader.reloadPage}
           onPointerDown={stop}
@@ -991,7 +991,7 @@ function PageSlotPlaceholder(props: {
             props.onReloadPage(props.content.pageNum);
           }}
         >
-          <Icon name="refresh" size={32} />
+          <Icon name="refresh" size="var(--ui-icon-size-xl)" />
         </button>
         <div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">
           {texts.reader.failedPrefix}

@@ -11,7 +11,7 @@ const TOUCH_SEARCH_ACTION_CLASS =
 
 export function TouchSearchPanel(props: { after?: JSX.Element; source: SearchPanelDom }) {
   return (
-    <section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_16px)] max-w-960px flex-col ui-gap-sm mx-auto ui-mb-sm ui-p-sm border ehp-color-site-border ui-rounded-sm ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans">
+    <section class="ehpeek-touch-search-panel box-border flex w-[calc(100%_-_(var(--ui-space-sm)*2))] max-w-960px flex-col ui-gap-sm mx-auto ui-mb-sm ui-p-sm border ehp-color-site-border ui-rounded-sm ehp-color-site-surface ehp-color-site-text shadow-[0_8px_24px_var(--color-shadow-panel)] font-sans">
       <DomNode node={props.source.elems.searchBox} />
       <DomNode node={props.source.elems.fileSearch} />
       {props.after}

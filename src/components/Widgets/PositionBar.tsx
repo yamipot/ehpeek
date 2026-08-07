@@ -3,20 +3,21 @@ import { clamp } from "../../utils";
 
 type PositionBarThickness = "narrow" | "normal";
 
+// UI Scale changes the interaction surface, not the visual weight of the bar.
 const VERTICAL_FILL = {
   narrow: {
-    collapsed: "ui-w-sm",
-    expanded: "ui-w-lg",
+    collapsed: "w-8px",
+    expanded: "w-16px",
   },
   normal: {
-    collapsed: "ui-w-xl",
-    expanded: "ui-hit-w-sm",
+    collapsed: "w-24px",
+    expanded: "w-32px",
   },
 } satisfies Record<PositionBarThickness, Record<string, string>>;
 
 const HORIZONTAL_FILL = {
-  narrow: "ui-h-sm",
-  normal: "ui-h-xl",
+  narrow: "h-8px",
+  normal: "h-24px",
 } satisfies Record<PositionBarThickness, string>;
 
 const POSITION_BAR_FILL = "bg-[var(--color-reader-scrollbar,var(--color-muted))]";

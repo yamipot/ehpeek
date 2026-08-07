@@ -247,7 +247,7 @@ body.ehpeek-constrain-results-to-viewport {
   flex-direction: column !important;
   align-items: stretch !important;
   justify-content: flex-start !important;
-  gap: 12px !important;
+  gap: var(--ui-space-md) !important;
   min-height: 0 !important;
   width: 100% !important;
   padding-left: 6px !important;
@@ -285,7 +285,7 @@ body.ehpeek-constrain-results-to-viewport {
   grid-template-columns: max-content max-content minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-items: center !important;
-  gap: 4px 8px !important;
+  gap: var(--ui-space-xs) var(--ui-space-sm) !important;
   float: none !important;
   min-height: 0 !important;
   width: 100% !important;
@@ -364,7 +364,7 @@ body.ehpeek-constrain-results-to-viewport {
 .ehpeek-layout-search-grid .ehpeek-search-meta-extra:has(> p) {
   display: flex !important;
   align-items: center;
-  gap: 4px;
+  gap: var(--ui-space-xs);
 }
 
 .ehpeek-layout-search-grid .ehpeek-search-meta-extra > p {
@@ -495,9 +495,9 @@ body.ehpeek-constrain-results-to-viewport {
 }
 
 .ehpeek-layout-search-grid-lite .gl4e {
-  gap: 6px !important;
+  gap: var(--ui-space-xs) !important;
   height: 100% !important;
-  padding-block: 4px !important;
+  padding-block: var(--ui-space-xs) !important;
 }
 
 .ehpeek-layout-search-grid-lite .glink {
@@ -511,7 +511,7 @@ body.ehpeek-constrain-results-to-viewport {
   display: flex !important;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 4px 6px !important;
+  gap: var(--ui-space-xs) var(--ui-space-sm) !important;
 }
 
 .ehpeek-layout-search-grid-lite
@@ -556,7 +556,7 @@ body.ehpeek-constrain-results-to-viewport {
   content: attr(data-ehpeek-history-label);
   display: inline-flex;
   align-items: center;
-  margin-right: 4px;
+  margin-right: var(--ui-space-xs);
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -674,7 +674,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 .ehpeek-layout-search-categories > tbody {
   display: grid !important;
   grid-template-columns:
-    repeat(auto-fit, minmax(80px, 1fr)) !important;
+    repeat(auto-fit, minmax(var(--ui-control-size-xl), 1fr)) !important;
   gap: var(--ui-space-xs) !important;
 }
 
@@ -1116,10 +1116,10 @@ body.ehpeek-touch-gallery-page :is(#cdiv textarea, #commenttext) {
   display: block !important;
   box-sizing: border-box !important;
   width: 100% !important;
-  min-height: 160px !important;
+  min-height: calc(var(--ui-control-size-xl) * 2) !important;
   flex: 1 0 100%;
-  padding: 16px !important;
-  border-radius: 6px !important;
+  padding: var(--ui-space-lg) !important;
+  border-radius: var(--ui-radius-md) !important;
   font: inherit !important;
   font-size: var(--ui-font-size-md) !important;
   line-height: 1.5 !important;
@@ -1145,12 +1145,12 @@ body.ehpeek-touch-gallery-page #cdiv :is(
   input[type="button"],
   input[type="submit"]
 ) {
-  flex: 1 1 180px;
+  flex: 1 1 12em;
   cursor: pointer;
 }
 
 body.ehpeek-touch-gallery-page #cdiv input[type="text"] {
-  min-width: min(100%, 240px);
+  min-width: min(100%, 15em);
 }
 
 body.ehpeek-touch-gallery-page :is(

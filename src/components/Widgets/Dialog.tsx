@@ -67,7 +67,7 @@ export function Dialog(props: {
         onWheel={(event: WheelEvent) => event.stopPropagation()}
       >
         <div
-          class={`box-border flex w-full ${DIALOG_WIDTHS[props.width]} max-h-[min(calc(var(--ui-control-size-xl)*12.75),calc(100dvh_-_var(--ui-space-lg)_-_var(--ui-space-lg)))] flex-col overflow-hidden rounded-lg border shadow-xl ${
+          class={`box-border flex w-full ${DIALOG_WIDTHS[props.width]} max-h-[min(calc(var(--ui-control-size-xl)*12.75),calc(100dvh_-_var(--ui-space-lg)_-_var(--ui-space-lg)))] flex-col overflow-hidden ui-rounded-lg border shadow-xl ${
             reader()
               ? "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)]"
               : "ehp-color-site-border ehp-color-site-elevated ehp-color-site-text"
@@ -81,7 +81,7 @@ export function Dialog(props: {
             <h2 class="m-0 textsize-lg font-700">{props.title}</h2>
             <button
               type="button"
-              class={`inline-flex w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] flex-none items-center justify-center p-0 rounded-md border-0 bg-transparent cursor-pointer ${
+              class={`inline-flex w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] flex-none items-center justify-center p-0 ui-rounded-md border-0 bg-transparent cursor-pointer ${
                 reader()
                   ? "text-[var(--color-text)] hover:bg-[var(--color-badge)]"
                   : "ehp-color-site-text hover:bg-[var(--color-site-item-hover)]"

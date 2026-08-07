@@ -33,7 +33,7 @@ export const READER_BUTTON_CLASS = [
   "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:(opacity-40 cursor-default)",
 ].join(" ");
 const READER_TOOLBAR_BUTTON_CLASS =
-  `${READER_BUTTON_CLASS} !w-[var(--ui-control-size-lg)] !min-w-0 !px-sm flex-none`;
+  `${READER_BUTTON_CLASS} !w-[var(--ui-control-size-lg)] !min-w-0 !ui-px-sm flex-none`;
 export const READER_FLOATING_ACTION_CLASS = [
   READER_BUTTON_CLASS,
   "!min-w-[var(--ui-control-size-lg)] !h-[var(--ui-control-size-lg)] opacity-85 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-160",
@@ -46,7 +46,7 @@ const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
 });
 
 const DOWNLOAD_OPTION_CLASS = [
-  "flex w-full min-h-lg flex-col items-start justify-center gap-xs px-lg py-md rounded-md",
+  "flex w-full ui-hit-min-h-lg flex-col items-start justify-center ui-gap-xs ui-px-lg ui-py-md ui-rounded-md",
   "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer text-left",
   "hover:bg-[var(--color-badge)] disabled:(opacity-40 cursor-default)",
 ].join(" ");
@@ -172,7 +172,7 @@ export function Toolbar(props: {
           (leftHandedControls
             ? "safe-left-md "
             : "safe-right-md ") +
-          "bottom-[calc(var(--ui-control-size-lg)*2+44px+env(safe-area-inset-bottom,0px))] " +
+          "bottom-[calc(var(--ui-control-size-lg)*2+var(--ui-font-size-lg)*2.4+env(safe-area-inset-bottom,0px))] " +
           "[&[data-open=false]]:(opacity-0 translate-y-[calc(100%+16px)] pointer-events-none)"
         }
         data-open={String(props.open)}
@@ -180,7 +180,7 @@ export function Toolbar(props: {
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div class="flex flex-col gap-sm">
+        <div class="flex flex-col ui-gap-sm">
           <button
             type="button"
             class={READER_FLOATING_ICON_ACTION_CLASS}
@@ -390,7 +390,7 @@ export function Toolbar(props: {
             ? "safe-right-sm left-auto "
             : "safe-left-sm right-auto ") +
           "min-w-0 max-w-[calc(100vw-20px)] " +
-          "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text " +
+          "ui-py-xs ui-px-md ui-rounded-md bg-[var(--color-badge)] ehp-color-text " +
           "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap " +
           (leftHandedControls ? "text-right" : "text-left")
         }
@@ -408,12 +408,12 @@ export function Toolbar(props: {
         <div
           ref={fullscreenStatus}
           class={
-            "ehpeek-reader-fullscreen-status fixed z-3 flex items-center gap-sm pointer-events-none " +
+            "ehpeek-reader-fullscreen-status fixed z-3 flex items-center ui-gap-sm pointer-events-none " +
             "top-[calc(10px+env(safe-area-inset-top,0px))] " +
             (leftHandedControls
               ? "safe-right-sm "
               : "safe-left-sm ") +
-            "py-xs px-md rounded-md bg-[var(--color-badge)] ehp-color-text " +
+            "ui-py-xs ui-px-md ui-rounded-md bg-[var(--color-badge)] ehp-color-text " +
             "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap"
           }
           role="status"
@@ -423,7 +423,7 @@ export function Toolbar(props: {
       </Show>
       <Show when={controlChange()} keyed>
         {(message) => (
-          <div class="fixed z-overlay top-1/2 left-1/2 w-max max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 pointer-events-none rounded-lg bg-[var(--color-badge)] ehp-color-text px-xl py-lg font-sans textsize-lg font-700 leading-[1.3] whitespace-pre-line text-center shadow-xl">
+          <div class="fixed z-overlay top-1/2 left-1/2 w-max max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 pointer-events-none ui-rounded-lg bg-[var(--color-badge)] ehp-color-text ui-px-xl ui-py-lg font-sans textsize-lg font-700 leading-[1.3] whitespace-pre-line text-center shadow-xl">
             {message}
           </div>
         )}
@@ -462,10 +462,10 @@ export function Toolbar(props: {
           variant="reader"
           width="lg"
         >
-          <div class="grid gap-md font-sans textsize-md">
+          <div class="grid ui-gap-md font-sans textsize-md">
             <For each={props.downloadInfos}>
               {(downloadInfo) => (
-                <div class="grid gap-md">
+                <div class="grid ui-gap-md">
                   <button
                     type="button"
                     class={DOWNLOAD_OPTION_CLASS}
@@ -511,10 +511,10 @@ export function Toolbar(props: {
               <summary class="cursor-pointer font-700">
                 {texts.reader.downloadHelpLabel}
               </summary>
-              <p class="m-0 mt-sm leading-[1.4]">
+              <p class="m-0 ui-mt-sm leading-[1.4]">
                 {texts.reader.downloadHelp}
               </p>
-              <div class="mt-md flex flex-wrap items-center gap-x-md gap-y-sm">
+              <div class="ui-mt-md flex flex-wrap items-center ui-gap-x-md ui-gap-y-sm">
                 <span class="font-700">{texts.reader.openImage}:</span>
                 <For each={props.downloadInfos}>
                   {(downloadInfo) => (

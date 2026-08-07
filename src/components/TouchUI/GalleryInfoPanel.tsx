@@ -24,7 +24,7 @@ import { Icon } from "../Widgets/Icon";
 
 const RATING_STAR_INDEXES = [0, 1, 2, 3, 4];
 const RATING_ACTION_BUTTON_CLASS =
-  "flex w-full min-h-[var(--ui-control-size-md)] items-center justify-center py-xs px-md rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default";
+  "flex w-full min-h-[var(--ui-control-size-md)] items-center justify-center ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default";
 const GALLERY_FAVORITE_ROW_CLASS =
   "flex box-border w-full ui-hit-min-h-md items-center ui-gap-md ui-py-xs ui-px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left";
 const GALLERY_FAVORITE_ICON_SIZE = "var(--ui-icon-size-lg)";
@@ -151,7 +151,7 @@ export function GalleryInfoPanel(props: {
             </div>
             <div class="flex min-w-0 max-w-full flex-none items-center ui-gap-sm">
               <a
-                class="box-border flex-none whitespace-nowrap rounded-xs border border-solid ui-py-xs ui-px-xs text-center textsize-md font-700 leading-[1.1] uppercase no-underline hover:no-underline active:no-underline"
+                class="box-border flex-none whitespace-nowrap ui-rounded-xs border border-solid ui-py-xs ui-px-xs text-center textsize-md font-700 leading-[1.1] uppercase no-underline hover:no-underline active:no-underline"
                 href={source.data.categoryUrl ?? undefined}
                 style={source.data.categoryAppearance}
               >
@@ -169,7 +169,7 @@ export function GalleryInfoPanel(props: {
             {rating && (
                 <button
                   type="button"
-                  class="flex w-[65%] max-w-full flex-none self-end flex-col items-end ui-gap-xs mt-auto p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-right cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
+                  class="flex w-[65%] max-w-full flex-none self-end flex-col items-end ui-gap-xs mt-auto p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-right cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:ui-rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
                   aria-label="Rate gallery"
                   onClick={() => {
                     setRatingPreview(null);
@@ -231,7 +231,7 @@ export function GalleryInfoPanel(props: {
         </div>
       </div>
       <div
-        class="relative z-1 grid grid-cols-[1fr_1fr] min-h-[var(--ui-control-size-xl)] mt--8px safe-mr-sm safe-ml-sm overflow-visible rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"
+        class="relative z-1 grid grid-cols-[1fr_1fr] min-h-[var(--ui-control-size-xl)] mt--8px safe-mr-sm safe-ml-sm overflow-visible ui-rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"
         classList={{ "[direction:rtl]": props.leftHandedControls() }}
         onDragStart={(event: DragEvent) => event.preventDefault()}
       >
@@ -264,7 +264,7 @@ export function GalleryInfoPanel(props: {
           >
             <button
               type="button"
-              class={`inline-flex self-end ui-hit-min-h-xs items-center justify-center ui-gap-sm ui-mb-xs rounded-xl border-0 ui-px-md font-inherit font-700 textsize-sm cursor-pointer transition-[background-color,color] duration-120 ${tagging() ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent" : "bg-[var(--color-site-surface)] ehp-color-site-text"}`}
+              class={`inline-flex self-end ui-hit-min-h-xs items-center justify-center ui-gap-sm ui-mb-xs ui-rounded-xl border-0 ui-px-md font-inherit font-700 textsize-sm cursor-pointer transition-[background-color,color] duration-120 ${tagging() ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent" : "bg-[var(--color-site-surface)] ehp-color-site-text"}`}
               aria-pressed={tagging()}
               onClick={() => {
                 setTagging((enabled) => !enabled);
@@ -310,7 +310,7 @@ export function GalleryInfoPanel(props: {
         >
           <button
             type="button"
-            class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
+            class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:ui-rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
             aria-label={`Rate gallery: ${displayedRating().toFixed(1)} stars`}
             onClick={(event: MouseEvent) => {
               setRatingPreview(
@@ -326,7 +326,7 @@ export function GalleryInfoPanel(props: {
               aria-hidden="true"
             >
               <For each={RATING_STAR_INDEXES}>
-                {() => <Icon name="star" size={48} />}
+                {() => <Icon name="star" size="var(--ui-control-size-lg)" />}
               </For>
             </span>
             <span
@@ -335,7 +335,7 @@ export function GalleryInfoPanel(props: {
               style={{ width: `${(displayedRating() / 5) * 100}%` }}
             >
               <For each={RATING_STAR_INDEXES}>
-                {() => <Icon name="star" size={48} filled />}
+                {() => <Icon name="star" size="var(--ui-control-size-lg)" filled />}
               </For>
             </span>
           </button>
@@ -345,7 +345,7 @@ export function GalleryInfoPanel(props: {
           >
             {ratingLabel()}
           </div>
-          <div class="grid grid-cols-2 gap-sm pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
+          <div class="grid grid-cols-2 ui-gap-sm ui-pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
             <button
               type="button"
               class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108`}
@@ -413,7 +413,7 @@ function TouchGalleryActionsMenu(props: {
         <Icon name="menu" />
       </button>
       <Show when={open()}>
-        <div class="absolute top-[calc(var(--ui-control-size-md)+8px)] right-0 z-overlay flex min-w-285px max-w-[min(78vw,320px)] flex-col overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated">
+        <div class="absolute top-[calc(var(--ui-control-size-md)+var(--ui-space-sm))] right-0 z-overlay flex w-[min(78vw,calc(var(--ui-control-size-xl)*4))] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated">
           <DomNodes nodes={props.items} />
         </div>
       </Show>
@@ -428,7 +428,7 @@ function TouchGalleryTagGroup(props: {
 }) {
   return (
     <section class="contents">
-      <div class="box-border min-h-[var(--ui-control-size-sm)] whitespace-nowrap rounded-xl bg-[var(--color-site-elevated)] py-xs px-md text-center lowercase ehp-color-site-accent textsize-md font-600">
+      <div class="box-border min-h-[var(--ui-control-size-sm)] whitespace-nowrap ui-rounded-xl bg-[var(--color-site-elevated)] ui-py-xs ui-px-md text-center lowercase ehp-color-site-accent textsize-md font-600">
         {props.group.namespace}
       </div>
       <div
@@ -472,7 +472,7 @@ function TouchGalleryTag(props: {
   return (
     <a
       href={props.tag.url}
-      class="ehpeek-touch-gallery-tag inline-flex flex-none box-border max-w-full min-h-[var(--ui-control-size-sm)] items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-text no-underline transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"
+      class="ehpeek-touch-gallery-tag inline-flex flex-none box-border max-w-full min-h-[var(--ui-control-size-sm)] items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 ui-rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] ui-px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-text no-underline transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent"
       style={{
         "background-color": props.tag.appearance.backgroundColor,
         "border-color": props.tag.appearance.borderColor,
@@ -572,7 +572,7 @@ function TouchGalleryTagMenu(props: {
   return (
     <>
       <div
-        class={`fixed inset-0 z-overlay flex items-center justify-center p-lg bg-black/65 transition-opacity duration-120 ${props.tag ? "visible opacity-100" : "invisible opacity-0 pointer-events-none"}`}
+        class={`fixed inset-0 z-overlay flex items-center justify-center ui-p-lg bg-black/65 transition-opacity duration-120 ${props.tag ? "visible opacity-100" : "invisible opacity-0 pointer-events-none"}`}
         role="dialog"
         aria-modal="true"
         aria-hidden={!props.tag}
@@ -584,7 +584,7 @@ function TouchGalleryTagMenu(props: {
         }}
       >
         <div
-          class="box-border flex w-full max-w-420px max-h-[calc(100dvh-32px)] flex-col overflow-x-hidden overflow-y-auto overscroll-contain whitespace-nowrap border ehp-color-site-border rounded-md ehp-color-site-elevated shadow-xl"
+          class="box-border flex w-full max-w-[calc(var(--ui-control-size-xl)*5.25)] max-h-[calc(100dvh-(var(--ui-space-lg)*2))] flex-col overflow-x-hidden overflow-y-auto overscroll-contain whitespace-nowrap border ehp-color-site-border ui-rounded-md ehp-color-site-elevated shadow-xl"
           role="menu"
           onClick={() => {
             if (!updating()) {
@@ -648,12 +648,12 @@ function TouchGalleryTagMenu(props: {
             when={!updating()}
             fallback={<WelcomeIcon embedded label={texts.reader.loading} showIcon={false} />}
           >
-              <div class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600">
+              <div class="flex flex-col ui-gap-sm ehp-color-site-text textsize-md font-600">
                 <span>{texts.gallery.tagCollection}</span>
                 <div class="relative">
                   <button
                     type="button"
-                    class="flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between gap-md rounded-md border ehp-color-site-border !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text px-md font-inherit text-left textsize-md cursor-pointer"
+                    class="flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-rounded-md border ehp-color-site-border !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text ui-px-md font-inherit text-left textsize-md cursor-pointer"
                     aria-haspopup="listbox"
                     aria-expanded={collectionOpen()}
                     onClick={() => setCollectionOpen((open) => !open)}
@@ -664,11 +664,11 @@ function TouchGalleryTagMenu(props: {
                     <span class="flex-none" aria-hidden="true">{collectionOpen() ? "▴" : "▾"}</span>
                   </button>
                   <Show when={collectionOpen()}>
-                    <div class="absolute top-full left-0 right-0 z-2 mt-xs max-h-240px overflow-y-auto overscroll-contain rounded-md border ehp-color-site-border ehp-color-site-elevated shadow-xl" role="listbox" aria-label={texts.gallery.tagCollection}>
+                    <div class="absolute top-full left-0 right-0 z-2 ui-mt-xs max-h-240px overflow-y-auto overscroll-contain ui-rounded-md border ehp-color-site-border ehp-color-site-elevated shadow-xl" role="listbox" aria-label={texts.gallery.tagCollection}>
                       <For each={tagSets}>{(option) => (
                         <button
                           type="button"
-                          class={`flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between gap-md px-md border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b ehp-color-site-text font-inherit text-left textsize-md cursor-pointer ${selectedTagSet() === option.value ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)]"}`}
+                          class={`flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-px-md border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b ehp-color-site-text font-inherit text-left textsize-md cursor-pointer ${selectedTagSet() === option.value ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)]"}`}
                           role="option"
                           aria-selected={selectedTagSet() === option.value}
                           onClick={() => {
@@ -686,9 +686,9 @@ function TouchGalleryTagMenu(props: {
                   </Show>
                 </div>
               </div>
-              <div class="flex flex-col gap-sm ehp-color-site-text textsize-md font-600">
+              <div class="flex flex-col ui-gap-sm ehp-color-site-text textsize-md font-600">
                 <span>{texts.gallery.tagBehavior}</span>
-                <div class="overflow-hidden rounded-md border ehp-color-site-border" role="radiogroup" aria-label={texts.gallery.tagBehavior}>
+                <div class="overflow-hidden ui-rounded-md border ehp-color-site-border" role="radiogroup" aria-label={texts.gallery.tagBehavior}>
                   <For each={([
                     ["marked", texts.gallery.markTag],
                     ["watched", texts.gallery.watchTag],
@@ -696,7 +696,7 @@ function TouchGalleryTagMenu(props: {
                   ] as const)}>{([value, label]) => (
                     <button
                       type="button"
-                      class={`flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between gap-md px-md border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b ehp-color-site-text font-inherit text-left textsize-md cursor-pointer ${tagMode() === value ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)]"}`}
+                      class={`flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-px-md border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b ehp-color-site-text font-inherit text-left textsize-md cursor-pointer ${tagMode() === value ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)]"}`}
                       role="radio"
                       aria-checked={tagMode() === value}
                       onClick={() => setTagMode(value)}
@@ -709,7 +709,7 @@ function TouchGalleryTagMenu(props: {
                   )}</For>
                 </div>
               </div>
-              <div class="grid grid-cols-2 gap-md">
+              <div class="grid grid-cols-2 ui-gap-md">
                 <button
                   type="button"
                   class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]`}
@@ -719,7 +719,7 @@ function TouchGalleryTagMenu(props: {
                 </button>
                 <button
                   type="button"
-                  class={`${RATING_ACTION_BUTTON_CLASS} gap-md border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108`}
+                  class={`${RATING_ACTION_BUTTON_CLASS} ui-gap-md border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108`}
                   onClick={() => {
                     const tag = favoriteTag();
                     if (tag) {
@@ -918,14 +918,14 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
             >
               <div class="flex flex-col ui-gap-md ui-pt-lg ui-px-lg">
                 <textarea
-                  class="box-border min-h-[calc(var(--ui-control-size-xl)*3)] w-full resize-y rounded-md border ehp-color-site-border bg-[var(--color-site-surface)] p-md ehp-color-site-text font-inherit textsize-md leading-[1.4]"
+                  class="box-border min-h-[calc(var(--ui-control-size-xl)*3)] w-full resize-y ui-rounded-md border ehp-color-site-border bg-[var(--color-site-surface)] ui-p-md ehp-color-site-text font-inherit textsize-md leading-[1.4]"
                   value={noteDraft()}
                   onInput={(event) => setNoteDraft(event.currentTarget.value)}
                 />
-                <div class="grid grid-cols-1 gap-md">
+                <div class="grid grid-cols-1 ui-gap-md">
                   <button
                     type="button"
-                    class="min-h-[var(--ui-control-size-md)] rounded-md border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] font-inherit textsize-md font-700"
+                    class="min-h-[var(--ui-control-size-md)] ui-rounded-md border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] font-inherit textsize-md font-700"
                     onClick={() => setEditingNote(false)}
                   >
                     {texts.button.confirm}

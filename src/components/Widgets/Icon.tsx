@@ -90,7 +90,9 @@ export function Icon(props: {
   );
   const filled = createMemo(() => props.filled && FILLABLE_ICONS.has(props.name));
   const size = createMemo(() =>
-    typeof props.size === "number" ? `${props.size}px` : props.size ?? "24px",
+    typeof props.size === "number"
+      ? `${props.size}px`
+      : props.size ?? "var(--ui-icon-size-md)",
   );
 
   return (

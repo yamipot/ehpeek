@@ -92,7 +92,7 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
       {(currentPosition) => (
         <section
           ref={dropdown}
-          class="fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-hidden overflow-y-auto overscroll-contain rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"
+          class="fixed z-ui flex box-border max-h-[60dvh] flex-col overflow-hidden overflow-y-auto overscroll-contain ui-rounded-md border ehp-color-site-border ehp-color-site-elevated ehp-color-site-text font-sans"
           style={{
             left: `${currentPosition.left}px`,
             top: `${currentPosition.top}px`,
@@ -108,7 +108,7 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
               <button
                 type="button"
                 ref={(button) => { itemButtons[index()] = button; }}
-                class={`appearance-none block min-w-0 min-h-lg flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-lg border-0 ehp-color-site-text text-left textsize-lg font-inherit cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] ${activeIndex() === index() ? "bg-[var(--color-site-item-hover)]" : "bg-transparent"}`}
+                class={`appearance-none block min-w-0 ui-hit-min-h-lg flex-1 overflow-hidden text-ellipsis whitespace-nowrap ui-px-lg border-0 ehp-color-site-text text-left textsize-lg font-inherit cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)] ${activeIndex() === index() ? "bg-[var(--color-site-item-hover)]" : "bg-transparent"}`}
                 title={item}
                 onPointerEnter={() => setActiveIndex(index())}
                 onClick={() => selectHistory(item)}
@@ -117,7 +117,7 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
               </button>
               <button
                 type="button"
-                class="appearance-none inline-flex w-60px min-h-lg flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text textsize-xl font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"
+                class="appearance-none inline-flex ui-hit-w-lg ui-hit-min-h-lg flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text textsize-xl font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"
                 onClick={() => {
                   setHistory(removeSearchHistory(item));
                 }}

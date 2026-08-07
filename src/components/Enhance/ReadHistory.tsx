@@ -139,7 +139,7 @@ export function ReadHistoryPage(props: {
   });
 
   const navigation = (showHeader: boolean) => (
-    <nav class="flex flex-col items-center gap-sm border-0 border-y border-solid ehp-color-site-border-subtle-b p-md">
+    <nav class="flex flex-col items-center ui-gap-sm border-0 border-y border-solid ehp-color-site-border-subtle-b ui-p-md">
       {showHeader && (
         <>
           <span class="text-center textsize-md font-600 ehp-color-site-text">
@@ -148,7 +148,7 @@ export function ReadHistoryPage(props: {
               {texts.history.limit.replace("{limit}", String(READ_HISTORY_LIMIT))}
             </span>
           </span>
-          <div class="flex flex-wrap items-center justify-center gap-sm">
+          <div class="flex flex-wrap items-center justify-center ui-gap-sm">
             <input
               ref={historyFileInput}
               class="hidden"
@@ -165,14 +165,14 @@ export function ReadHistoryPage(props: {
             />
             <button
               type="button"
-              class="ui-hit-min-h-xs ui-px-sm rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
+              class="ui-hit-min-h-xs ui-px-sm ui-rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
               onClick={() => historyFileInput.click()}
             >
               {texts.button.importHistory}
             </button>
             <button
               type="button"
-              class="ui-hit-min-h-xs ui-px-sm rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
+              class="ui-hit-min-h-xs ui-px-sm ui-rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
               onClick={exportHistoryFile}
             >
               {texts.button.exportHistory}
@@ -180,7 +180,7 @@ export function ReadHistoryPage(props: {
             {items().length > 0 && (
               <button
                 type="button"
-                class="ui-hit-min-h-xs ui-px-sm rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
+                class="ui-hit-min-h-xs ui-px-sm ui-rounded-sm border-0 bg-transparent ehp-color-site-text textsize-md font-600 cursor-pointer [touch-action:manipulation] hover:bg-[var(--color-site-item-hover)]"
                 onClick={clearHistory}
               >
                 {texts.button.clearHistory}
@@ -218,7 +218,7 @@ export function ReadHistoryPage(props: {
       />
       {navigation(true)}
       {items().length === 0 && (
-        <div class="p-xl text-center textsize-md ehp-color-site-text opacity-72">
+        <div class="ui-p-xl text-center textsize-md ehp-color-site-text opacity-72">
           {texts.history.empty}
         </div>
       )}

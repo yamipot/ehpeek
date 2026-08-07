@@ -45,7 +45,7 @@ const SETTINGS_SECTIONS: ReadonlyArray<readonly [SettingsTab, string, IconName]>
 ];
 
 const SETTINGS_ACTION_BUTTON_CLASS =
-  "block w-full min-h-[var(--ui-control-size-md)] py-xs px-md rounded-md border cursor-pointer font-inherit text-center [font-size:var(--ui-font-size-md)] font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98";
+  "block w-full min-h-[var(--ui-control-size-md)] ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center [font-size:var(--ui-font-size-md)] font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98";
 const SETTINGS_APPLY_BUTTON_COLOR =
   "border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108";
 const SETTINGS_CLOSE_BUTTON_COLOR =
@@ -88,21 +88,21 @@ function SwitchButton(props: {
       <div class="flex items-stretch">
         <button
           type="button"
-          class="flex min-w-0 flex-1 min-h-[var(--ui-control-size-lg)] items-center justify-between gap-md py-sm pl-md pr-sm rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer [-webkit-tap-highlight-color:transparent]"
+          class="flex min-w-0 flex-1 min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-py-sm ui-pl-md ui-pr-sm ui-rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer [-webkit-tap-highlight-color:transparent]"
           onClick={(event: MouseEvent) => {
             event.stopPropagation();
             props.onChange(!props.checked);
           }}
         >
           <span>{props.label}</span>
-          <span class="flex flex-none items-center gap-sm">
+          <span class="flex flex-none items-center ui-gap-sm">
             <span class="[font-size:var(--ui-font-size-sm)] opacity-70">{props.checked ? texts.settings.on : texts.settings.off}</span>
             <span class={`${SETTINGS_DOT_CLASS} ${props.checked ? "bg-[var(--color-state-on)]" : "bg-[var(--color-state-off)]"}`} />
           </span>
         </button>
         <button
           type="button"
-          class="flex flex-none w-[var(--ui-control-size-sm)] min-h-[var(--ui-control-size-lg)] items-center justify-center p-0 rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit [font-size:var(--ui-font-size-md)] font-700 [-webkit-tap-highlight-color:transparent]"
+          class="flex flex-none w-[var(--ui-control-size-sm)] min-h-[var(--ui-control-size-lg)] items-center justify-center p-0 ui-rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit [font-size:var(--ui-font-size-md)] font-700 [-webkit-tap-highlight-color:transparent]"
           onClick={(event: MouseEvent) => {
             event.stopPropagation();
             setHelpOpen((open) => !open);
@@ -113,7 +113,7 @@ function SwitchButton(props: {
       </div>
       <Show when={helpOpen()}>
         <p
-          class="box-border w-full m-0 px-md pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] [font-size:var(--ui-font-size-sm)] leading-[1.35] opacity-75"
+          class="box-border w-full m-0 ui-px-md ui-pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] [font-size:var(--ui-font-size-sm)] leading-[1.35] opacity-75"
         >
           {props.description}
         </p>
@@ -127,10 +127,10 @@ function UiScaleSelect(props: {
   value: UiScale;
 }) {
   return (
-    <label class="flex box-border w-full min-h-[var(--ui-control-size-lg)] items-center justify-between gap-md px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] cursor-pointer">
+    <label class="flex box-border w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] cursor-pointer">
       <span>{texts.settings.uiScaleLabel}</span>
       <select
-        class="box-border min-h-[var(--ui-control-size-sm)] min-w-[var(--ui-control-size-xl)] px-sm rounded-xs border ehp-color-site-border bg-[var(--color-site-surface)] ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer"
+        class="box-border min-h-[var(--ui-control-size-sm)] min-w-[var(--ui-control-size-xl)] ui-px-sm ui-rounded-xs border ehp-color-site-border bg-[var(--color-site-surface)] ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer"
         value={props.value}
         onChange={(event) => {
           const value = UI_SCALE_NAMES.find(
@@ -236,14 +236,14 @@ export function SettingsMenu(props: {
         }}
       >
         <div
-          class="grid grid-cols-4 flex-none gap-xs mb-sm rounded-md border ehp-color-site-border overflow-hidden"
+          class="grid grid-cols-4 flex-none ui-gap-xs ui-mb-sm ui-rounded-md border ehp-color-site-border overflow-hidden"
           role="tablist"
           aria-label={texts.settings.menuLabel}
         >
           <For each={SETTINGS_SECTIONS}>{([tab, label, icon]) => (
             <button
               type="button"
-              class={`flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center gap-sm px-sm border-0 ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer ${activeTab() === tab ? "bg-[var(--color-site-item-hover)] font-700" : "bg-transparent hover:bg-[var(--color-site-item-hover)]"}`}
+              class={`flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center ui-gap-sm ui-px-sm border-0 ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer ${activeTab() === tab ? "bg-[var(--color-site-item-hover)] font-700" : "bg-transparent hover:bg-[var(--color-site-item-hover)]"}`}
               role="tab"
               aria-selected={activeTab() === tab}
               aria-controls={`ehpeek-settings-panel-${tab}`}
@@ -255,7 +255,7 @@ export function SettingsMenu(props: {
           )}</For>
         </div>
         <div class="min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain">
-          <h2 class="m-0 px-md py-sm border-0 border-b ehp-color-site-border-subtle-b [font-size:var(--ui-font-size-md)] font-700">
+          <h2 class="m-0 ui-px-md ui-py-sm border-0 border-b ehp-color-site-border-subtle-b [font-size:var(--ui-font-size-md)] font-700">
             {SETTINGS_SECTIONS.find(([tab]) => tab === activeTab())?.[1]}
           </h2>
           <div
@@ -278,7 +278,7 @@ export function SettingsMenu(props: {
             />
             <Show when={draft.readHistoryEnabled}>
               <a
-                class="flex w-full min-h-[var(--ui-control-size-lg)] items-center gap-md px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
+                class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
                 href={props.historyHref}
               >
                 {texts.settings.historyLabel}
@@ -372,11 +372,11 @@ export function SettingsMenu(props: {
             role="tabpanel"
             hidden={activeTab() !== "about"}
           >
-            <div class="flex w-full min-h-[var(--ui-control-size-lg)] items-center px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] font-700">
+            <div class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] font-700">
               Ehpeek
             </div>
             <a
-              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center overflow-hidden text-ellipsis whitespace-nowrap px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline [font-size:var(--ui-font-size-md)] font-700 hover:bg-[var(--color-site-item-hover)]"
+              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center overflow-hidden text-ellipsis whitespace-nowrap ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline [font-size:var(--ui-font-size-md)] font-700 hover:bg-[var(--color-site-item-hover)]"
               href="https://github.com/yamipot/ehpeek"
               target="_blank"
               rel="noopener noreferrer"
@@ -385,14 +385,14 @@ export function SettingsMenu(props: {
             </a>
             <button
               type="button"
-              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center gap-md px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
+              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
               onClick={() => setHelpOpen(true)}
             >
               <span>{texts.help.title}</span>
             </button>
             <button
               type="button"
-              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center justify-between gap-md px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
+              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
               onClick={() => setLicensesOpen(true)}
             >
               <span>{texts.settings.licenses}</span>
@@ -402,7 +402,7 @@ export function SettingsMenu(props: {
             </button>
           </div>
         </div>
-        <div class="grid grid-cols-3 flex-none gap-sm mt-md pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
+        <div class="grid grid-cols-3 flex-none ui-gap-sm ui-mt-md ui-pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
           <button
             type="button"
             class={`${SETTINGS_ACTION_BUTTON_CLASS} ${SETTINGS_APPLY_BUTTON_COLOR}`}
@@ -449,7 +449,7 @@ export function SettingsMenu(props: {
         >
           <For each={LICENSES}>{(license) => (
             <a
-              class="flex min-h-[var(--ui-control-size-lg)] items-center justify-between gap-md px-md py-sm border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left"
+              class="flex min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md ui-py-sm border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left"
               href={license.href}
               target="_blank"
               rel="noopener noreferrer"
@@ -457,7 +457,7 @@ export function SettingsMenu(props: {
               <span class="min-w-0 [font-size:var(--ui-font-size-md)] font-700">
                 {license.name}
               </span>
-              <span class="flex flex-none items-center gap-sm [font-size:var(--ui-font-size-sm)]">
+              <span class="flex flex-none items-center ui-gap-sm [font-size:var(--ui-font-size-sm)]">
                 {license.license}
                 <Icon name="external-link" size="var(--ui-icon-size-sm)" />
               </span>

@@ -27,13 +27,13 @@ export function FavoritesCategorySelect(props: { source: TouchResultsPageDom }) 
         aria-expanded={open()}
         onClick={() => setOpen((value) => !value)}
       >
-        <span class="flex min-w-0 items-center gap-sm overflow-hidden">
+        <span class="flex min-w-0 items-center ui-gap-sm overflow-hidden">
           {categoryIndicator(selected()?.appearance)}
           <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
           {selected()?.label} [{selected()?.count}]
           </span>
         </span>
-        <span class="flex h-20px w-20px flex-none items-center justify-center leading-none" aria-hidden="true">
+        <span class="flex w-[var(--ui-icon-size-md)] h-[var(--ui-icon-size-md)] flex-none items-center justify-center leading-none" aria-hidden="true">
           {open() ? "−" : "+"}
         </span>
       </button>
@@ -45,7 +45,7 @@ export function FavoritesCategorySelect(props: { source: TouchResultsPageDom }) 
               class={`flex box-border w-full ui-hit-min-h-lg items-center ui-px-sm ui-py-xs border-0 border-b ehp-color-site-border-subtle-b last:border-b-0 text-left textsize-sm font-inherit no-underline cursor-pointer ${category.selected ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent font-700" : "!bg-transparent ehp-color-site-text hover:!bg-[var(--color-site-item-hover)]"}`}
               onClick={() => props.source.handle.activateFavoriteCategory(index())}
             >
-              <span class="flex min-w-0 items-center gap-sm">
+              <span class="flex min-w-0 items-center ui-gap-sm">
                 {categoryIndicator(category.appearance)}
                 <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
                   {category.label} [{category.count}]

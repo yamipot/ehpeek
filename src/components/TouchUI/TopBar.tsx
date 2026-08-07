@@ -21,7 +21,7 @@ const TOUCH_TOP_BAR_PROJECT_ICON_SIZE =
 const TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE =
   "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
 const TOUCH_ICON_BUTTON_CLASS =
-  "inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]";
+  "inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]";
 function TouchTopBarUiMenu(props: {
   uiScale: {
     value: Accessor<UiScale>;
@@ -70,7 +70,7 @@ function TouchTopBarUiMenu(props: {
       </button>
       <Show when={open()}>
         <div
-          class="absolute top-[calc(100%+4px)] left-0 z-overlay flex gap-xs p-xs overflow-hidden border ehp-color-site-border rounded-sm ehp-color-site-elevated"
+          class="absolute top-[calc(100%+var(--ui-space-xs))] left-0 z-overlay flex ui-gap-xs ui-p-xs overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated"
           classList={{
             "!left-auto right-0 flex-row-reverse": props.leftHandedControls.enabled(),
           }}
@@ -163,7 +163,7 @@ function TouchTopBarMenu(props: {
       </button>
       <Show when={open()}>
         <div
-          class="absolute top-[calc(100%+4px)] right-0 z-overlay flex w-max min-w-180px max-w-[calc(100vw-12px)] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated"
+          class="absolute top-[calc(100%+var(--ui-space-xs))] right-0 z-overlay flex w-max min-w-[calc(var(--ui-control-size-xl)*2.25)] max-w-[calc(100vw-var(--ui-space-md))] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated"
           classList={{ "!right-auto left-0": props.leftHanded() }}
         >
           <For each={props.navItems}>{(item) => {
@@ -199,7 +199,7 @@ export function TouchTopBar(props: {
       classList={{ "flex-row-reverse": props.leftHandedControls.enabled() }}
     >
       <div
-        class="flex items-center gap-xs"
+        class="flex items-center ui-gap-xs"
         classList={{ "flex-row-reverse": props.leftHandedControls.enabled() }}
       >
         <a
@@ -215,7 +215,7 @@ export function TouchTopBar(props: {
         />
       </div>
       <div
-        class="flex items-center gap-xs"
+        class="flex items-center ui-gap-xs"
         classList={{ "flex-row-reverse": props.leftHandedControls.enabled() }}
       >
         <a

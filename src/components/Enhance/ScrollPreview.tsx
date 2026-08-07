@@ -33,7 +33,7 @@ const SCROLL_PIXEL_EPSILON = 1;
 const PREVIEW_CONCURRENT_LOADS = 2;
 const PREVIEW_LOAD_RADIUS = 2;
 const OVERLAY_PREVIEW_ACTION_CLASS = [
-  "inline-flex h-[var(--ui-control-size-md)] items-center justify-center py-0 rounded-md border-0 bg-transparent text-[var(--color-site-text)] cursor-pointer font-sans textsize-sm font-700 leading-1",
+  "inline-flex h-[var(--ui-control-size-md)] items-center justify-center py-0 ui-rounded-md border-0 bg-transparent text-[var(--color-site-text)] cursor-pointer font-sans textsize-sm font-700 leading-1",
   "opacity-90 hover:(opacity-100 bg-[var(--color-site-page)]) focus-visible:opacity-100 disabled:(opacity-40 cursor-default) transition-[opacity,background-color] duration-160",
 ].join(" ");
 const OVERLAY_PREVIEW_ICON_ACTION_CLASS =
@@ -164,14 +164,14 @@ function OverlayPreviewToolbar(props: {
   state: PreviewToolbarState;
 }) {
   return (
-    <div class={`flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between gap-md bg-[var(--color-site-elevated)] safe-pt-sm safe-pr-sm pb-sm safe-pl-sm border-0 border-b border-[var(--color-site-border)] text-[var(--color-site-text)] textsize-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
-      <span class="flex items-center gap-sm opacity-75">
+    <div class={`flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between ui-gap-md bg-[var(--color-site-elevated)] safe-pt-sm safe-pr-sm ui-pb-sm safe-pl-sm border-0 border-b border-[var(--color-site-border)] text-[var(--color-site-text)] textsize-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
+      <span class="flex items-center ui-gap-sm opacity-75">
         <Show when={props.state.loading()}>
           <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
         </Show>
         {props.state.rangeText()}
       </span>
-      <div class={`flex flex-none gap-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
+      <div class={`flex flex-none ui-gap-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
         <button
           type="button"
           class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
@@ -226,22 +226,22 @@ function OverlayPreviewToolbar(props: {
 }
 
 const EMBEDDED_PREVIEW_ACTION_CLASS =
-  "inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96";
+  "inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 ui-rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96";
 
 function EmbeddedPreviewToolbar(props: {
   onOpenOverlay: () => void;
   state: PreviewToolbarState;
 }) {
   return (
-    <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] min-h-[var(--ui-control-size-xs)] flex-none items-center gap-xs px-xs py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs">
-      <span class="col-start-2 inline-flex min-h-[var(--ui-control-size-xs)] items-center gap-xs px-sm rounded-xs bg-[var(--color-site-surface)] opacity-75">
+    <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] min-h-[var(--ui-control-size-xs)] flex-none items-center ui-gap-xs ui-px-xs ui-py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs">
+      <span class="col-start-2 inline-flex min-h-[var(--ui-control-size-xs)] items-center ui-gap-xs ui-px-sm ui-rounded-xs bg-[var(--color-site-surface)] opacity-75">
         <Show when={props.state.loading()}>
           <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
         </Show>
         {props.state.rangeText()}
       </span>
       <div
-        class={`flex flex-none items-center gap-xs ${
+        class={`flex flex-none items-center ui-gap-xs ${
           props.state.leftHanded()
             ? "col-start-1 row-start-1 justify-self-start flex-row-reverse"
             : "col-start-3 justify-self-end"
@@ -561,10 +561,10 @@ function ScrollPreviewLauncher(props: {
   const source = untrack(() => props.source);
   return (
     <Show when={!source.replaceOriginalPreview}>
-      <div class="flex w-full justify-center my-sm">
+      <div class="flex w-full justify-center ui-my-sm">
         <button
           type="button"
-          class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center gap-sm px-md rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98"
+          class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center ui-gap-sm ui-px-md ui-rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98"
           onClick={() => source.coordinator.openPreviewPage(session.continuePageNum() ?? 1)}
         >
           <Icon name="grid" size="var(--ui-icon-size-sm)" />
@@ -1291,7 +1291,7 @@ function ScrollPreviewPanel(props: {
         classList={{
           "absolute inset-0 bg-[var(--color-site-surface)] text-[var(--color-site-text)]":
             !embedded,
-          "border ehp-color-site-border rounded-sm bg-[var(--color-site-elevated)]":
+          "border ehp-color-site-border ui-rounded-sm bg-[var(--color-site-elevated)]":
             embedded,
           "relative h-[var(--scroll-preview-height)]": embedded,
           "w-full": true,
@@ -1372,7 +1372,7 @@ function PreviewTile(props: {
         fallback={
           <button
             type="button"
-            class="flex w-full h-full flex-col items-center justify-center gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"
+            class="flex w-full h-full flex-col items-center justify-center ui-gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"
             classList={{ "cursor-pointer": props.failed }}
             disabled={!props.failed}
             onClick={() => props.onRetry()}
