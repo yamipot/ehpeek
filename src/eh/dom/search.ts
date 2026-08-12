@@ -895,15 +895,15 @@ type FavoritesCategoriesDom = {
   items: ManagedDomNode[];
 };
 
-function favoritesPageTouch(): FavoritesCategoriesDom | null {
+function favoritesPageTouch(
+  fitToViewport: boolean,
+): FavoritesCategoriesDom | null {
   const page = DomNode.from(document);
   const pageSource = page.use(domClass.page);
   const source = page.use(domClass.search);
-  pageSource.html.inplace()?.apply("constrainResults");
-  pageSource.body.inplace()?.apply(
-    "constrainResults",
-    "constrainFavoritesNavigation",
-  );
+  if (fitToViewport) {
+    pageSource.html.inplace()?.apply("fitToViewport");
+  }
 
   const categories = source.favorites.categories.one();
   const categorySelect = categories ? manageFavoritesCategories(categories) : null;
@@ -980,12 +980,13 @@ function manageFavoritesCategories(
 }
 
 /** Applies TouchUI layout ownership to Search-like result pages. */
-function searchResultsPageTouch(): void {
+function searchResultsPageTouch(fitToViewport: boolean): void {
   const page = DomNode.from(document);
   const pageSource = page.use(domClass.page);
   const source = page.use(domClass.search);
-  pageSource.html.inplace()?.apply("constrainResults");
-  pageSource.body.inplace()?.apply("constrainResults");
+  if (fitToViewport) {
+    pageSource.html.inplace()?.apply("fitToViewport");
+  }
 
   const resultSource = source.results.one();
   if (!resultSource) {
@@ -996,13 +997,16 @@ function searchResultsPageTouch(): void {
 }
 
 /** Owns the TouchUI layout lifecycle for one Search or Favorites results page. */
-export function manageTouchResultsPage(page: PageType) {
+export function manageTouchResultsPage(
+  page: PageType,
+  fitToViewport: boolean,
+) {
   const apply = () => {
     if (page.type === "favorites") {
-      return favoritesPageTouch();
+      return favoritesPageTouch(fitToViewport);
     }
     if (page.type === "search" || page.type === "readHistory") {
-      searchResultsPageTouch();
+      searchResultsPageTouch(fitToViewport);
     }
     return null;
   };

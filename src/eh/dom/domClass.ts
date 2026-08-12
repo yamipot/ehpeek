@@ -20,7 +20,7 @@ import {
 
 export const sharedApply = {
   coverlessSearchGrid: "ehpeek-expand-coverless-search-grid",
-  constrainResultsToViewport: "ehpeek-constrain-results-to-viewport",
+  fitToViewport: "ehpeek-fit-to-viewport",
   galleryTagMenuItem: "ehpeek-layout-gallery-tag-menu-item",
   hideOriginalSearchAction: "ehpeek-hide-original-search-action",
   historyLabel: "ehpeek-prefix-read-history-label",
@@ -35,15 +35,13 @@ const page = {
   footer: query("body > .dp"),
   html: tag("html", {
     apply: {
-      constrainResults: sharedApply.constrainResultsToViewport,
+      fitToViewport: sharedApply.fitToViewport,
       galleryTouchLayout: "ehpeek-touch-gallery-page",
       galleryWideLayout: "ehpeek-gallery-wide-layout-root",
     },
   }),
   body: tag("body", {
     apply: {
-      constrainFavoritesNavigation: "ehpeek-constrain-favorites-navigation",
-      constrainResults: sharedApply.constrainResultsToViewport,
       galleryTouchLayout: "ehpeek-touch-gallery-page",
       galleryWideLayout: "ehpeek-gallery-wide-layout-root",
       hidePreviewPageBars: "ehpeek-hide-original-preview-page-bars",

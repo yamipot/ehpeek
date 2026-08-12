@@ -552,7 +552,7 @@ export type GalleryInfoTagGroup = {
 };
 
 /** Marks the original Gallery page as owned by the TouchUI layout. */
-export function mutateGalleryTouchLayout(): void {
+export function mutateGalleryTouchLayout(fitToViewport: boolean): void {
   const page = DomNode.from(document).use(domClass.page);
   const html = page.html.inplace();
   const body = page.body.inplace();
@@ -563,6 +563,9 @@ export function mutateGalleryTouchLayout(): void {
 
   html.apply("galleryTouchLayout");
   body.apply("galleryTouchLayout");
+  if (fitToViewport) {
+    html.apply("fitToViewport");
+  }
 }
 
 /** Groups GalleryInfo, Comments, and Preview into independent responsive columns. */

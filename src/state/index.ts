@@ -102,6 +102,7 @@ export const state = {
   },
   touch: {
     enabled: persisted("ehpeek:touch-ui:enabled", touchUiDefault),
+    fitToViewport: persisted("ehpeek:touch-ui:fit-to-viewport", true),
     portraitColumns: persisted("ehpeek:touch-ui:portrait-columns", false),
     landscapeColumns: persisted("ehpeek:touch-ui:landscape-columns", true),
   },

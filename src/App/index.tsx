@@ -83,6 +83,7 @@ function settingsMenuState(defaults = false) {
     includeUnreadHistoryEnabled: read(state.gallery.includeUnreadHistory),
     searchHistoryEnabled: read(state.search.history),
     touchUiEnabled: read(state.touch.enabled),
+    fitToViewport: read(state.touch.fitToViewport),
     portraitUiScale: read(state.app.portraitUiScale),
     landscapeUiScale: read(state.app.landscapeUiScale),
   };
@@ -107,6 +108,7 @@ function applySettingsMenuState(
   state.gallery.includeUnreadHistory.set(next.includeUnreadHistoryEnabled);
   state.search.history.set(next.searchHistoryEnabled);
   state.touch.enabled.set(next.touchUiEnabled);
+  state.touch.fitToViewport.set(next.fitToViewport);
   state.app.portraitUiScale.set(next.portraitUiScale);
   state.app.landscapeUiScale.set(next.landscapeUiScale);
   window.location.reload();
@@ -494,7 +496,7 @@ function injectGalleryDetails(
 ): void {
   const preview = previewCache.current();
   allowFeatureFailure("Touch GalleryInfo", () => {
-    eh.mutateGalleryTouchLayout();
+    eh.mutateGalleryTouchLayout(gState.settings.fitToViewport);
     const galleryInfoDom = requirePageDependency(
       "Touch GalleryInfo",
       eh.manageGalleryInfo(preview.data),
@@ -668,7 +670,10 @@ function injectGalleryPage(
 function injectSearchControls(
   page: Extract<eh.PageType, { type: "favorites" | "search" }>,
 ): eh.TouchResultsPageDom {
-  const touchResultsDom = eh.manageTouchResultsPage(page);
+  const touchResultsDom = eh.manageTouchResultsPage(
+    page,
+    gState.settings.fitToViewport,
+  );
 
   allowFeatureFailure("Touch Search panel", () => {
     const searchPanelDom = eh.manageSearchPanel();
@@ -842,7 +847,7 @@ function injectReadHistoryPage(
       historyDom.handle.updateResultColumns(gState.columnsEnabled());
     });
     allowFeatureFailure("Touch Read History layout", () => {
-      eh.manageTouchResultsPage(page);
+      eh.manageTouchResultsPage(page, true);
     });
   }
   historyDom.elems.navigationTopMount.mount(() => (

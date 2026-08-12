@@ -36,6 +36,7 @@ type SettingsMenuState = {
   includeUnreadHistoryEnabled: boolean;
   searchHistoryEnabled: boolean;
   touchUiEnabled: boolean;
+  fitToViewport: boolean;
   portraitUiScale: UiScale;
   landscapeUiScale: UiScale;
 };
@@ -373,6 +374,14 @@ export function SettingsMenu(props: {
               label={texts.settings.includeUnreadHistoryLabel}
               onChange={(value) => updateDraft("includeUnreadHistoryEnabled", value)}
             />
+            <Show when={draft.touchUiEnabled}>
+              <SwitchButton
+                checked={draft.fitToViewport}
+                description={texts.settings.fitToViewportHelp}
+                label={texts.settings.fitToViewportLabel}
+                onChange={(value) => updateDraft("fitToViewport", value)}
+              />
+            </Show>
             <SelectSetting
               label={texts.settings.portraitUiScaleLabel}
               options={UI_SCALE_OPTIONS}

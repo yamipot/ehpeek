@@ -160,7 +160,9 @@
     "searchHistoryLabel": "搜索历史",
     "searchHistoryHelp": "保存搜索关键词历史",
     "touchUiLabel": "触控界面",
-    "touchUiHelp": "使用适合触控操作的导航界面"
+    "touchUiHelp": "使用适合触控操作的导航界面",
+    "fitToViewportLabel": "页面贴合屏幕",
+    "fitToViewportHelp": "使页面贴合浏览器宽度"
   },
   "search": {
     "advancedOptions": "高级选项",

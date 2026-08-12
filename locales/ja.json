@@ -160,7 +160,9 @@
     "searchHistoryLabel": "検索履歴",
     "searchHistoryHelp": "検索キーワードの履歴を保存します",
     "touchUiLabel": "タッチ UI",
-    "touchUiHelp": "タッチ操作に適したナビゲーション UI を使用します"
+    "touchUiHelp": "タッチ操作に適したナビゲーション UI を使用します",
+    "fitToViewportLabel": "ページを画面幅に合わせる",
+    "fitToViewportHelp": "ページをブラウザーの幅に合わせます"
   },
   "search": {
     "advancedOptions": "詳細オプション",

@@ -160,7 +160,9 @@
     "searchHistoryLabel": "Search History",
     "searchHistoryHelp": "Keeps a history of search keywords",
     "touchUiLabel": "Touch UI",
-    "touchUiHelp": "Uses touch-friendly navigation UI"
+    "touchUiHelp": "Uses touch-friendly navigation UI",
+    "fitToViewportLabel": "Fit Pages to Screen",
+    "fitToViewportHelp": "Fits pages to the browser width"
   },
   "search": {
     "advancedOptions": "Advanced Options",

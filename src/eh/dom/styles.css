@@ -17,33 +17,44 @@
   line-height: inherit !important;
 }
 
-/* Keep TouchUI result tables inside the viewport without adding layout wrappers. */
-html.ehpeek-constrain-results-to-viewport,
-body.ehpeek-constrain-results-to-viewport {
+/* This root mode is the single ownership signal for fitting original pages to the viewport. */
+html.ehpeek-fit-to-viewport,
+html.ehpeek-fit-to-viewport body {
   min-width: 0 !important;
   max-width: 100% !important;
   overflow-x: hidden !important;
 }
 
-.ehpeek-constrain-results-to-viewport .ido,
-.ehpeek-constrain-results-to-viewport .itg {
+html.ehpeek-fit-to-viewport :is(
+  .ido,
+  .itg,
+  .ehpeek-expand-favorites-search,
+  #rangebar
+) {
   box-sizing: border-box;
   min-width: 0 !important;
   width: 100% !important;
   max-width: 100% !important;
 }
 
-.ehpeek-expand-favorites-search {
-  box-sizing: border-box;
-  min-width: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
-}
-
-.ehpeek-constrain-favorites-navigation .searchnav {
+html.ehpeek-fit-to-viewport .searchnav {
   box-sizing: border-box;
   max-width: 100% !important;
   overflow-x: auto;
+}
+
+html.ehpeek-fit-to-viewport > body.ehpeek-touch-gallery-page {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+:where(html.ehpeek-fit-to-viewport)
+  body.ehpeek-touch-gallery-page
+  :is(.gm, #gdt[class]) {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  width: calc(100% - (var(--touch-gallery-gutter) * 2)) !important;
+  max-width: none !important;
 }
 
 .ehpeek-hide-original-favorites-categories {
@@ -53,9 +64,6 @@ body.ehpeek-constrain-results-to-viewport {
 .ehpeek-contain-search-results,
 .ehpeek-contain-favorites-results {
   box-sizing: border-box;
-  min-width: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
   overflow-x: auto;
   overscroll-behavior-x: contain;
 }
@@ -79,7 +87,6 @@ body.ehpeek-constrain-results-to-viewport {
 /* Compact wide Favorites columns while preserving the original table structure. */
 .ehpeek-compact-all-favorites-results {
   table-layout: auto !important;
-  width: 100% !important;
   overflow-x: hidden !important;
 }
 
@@ -117,7 +124,6 @@ body.ehpeek-constrain-results-to-viewport {
 @media (max-width: 849px) {
   .ehpeek-contain-favorites-results {
     table-layout: auto !important;
-    width: 100% !important;
   }
 
   .ehpeek-contain-favorites-results > tbody > tr > .gl2e {
@@ -155,7 +161,6 @@ body.ehpeek-constrain-results-to-viewport {
 /* Present original Search rows through one shared EhPeek layout state. */
 .ehpeek-layout-search-grid {
   display: block !important;
-  width: 100% !important;
   table-layout: auto !important;
 }
 
@@ -878,6 +883,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   box-sizing: border-box !important;
   display: block !important;
   width: 100% !important;
+  height: auto !important;
   padding-top: var(--ui-space-md) !important;
 }
 
@@ -1031,8 +1037,6 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 
 html.ehpeek-touch-gallery-page,
 body.ehpeek-touch-gallery-page {
-  min-width: 0 !important;
-  overflow-x: hidden !important;
   text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
 }
@@ -1050,34 +1054,9 @@ body.ehpeek-touch-gallery-page.ehpeek-gallery-wide-layout-root {
 
 body.ehpeek-touch-gallery-page {
   box-sizing: border-box;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
   background: var(--color-site-page) !important;
   font-size: var(--ui-font-size-sm) !important;
   line-height: 1.35 !important;
-}
-
-body.ehpeek-touch-gallery-page :is(
-  .ehpeek-hide-original-gallery-info,
-  .gpc,
-  #gdt[class],
-  #cdiv,
-  .ptt,
-  .ptb
-) {
-  box-sizing: border-box !important;
-  min-width: 0 !important;
-  width: calc(100% - (var(--touch-gallery-gutter) * 2)) !important;
-  max-width: none !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-}
-
-body.ehpeek-touch-gallery-page :is(#gdt[class], .ptt, .ptb) {
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch;
 }
 
 body.ehpeek-touch-gallery-page #gdt[class] {
