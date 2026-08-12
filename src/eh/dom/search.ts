@@ -247,16 +247,19 @@ export function manageSearchResults() {
   if (!resultSource) {
     return null;
   }
-  const data = {
-    nextUrl: source.navigation.next.one()?.attribute("href") ?? null,
-    previousUrl: source.navigation.previous.one()?.attribute("href") ?? null,
-  };
   const resultHost = resultSource.parent()?.inplace() ?? null;
   const elems = {
     resultList: resultSource.inplace(domClass.search.results.apply),
     searchInput: source.input.inplace(),
   };
   const handle = {
+    /** Reads the live original link so swipe navigation matches the current page controls. */
+    readNavigationUrl(direction: "next" | "previous"): string | null {
+      const link = direction === "next"
+        ? source.navigation.next.one()
+        : source.navigation.previous.one();
+      return link?.attribute("href") ?? null;
+    },
     /** Routes the original pagination controls through the active page owner. */
     interceptSearchNavigation(onNavigate: (url: string) => void): () => void {
       const handleClick = (event: MouseEvent) => {
@@ -333,7 +336,7 @@ export function manageSearchResults() {
       return () => observer.disconnect();
     },
   };
-  return { data, elems, handle };
+  return { elems, handle };
 }
 
 export type SearchResultsDom = NonNullable<ReturnType<typeof manageSearchResults>>;

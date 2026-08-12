@@ -14,7 +14,7 @@ export function EnhanceSearchGrids(props: {
   let navigationController: AbortController | null = null;
 
   const swipeUrl = (direction: PageSwipeDirection): string | null =>
-    direction === "next" ? source.data.nextUrl : source.data.previousUrl;
+    source.handle.readNavigationUrl(direction === "next" ? "next" : "previous");
 
   const navigate = async (
     url: string,
