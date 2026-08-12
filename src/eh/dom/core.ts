@@ -155,6 +155,12 @@ export function originalPageNode<TElement extends Element>(
   return node.closest(EH_SYRINGE_IGNORE_SELECTOR) === null;
 }
 
+export function retainedOriginalPageNode<TElement extends Element>(
+  node: DomNode<TElement>,
+): boolean {
+  return node.closest(EH_SYRINGE_IGNORE_SELECTOR) !== null;
+}
+
 export function anyDomNode(): boolean {
   return true;
 }

@@ -20,6 +20,7 @@ import {
   createAnchor,
   createManagedElement,
   DomNode,
+  retainedOriginalPageNode,
   type ManagedDomElements,
   type ManagedDomNode,
 } from "./core";
@@ -48,18 +49,41 @@ export function extractGalleryHistoryInfo(): GalleryHistoryInfo {
   const page = DomNode.from(document);
   const source = page.use(domClass.gallery.info);
   const category = source.category.one();
+  const historyCategory = page.one(
+    domClass.gallery.info.category,
+    retainedOriginalPageNode,
+  ) ?? category;
   const categoryClass = (
-    category?.one(domClass.gallery.info.category.appearance)?.attribute("class") ??
-    category?.attribute("class") ??
+    historyCategory?.one(
+      domClass.gallery.info.category.appearance,
+      anyDomNode,
+    )?.attribute("class") ??
+    historyCategory?.attribute("class") ??
     ""
   ).split(/\s+/).find((className) => /^ct[1-9a]$/.test(className));
-  const rows = source.details.rows
-    .all()
-    .map((detailRow) => detailRow.all(domClass.gallery.info.details.rows.cells)
+  const readDetailRows = (details: DomNode<HTMLElement> | null) => details
+    ?.all(domClass.gallery.info.details.rows, anyDomNode)
+    .map((detailRow) => detailRow.all(
+      domClass.gallery.info.details.rows.cells,
+      anyDomNode,
+    )
       .slice(1)
       .map((detailCell) => detailCell.text())
       .filter(Boolean)
-      .join(" "));
+      .join(" ")) ?? [];
+  const retainedDetails = page.one(
+    domClass.gallery.info.details,
+    retainedOriginalPageNode,
+  );
+  const retainedRows = readDetailRows(retainedDetails);
+  const rows = retainedRows.length > 0
+    ? retainedRows
+    : source.details.rows.all().map((detailRow) =>
+      detailRow.all(domClass.gallery.info.details.rows.cells)
+        .slice(1)
+        .map((detailCell) => detailCell.text())
+        .filter(Boolean)
+        .join(" "));
   // History needs E-H's stable timestamp; EhSyringe's visible copy may contain relative translated text.
   const postedAt = page
     .one(domClass.gallery.info.details, anyDomNode)
@@ -83,15 +107,18 @@ export function extractGalleryHistoryInfo(): GalleryHistoryInfo {
     }
   }
   return {
-    category: category?.text() || undefined,
+    category: historyCategory?.text() || undefined,
     categoryClass,
     coverUrl: coverUrl || undefined,
     language: rows[3] || undefined,
     postedAt,
     rating: ratingMatch && Number.isFinite(rating) ? rating : undefined,
-    title: source.titleMain.one()?.text() || undefined,
-    titleSub: source.titleSub.one()?.text() || undefined,
-    uploader: source.uploader.one()?.text() || undefined,
+    title: page.one(domClass.gallery.info.titleMain, retainedOriginalPageNode)?.text() ||
+      source.titleMain.one()?.text() || undefined,
+    titleSub: page.one(domClass.gallery.info.titleSub, retainedOriginalPageNode)?.text() ||
+      source.titleSub.one()?.text() || undefined,
+    uploader: page.one(domClass.gallery.info.uploader, retainedOriginalPageNode)?.text() ||
+      source.uploader.one()?.text() || undefined,
   };
 }
 
