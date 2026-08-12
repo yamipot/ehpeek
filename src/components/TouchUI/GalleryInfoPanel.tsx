@@ -143,16 +143,16 @@ export function GalleryInfoPanel(props: {
 
   return (
     <section class="flex box-border w-full flex-col ui-mb-sm ehp-color-site-text font-sans">
-      <div class="relative grid min-h-[clamp(130px,21vh,170px)] ui-pt-sm safe-pr-sm ui-pb-xl safe-pl-sm ehp-color-site-surface ehp-color-site-text">
+      <div class="ehpeek-touch-gallery-summary-container relative grid min-h-[clamp(130px,21vh,170px)] ui-pt-sm safe-pr-sm safe-pl-sm ehp-color-site-surface ehp-color-site-text">
         <div
-          class={`grid ui-gap-sm items-stretch ${hasCover ? "ehpeek-touch-gallery-summary-has-cover" : "grid-cols-1"}`}
+          class={`ehpeek-touch-gallery-summary grid ui-gap-sm items-stretch ${hasCover ? "ehpeek-touch-gallery-summary-has-cover" : "grid-cols-1"}`}
         >
           {hasCover && (
-            <div class="flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">
+            <div class="ehpeek-touch-gallery-summary-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">
               <DomNode node={source.elems.cover} />
             </div>
           )}
-          <div class="flex self-stretch min-w-0 flex-col items-start ui-gap-xs pt-1px">
+          <div class="ehpeek-touch-gallery-summary-details flex self-stretch min-w-0 flex-col items-start ui-gap-xs pt-1px">
             <div class="flex min-w-0 w-full flex-none flex-col ui-gap-xs items-start pb-2px">
               <div class="line-clamp-4 flex-none overflow-hidden [font-size:var(--ui-font-size-lg)] font-400 leading-[1.16] text-left break-anywhere">
                 {source.data.titleMain}
@@ -246,24 +246,24 @@ export function GalleryInfoPanel(props: {
                 </button>
             )}
           </div>
-        </div>
-      </div>
-      <div
-        class="relative z-1 grid grid-cols-[1fr_1fr] min-h-[var(--ui-control-size-xl)] mt--8px safe-mr-sm safe-ml-sm overflow-visible ui-rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"
-        classList={{ "[direction:rtl]": props.leftHandedControls() }}
-        onDragStart={(event: DragEvent) => event.preventDefault()}
-      >
-        <div class="contents [direction:ltr]">
-          <TouchGalleryFavoriteButton source={source} />
-        </div>
-        <div
-          class="flex min-w-0 border-0 border-solid border-[var(--color-site-page)] [direction:ltr]"
-          classList={{
-            "border-r-6": props.leftHandedControls(),
-            "border-l-6": !props.leftHandedControls(),
-          }}
-        >
-          {props.primaryAction}
+          <div
+            class="ehpeek-touch-gallery-primary-actions relative z-1 grid grid-cols-[1fr_1fr] min-h-[var(--ui-control-size-xl)] overflow-visible ui-rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"
+            classList={{ "[direction:rtl]": props.leftHandedControls() }}
+            onDragStart={(event: DragEvent) => event.preventDefault()}
+          >
+            <div class="contents [direction:ltr]">
+              <TouchGalleryFavoriteButton source={source} />
+            </div>
+            <div
+              class="flex min-w-0 border-0 border-solid border-[var(--color-site-page)] [direction:ltr]"
+              classList={{
+                "border-r-6": props.leftHandedControls(),
+                "border-l-6": !props.leftHandedControls(),
+              }}
+            >
+              {props.primaryAction}
+            </div>
+          </div>
         </div>
       </div>
       <div class="flex flex-col ui-gap-sm ui-pt-md safe-pr-sm ui-pb-sm safe-pl-sm ehp-color-site-page ehp-color-site-text">

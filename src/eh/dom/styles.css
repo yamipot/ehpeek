@@ -984,8 +984,38 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 
 .ehpeek-touch-gallery-summary-has-cover {
   grid-template-columns:
-    minmax(60px, 38%)
+    minmax(60px, min(38%, 34dvh))
     minmax(0, 1fr);
+}
+
+.ehpeek-touch-gallery-primary-actions {
+  grid-column: 1 / -1;
+}
+
+.ehpeek-touch-gallery-summary-container {
+  container-type: inline-size;
+}
+
+@container (min-width: 720px) {
+  .ehpeek-touch-gallery-summary {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .ehpeek-touch-gallery-summary-cover {
+    grid-row: 1 / 3;
+  }
+
+  .ehpeek-touch-gallery-summary-details {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .ehpeek-touch-gallery-primary-actions {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+    width: min(100%, 90dvh);
+  }
 }
 
 .ehpeek-touch-search-panel {
@@ -1034,6 +1064,7 @@ body.ehpeek-touch-gallery-page :is(
   .ptb
 ) {
   box-sizing: border-box !important;
+  min-width: 0 !important;
   width: calc(100% - (var(--touch-gallery-gutter) * 2)) !important;
   max-width: none !important;
   margin-left: auto !important;
@@ -1159,20 +1190,6 @@ body.ehpeek-touch-gallery-page #cdiv :is(
 
 body.ehpeek-touch-gallery-page #cdiv input[type="text"] {
   min-width: min(100%, 15em);
-}
-
-body.ehpeek-touch-gallery-page :is(
-  .ehpeek-hide-original-gallery-info,
-  .gpc,
-  #gdt[class],
-  #cdiv,
-  .ptt,
-  .ptb
-) {
-  width: min(
-    calc(100% - (var(--touch-gallery-gutter) * 2)),
-    90dvh
-  ) !important;
 }
 
 body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout {
