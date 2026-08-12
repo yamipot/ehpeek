@@ -11,24 +11,36 @@ export function EnhanceSearchGrids(props: {
   const [gestureTarget, setGestureTarget] = createSignal<HTMLElement | null>(null);
   const [loading, setLoading] = createSignal(false);
   let source = untrack(() => props.source);
-  let navigationLoading = false;
+  let navigationController: AbortController | null = null;
 
   const swipeUrl = (direction: PageSwipeDirection): string | null =>
     direction === "next" ? source.data.nextUrl : source.data.previousUrl;
 
-  const navigate = async (url: string): Promise<void> => {
-    if (navigationLoading) {
+  const navigate = async (
+    url: string,
+    options: { pushHistory: boolean; replacePending?: boolean },
+  ): Promise<void> => {
+    if (navigationController && !options.replacePending) {
       return;
     }
 
-    navigationLoading = true;
+    navigationController?.abort();
+    const controller = new AbortController();
+    navigationController = controller;
+    const loadingSource = source;
     setLoading(true);
-    source.handle.updateSearchLoading(true);
+    loadingSource.handle.updateSearchLoading(true);
     try {
-      await source.handle.loadSearchPage(url);
+      await loadingSource.handle.loadSearchPage(url, controller.signal);
+      if (controller.signal.aborted) {
+        return;
+      }
       const nextSource = eh.manageSearchResults();
       if (!nextSource) {
         throw new Error(texts.errors.searchPageContentNotFound);
+      }
+      if (options.pushHistory) {
+        window.history.pushState(window.history.state, "", url);
       }
       source = nextSource;
       props.onPageChange(source);
@@ -36,22 +48,41 @@ export function EnhanceSearchGrids(props: {
       setGestureTarget(source.elems.resultList.Component());
       source.handle.scrollSearchPageToInput();
     } catch (error) {
-      console.error("[ehpeek]", error);
+      if (!controller.signal.aborted) {
+        console.error("[ehpeek]", error);
+      }
     } finally {
-      navigationLoading = false;
-      setLoading(false);
-      source.handle.updateSearchLoading(false);
+      loadingSource.handle.updateSearchLoading(false);
+      if (navigationController === controller) {
+        navigationController = null;
+        setLoading(false);
+      }
     }
   };
 
   const onNavigation = (url: string) => {
-    void navigate(url);
+    void navigate(url, { pushHistory: true });
   };
 
   onMount(() => {
+    const previousScrollRestoration = window.history.scrollRestoration;
+    const onHistoryNavigation = () => {
+      void navigate(window.location.href, {
+        pushHistory: false,
+        replacePending: true,
+      });
+    };
+
+    window.history.scrollRestoration = "manual";
     source.handle.ensureSearchSwipeInput();
     setGestureTarget(source.elems.resultList.Component());
+    window.addEventListener("popstate", onHistoryNavigation);
     onCleanup(source.handle.interceptSearchNavigation(onNavigation));
+    onCleanup(() => {
+      navigationController?.abort();
+      window.removeEventListener("popstate", onHistoryNavigation);
+      window.history.scrollRestoration = previousScrollRestoration;
+    });
   });
 
   return (
@@ -61,7 +92,7 @@ export function EnhanceSearchGrids(props: {
         onNavigate={(direction) => {
           const url = swipeUrl(direction);
           if (url) {
-            void navigate(url);
+            void navigate(url, { pushHistory: true });
           }
         }}
         target={gestureTarget}

@@ -276,13 +276,12 @@ export function manageSearchResults() {
       document.addEventListener("click", handleClick, true);
       return () => document.removeEventListener("click", handleClick, true);
     },
-    /** Replaces the current result page for enhanced swipe navigation. */
-    async loadSearchPage(url: string): Promise<void> {
-      const response = await requestPage(url);
+    /** Replaces the current result page without deciding browser-history behavior. */
+    async loadSearchPage(url: string, signal?: AbortSignal): Promise<void> {
+      const response = await requestPage(url, { signal });
       if (!replaceSearchPageContent(response.document)) {
         throw new Error(texts.errors.searchPageContentNotFound);
       }
-      window.history.pushState(window.history.state, "", url);
     },
     /** Returns enhanced Search navigation to its input, or the page top when absent. */
     scrollSearchPageToInput(): void {
