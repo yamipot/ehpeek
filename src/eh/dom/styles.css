@@ -322,6 +322,11 @@ body.ehpeek-constrain-results-to-viewport {
 }
 
 .ehpeek-layout-search-grid .ehpeek-search-meta-posted {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
   grid-column: 2;
   grid-row: 1;
   text-align: center !important;
@@ -428,7 +433,6 @@ body.ehpeek-constrain-results-to-viewport {
   height: auto !important;
   min-height: 0 !important;
   max-height: none !important;
-  overflow: hidden !important;
 }
 
 .ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite
@@ -489,11 +493,6 @@ body.ehpeek-constrain-results-to-viewport {
   object-position: top center !important;
 }
 
-.ehpeek-layout-search-grid-lite > tbody > tr > .gl2e,
-.ehpeek-layout-search-grid-lite .gl4e {
-  overflow: hidden !important;
-}
-
 .ehpeek-layout-search-grid-lite .gl4e {
   gap: var(--ui-space-xs) !important;
   height: 100% !important;
@@ -509,8 +508,10 @@ body.ehpeek-constrain-results-to-viewport {
 
 .ehpeek-layout-search-grid-lite .ehpeek-stack-search-grid-tags {
   display: flex !important;
+  flex: 1 1 auto !important;
   flex-wrap: wrap;
   align-items: flex-start;
+  overflow: hidden !important;
   gap: var(--ui-space-xs) var(--ui-space-sm) !important;
 }
 

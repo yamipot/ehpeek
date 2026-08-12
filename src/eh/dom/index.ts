@@ -19,8 +19,9 @@
  * `inplace`, `clone`, and `move` fix ownership immediately without applying
  * presentation changes; `move` also detaches the source node. Repeated
  * acquisition is supported.
- * Use `DomNode.observe` for asynchronously inserted source nodes and choose
- * ownership in its acquire callback; use `ManagedDomNode.observe` after ownership.
+ * Use `DomNode.observe` to discover asynchronously inserted source nodes; its
+ * callback explicitly chooses ownership for whichever source or descendant it manages.
+ * Use `ManagedDomNode.observe` after ownership.
  *
  * Managed `XxxDom` objects separate detached values in `data`, owned nodes in
  * `elems`, and callable behavior in the non-null `handle` object. Every `elems`

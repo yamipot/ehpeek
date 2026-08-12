@@ -85,9 +85,15 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
   input[type="button"],
   input[type="submit"],
   [role="button"],
-  [role="tab"],
-  [data-ehpeek-pressable="true"]
+  [role="tab"]
 ):not(:disabled, [aria-disabled="true"], .cursor-default):hover {
   filter: brightness(1.08);
+  cursor: pointer;
+}
+
+html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
+  .ehpeek-ui-root
+  [data-ehpeek-pressable="true"]:hover {
+  background-image: linear-gradient(rgb(255 255 255 / 8%) 0 0);
   cursor: pointer;
 }

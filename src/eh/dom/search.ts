@@ -45,6 +45,22 @@ type ManagedReadHistoryGrids = {
   };
 };
 
+function listenGalleryLinksOpenInNewTab(
+  host: ManagedDomNode<HTMLElement>,
+): () => void {
+  const handleClick = (event: MouseEvent) => {
+    const link = event.target instanceof Element
+      ? DomNode.from(event.target).closest(domClass.search.results.galleryLinks)
+      : null;
+    if (!link?.closest(domClass.search.results)) {
+      return;
+    }
+    link.inplace().setAttributes({ target: "_blank", rel: "noopener noreferrer" });
+  };
+
+  return host.listen("click", handleClick, true);
+}
+
 function createReadHistoryGridRow(
   item: ReadHistoryPageItem,
   titlePreference: GalleryTitlePreference,
@@ -187,6 +203,9 @@ export function manageReadHistoryPage(
   }
 
   const handle = {
+    /** Applies new-tab semantics to History gallery links at activation time. */
+    listenGalleryLinksOpenInNewTab: () =>
+      listenGalleryLinksOpenInNewTab(grids.elems.resultList),
     /** Replaces the visible History rows without navigating away from the current document. */
     updateReadHistoryItems: grids.handle.updateItems,
     /** Reports explicit removal requests without exposing History rows. */
@@ -294,21 +313,25 @@ export function manageSearchResults() {
       elems.resultList.apply("swipe");
     },
     /** Applies new-tab semantics at activation time so replaced result pages need no rebinding. */
-    listenGalleryLinksOpenInNewTab(): () => void {
-      if (!resultHost) {
-        return () => undefined;
-      }
-      const handleClick = (event: MouseEvent) => {
-        const link = event.target instanceof Element
-          ? DomNode.from(event.target).closest(domClass.search.results.galleryLinks)
-          : null;
-        if (!link?.closest(domClass.search.results)) {
-          return;
+    listenGalleryLinksOpenInNewTab: () => resultHost
+      ? listenGalleryLinksOpenInNewTab(resultHost)
+      : () => undefined,
+    /** Reports rows appended by third-party infinite-scroll integrations. */
+    listenResultRowsAdded(callback: () => void): () => void {
+      const observer = new MutationObserver((records) => {
+        const addedRow = records.some((record) =>
+          Array.from(record.addedNodes).some((node) =>
+            node instanceof HTMLTableRowElement ||
+            (node instanceof Element && node.querySelector("tr"))));
+        if (addedRow) {
+          callback();
         }
-        link.inplace().setAttributes({ target: "_blank", rel: "noopener noreferrer" });
-      };
-
-      return resultHost.listen("click", handleClick, true);
+      });
+      observer.observe(elems.resultList.Component(), {
+        childList: true,
+        subtree: true,
+      });
+      return () => observer.disconnect();
     },
   };
   return { data, elems, handle };
@@ -316,16 +339,13 @@ export function manageSearchResults() {
 
 export type SearchResultsDom = NonNullable<ReturnType<typeof manageSearchResults>>;
 
-/** Owns the original Search text input, form, submit control, and their events. */
-export function manageSearchTextInput() {
-  const page = DomNode.from(document);
-  const source = page.use(domClass.search);
-  const inputSource = source.input.one();
+/** Owns one original Search text input, its form, submit control, and their events. */
+function manageSearchTextInput(inputSource: DomNode<HTMLInputElement>) {
   const formSource = inputSource?.form() ?? null;
   const submitSource = formSource?.one(domClass.search.submit)
     ?? inputSource?.parent()?.one(domClass.search.submitFallback)
     ?? null;
-  if (!inputSource || !submitSource) {
+  if (!submitSource) {
     return null;
   }
   const elems = {
@@ -402,6 +422,26 @@ export function manageSearchTextInput() {
 
 export type SearchTextInputDom = NonNullable<ReturnType<typeof manageSearchTextInput>>;
 
+/** Observes the original Search bar so consumers also receive asynchronously inserted inputs. */
+export function observeSearchBar(
+  onManaged: (source: SearchTextInputDom) => void | (() => void),
+): () => void {
+  return DomNode.from(document).observe(
+    domClass.search.panel.box,
+    (searchBar) => {
+      const input = searchBar.one(domClass.search.input);
+      if (!input) {
+        return;
+      }
+      const source = manageSearchTextInput(input);
+      if (!source) {
+        return;
+      }
+      return onManaged(source);
+    },
+  );
+}
+
 function manageReadHistoryGrids(
   options: ReadHistoryGridsOptions,
 ): ManagedReadHistoryGrids {
@@ -460,6 +500,7 @@ function manageReadHistoryGrids(
 
 /** Manages the original Search rows with the EhPeek result layout. */
 export function manageSearchGrids(mode: SearchGridMode): void {
+  const managedAttribute = "data-ehpeek-search-grid-managed";
   const page = DomNode.from(document);
   const source = page.use(domClass.search);
   const resultList = source.results.one();
@@ -479,6 +520,9 @@ export function manageSearchGrids(mode: SearchGridMode): void {
   );
 
   function manageSearchGridRow(row: DomNode<HTMLTableRowElement>): EhPeekGridRow | null {
+    if (row.hasAttribute(managedAttribute)) {
+      return null;
+    }
     const thumbnailCell = row.one(domClass.search.results.rows.cover);
     const contentCell = row.one(domClass.search.results.rows.content);
     const detail = contentCell?.one(domClass.search.results.rows.content.detail);
@@ -521,13 +565,15 @@ export function manageSearchGrids(mode: SearchGridMode): void {
       field.inplace().addClasses("ehpeek-search-meta-extra");
     }
 
+    const managedRow = row.inplace();
+    managedRow.attribute(managedAttribute, "true");
     return {
       coverImage: coverImage?.inplace() ?? null,
       detail: detail.inplace(),
       galleryHref: galleryLink?.attribute("href") ?? null,
       galleryLink: galleryLink?.inplace() ?? null,
       metadata: metadata.inplace(),
-      row: row.inplace(),
+      row: managedRow,
       stackTags: true,
       tags: tags.map((item) => item.inplace()),
       title: title?.inplace() ?? null,

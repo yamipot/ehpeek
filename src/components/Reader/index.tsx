@@ -221,6 +221,10 @@ function wireReaderCallbacks(
     pagedMode() &&
     state.ctrls.value().pageLayout === "double" &&
     !(state.ctrls.value().firstPageSeparate && state.navi.currentPageNum() === 1);
+  const stopViewportMotion = () => {
+    pagedTargetPageNumber = null;
+    viewportActions.stopMotion();
+  };
   let readerOrientation = currentReaderOrientation();
   const updateReaderViewportSize = () => {
     state.scrollViewport.setViewportWidth(Math.max(1, window.innerWidth));
@@ -275,7 +279,7 @@ function wireReaderCallbacks(
       controls.pageLayout !== previous.pageLayout ||
       controls.firstPageSeparate !== previous.firstPageSeparate
     ) {
-      viewportActions.stopMotion();
+      stopViewportMotion();
       viewportActions.resetPosition();
       setCurrentPageNumber(state.navi.currentPageNum(), true);
     } else if (controls.direction !== previous.direction) {
@@ -303,7 +307,7 @@ function wireReaderCallbacks(
     if (!image) {
       return false;
     }
-    viewportActions.stopMotion();
+    stopViewportMotion();
     viewportActions.cancelDrag();
     const zoomScale = viewportActions.pageZoomScale(image.pageNum);
     state.overlay.update(image);
@@ -345,7 +349,7 @@ function wireReaderCallbacks(
     maintainLoadQueue();
     notifyActivePageChange();
     if (options.scrollIntoView) {
-      scrollToCurrentPage(options.scrollMotion);
+      scrollToCurrentPage({ motion: options.scrollMotion });
     }
     if (missing.length > 0) {
       void loadMissingPages(missing, token);
@@ -497,11 +501,10 @@ function wireReaderCallbacks(
     const base = pagedTargetPageNumber ?? state.navi.currentPageNum();
     const target = clamp(Math.round(base + delta), 1, maxProgressPageNum());
     if (target === base) {
-      scrollToCurrentPage("animated");
+      scrollToCurrentPage({ motion: "animated", overrideTarget: false });
       return;
     }
     if (viewportActions.pageOffset(target) === null) {
-      pagedTargetPageNumber = null;
       setCurrentPageNumber(target, true, "animated");
       return;
     }
@@ -511,12 +514,21 @@ function wireReaderCallbacks(
       if (pagedTargetPageNumber !== target) {
         return;
       }
-      pagedTargetPageNumber = null;
       setCurrentPageNumber(target, true);
     });
   }
 
-  function scrollToCurrentPage(motion: ScrollMotion = "instant"): void {
+  function scrollToCurrentPage({
+    motion = "instant",
+    overrideTarget = true,
+  }: {
+    motion?: ScrollMotion;
+    overrideTarget?: boolean;
+  } = {}): void {
+    if (pagedTargetPageNumber !== null && !overrideTarget) {
+      return;
+    }
+    pagedTargetPageNumber = null;
     viewportActions.moveToPage(state.navi.currentPageNum(), motion);
   }
 
@@ -1103,6 +1115,7 @@ function wireReaderCallbacks(
         zoomOverlay.startDrag();
         return;
       }
+      pagedTargetPageNumber = null;
       viewportActions.beginDrag();
     };
     gesture.onMove = (info: PointerDragEnd): void => {
@@ -1120,7 +1133,7 @@ function wireReaderCallbacks(
       }
       viewportActions.cancelDrag();
       if (isPreviewSwipe(info)) {
-        scrollToCurrentPage("animated");
+        scrollToCurrentPage({ motion: "animated" });
         coordinator.openPreviewPage(state.navi.currentPageNum());
         return;
       }
@@ -1141,7 +1154,7 @@ function wireReaderCallbacks(
         } else if (info.dy <= -PAGED_SWIPE_THRESHOLD) {
           turnPageBy(1);
         } else {
-          scrollToCurrentPage("animated");
+          scrollToCurrentPage({ motion: "animated" });
         }
         return;
       }
@@ -1152,7 +1165,7 @@ function wireReaderCallbacks(
         turnPageBy(state.navi.leftDragDelta());
       }
       else {
-        scrollToCurrentPage("animated");
+        scrollToCurrentPage({ motion: "animated" });
       }
     };
     gesture.onPinchStart = (info: {
@@ -1160,7 +1173,7 @@ function wireReaderCallbacks(
       clientY: number;
     }): boolean => {
       lastZoomTouchTap = null;
-      viewportActions.stopMotion();
+      stopViewportMotion();
       viewportActions.cancelDrag();
       if (!pagedMode() && state.overlay.image() === null) {
         return scrollViewport.startPinch();

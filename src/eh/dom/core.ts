@@ -375,8 +375,7 @@ export class DomNode<T extends ParentNode = ParentNode> {
 
   observe<TElement extends HTMLElement>(
     source: string | DomDefinition<TElement>,
-    acquire: (node: DomNode<TElement>) => ManagedDomNode<TElement> | null,
-    onManaged: (node: ManagedDomNode<TElement>) => void | (() => void),
+    onObserved: (node: DomNode<TElement>) => void | (() => void),
     options: MutationObserverInit = { childList: true, subtree: true },
   ): () => void {
     const seen: DomNode<TElement>[] = [];
@@ -387,11 +386,7 @@ export class DomNode<T extends ParentNode = ParentNode> {
           continue;
         }
         seen.push(node);
-        const managed = acquire(node);
-        if (!managed) {
-          continue;
-        }
-        const cleanup = onManaged(managed);
+        const cleanup = onObserved(node);
         if (cleanup) {
           cleanups.push(cleanup);
         }

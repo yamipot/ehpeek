@@ -190,6 +190,9 @@ configureUi({
 });
 const PRESS_MIN_VISIBLE_MS = 100;
 const PRESS_MOVE_TOLERANCE_PX = 8;
+const UI_INTERACTION_SELECTOR =
+  "a[href], button, input, select, textarea, label, [onclick], [role=button], [role=tab]";
+const UI_PRESSABLE_SELECTOR = "[data-ehpeek-pressable=true]";
 let pressedInteraction: HTMLElement | undefined;
 let pressedClearTimer: number | undefined;
 let pendingPress: {
@@ -223,9 +226,7 @@ document.addEventListener("pointerdown", (event) => {
   }
   clearPressedInteraction();
   const interaction = event.target instanceof Element
-    ? event.target.closest<HTMLElement>(
-      "[data-ehpeek-pressable=true], a[href], button, input, select, textarea, label, [onclick], [role=button], [role=tab]",
-    )
+    ? event.target.closest<HTMLElement>(UI_INTERACTION_SELECTOR)
     : null;
   if (!interaction?.closest(".ehpeek-ui-root")) {
     return;
@@ -247,6 +248,17 @@ document.addEventListener("pointerup", (event) => {
 }, {
   capture: true,
   passive: true,
+});
+document.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target : null;
+  const interaction = target?.closest(UI_INTERACTION_SELECTOR);
+  const pressable = target?.closest<HTMLElement>(UI_PRESSABLE_SELECTOR);
+  if (interaction || !pressable?.closest(".ehpeek-ui-root")) {
+    return;
+  }
+  clearPressedInteraction();
+  showPressedInteraction(pressable);
+  releasePressedInteraction();
 });
 document.addEventListener("pointercancel", clearPressedInteraction, {
   capture: true,
@@ -389,6 +401,16 @@ function installSettingsMenu(): void {
 }
 
 function injectCommon(page: eh.PageType): void {
+  if (gState.settings.searchHistoryEnabled) {
+    allowFeatureFailure("Search history", () => {
+      let host: ReturnType<typeof createAppMount> | null = null;
+      eh.observeSearchBar((source) => {
+        host ??= createAppMount();
+        host.mount(() => <SearchHistory source={source} />);
+      });
+    });
+  }
+
   if (!gState.settings.touchUiEnabled) {
     allowFeatureFailure("Desktop settings entry", () => {
       const settingsMount = eh.manageSettingsMenuMount();
@@ -718,13 +740,29 @@ function injectSearchPage(
   };
   allowFeatureFailure("Search Read History appearance", updateSearchReadHistoryAppearance);
 
+  let stopObservingAppendedResults: () => void = () => undefined;
+  const observeAppendedResults = (source: eh.SearchResultsDom) => {
+    stopObservingAppendedResults();
+    stopObservingAppendedResults = source.handle.listenResultRowsAdded(() => {
+      allowFeatureFailure("Appended Search results", () => {
+        if (searchGridMode) {
+          eh.manageSearchGrids(searchGridMode);
+        }
+        updateSearchReadHistoryAppearance();
+      });
+    });
+  };
+  observeAppendedResults(initialResultsDom);
+
   if (gState.settings.openGalleryInNewTab) {
     allowFeatureFailure("Gallery links in new tabs", () => {
       initialResultsDom.handle.listenGalleryLinksOpenInNewTab();
     });
   }
   const updateSearchPage = (source: eh.SearchResultsDom) => {
+    markUiRoot(source.elems.resultList.Component());
     setResultsDom(source);
+    observeAppendedResults(source);
     updateSearchGridModeSelector();
     if (searchGridMode) {
       eh.manageSearchGrids(searchGridMode);
@@ -755,7 +793,6 @@ function injectSearchPage(
       resultsDom().handle.updateResultColumns(gState.columnsEnabled());
     });
     mountSearchPagination((source) => {
-      markUiRoot(source.elems.resultList.Component());
       updateSearchPage(source);
       touchResultsDom.handle.updateTouchResultsLayout();
     });
@@ -763,16 +800,6 @@ function injectSearchPage(
     mountSearchPagination(updateSearchPage);
   }
 
-  if (gState.settings.searchHistoryEnabled) {
-    allowFeatureFailure("Search history", () => {
-      const searchTextInput = eh.manageSearchTextInput();
-      if (!searchTextInput) {
-        return;
-      }
-      const host = createAppMount();
-      host.mount(() => <SearchHistory source={searchTextInput} />);
-    });
-  }
 }
 
 function injectReadHistoryPage(
@@ -799,6 +826,10 @@ function injectReadHistoryPage(
     ),
   );
   markUiRoot(historyDom.elems.resultList.Component());
+  markUiRoot(historyDom.elems.navigationBottomMount.Component());
+  if (gState.settings.openGalleryInNewTab) {
+    historyDom.handle.listenGalleryLinksOpenInNewTab();
+  }
   if (gState.settings.touchUiEnabled) {
     createEffect(() => {
       historyDom.handle.updateResultColumns(gState.columnsEnabled());
