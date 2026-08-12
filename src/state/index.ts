@@ -84,7 +84,7 @@ export const state = {
     myTagSets: localJson("ehpeek:my-tag-sets", [], isMyTagSetOption),
     readHistory: persisted("ehpeek:read-history:enabled", true),
     includeUnreadHistory: persisted("ehpeek:read-history:include-unread", true),
-    readHistoryCount: persisted("ehpeek:history-count", 0),
+    readHistoryCompactEstimate: persisted("ehpeek:history-count", 0),
     titlePreference: localEnum<GalleryTitlePreference>(
       "ehpeek:gallery-title-preference",
       "main",

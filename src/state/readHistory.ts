@@ -29,10 +29,6 @@ export type ReadingProgress = {
   totalPages: number | null;
 };
 
-type StoredReadHistoryRecord = ReadHistoryRecord & {
-  queueOrder: string;
-};
-
 type ReadHistoryArchiveGallery = GalleryHistoryInfo;
 
 type ReadHistoryArchiveRecord = {
@@ -108,8 +104,7 @@ export class ReadingProgressSession {
     }
 
     if (!this.sameProgress(this.pending, this.lastSaved)) {
-      saveReadHistory(this.pending);
-      this.lastSaved = this.pending;
+      this.lastSaved = saveReadHistory(this.pending);
     }
 
     this.pending = null;
@@ -148,39 +143,22 @@ export class ReadingProgressSession {
 }
 
 export function loadReadHistory(galleryId: number, token: string): ReadHistoryRecord | null {
-  return GM_getValue<StoredReadHistoryRecord | null>(historyKey(galleryId, token), null);
-}
-
-export function loadReadHistoryRecords(): ReadHistoryRecord[] {
-  return GM_listValues()
-    .filter((key) => key.startsWith(HISTORY_QUEUE_KEY_PREFIX))
-    .sort((left, right) => right.localeCompare(left))
-    .map((key) => {
-      const reference = GM_getValue<string | null>(key, null);
-      if (!reference) {
-        return null;
-      }
-
-      const record = GM_getValue<StoredReadHistoryRecord | null>(
-        `${HISTORY_KEY_PREFIX}${reference}`,
-        null,
-      );
-      return record?.queueOrder === queueOrderFromKey(key) ? record : null;
-    })
-    .filter((record): record is StoredReadHistoryRecord => record !== null);
+  return GM_getValue<ReadHistoryRecord | null>(historyKey(galleryId, token), null);
 }
 
 export function loadDisplayReadHistoryRecords(): DisplayReadHistoryRecord[] {
-  return loadReadHistoryRecords().filter(
-    (record): record is DisplayReadHistoryRecord => record.gallery !== undefined,
-  );
+  const keys = GM_listValues();
+  clearLegacyHistoryQueue(keys);
+  return loadAllReadHistoryRecords(keys)
+    .filter((record): record is DisplayReadHistoryRecord => record.gallery !== undefined)
+    .slice(0, READ_HISTORY_LIMIT);
 }
 
 export function exportReadHistory(): string {
   const archive: ReadHistoryArchive = {
     type: READ_HISTORY_ARCHIVE_TYPE,
     version: READ_HISTORY_ARCHIVE_VERSION,
-    records: loadReadHistoryRecords().map((record) => ({
+    records: loadAllReadHistoryRecords().map((record) => ({
       galleryId: record.galleryId,
       gallery: mergeGalleryInfo(undefined, record.gallery),
       pageNum: record.pageNum,
@@ -214,16 +192,15 @@ export function importReadHistory(source: string): number {
 
   for (const [reference, record] of imported) {
     const key = `${HISTORY_KEY_PREFIX}${reference}`;
-    const previous = GM_getValue<StoredReadHistoryRecord | null>(key, null);
+    const previous = GM_getValue<ReadHistoryRecord | null>(key, null);
     const importedIsNewer = !previous || record.updatedAt >= previous.updatedAt;
     const retained = importedIsNewer ? record : previous;
-    GM_setValue(key, {
+    GM_setValue(key, storedReadHistoryRecord({
       ...retained,
       gallery: importedIsNewer
         ? mergeGalleryInfo(previous?.gallery, record.gallery)
         : mergeGalleryInfo(record.gallery, previous.gallery),
-      queueOrder: previous?.queueOrder ?? "",
-    });
+    }));
   }
 
   pruneReadHistory();
@@ -236,20 +213,19 @@ export function clearReadHistory(): void {
       GM_deleteValue(key);
     }
   }
-  state.gallery.readHistoryCount.set(0);
+  state.gallery.readHistoryCompactEstimate.set(0);
 }
 
 export function removeReadHistory(galleryId: number, token: string): void {
   const key = historyKey(galleryId, token);
-  const record = GM_getValue<StoredReadHistoryRecord | null>(key, null);
+  const record = GM_getValue<ReadHistoryRecord | null>(key, null);
   if (!record) {
     return;
   }
 
   GM_deleteValue(key);
-  GM_deleteValue(queueKey(record.queueOrder));
-  state.gallery.readHistoryCount.set(
-    Math.max(0, state.gallery.readHistoryCount.reload() - 1),
+  state.gallery.readHistoryCompactEstimate.set(
+    Math.max(0, state.gallery.readHistoryCompactEstimate.reload() - 1),
   );
 }
 
@@ -266,8 +242,7 @@ export function updateReadHistoryGalleryInfo(
     ...record,
     gallery: mergeGalleryInfo(record.gallery, gallery),
   };
-  GM_setValue(historyKey(galleryId, token), updated);
-  return updated;
+  return saveReadHistory(updated);
 }
 
 export function recordGalleryVisit(
@@ -292,31 +267,37 @@ export function recordGalleryVisit(
       totalPages,
       updatedAt: Date.now(),
     };
-  saveReadHistory(record);
-  return record;
+  return saveReadHistory(record);
 }
 
-function saveReadHistory(record: ReadHistoryRecord): void {
+function saveReadHistory(record: ReadHistoryRecord): ReadHistoryRecord {
   const key = historyKey(record.galleryId, record.token);
-  const previous = GM_getValue<StoredReadHistoryRecord | null>(key, null);
+  const previous = GM_getValue<ReadHistoryRecord | null>(key, null);
   const exists = previous !== null;
-  const queueOrder = createQueueOrder(record);
+  if (previous && previous.updatedAt > record.updatedAt) {
+    const retained = storedReadHistoryRecord({
+      ...previous,
+      gallery: mergeGalleryInfo(previous.gallery, record.gallery),
+    });
+    GM_setValue(key, retained);
+    return retained;
+  }
 
-  GM_setValue(key, {
+  const saved = storedReadHistoryRecord({
     ...record,
     gallery: mergeGalleryInfo(previous?.gallery, record.gallery),
-    queueOrder,
   });
-  GM_setValue(queueKey(queueOrder), historyReference(record.galleryId, record.token));
+  GM_setValue(key, saved);
 
   if (!exists) {
-    const count = state.gallery.readHistoryCount.reload() + 1;
-    state.gallery.readHistoryCount.set(count);
+    const estimate = state.gallery.readHistoryCompactEstimate.reload() + 1;
+    state.gallery.readHistoryCompactEstimate.set(estimate);
 
-    if (count >= HISTORY_COMPACT_THRESHOLD) {
+    if (estimate >= HISTORY_COMPACT_THRESHOLD) {
       pruneReadHistory();
     }
   }
+  return saved;
 }
 
 function mergeGalleryInfo(
@@ -464,13 +445,29 @@ function historyKey(galleryId: number, token: string): string {
   return `${HISTORY_KEY_PREFIX}${historyReference(galleryId, token)}`;
 }
 
+function loadAllReadHistoryRecords(keys = GM_listValues()): ReadHistoryRecord[] {
+  return keys
+    .filter((key) => key.startsWith(HISTORY_KEY_PREFIX))
+    .map((key) => GM_getValue<ReadHistoryRecord | null>(key, null))
+    .filter((record): record is ReadHistoryRecord => record !== null)
+    .sort((left, right) => right.updatedAt - left.updatedAt);
+}
+
+function clearLegacyHistoryQueue(keys: string[]): void {
+  // TODO: Remove this one-time hist_q migration cleanup after existing installs have opened History.
+  for (const key of keys) {
+    if (key.startsWith(HISTORY_QUEUE_KEY_PREFIX)) {
+      GM_deleteValue(key);
+    }
+  }
+}
+
 function pruneReadHistory(): void {
   const keys = GM_listValues();
-  const queueKeys = keys.filter((key) => key.startsWith(HISTORY_QUEUE_KEY_PREFIX));
   const records = keys
     .filter((key) => key.startsWith(HISTORY_KEY_PREFIX))
-    .map((key) => ({ key, record: GM_getValue<StoredReadHistoryRecord | null>(key, null) }))
-    .filter((entry): entry is { key: string; record: StoredReadHistoryRecord } =>
+    .map((key) => ({ key, record: GM_getValue<ReadHistoryRecord | null>(key, null) }))
+    .filter((entry): entry is { key: string; record: ReadHistoryRecord } =>
       entry.record !== null,
     )
     .sort((left, right) => right.record.updatedAt - left.record.updatedAt);
@@ -480,43 +477,20 @@ function pruneReadHistory(): void {
     GM_deleteValue(entry.key);
   }
 
-  retained.forEach((entry) => {
-    const queueOrder = createQueueOrder(entry.record);
-    const record = { ...entry.record, queueOrder };
-    GM_setValue(entry.key, record);
-    GM_setValue(
-      queueKey(queueOrder),
-      historyReference(record.galleryId, record.token),
-    );
-  });
-
-  for (const key of queueKeys) {
-    const reference = GM_getValue<string | null>(key, null);
-    const record = reference
-      ? GM_getValue<StoredReadHistoryRecord | null>(`${HISTORY_KEY_PREFIX}${reference}`, null)
-      : null;
-    if (!record || queueKey(record.queueOrder) !== key) {
-      GM_deleteValue(key);
-    }
-  }
-
-  state.gallery.readHistoryCount.set(retained.length);
+  state.gallery.readHistoryCompactEstimate.set(retained.length);
 }
 
 function historyReference(galleryId: number, token: string): string {
   return `${galleryId}:${token}`;
 }
 
-function queueKey(order: string): string {
-  return `${HISTORY_QUEUE_KEY_PREFIX}${order}`;
-}
-
-function queueOrderFromKey(key: string): string {
-  return key.slice(HISTORY_QUEUE_KEY_PREFIX.length);
-}
-
-function createQueueOrder(
-  record: Pick<ReadHistoryRecord, "galleryId" | "updatedAt">,
-): string {
-  return `${record.updatedAt}-${record.galleryId}`;
+function storedReadHistoryRecord(record: ReadHistoryRecord): ReadHistoryRecord {
+  return {
+    galleryId: record.galleryId,
+    gallery: record.gallery,
+    token: record.token,
+    pageNum: record.pageNum,
+    totalPages: record.totalPages,
+    updatedAt: record.updatedAt,
+  };
 }
