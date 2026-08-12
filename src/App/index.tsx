@@ -721,9 +721,9 @@ function injectSearchPage(
       state.search.grid.value,
       (mode) => {
         state.search.grid.set(mode);
-        window.location.assign(
-          new URL("/?inline_set=dm_e", window.location.href).href,
-        );
+        const url = new URL(window.location.href);
+        url.searchParams.set("inline_set", "dm_e");
+        window.location.assign(url.href);
       },
       () => {
         state.search.grid.set(null);

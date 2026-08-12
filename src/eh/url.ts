@@ -43,6 +43,7 @@ type EhSiteTheme = "e-hentai" | "exhentai";
 
 const EXHENTAI_HOST = "exhentai.org";
 const EXHENTAI_ONION_HOST = "exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion";
+const SEARCH_CATEGORY_PATH = /^\/(?:doujinshi|manga|artistcg|gamecg|western|non-h|imageset|cosplay|asianporn|misc)\/?$/i;
 
 export function ehSiteTheme(url = window.location.href): EhSiteTheme {
   const hostname = new URL(url, window.location.href).hostname;
@@ -160,6 +161,7 @@ export function extractPageType(url = window.location.href): PageType {
 
     if (
       parsed.pathname === "/" ||
+      SEARCH_CATEGORY_PATH.test(parsed.pathname) ||
       parsed.pathname.startsWith("/tag/") ||
       parsed.pathname.startsWith("/uploader/") ||
       /^\/(?:popular|watched)\/?$/.test(parsed.pathname)
