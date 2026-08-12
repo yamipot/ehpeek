@@ -430,9 +430,11 @@ body.ehpeek-constrain-results-to-viewport {
 
 .ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite > tbody > tr {
   aspect-ratio: 3 / 1;
+  width: min(100%, 1134px) !important;
   height: auto !important;
   min-height: 0 !important;
   max-height: none !important;
+  margin-inline: auto !important;
 }
 
 .ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite
