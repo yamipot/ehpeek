@@ -141,6 +141,8 @@
     "openGalleryInNewTabHelp": "Opens gallery links in a new browser tab",
     "uiControlsLabel": "UI Layout",
     "uiScaleLabel": "UI Scale",
+    "portraitUiScaleLabel": "Portrait UI Scale",
+    "landscapeUiScaleLabel": "Landscape UI Scale",
     "leftHandedControlsLabel": "Left-handed controls",
     "columnsLabel": "Two Columns",
     "enhance": "Enhance",

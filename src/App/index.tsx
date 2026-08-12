@@ -83,7 +83,8 @@ function settingsMenuState(defaults = false) {
     includeUnreadHistoryEnabled: read(state.gallery.includeUnreadHistory),
     searchHistoryEnabled: read(state.search.history),
     touchUiEnabled: read(state.touch.enabled),
-    uiScale: read(currentUiScaleSetting()),
+    portraitUiScale: read(state.app.portraitUiScale),
+    landscapeUiScale: read(state.app.landscapeUiScale),
   };
 }
 
@@ -106,7 +107,8 @@ function applySettingsMenuState(
   state.gallery.includeUnreadHistory.set(next.includeUnreadHistoryEnabled);
   state.search.history.set(next.searchHistoryEnabled);
   state.touch.enabled.set(next.touchUiEnabled);
-  currentUiScaleSetting().set(next.uiScale);
+  state.app.portraitUiScale.set(next.portraitUiScale);
+  state.app.landscapeUiScale.set(next.landscapeUiScale);
   window.location.reload();
 }
 
@@ -390,7 +392,12 @@ function installSettingsMenu(): void {
         leftHandedControls={gState.leftHandedControls}
         open={gState.settingsMenuOpen()}
         defaultState={settingsMenuState(true)}
-        initState={{ ...gState.settings, uiScale: gState.uiScale() }}
+        initState={{
+          ...gState.settings,
+          ...(window.matchMedia("(orientation: landscape)").matches
+            ? { landscapeUiScale: gState.uiScale() }
+            : { portraitUiScale: gState.uiScale() }),
+        }}
         onApply={(next) => {
           applySettingsMenuState(next);
         }}

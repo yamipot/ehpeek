@@ -141,6 +141,8 @@
     "openGalleryInNewTabHelp": "在新的浏览器标签页中打开画廊链接",
     "uiControlsLabel": "界面布局",
     "uiScaleLabel": "界面缩放",
+    "portraitUiScaleLabel": "竖屏界面缩放",
+    "landscapeUiScaleLabel": "横屏界面缩放",
     "leftHandedControlsLabel": "左手控制",
     "columnsLabel": "双栏",
     "enhance": "增强",

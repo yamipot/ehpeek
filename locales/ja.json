@@ -141,6 +141,8 @@
     "openGalleryInNewTabHelp": "ギャラリーリンクをブラウザーの新しいタブで開きます",
     "uiControlsLabel": "UI レイアウト",
     "uiScaleLabel": "UI スケール",
+    "portraitUiScaleLabel": "縦向き UI スケール",
+    "landscapeUiScaleLabel": "横向き UI スケール",
     "leftHandedControlsLabel": "左手用コントロール",
     "columnsLabel": "2 列",
     "enhance": "拡張",

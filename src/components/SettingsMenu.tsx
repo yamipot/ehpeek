@@ -36,7 +36,8 @@ type SettingsMenuState = {
   includeUnreadHistoryEnabled: boolean;
   searchHistoryEnabled: boolean;
   touchUiEnabled: boolean;
-  uiScale: UiScale;
+  portraitUiScale: UiScale;
+  landscapeUiScale: UiScale;
 };
 
 type SettingsTab = "general" | "enhance" | "options" | "about";
@@ -373,12 +374,21 @@ export function SettingsMenu(props: {
               onChange={(value) => updateDraft("includeUnreadHistoryEnabled", value)}
             />
             <SelectSetting
-              label={texts.settings.uiScaleLabel}
+              label={texts.settings.portraitUiScaleLabel}
               options={UI_SCALE_OPTIONS}
-              value={draft.uiScale}
+              value={draft.portraitUiScale}
               onChange={(value) => {
                 setChanged(true);
-                setDraft("uiScale", value);
+                setDraft("portraitUiScale", value);
+              }}
+            />
+            <SelectSetting
+              label={texts.settings.landscapeUiScaleLabel}
+              options={UI_SCALE_OPTIONS}
+              value={draft.landscapeUiScale}
+              onChange={(value) => {
+                setChanged(true);
+                setDraft("landscapeUiScale", value);
               }}
             />
             <SelectSetting
