@@ -862,6 +862,10 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   line-height: 1.2 !important;
 }
 
+.ehpeek-hide-original-top-bar {
+  display: none !important;
+}
+
 .ehpeek-layout-top-bar-menu-item {
   min-height: var(--ui-control-size-lg) !important;
   padding: var(--ui-space-md) !important;

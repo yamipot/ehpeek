@@ -6,7 +6,7 @@ import {
   For,
   type Accessor,
 } from "solid-js";
-import type { TopBarDom } from "../../eh";
+import type { TopBarDom, TopBarNavigationItem } from "../../eh";
 import {
   nextUiScale,
   type UiScale,
@@ -126,10 +126,21 @@ function TouchTopBarUiMenu(props: {
 
 function TouchTopBarMenu(props: {
   leftHanded: Accessor<boolean>;
-  navItems: TopBarDom["elems"]["navItems"];
+  source: TopBarDom;
 }) {
   const [open, setOpen] = createSignal(false);
+  const [navItems, setNavItems] = createSignal<TopBarNavigationItem[]>([]);
   let root!: HTMLDivElement;
+
+  const toggleMenu = () => {
+    setOpen((value) => {
+      const next = !value;
+      if (next) {
+        setNavItems(props.source.handle.readNavigationItems());
+      }
+      return next;
+    });
+  };
 
   onMount(() => {
     const onClick = (event: MouseEvent) => {
@@ -156,7 +167,7 @@ function TouchTopBarMenu(props: {
         aria-expanded={open()}
         onClick={(event: MouseEvent) => {
           event.stopPropagation();
-          setOpen((value) => !value);
+          toggleMenu();
         }}
       >
         <Icon name="menu" size={TOUCH_TOP_BAR_ICON_SIZE} />
@@ -166,10 +177,20 @@ function TouchTopBarMenu(props: {
           class="absolute top-[calc(100%+var(--ui-space-xs))] right-0 z-overlay flex w-max min-w-[calc(var(--ui-control-size-xl)*2.25)] max-w-[calc(100vw-var(--ui-space-md))] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated"
           classList={{ "!right-auto left-0": props.leftHanded() }}
         >
-          <For each={props.navItems}>{(item) => {
-            const Component = item.Component;
-            return <Component />;
-          }}</For>
+          <For each={navItems()}>{(item) => (
+            <a
+              class="ehpeek-layout-top-bar-menu-item"
+              href={item.href}
+              target={item.target ?? undefined}
+              onClick={(event: MouseEvent) => {
+                event.preventDefault();
+                setOpen(false);
+                props.source.handle.activateNavigationItem(item.index);
+              }}
+            >
+              {item.label}
+            </a>
+          )}</For>
         </div>
       </Show>
     </div>
@@ -252,7 +273,7 @@ export function TouchTopBar(props: {
         </button>
         <TouchTopBarMenu
           leftHanded={props.leftHandedControls.enabled}
-          navItems={props.source.elems.navItems}
+          source={props.source}
         />
       </div>
     </nav>

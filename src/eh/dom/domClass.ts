@@ -374,6 +374,9 @@ const settings = {
 const topBar = {
   galleryTitle: query("#gd2, h1"),
   navigation: id("nb", {
+    apply: {
+      hide: "ehpeek-hide-original-top-bar",
+    },
     childs: {
       links: anchor("a[href]", {
         apply: {

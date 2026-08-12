@@ -3,6 +3,7 @@ import {
   createManagedElement,
   DomNode,
   type ManagedDomElements,
+  type ManagedDomNode,
 } from "./core";
 import { domClass } from "./domClass";
 
@@ -59,15 +60,43 @@ export function manageTopBar() {
 
   const elems = {
     mount,
-    navItems: source.navigation.links.moveAll().map((link) =>
-      link.apply("layout")),
   } satisfies ManagedDomElements;
-  original.inplace().replaceWith(elems.mount);
+  const originalNavigation = original.inplace(domClass.topBar.navigation.apply)
+    .apply("hide")
+    .setAttributes({ "aria-hidden": "true" });
+  let navigationTargets: ManagedDomNode<HTMLAnchorElement>[] = [];
+  originalNavigation.before(elems.mount);
+
+  const handle = {
+    /** Reads the live original navigation only when TouchUI opens its menu. */
+    readNavigationItems(): TopBarNavigationItem[] {
+      const current = source.navigation.links.requery();
+      navigationTargets = current.map((link) => link.inplace());
+      return current.map((link, index) => ({
+        href: link.attribute("href") ?? "#",
+        index,
+        label: link.text(),
+        target: link.attribute("target"),
+      }));
+    },
+    /** Delegates activation to the retained original node, including third-party handlers. */
+    activateNavigationItem(index: number): void {
+      navigationTargets[index]?.click();
+    },
+  };
 
   return {
     data,
     elems,
+    handle,
   };
 }
+
+export type TopBarNavigationItem = {
+  href: string;
+  index: number;
+  label: string;
+  target: string | null;
+};
 
 export type TopBarDom = NonNullable<ReturnType<typeof manageTopBar>>;
