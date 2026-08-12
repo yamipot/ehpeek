@@ -321,6 +321,7 @@ export function GalleryInfoPanel(props: {
         <Dialog
           bodyClass="flex flex-col ui-gap-lg ui-pt-lg ui-px-lg"
           label={texts.gallery.rate}
+          lockPageScroll
           onClose={closeRatingPicker}
           title={texts.gallery.rate}
           variant="site"
@@ -660,6 +661,7 @@ function TouchGalleryTagMenu(props: {
         <Dialog
           bodyClass="flex flex-col ui-gap-lg ui-pt-lg ui-px-lg"
           label={texts.gallery.favoriteTag}
+          lockPageScroll
           onClose={closeFavoriteTagDialog}
           title={texts.gallery.favoriteTag}
           variant="site"

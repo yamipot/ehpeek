@@ -12,6 +12,7 @@ export function Dialog(props: {
   bodyClass?: string;
   children: JSX.Element;
   label: string;
+  lockPageScroll?: boolean;
   onClose: () => void;
   title: JSX.Element;
   variant: "reader" | "site";
@@ -19,10 +20,12 @@ export function Dialog(props: {
 }) {
   onMount(() => {
     const scrollRoots = [document.documentElement, document.body];
-    const overflowStyles = scrollRoots.map((root) => ({
-      priority: root.style.getPropertyPriority("overflow"),
-      value: root.style.getPropertyValue("overflow"),
-    }));
+    const overflowStyles = props.lockPageScroll
+      ? scrollRoots.map((root) => ({
+          priority: root.style.getPropertyPriority("overflow"),
+          value: root.style.getPropertyValue("overflow"),
+        }))
+      : [];
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") {
         return;
@@ -31,20 +34,24 @@ export function Dialog(props: {
       event.stopImmediatePropagation();
       props.onClose();
     };
-    for (const root of scrollRoots) {
-      root.style.setProperty("overflow", "hidden", "important");
+    if (props.lockPageScroll) {
+      for (const root of scrollRoots) {
+        root.style.setProperty("overflow", "hidden", "important");
+      }
     }
     window.addEventListener("keydown", closeOnEscape, true);
     onCleanup(() => {
       window.removeEventListener("keydown", closeOnEscape, true);
-      scrollRoots.forEach((root, index) => {
-        const previous = overflowStyles[index];
-        if (previous?.value) {
-          root.style.setProperty("overflow", previous.value, previous.priority);
-        } else {
-          root.style.removeProperty("overflow");
-        }
-      });
+      if (props.lockPageScroll) {
+        scrollRoots.forEach((root, index) => {
+          const previous = overflowStyles[index];
+          if (previous?.value) {
+            root.style.setProperty("overflow", previous.value, previous.priority);
+          } else {
+            root.style.removeProperty("overflow");
+          }
+        });
+      }
     });
   });
 

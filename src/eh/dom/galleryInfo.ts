@@ -633,6 +633,9 @@ export function mutateGalleryWideLayout(
       layout.append(left, right, ...(footer ? [footer] : []));
       left.append(...leftNodes);
       right.append(...rightNodes);
+      // Moving the Gallery into columns changes its available width without a
+      // viewport resize, so notify page scripts that size their original DOM.
+      window.dispatchEvent(new Event("resize"));
       return;
     }
 
@@ -646,6 +649,7 @@ export function mutateGalleryWideLayout(
       layout = null;
       html.removeClasses("ehpeek-gallery-wide-layout-root");
       body.removeClasses("ehpeek-gallery-wide-layout-root");
+      window.dispatchEvent(new Event("resize"));
     }
   };
 

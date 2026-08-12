@@ -1086,6 +1086,32 @@ body.ehpeek-touch-gallery-page #cdiv {
   line-height: 1.5 !important;
 }
 
+body.ehpeek-touch-gallery-page #cdiv .c2 {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  height: auto !important;
+}
+
+body.ehpeek-touch-gallery-page #cdiv .c2 > .c3 {
+  flex: 1 1 auto;
+  order: 1;
+  margin-right: auto;
+}
+
+body.ehpeek-touch-gallery-page #cdiv .c2 > .c5 {
+  order: 2;
+  width: auto !important;
+  white-space: nowrap;
+}
+
+body.ehpeek-touch-gallery-page #cdiv .c2 > .c4 {
+  order: 3;
+  width: auto !important;
+  white-space: nowrap;
+}
+
 body.ehpeek-touch-gallery-page #cdiv .c6 {
   font-size: var(--ui-font-size-lg) !important;
   line-height: 1.5 !important;
