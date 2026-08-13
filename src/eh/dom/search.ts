@@ -22,6 +22,7 @@ type EhPeekGridRow = {
   galleryHref: string | null;
   galleryLink: ManagedDomNode<HTMLElement> | null;
   metadata: ManagedDomNode<HTMLElement>;
+  originalGalleryLink: boolean;
   row: ManagedDomNode<HTMLTableRowElement>;
   stackTags: boolean;
   tags: ManagedDomNode<HTMLElement>[];
@@ -166,6 +167,7 @@ function createReadHistoryGridRow(
     galleryHref,
     galleryLink,
     metadata,
+    originalGalleryLink: false,
     row,
     stackTags: false,
     tags: [historyActions],
@@ -199,7 +201,7 @@ export function manageReadHistoryPage(
   grids.elems.resultList.before(navigationTopMount);
   grids.elems.resultList.after(navigationBottomMount);
   for (const control of page.all(domClass.search.controls, anyDomNode)) {
-    control.inplace().remove();
+    control.inplace().hideOriginal();
   }
 
   const handle = {
@@ -575,6 +577,7 @@ export function manageSearchGrids(mode: SearchGridMode): void {
       galleryHref: galleryLink?.attribute("href") ?? null,
       galleryLink: galleryLink?.inplace() ?? null,
       metadata: metadata.inplace(),
+      originalGalleryLink: true,
       row: managedRow,
       stackTags: true,
       tags: tags.map((item) => item.inplace()),
@@ -638,7 +641,11 @@ function manageEhPeekGrid(
         .attribute("href", source.galleryHref).replaceClasses("block min-w-0 ehp-color-site-text no-underline");
       titleLink.append(title);
       galleryLink.before(detail);
-      galleryLink.remove();
+      if (source.originalGalleryLink) {
+        galleryLink.hideOriginal();
+      } else {
+        galleryLink.remove();
+      }
       detail.replaceChildren(titleLink, metadata, ...tags);
       ensureEhPeekGridRowNavigation(
         row,

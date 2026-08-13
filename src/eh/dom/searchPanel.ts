@@ -71,7 +71,7 @@ export function manageSearchPanel() {
   elems.searchInput.replaceWith(elems.searchControls);
   elems.searchControls.append(elems.searchInput);
   if (elems.clearButton && elems.clearActionMount) {
-    elems.clearButton.remove();
+    elems.clearButton.hideOriginal();
     elems.searchControls.append(elems.clearActionMount);
   }
   elems.searchControls.append(elems.searchActionMount);
@@ -81,11 +81,11 @@ export function manageSearchPanel() {
   }
   if (elems.optionLinks && elems.advancedToggle && elems.advancedToggleMount) {
     elems.advancedToggle.after(elems.advancedToggleMount);
-    elems.advancedToggle.remove();
+    elems.advancedToggle.hideOriginal();
   }
   if (elems.optionLinks && elems.fileSearchToggle && elems.fileSearchToggleMount) {
     elems.fileSearchToggle.after(elems.fileSearchToggleMount);
-    elems.fileSearchToggle.remove();
+    elems.fileSearchToggle.hideOriginal();
   }
   const formInsideSearchBox = source.box.form.one()?.sameNode(form) ?? false;
   const formId = form.attribute("id") || "ehpeek-search-form";

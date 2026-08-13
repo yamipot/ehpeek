@@ -531,7 +531,7 @@ export function manageGalleryInfo(
 
       const addNewTag = actions.find((action) =>
         action.readAttribute("onclick")?.includes("toggle_tagmenu"));
-      addNewTag?.remove();
+      addNewTag?.hideOriginal();
     },
     /** Closes E-H's selected tag without replacing its action DOM. */
     closeGalleryTagMenu(): void {

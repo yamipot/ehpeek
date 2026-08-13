@@ -187,6 +187,7 @@ const gallery = {
     ),
     imageLinkHost: query("#gdt, .gdtm, .gdtl"),
     pageBarBottom: cls("ptb"),
+    pageBarHost: cls("gtb"),
     pageBarTop: cls("ptt"),
     thumbs: id("gdt", {
       apply: {

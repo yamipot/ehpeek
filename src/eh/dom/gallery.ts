@@ -277,6 +277,12 @@ export function manageGalleryPreview(
   const thumbsSource = source.thumbs.one();
   const pageBarTopSource = source.pageBarTop.one();
   const pageBarBottomSource = source.pageBarBottom.one();
+  const pageBarTopHostSource = pageBarTopSource?.closest(
+    domClass.gallery.preview.pageBarHost,
+  );
+  const pageBarBottomHostSource = pageBarBottomSource?.closest(
+    domClass.gallery.preview.pageBarHost,
+  );
   const createPageBarMount = (position: "bottom" | "top") =>
     createManagedElement("div").replaceClasses(
       `w-max max-w-full mx-auto overflow-x-auto touch-pan-y [-webkit-overflow-scrolling:touch] [&[data-dragging=true]]:select-none ${position === "top" ? "mt-2px mb-0" : "mt-0 mb-10px"}`,
@@ -286,7 +292,9 @@ export function manageGalleryPreview(
       ? createManagedElement("div").replaceClasses("contents")
       : null,
     originalPageBarBottom: pageBarBottomSource?.inplace() ?? null,
+    originalPageBarBottomHost: pageBarBottomHostSource?.inplace() ?? null,
     originalPageBarTop: pageBarTopSource?.inplace() ?? null,
+    originalPageBarTopHost: pageBarTopHostSource?.inplace() ?? null,
     originalPageDescription: pageDescriptionSource?.inplace() ?? null,
     pageBarBottom: pageBarBottomSource ? createPageBarMount("bottom") : null,
     pageBarDescription: pageDescriptionSource && pageBarTopSource
@@ -341,12 +349,13 @@ export function manageGalleryPreview(
     updatePreviewLoading(loading: boolean): void {
       elems.thumbs?.attribute("aria-busy", String(loading));
     },
-    /** Removes the original Preview UI after its data has been detached for Scroll Preview. */
-    removeOriginalPreview(): void {
-      elems.originalPageBarTop?.remove();
-      elems.originalPageBarBottom?.remove();
-      elems.originalPageDescription?.remove();
-      elems.thumbs?.remove();
+    /** Gives Scroll Preview its own layout box while retaining the original Preview DOM. */
+    installScrollPreviewMount(): void {
+      elems.mount?.replaceClasses("ehpeek-scroll-preview-mount");
+      elems.originalPageBarTopHost?.hideOriginal();
+      elems.originalPageBarBottomHost?.hideOriginal();
+      elems.originalPageDescription?.hideOriginal();
+      elems.thumbs?.hideOriginal();
     },
     /** Replaces both original page bars with mounts owned by EhPeek pagination. */
     installPreviewPageBars(): void {

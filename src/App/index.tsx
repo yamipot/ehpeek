@@ -566,7 +566,7 @@ function injectGalleryPreview(
 
   allowFeatureFailure("Gallery Preview enhancements", () => {
     if (gState.settings.replacePreviewWithScroll) {
-      preview.handle.removeOriginalPreview();
+      preview.handle.installScrollPreviewMount();
     }
     previewMount.mount(() => (
       <OverlayHostProvider host={overlayHost}>
@@ -577,11 +577,11 @@ function injectGalleryPreview(
               gState.settings.replacePreviewWithScroll &&
               gState.settings.touchUiEnabled &&
               gState.columnsEnabled(),
-            "relative [--scroll-preview-height:55lvh] [width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90lvh)] mx-auto":
+            "relative [--scroll-preview-height:55lvh] w-[calc(100%-(var(--touch-gallery-gutter)*2))] mx-auto":
               gState.settings.replacePreviewWithScroll &&
               gState.settings.touchUiEnabled &&
               !gState.columnsEnabled(),
-            "relative [--scroll-preview-height:70svh] w-[min(calc(100%-32px),1212px)] mx-auto":
+            "relative [--scroll-preview-height:70svh] w-[calc(100%-32px)] mx-auto":
               gState.settings.replacePreviewWithScroll &&
               !gState.settings.touchUiEnabled,
           }}

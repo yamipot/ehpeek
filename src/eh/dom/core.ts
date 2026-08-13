@@ -4,6 +4,7 @@ import { markUiRoot } from "../../ui";
 import { externalDom } from "./external";
 
 const MANAGED_DOM_NODE_CLASS = "ehpeek-managed";
+const HIDDEN_ORIGINAL_DOM_NODE_CLASS = "ehpeek-hide-original-node";
 const EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor";
 const mountedNodes = new WeakMap<HTMLElement, () => void>();
 let managedDocumentElement: ManagedDomNode<HTMLElement> | null = null;
@@ -734,6 +735,11 @@ export class ManagedDomNode<
 
   setHidden(hidden: boolean): this {
     this.#node.hidden = hidden;
+    return this;
+  }
+
+  hideOriginal(): this {
+    this.#node.classList.add(HIDDEN_ORIGINAL_DOM_NODE_CLASS);
     return this;
   }
 
