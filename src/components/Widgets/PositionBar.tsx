@@ -80,7 +80,7 @@ export function PositionBar(props: {
       1,
     );
     const ratio = horizontal && props.reversed ? 1 - visualRatio : visualRatio;
-    return Math.round(minValue() + ratio * valueRange());
+    return minValue() + ratio * valueRange();
   };
   const inputAt = (event: PointerEvent): number => {
     const value = valueAt(coordinate(event));

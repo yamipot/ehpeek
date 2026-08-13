@@ -24,7 +24,10 @@ import { PositionBar } from "../Widgets/PositionBar";
 import { PriorityLoadQueue } from "../Widgets/PriorityLoadQueue";
 
 const GRID_GAP = 8;
+const GROUP_SIZE_TOLERANCE = 0.15;
 const HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6;
+const LAYOUT_IDLE_MS = 120;
+const MAX_LAYOUT_ASPECT_RATIO = 3;
 const MAX_TILE_WIDTH = 220;
 const REFERENCE_PORTRAIT_ASPECT_RATIO = 7 / 5;
 const MAX_CROSS_COUNT = 12;
@@ -47,11 +50,13 @@ const NEXT_SCROLL_PREVIEW_DIRECTION: Record<ReadDirection, ReadDirection> = {
 };
 type PreviewLayout = {
   crossCount: number;
+  estimatedGroupSize: number;
   gap: number;
+  groupOffsets: number[];
+  groupSizes: number[];
   horizontal: boolean;
-  mainStride: number;
-  tileHeight: number;
-  tileWidth: number;
+  tileCrossSize: number;
+  totalMainSize: number;
   viewportHeight: number;
   viewportWidth: number;
 };
@@ -61,11 +66,155 @@ type PreviewSlot = {
   pageNum: number;
 };
 
+function layoutAspectRatio(aspectRatio: number): number {
+  return clamp(
+    aspectRatio,
+    1 / MAX_LAYOUT_ASPECT_RATIO,
+    MAX_LAYOUT_ASPECT_RATIO,
+  );
+}
+
+function dominantGroupSize(sizes: number[], estimatedSize: number): number {
+  const sorted = [...sizes].sort((left, right) => left - right);
+  let bestStart = 0;
+  let bestEnd = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  let end = 0;
+
+  for (let start = 0; start < sorted.length; start += 1) {
+    end = Math.max(end, start);
+    while (
+      end + 1 < sorted.length &&
+      (sorted[end + 1] ?? 0) <= (sorted[start] ?? 0) * (1 + GROUP_SIZE_TOLERANCE)
+    ) {
+      end += 1;
+    }
+    const count = end - start + 1;
+    const bestCount = bestEnd - bestStart + 1;
+    const clusterCenter = ((sorted[start] ?? 0) + (sorted[end] ?? 0)) / 2;
+    const distance = Math.abs(clusterCenter - estimatedSize);
+    if (count > bestCount || (count === bestCount && distance < bestDistance)) {
+      bestStart = start;
+      bestEnd = end;
+      bestDistance = distance;
+    }
+  }
+
+  const middle = (bestStart + bestEnd) / 2;
+  const lower = sorted[Math.floor(middle)] ?? estimatedSize;
+  const upper = sorted[Math.ceil(middle)] ?? lower;
+  return (lower + upper) / 2;
+}
+
+function buildGroupGeometry(options: {
+  allowUpscale: boolean;
+  crossCount: number;
+  estimatedAspectRatio: number;
+  gap: number;
+  horizontal: boolean;
+  item: (pageNum: number) => GalleryPreviewItem | null;
+  tileCrossSize: number;
+  totalImages: number;
+}): Pick<PreviewLayout, "estimatedGroupSize" | "groupOffsets" | "groupSizes" | "totalMainSize"> {
+  const estimatedGroupSize = options.horizontal
+    ? options.tileCrossSize / options.estimatedAspectRatio
+    : options.tileCrossSize * options.estimatedAspectRatio;
+  const totalGroups = Math.ceil(options.totalImages / options.crossCount);
+  const groupOffsets: number[] = [];
+  const groupSizes: number[] = [];
+  let offset = 0;
+
+  for (let group = 0; group < totalGroups; group += 1) {
+    const itemMainSizes: number[] = [];
+    const startPageNum = group * options.crossCount + 1;
+    const endPageNum = Math.min(
+      options.totalImages,
+      startPageNum + options.crossCount - 1,
+    );
+    for (let pageNum = startPageNum; pageNum <= endPageNum; pageNum += 1) {
+      const item = options.item(pageNum);
+      const aspectRatio = item === null
+        ? options.estimatedAspectRatio
+        : layoutAspectRatio(item.aspectRatio);
+      const itemCrossSize = item === null || options.allowUpscale
+        ? options.tileCrossSize
+        : Math.min(
+          options.tileCrossSize,
+          options.horizontal
+            ? item.thumbnail.height
+            : item.thumbnail.width,
+        );
+      const itemMainSize = options.horizontal
+        ? itemCrossSize / aspectRatio
+        : itemCrossSize * aspectRatio;
+      itemMainSizes.push(itemMainSize);
+    }
+    const groupSize = dominantGroupSize(itemMainSizes, estimatedGroupSize);
+    groupOffsets.push(offset);
+    groupSizes.push(groupSize);
+    offset += groupSize + options.gap;
+  }
+
+  return {
+    estimatedGroupSize,
+    groupOffsets,
+    groupSizes,
+    totalMainSize: Math.max(1, offset - options.gap),
+  };
+}
+
+function groupAtOffset(layout: PreviewLayout, offset: number): number {
+  const lastGroup = layout.groupOffsets.length - 1;
+  if (lastGroup <= 0 || offset <= 0) {
+    return 0;
+  }
+
+  let low = 0;
+  let high = lastGroup;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (groupOffsetAt(layout, middle) <= offset) {
+      low = middle;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return low;
+}
+
+function groupOffsetAt(layout: PreviewLayout, group: number): number {
+  const offset = layout.groupOffsets[group];
+  if (offset === undefined) {
+    throw new RangeError(`Invalid preview group: ${group}`);
+  }
+  return offset;
+}
+
+function groupSizeAt(layout: PreviewLayout, group: number): number {
+  const size = layout.groupSizes[group];
+  if (size === undefined) {
+    throw new RangeError(`Invalid preview group: ${group}`);
+  }
+  return size;
+}
+
+function logicalGroupOffset(layout: PreviewLayout, offset: number): number {
+  const group = groupAtOffset(layout, offset);
+  const stride = groupSizeAt(layout, group) + layout.gap;
+  return group + clamp((offset - groupOffsetAt(layout, group)) / stride, 0, 1);
+}
+
+function physicalGroupOffset(layout: PreviewLayout, logicalOffset: number): number {
+  const lastGroup = layout.groupOffsets.length - 1;
+  const group = clamp(Math.floor(logicalOffset), 0, lastGroup);
+  const fraction = clamp(logicalOffset - group, 0, 1);
+  return groupOffsetAt(layout, group) +
+    fraction * (groupSizeAt(layout, group) + layout.gap);
+}
+
 function createPreviewLoading(options: {
-  aspectPreviewIndex: number;
   centeredPageNum: Accessor<number>;
   maxPreviewIndex: number;
-  onAspectRatio: (aspectRatio: number) => void;
   onLoadError: (error: unknown) => void;
   previewCache: GalleryPreviewCache;
   ready: Accessor<boolean>;
@@ -110,10 +259,7 @@ function createPreviewLoading(options: {
       setLoadingCount((count) => count + 1);
       return ++loadToken;
     },
-    onLoaded: (previewIndex, loaded) => {
-      if (previewIndex === options.aspectPreviewIndex) {
-        options.onAspectRatio(loaded.data.dominantAspectRatio);
-      }
+    onLoaded: () => {
       setLoadingCount((count) => Math.max(0, count - 1));
     },
     onError: (previewIndex, error) => {
@@ -299,9 +445,10 @@ type PreviewViewportState = {
   highlightedPageNum: Accessor<number | null>;
   horizontal: boolean;
   layout: Accessor<PreviewLayout>;
-  maxPageNum: number;
+  onPositionCommit: () => void;
   onOpenPage: (pageUrl: string, pageNum: number) => void;
-  onPositionInput: (pageNum: number) => void;
+  onPositionInput: (value: number) => void;
+  onPositionPointerDown: () => void;
   onRetry: (pageNum: number) => void;
   onScroll: () => void;
   onScroller: (element: HTMLDivElement) => void;
@@ -309,7 +456,7 @@ type PreviewViewportState = {
   pixelScale: Accessor<number>;
   positionBarVisible: Accessor<boolean>;
   positionBarVisibleRatio: Accessor<number>;
-  positionPage: Accessor<number>;
+  positionValue: Accessor<number>;
   previewCache: GalleryPreviewCache;
   rightToLeft: boolean;
   screenEndPageNum: Accessor<number>;
@@ -341,27 +488,35 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
             const itemIndex = () => slot.pageNum - 1;
             const group = () => Math.floor(itemIndex() / state.layout().crossCount);
             const crossIndex = () => itemIndex() % state.layout().crossCount;
+            const groupSize = () => groupSizeAt(state.layout(), group());
+            const groupOffset = () => groupOffsetAt(state.layout(), group());
             const left = () => {
               if (!state.horizontal) {
                 return crossIndex() *
-                  (state.layout().tileWidth + state.layout().gap);
+                  (state.layout().tileCrossSize + state.layout().gap);
               }
               return state.rightToLeft
                 ? Number.parseFloat(state.canvasWidth()) -
-                  state.layout().tileWidth - group() * state.layout().mainStride
-                : group() * state.layout().mainStride;
+                  groupSize() - groupOffset()
+                : groupOffset();
             };
             const top = () => state.horizontal
-              ? crossIndex() * (state.layout().tileHeight + state.layout().gap)
-              : group() * state.layout().mainStride;
+              ? crossIndex() * (state.layout().tileCrossSize + state.layout().gap)
+              : groupOffset();
+            const height = () => state.horizontal
+              ? state.layout().tileCrossSize
+              : groupSize();
+            const width = () => state.horizontal
+              ? groupSize()
+              : state.layout().tileCrossSize;
             return (
               <div
                 class="absolute"
                 style={{
-                  height: `${state.layout().tileHeight}px`,
+                  height: `${height()}px`,
                   left: `${left()}px`,
                   top: `${top()}px`,
-                  width: `${state.layout().tileWidth}px`,
+                  width: `${width()}px`,
                 }}
               >
                 <PreviewTile
@@ -375,13 +530,13 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
                   failed={state.failedIndexes().has(
                     state.previewCache.previewIndexForPage(slot.pageNum),
                   )}
-                  height={state.layout().tileHeight}
+                  height={height()}
                   highlighted={slot.pageNum === state.highlightedPageNum()}
                   item={slot.item}
                   pageNum={slot.pageNum}
                   onOpenPage={state.onOpenPage}
                   onRetry={() => state.onRetry(slot.pageNum)}
-                  width={state.layout().tileWidth}
+                  width={width()}
                 />
               </div>
             );
@@ -392,10 +547,13 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
         <PositionBar
           ariaLabel={texts.gallery.scrollPreview}
           axis={state.horizontal ? "horizontal" : "vertical"}
-          currentValue={state.positionPage()}
+          currentValue={state.positionValue()}
           expanded={!state.horizontal}
-          maxValue={state.maxPageNum}
+          maxValue={1}
+          minValue={0}
+          onCommit={state.onPositionCommit}
           onInput={state.onPositionInput}
+          onPointerDown={state.onPositionPointerDown}
           pixelScale={state.pixelScale()}
           position={state.horizontal ? undefined : "absolute"}
           reversed={state.horizontal && state.rightToLeft}
@@ -645,16 +803,9 @@ function ScrollPreviewPanel(props: {
   const initialPreview = untrack(() => previewCache.current());
   const totalImages = initialPreview.data.totalImages;
   const maxPreviewIndex = initialPreview.data.maxIndex;
-  const aspectPreviewIndex = previewCache.previewIndexForPage(
-    untrack(() =>
-      props.targetPageNum ??
-        props.targetPreviewIndex * initialPreview.data.pageSize + 1
-    ),
-  );
-  const [tileAspectRatio, setTileAspectRatio] = createSignal(
+  const estimatedAspectRatio = layoutAspectRatio(
     initialPreview.data.dominantAspectRatio,
   );
-  const initialTileAspectRatio = untrack(tileAspectRatio);
   const pixelScale = () => props.pixelScale;
   const initialPixelScale = untrack(pixelScale);
   const readDirection = untrack(() => props.readDirection);
@@ -676,17 +827,28 @@ function ScrollPreviewPanel(props: {
   const [previewLoadReady, setPreviewLoadReady] = createSignal(false);
   const [positionBarReady, setPositionBarReady] = createSignal(false);
   const [scrollOffset, setScrollOffset] = createSignal(0);
+  const initialTileCrossSize = horizontal
+    ? MAX_TILE_WIDTH * estimatedAspectRatio * initialPixelScale
+    : MAX_TILE_WIDTH * initialPixelScale;
+  const initialGap = GRID_GAP * initialPixelScale;
+  const initialGeometry = buildGroupGeometry({
+    allowUpscale: false,
+    crossCount: 1,
+    estimatedAspectRatio,
+    gap: initialGap,
+    horizontal,
+    item: () => null,
+    tileCrossSize: initialTileCrossSize,
+    totalImages,
+  });
   const [layout, setLayout] = createSignal<PreviewLayout>({
     crossCount: 1,
-    gap: GRID_GAP * initialPixelScale,
+    gap: initialGap,
     horizontal,
-    mainStride: horizontal
-      ? (MAX_TILE_WIDTH + GRID_GAP) * initialPixelScale
-      : (MAX_TILE_WIDTH * initialTileAspectRatio + GRID_GAP) * initialPixelScale,
-    tileHeight: MAX_TILE_WIDTH * initialTileAspectRatio * initialPixelScale,
-    tileWidth: MAX_TILE_WIDTH * initialPixelScale,
+    tileCrossSize: initialTileCrossSize,
     viewportHeight: 1,
     viewportWidth: 1,
+    ...initialGeometry,
   });
   let scroller!: HTMLDivElement;
   let overlay!: HTMLElement;
@@ -696,16 +858,21 @@ function ScrollPreviewPanel(props: {
   let pinchStartCrossCount = 1;
   let pinchMinimumCrossCount = 1;
   let layoutFrame: number | null = null;
+  let layoutIdleTimer: number | null = null;
   let scrollFrame: number | null = null;
   let layoutHeight = 0;
   let layoutWidth = 0;
+  let layoutDirty = false;
+  let pointerActive = false;
+  let positionBarActive = false;
+  let preserveResizeAnchor = false;
+  let lastScrollTime = 0;
+  let previewDataVersion = untrack(previewCache.previewDataVersion);
   let initialized = false;
   let disposed = false;
 
-  const totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount));
-  const totalMainSize = createMemo(() =>
-    Math.max(1, totalGroups() * layout().mainStride - layout().gap)
-  );
+  const totalGroups = createMemo(() => layout().groupSizes.length);
+  const totalMainSize = createMemo(() => layout().totalMainSize);
   const mainViewportSize = createMemo(() =>
     horizontal ? layout().viewportWidth : layout().viewportHeight
   );
@@ -714,14 +881,14 @@ function ScrollPreviewPanel(props: {
   );
   const visibleStartGroup = createMemo(() =>
     clamp(
-      Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS,
+      groupAtOffset(layout(), scrollOffset()) - OVERSCAN_ROWS,
       0,
       Math.max(0, totalGroups() - 1),
     )
   );
   const visibleEndGroup = createMemo(() =>
     clamp(
-      Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS,
+      groupAtOffset(layout(), scrollOffset() + mainViewportSize()) + OVERSCAN_ROWS,
       visibleStartGroup(),
       Math.max(0, totalGroups() - 1),
     )
@@ -734,14 +901,14 @@ function ScrollPreviewPanel(props: {
   );
   const screenStartPageNum = createMemo(() =>
     clamp(
-      Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1,
+      groupAtOffset(layout(), scrollOffset()) * layout().crossCount + 1,
       1,
       totalImages,
     )
   );
   const screenEndPageNum = createMemo(() => {
     const end = Math.max(scrollOffset(), scrollOffset() + mainViewportSize() - 1);
-    const endGroup = Math.floor(end / layout().mainStride);
+    const endGroup = groupAtOffset(layout(), end);
     return clamp(
       (endGroup + 1) * layout().crossCount,
       screenStartPageNum(),
@@ -761,8 +928,9 @@ function ScrollPreviewPanel(props: {
   });
   const centeredPageNum = (): number => {
     const currentLayout = layout();
-    const centerGroup = Math.floor(
-      (scrollOffset() + mainViewportSize() / 2) / currentLayout.mainStride,
+    const centerGroup = groupAtOffset(
+      currentLayout,
+      scrollOffset() + mainViewportSize() / 2,
     );
     return clamp(
       centerGroup * currentLayout.crossCount + Math.floor(currentLayout.crossCount / 2) + 1,
@@ -773,10 +941,8 @@ function ScrollPreviewPanel(props: {
   const centeredPreviewIndex = (): number =>
     previewCache.previewIndexForPage(centeredPageNum());
   const loading = createPreviewLoading({
-    aspectPreviewIndex,
     centeredPageNum,
     maxPreviewIndex,
-    onAspectRatio: setTileAspectRatio,
     onLoadError,
     previewCache,
     ready: previewLoadReady,
@@ -792,7 +958,7 @@ function ScrollPreviewPanel(props: {
   const maximumCrossCount = (): number =>
     horizontal ? Math.min(MAX_CROSS_COUNT, totalImages) : MAX_CROSS_COUNT;
   const minimumCrossCount = (currentLayout: PreviewLayout): number => {
-    const aspectRatio = tileAspectRatio();
+    const aspectRatio = estimatedAspectRatio;
     const crossSize = currentLayout.horizontal
       ? currentLayout.viewportHeight
       : currentLayout.viewportWidth;
@@ -828,17 +994,20 @@ function ScrollPreviewPanel(props: {
       resizeAnchorPageNum = null;
     });
   };
-  const scrollPositionPage = (): number => {
-    const maxOffset = Math.max(0, totalMainSize() - mainViewportSize());
-    if (maxOffset === 0 || totalImages <= 1) {
-      return 1;
-    }
-    return Math.round(
-      1 + clamp(scrollOffset() / maxOffset, 0, 1) * (totalImages - 1),
-    );
-  };
   const maxScrollOffset = (): number =>
     Math.max(0, totalMainSize() - mainViewportSize());
+  const maxLogicalScrollOffset = (): number =>
+    logicalGroupOffset(layout(), maxScrollOffset());
+  const scrollPositionValue = (): number => {
+    const maxLogicalOffset = maxLogicalScrollOffset();
+    return maxLogicalOffset === 0
+      ? 0
+      : clamp(
+        logicalGroupOffset(layout(), scrollOffset()) / maxLogicalOffset,
+        0,
+        1,
+      );
+  };
   const readScrollOffset = (): number => {
     const value = !horizontal
       ? scroller.scrollTop
@@ -856,12 +1025,16 @@ function ScrollPreviewPanel(props: {
     }
     setScrollOffset(next);
   };
-  const scrollToPositionPage = (pageNum: number): void => {
+  const scrollToPositionValue = (value: number): void => {
     flingAnimator.cancel();
-    const ratio = totalImages <= 1
-      ? 0
-      : (clamp(pageNum, 1, totalImages) - 1) / (totalImages - 1);
-    updateScrollOffset(ratio * maxScrollOffset());
+    const ratio = clamp(value, 0, 1);
+    if (ratio === 1) {
+      updateScrollOffset(maxScrollOffset());
+      return;
+    }
+    updateScrollOffset(
+      physicalGroupOffset(layout(), ratio * maxLogicalScrollOffset()),
+    );
   };
   const requestDirectionChange = (): void => {
     if (!window.confirm(texts.gallery.confirmScrollPreviewDirection)) {
@@ -882,6 +1055,7 @@ function ScrollPreviewPanel(props: {
         : "any",
       onStart: () => {
         flingAnimator.cancel();
+        pointerActive = true;
         dragDirection = null;
         dragStartPosition = horizontal ? scroller.scrollLeft : scroller.scrollTop;
       },
@@ -908,6 +1082,8 @@ function ScrollPreviewPanel(props: {
       },
       onEnd: (info) => {
         dragStartPosition = null;
+        pointerActive = false;
+        scheduleLayoutUpdate();
         if (dragDirection === "exit") {
           const offset = exitDragOffset();
           const exitSize = horizontal ? overlay.clientHeight : overlay.clientWidth;
@@ -1003,6 +1179,7 @@ function ScrollPreviewPanel(props: {
       },
       onPinchEnd: () => {
         resizeAnchorPageNum = null;
+        scheduleLayoutUpdate();
       },
     }),
   );
@@ -1011,12 +1188,9 @@ function ScrollPreviewPanel(props: {
     const group = Math.floor(
       (clamp(pageNum, 1, totalImages) - 1) / currentLayout.crossCount,
     );
-    const tileMainSize = currentLayout.horizontal
-      ? currentLayout.tileWidth
-      : currentLayout.tileHeight;
     updateScrollOffset(
-      group * currentLayout.mainStride -
-        (mainViewportSize() - tileMainSize) / 2,
+      groupOffsetAt(currentLayout, group) -
+        (mainViewportSize() - groupSizeAt(currentLayout, group)) / 2,
     );
   };
   const scrollToPreview = (previewIndex: number, currentLayout: PreviewLayout): void => {
@@ -1038,16 +1212,39 @@ function ScrollPreviewPanel(props: {
     }
   });
 
-  const updateLayout = (resetEmbeddedHeight = false): void => {
+  const updateLayout = (
+    resetEmbeddedHeight = false,
+    preserveViewportAnchor = false,
+  ): void => {
+    preserveResizeAnchor = preserveViewportAnchor;
     setPreviewLoadReady(false);
+    layoutDirty = false;
+    if (layoutIdleTimer !== null) {
+      window.clearTimeout(layoutIdleTimer);
+      layoutIdleTimer = null;
+    }
     if (resetEmbeddedHeight && embedded) {
       overlay.style.removeProperty("height");
     }
+    const previousLayout = untrack(layout);
+    const preservedAnchorPageNum = initialized && preserveViewportAnchor
+      ? centeredPageNum()
+      : null;
+    const preservedAnchorViewportRatio = preservedAnchorPageNum === null
+      ? null
+      : (() => {
+        const group = Math.floor(
+          (preservedAnchorPageNum - 1) / previousLayout.crossCount,
+        );
+        const center = groupOffsetAt(previousLayout, group) +
+          groupSizeAt(previousLayout, group) / 2;
+        return (center - scrollOffset()) / mainViewportSize();
+      })();
     const width = Math.max(1, scroller.clientWidth);
     const height = Math.max(1, scroller.clientHeight);
     const scale = pixelScale();
     const gap = GRID_GAP * scale;
-    const aspectRatio = tileAspectRatio();
+    const aspectRatio = estimatedAspectRatio;
     const baseMaxTileWidth = MAX_TILE_WIDTH * scale;
     const referenceItemsPerRow = Math.max(
       1,
@@ -1114,16 +1311,25 @@ function ScrollPreviewPanel(props: {
       : crossCountOverridden
         ? overriddenTileWidth
         : Math.max(1, (width - gap * (crossCount - 1)) / crossCount);
+    const tileCrossSize = horizontal ? tileHeight : tileWidth;
+    const geometry = buildGroupGeometry({
+      allowUpscale: embedded || crossCountOverridden,
+      crossCount,
+      estimatedAspectRatio,
+      gap,
+      horizontal,
+      item: (pageNum) => untrack(() => previewCache.previewItem(pageNum)),
+      tileCrossSize,
+      totalImages,
+    });
     const fitEmbeddedHeight = embedded && !props.fillEmbeddedContainer();
     let viewportHeight = height;
     if (fitEmbeddedHeight && horizontal) {
-      viewportHeight = crossCount * tileHeight + (crossCount - 1) * gap;
+      viewportHeight = crossCount * tileCrossSize + (crossCount - 1) * gap;
       overlay.style.height =
         `${Math.ceil(overlay.clientHeight - height + viewportHeight)}px`;
     } else if (fitEmbeddedHeight) {
-      const groupCount = Math.ceil(totalImages / crossCount);
-      const fittedScrollerHeight =
-        groupCount * tileHeight + (groupCount - 1) * gap;
+      const fittedScrollerHeight = geometry.totalMainSize;
       viewportHeight = Math.min(height, fittedScrollerHeight);
       if (viewportHeight < height) {
         overlay.style.height =
@@ -1138,11 +1344,10 @@ function ScrollPreviewPanel(props: {
       crossCount,
       gap,
       horizontal,
-      mainStride: (horizontal ? tileWidth : tileHeight) + gap,
-      tileHeight,
-      tileWidth,
+      tileCrossSize,
       viewportHeight,
       viewportWidth: width,
+      ...geometry,
     };
     setLayout(next);
 
@@ -1155,7 +1360,21 @@ function ScrollPreviewPanel(props: {
         return;
       }
       if (initialized) {
-        scrollToPage(anchorPageNum ?? centeredPageNum(), next);
+        if (
+          preservedAnchorPageNum !== null &&
+          preservedAnchorViewportRatio !== null
+        ) {
+          const group = Math.floor(
+            (preservedAnchorPageNum - 1) / next.crossCount,
+          );
+          const center = groupOffsetAt(next, group) + groupSizeAt(next, group) / 2;
+          updateScrollOffset(
+            center - preservedAnchorViewportRatio *
+              (horizontal ? next.viewportWidth : next.viewportHeight),
+          );
+        } else {
+          scrollToPage(anchorPageNum ?? centeredPageNum(), next);
+        }
       } else {
         initialized = true;
         if (props.targetPageNum === null) {
@@ -1166,14 +1385,66 @@ function ScrollPreviewPanel(props: {
       }
       setPreviewLoadReady(true);
       setPositionBarReady(true);
+      preserveResizeAnchor = false;
     }));
   };
+
+  // Preview pages resolve in batches; reflow after loading and interaction settle
+  // so anchor compensation never competes with an active gesture.
+  const scheduleLayoutUpdate = (): void => {
+    if (layoutIdleTimer !== null) {
+      window.clearTimeout(layoutIdleTimer);
+      layoutIdleTimer = null;
+    }
+    if (
+      !layoutDirty ||
+      !initialized ||
+      pointerActive ||
+      positionBarActive ||
+      loading.loadingCount() > 0
+    ) {
+      return;
+    }
+    const delay = Math.max(0, LAYOUT_IDLE_MS - (performance.now() - lastScrollTime));
+    layoutIdleTimer = window.setTimeout(() => {
+      layoutIdleTimer = null;
+      if (
+        layoutDirty &&
+        !pointerActive &&
+        !positionBarActive &&
+        loading.loadingCount() === 0
+      ) {
+        untrack(() => updateLayout(true, true));
+      }
+    }, delay);
+  };
+
+  const markLayoutDirty = (): void => {
+    layoutDirty = true;
+    scheduleLayoutUpdate();
+  };
+
+  createEffect(() => {
+    const nextVersion = previewCache.previewDataVersion();
+    if (nextVersion === previewDataVersion) {
+      return;
+    }
+    previewDataVersion = nextVersion;
+    if (initialized) {
+      untrack(markLayoutDirty);
+    }
+  });
+
+  createEffect(() => {
+    if (loading.loadingCount() === 0 && layoutDirty) {
+      untrack(scheduleLayoutUpdate);
+    }
+  });
 
   createEffect(() => {
     crossCountOverride();
     props.fillEmbeddedContainer();
     pixelScale();
-    tileAspectRatio();
     if (initialized) {
       untrack(() => updateLayout(true));
     }
@@ -1212,7 +1483,7 @@ function ScrollPreviewPanel(props: {
       }
       layoutHeight = height;
       layoutWidth = width;
-      updateLayout(true);
+      updateLayout(true, preserveResizeAnchor);
     }));
     resizeObserver.observe(scroller);
     layoutHeight = scroller.clientHeight;
@@ -1228,6 +1499,9 @@ function ScrollPreviewPanel(props: {
       }
       if (layoutFrame !== null) {
         window.cancelAnimationFrame(layoutFrame);
+      }
+      if (layoutIdleTimer !== null) {
+        window.clearTimeout(layoutIdleTimer);
       }
       if (scrollFrame !== null) {
         window.cancelAnimationFrame(scrollFrame);
@@ -1250,8 +1524,16 @@ function ScrollPreviewPanel(props: {
     onZoomIn: () => resizeCrossCount(-1),
     onZoomOut: () => resizeCrossCount(1),
   };
-  const positionBarVisibleRatio = (): number =>
-    clamp(mainViewportSize() / mainCanvasSize(), 0, 1);
+  // Logical groups keep the thumb stable when differently sized groups enter view.
+  const positionBarVisibleRatio = (): number => {
+    return clamp(
+      mainViewportSize() /
+        (layout().estimatedGroupSize + layout().gap) /
+        totalGroups(),
+      0,
+      1,
+    );
+  };
   const viewportState: PreviewViewportState = {
     allowUpscale: () => embedded || crossCountOverride() !== null,
     canvasHeight: () => horizontal ? "100%" : `${totalMainSize()}px`,
@@ -1261,11 +1543,21 @@ function ScrollPreviewPanel(props: {
     highlightedPageNum: untrack(() => props.highlightedPageNum),
     horizontal,
     layout,
-    maxPageNum: totalImages,
     onOpenPage: untrack(() => props.onOpenPage),
-    onPositionInput: scrollToPositionPage,
+    onPositionCommit: () => {
+      positionBarActive = false;
+      scheduleLayoutUpdate();
+    },
+    onPositionInput: scrollToPositionValue,
+    onPositionPointerDown: () => {
+      positionBarActive = true;
+    },
     onRetry: loading.retry,
     onScroll: () => {
+      lastScrollTime = performance.now();
+      if (layoutDirty) {
+        scheduleLayoutUpdate();
+      }
       if (scrollFrame !== null) {
         return;
       }
@@ -1282,10 +1574,9 @@ function ScrollPreviewPanel(props: {
     positionBarVisible: () =>
       positionBarReady() &&
       maxScrollOffset() > SCROLL_PIXEL_EPSILON &&
-      positionBarVisibleRatio() < 1 &&
-      (screenStartPageNum() > 1 || screenEndPageNum() < totalImages),
+      positionBarVisibleRatio() < 1,
     positionBarVisibleRatio,
-    positionPage: scrollPositionPage,
+    positionValue: scrollPositionValue,
     previewCache,
     rightToLeft,
     screenEndPageNum,
@@ -1427,6 +1718,13 @@ function PreviewTile(props: {
                   alt=""
                   width={item.thumbnail.width}
                   height={item.thumbnail.height}
+                  style={{
+                    "object-position": props.alignment === "right"
+                      ? "right top"
+                      : props.alignment === "left"
+                        ? "left top"
+                        : "center top",
+                  }}
                   decoding="async"
                   draggable={false}
                 />
