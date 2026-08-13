@@ -24,12 +24,9 @@ import { PositionBar } from "../Widgets/PositionBar";
 import { PriorityLoadQueue } from "../Widgets/PriorityLoadQueue";
 
 const GRID_GAP = 8;
-const GROUP_SIZE_TOLERANCE = 0.15;
 const HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6;
-const LAYOUT_IDLE_MS = 120;
 const MAX_LAYOUT_ASPECT_RATIO = 3;
 const MAX_TILE_WIDTH = 220;
-const REFERENCE_PORTRAIT_ASPECT_RATIO = 7 / 5;
 const MAX_CROSS_COUNT = 12;
 const OVERSCAN_ROWS = 4;
 const SCROLL_PIXEL_EPSILON = 1;
@@ -55,6 +52,7 @@ type PreviewLayout = {
   groupOffsets: number[];
   groupSizes: number[];
   horizontal: boolean;
+  itemScaleLimit: number;
   tileCrossSize: number;
   totalMainSize: number;
   viewportHeight: number;
@@ -74,45 +72,21 @@ function layoutAspectRatio(aspectRatio: number): number {
   );
 }
 
-function dominantGroupSize(sizes: number[], estimatedSize: number): number {
+function medianSize(sizes: number[], estimatedSize: number): number {
   const sorted = [...sizes].sort((left, right) => left - right);
-  let bestStart = 0;
-  let bestEnd = 0;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  let end = 0;
-
-  for (let start = 0; start < sorted.length; start += 1) {
-    end = Math.max(end, start);
-    while (
-      end + 1 < sorted.length &&
-      (sorted[end + 1] ?? 0) <= (sorted[start] ?? 0) * (1 + GROUP_SIZE_TOLERANCE)
-    ) {
-      end += 1;
-    }
-    const count = end - start + 1;
-    const bestCount = bestEnd - bestStart + 1;
-    const clusterCenter = ((sorted[start] ?? 0) + (sorted[end] ?? 0)) / 2;
-    const distance = Math.abs(clusterCenter - estimatedSize);
-    if (count > bestCount || (count === bestCount && distance < bestDistance)) {
-      bestStart = start;
-      bestEnd = end;
-      bestDistance = distance;
-    }
-  }
-
-  const middle = (bestStart + bestEnd) / 2;
+  const middle = (sorted.length - 1) / 2;
   const lower = sorted[Math.floor(middle)] ?? estimatedSize;
   const upper = sorted[Math.ceil(middle)] ?? lower;
   return (lower + upper) / 2;
 }
 
 function buildGroupGeometry(options: {
-  allowUpscale: boolean;
   crossCount: number;
   estimatedAspectRatio: number;
   gap: number;
   horizontal: boolean;
   item: (pageNum: number) => GalleryPreviewItem | null;
+  itemScaleLimit: number;
   tileCrossSize: number;
   totalImages: number;
 }): Pick<PreviewLayout, "estimatedGroupSize" | "groupOffsets" | "groupSizes" | "totalMainSize"> {
@@ -133,23 +107,22 @@ function buildGroupGeometry(options: {
     );
     for (let pageNum = startPageNum; pageNum <= endPageNum; pageNum += 1) {
       const item = options.item(pageNum);
-      const aspectRatio = item === null
-        ? options.estimatedAspectRatio
-        : layoutAspectRatio(item.aspectRatio);
-      const itemCrossSize = item === null || options.allowUpscale
-        ? options.tileCrossSize
-        : Math.min(
-          options.tileCrossSize,
-          options.horizontal
-            ? item.thumbnail.height
-            : item.thumbnail.width,
-        );
-      const itemMainSize = options.horizontal
+      if (item === null) {
+        continue;
+      }
+      const aspectRatio = layoutAspectRatio(item.aspectRatio);
+      const thumbnailCrossSize = options.horizontal
+        ? item.thumbnail.height
+        : item.thumbnail.width;
+      const itemCrossSize = thumbnailCrossSize * Math.min(
+        options.itemScaleLimit,
+        options.tileCrossSize / thumbnailCrossSize,
+      );
+      itemMainSizes.push(options.horizontal
         ? itemCrossSize / aspectRatio
-        : itemCrossSize * aspectRatio;
-      itemMainSizes.push(itemMainSize);
+        : itemCrossSize * aspectRatio);
     }
-    const groupSize = dominantGroupSize(itemMainSizes, estimatedGroupSize);
+    const groupSize = medianSize(itemMainSizes, estimatedGroupSize);
     groupOffsets.push(offset);
     groupSizes.push(groupSize);
     offset += groupSize + options.gap;
@@ -372,15 +345,23 @@ function OverlayPreviewToolbar(props: {
 }
 
 const EMBEDDED_PREVIEW_ACTION_CLASS =
-  "inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 ui-rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96";
+  "inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96";
 
 function EmbeddedPreviewToolbar(props: {
+  currentDisabled: boolean;
+  onCurrent: () => void;
   onOpenOverlay: () => void;
   state: PreviewToolbarState;
 }) {
   return (
-    <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] min-h-[var(--ui-control-size-xs)] flex-none items-center ui-gap-xs ui-px-xs ui-py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs">
-      <span class="col-start-2 inline-flex min-h-[var(--ui-control-size-xs)] items-center ui-gap-xs ui-px-sm ui-rounded-xs bg-[var(--color-site-surface)] opacity-75">
+    <div class="grid grid-cols-[minmax(0,1fr)_auto] min-h-[var(--ui-control-size-sm)] flex-none items-center ui-gap-sm ui-px-sm ui-py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-sm">
+      <span
+        class="inline-flex min-h-[var(--ui-control-size-sm)] items-center ui-gap-xs ui-px-sm ui-rounded-sm bg-[var(--color-site-surface)] opacity-75"
+        classList={{
+          "col-start-1 justify-self-start": !props.state.leftHanded(),
+          "col-start-2 justify-self-end": props.state.leftHanded(),
+        }}
+      >
         <Show when={props.state.loading()}>
           <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
         </Show>
@@ -390,7 +371,7 @@ function EmbeddedPreviewToolbar(props: {
         class={`flex flex-none items-center ui-gap-xs ${
           props.state.leftHanded()
             ? "col-start-1 row-start-1 justify-self-start flex-row-reverse"
-            : "col-start-3 justify-self-end"
+            : "col-start-2 justify-self-end"
         }`}
       >
         <button
@@ -400,7 +381,7 @@ function EmbeddedPreviewToolbar(props: {
           title={props.state.directionLabel}
           onClick={() => props.state.onDirectionChange()}
         >
-          <Icon name={props.state.directionIcon} size="var(--ui-icon-size-sm)" />
+          <Icon name={props.state.directionIcon} size="var(--ui-icon-size-md)" />
         </button>
         <button
           type="button"
@@ -410,7 +391,7 @@ function EmbeddedPreviewToolbar(props: {
           disabled={props.state.zoomOutDisabled()}
           onClick={() => props.state.onZoomOut()}
         >
-          <Icon name="zoom-out" size="var(--ui-icon-size-sm)" />
+          <Icon name="zoom-out" size="var(--ui-icon-size-md)" />
         </button>
         <button
           type="button"
@@ -420,7 +401,17 @@ function EmbeddedPreviewToolbar(props: {
           disabled={props.state.zoomInDisabled()}
           onClick={() => props.state.onZoomIn()}
         >
-          <Icon name="zoom-in" size="var(--ui-icon-size-sm)" />
+          <Icon name="zoom-in" size="var(--ui-icon-size-md)" />
+        </button>
+        <button
+          type="button"
+          class={EMBEDDED_PREVIEW_ACTION_CLASS}
+          aria-label={texts.common.actions.current}
+          title={texts.common.actions.current}
+          disabled={props.currentDisabled}
+          onClick={() => props.onCurrent()}
+        >
+          <Icon name="locate" size="var(--ui-icon-size-md)" />
         </button>
         <button
           type="button"
@@ -429,7 +420,7 @@ function EmbeddedPreviewToolbar(props: {
           title={texts.gallery.openScrollPreview}
           onClick={() => props.onOpenOverlay()}
         >
-          <Icon name="fullscreen" size="var(--ui-icon-size-sm)" />
+          <Icon name="fullscreen" size="var(--ui-icon-size-md)" />
         </button>
       </div>
     </div>
@@ -437,7 +428,6 @@ function EmbeddedPreviewToolbar(props: {
 }
 
 type PreviewViewportState = {
-  allowUpscale: Accessor<boolean>;
   canvasHeight: Accessor<string>;
   canvasWidth: Accessor<string>;
   decodeCache: PreviewDecodeCache;
@@ -525,14 +515,15 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
                     : state.horizontal
                       ? "left"
                       : "center"}
-                  allowUpscale={state.allowUpscale()}
                   decodeCache={state.decodeCache}
                   failed={state.failedIndexes().has(
                     state.previewCache.previewIndexForPage(slot.pageNum),
                   )}
                   height={height()}
                   highlighted={slot.pageNum === state.highlightedPageNum()}
+                  horizontal={state.horizontal}
                   item={slot.item}
+                  maximumScale={state.layout().itemScaleLimit}
                   pageNum={slot.pageNum}
                   onOpenPage={state.onOpenPage}
                   onRetry={() => state.onRetry(slot.pageNum)}
@@ -806,10 +797,20 @@ function ScrollPreviewPanel(props: {
   const estimatedAspectRatio = layoutAspectRatio(
     initialPreview.data.dominantAspectRatio,
   );
+  const embeddedReferenceTileWidth = medianSize(
+    initialPreview.data.previewItems.map((item) => item.thumbnail.width),
+    MAX_TILE_WIDTH,
+  );
   const pixelScale = () => props.pixelScale;
   const initialPixelScale = untrack(pixelScale);
   const readDirection = untrack(() => props.readDirection);
   const horizontal = readDirection !== "ttb";
+  const referenceThumbnailCrossSize = medianSize(
+    initialPreview.data.previewItems.map((item) => horizontal
+      ? item.thumbnail.height
+      : item.thumbnail.width),
+    horizontal ? MAX_TILE_WIDTH * estimatedAspectRatio : MAX_TILE_WIDTH,
+  );
   const rightToLeft = readDirection === "rtl";
   const directionIcon = readDirection === "ttb"
     ? "arrow-down"
@@ -832,12 +833,12 @@ function ScrollPreviewPanel(props: {
     : MAX_TILE_WIDTH * initialPixelScale;
   const initialGap = GRID_GAP * initialPixelScale;
   const initialGeometry = buildGroupGeometry({
-    allowUpscale: false,
     crossCount: 1,
     estimatedAspectRatio,
     gap: initialGap,
     horizontal,
     item: () => null,
+    itemScaleLimit: 1,
     tileCrossSize: initialTileCrossSize,
     totalImages,
   });
@@ -845,6 +846,7 @@ function ScrollPreviewPanel(props: {
     crossCount: 1,
     gap: initialGap,
     horizontal,
+    itemScaleLimit: 1,
     tileCrossSize: initialTileCrossSize,
     viewportHeight: 1,
     viewportWidth: 1,
@@ -858,7 +860,6 @@ function ScrollPreviewPanel(props: {
   let pinchStartCrossCount = 1;
   let pinchMinimumCrossCount = 1;
   let layoutFrame: number | null = null;
-  let layoutIdleTimer: number | null = null;
   let scrollFrame: number | null = null;
   let layoutHeight = 0;
   let layoutWidth = 0;
@@ -866,7 +867,6 @@ function ScrollPreviewPanel(props: {
   let pointerActive = false;
   let positionBarActive = false;
   let preserveResizeAnchor = false;
-  let lastScrollTime = 0;
   let previewDataVersion = untrack(previewCache.previewDataVersion);
   let initialized = false;
   let disposed = false;
@@ -1083,7 +1083,7 @@ function ScrollPreviewPanel(props: {
       onEnd: (info) => {
         dragStartPosition = null;
         pointerActive = false;
-        scheduleLayoutUpdate();
+        applyPendingLayout();
         if (dragDirection === "exit") {
           const offset = exitDragOffset();
           const exitSize = horizontal ? overlay.clientHeight : overlay.clientWidth;
@@ -1179,7 +1179,7 @@ function ScrollPreviewPanel(props: {
       },
       onPinchEnd: () => {
         resizeAnchorPageNum = null;
-        scheduleLayoutUpdate();
+        applyPendingLayout();
       },
     }),
   );
@@ -1219,10 +1219,6 @@ function ScrollPreviewPanel(props: {
     preserveResizeAnchor = preserveViewportAnchor;
     setPreviewLoadReady(false);
     layoutDirty = false;
-    if (layoutIdleTimer !== null) {
-      window.clearTimeout(layoutIdleTimer);
-      layoutIdleTimer = null;
-    }
     if (resetEmbeddedHeight && embedded) {
       overlay.style.removeProperty("height");
     }
@@ -1246,24 +1242,17 @@ function ScrollPreviewPanel(props: {
     const gap = GRID_GAP * scale;
     const aspectRatio = estimatedAspectRatio;
     const baseMaxTileWidth = MAX_TILE_WIDTH * scale;
-    const referenceItemsPerRow = Math.max(
-      1,
-      Math.ceil((width + gap) / (baseMaxTileWidth + gap)),
-    );
-    const referenceItemWidth = Math.max(
-      1,
-      (width - gap * (referenceItemsPerRow - 1)) / referenceItemsPerRow,
-    );
     const maxTileWidth = embedded
-      ? referenceItemWidth *
-        Math.sqrt(REFERENCE_PORTRAIT_ASPECT_RATIO / aspectRatio)
+      ? embeddedReferenceTileWidth * scale
       : baseMaxTileWidth;
     const anchorPageNum = initialized
       ? resizeAnchorPageNum ?? preferredLayoutAnchorPageNum()
       : null;
     const itemsPerRow = Math.max(
       1,
-      Math.ceil((width + gap) / (maxTileWidth + gap)),
+      embedded
+        ? Math.round((width + gap) / (maxTileWidth + gap))
+        : Math.ceil((width + gap) / (maxTileWidth + gap)),
     );
     const itemWidth = Math.max(
       1,
@@ -1312,13 +1301,19 @@ function ScrollPreviewPanel(props: {
         ? overriddenTileWidth
         : Math.max(1, (width - gap * (crossCount - 1)) / crossCount);
     const tileCrossSize = horizontal ? tileHeight : tileWidth;
+    const itemScaleLimit = embedded
+      ? scale
+      : Math.min(
+        crossCountOverridden ? Number.POSITIVE_INFINITY : 1,
+        tileCrossSize / referenceThumbnailCrossSize,
+      );
     const geometry = buildGroupGeometry({
-      allowUpscale: embedded || crossCountOverridden,
       crossCount,
       estimatedAspectRatio,
       gap,
       horizontal,
       item: (pageNum) => untrack(() => previewCache.previewItem(pageNum)),
+      itemScaleLimit,
       tileCrossSize,
       totalImages,
     });
@@ -1344,6 +1339,7 @@ function ScrollPreviewPanel(props: {
       crossCount,
       gap,
       horizontal,
+      itemScaleLimit,
       tileCrossSize,
       viewportHeight,
       viewportWidth: width,
@@ -1389,39 +1385,23 @@ function ScrollPreviewPanel(props: {
     }));
   };
 
-  // Preview pages resolve in batches; reflow after loading and interaction settle
-  // so anchor compensation never competes with an active gesture.
-  const scheduleLayoutUpdate = (): void => {
-    if (layoutIdleTimer !== null) {
-      window.clearTimeout(layoutIdleTimer);
-      layoutIdleTimer = null;
-    }
+  // Apply each loaded Preview batch before it paints. Active gestures defer the
+  // reflow until release so anchor compensation never fights the pointer.
+  const applyPendingLayout = (): void => {
     if (
       !layoutDirty ||
       !initialized ||
       pointerActive ||
-      positionBarActive ||
-      loading.loadingCount() > 0
+      positionBarActive
     ) {
       return;
     }
-    const delay = Math.max(0, LAYOUT_IDLE_MS - (performance.now() - lastScrollTime));
-    layoutIdleTimer = window.setTimeout(() => {
-      layoutIdleTimer = null;
-      if (
-        layoutDirty &&
-        !pointerActive &&
-        !positionBarActive &&
-        loading.loadingCount() === 0
-      ) {
-        untrack(() => updateLayout(true, true));
-      }
-    }, delay);
+    untrack(() => updateLayout(true, true));
   };
 
   const markLayoutDirty = (): void => {
     layoutDirty = true;
-    scheduleLayoutUpdate();
+    applyPendingLayout();
   };
 
   createEffect(() => {
@@ -1432,12 +1412,6 @@ function ScrollPreviewPanel(props: {
     previewDataVersion = nextVersion;
     if (initialized) {
       untrack(markLayoutDirty);
-    }
-  });
-
-  createEffect(() => {
-    if (loading.loadingCount() === 0 && layoutDirty) {
-      untrack(scheduleLayoutUpdate);
     }
   });
 
@@ -1500,9 +1474,6 @@ function ScrollPreviewPanel(props: {
       if (layoutFrame !== null) {
         window.cancelAnimationFrame(layoutFrame);
       }
-      if (layoutIdleTimer !== null) {
-        window.clearTimeout(layoutIdleTimer);
-      }
       if (scrollFrame !== null) {
         window.cancelAnimationFrame(scrollFrame);
       }
@@ -1524,6 +1495,13 @@ function ScrollPreviewPanel(props: {
     onZoomIn: () => resizeCrossCount(-1),
     onZoomOut: () => resizeCrossCount(1),
   };
+  const scrollToHighlightedPage = (): void => {
+    const highlightedPageNum = props.highlightedPageNum();
+    if (highlightedPageNum !== null) {
+      flingAnimator.cancel();
+      scrollToPage(highlightedPageNum);
+    }
+  };
   // Logical groups keep the thumb stable when differently sized groups enter view.
   const positionBarVisibleRatio = (): number => {
     return clamp(
@@ -1535,7 +1513,6 @@ function ScrollPreviewPanel(props: {
     );
   };
   const viewportState: PreviewViewportState = {
-    allowUpscale: () => embedded || crossCountOverride() !== null,
     canvasHeight: () => horizontal ? "100%" : `${totalMainSize()}px`,
     canvasWidth: () => horizontal ? `${mainCanvasSize()}px` : "100%",
     decodeCache,
@@ -1546,7 +1523,7 @@ function ScrollPreviewPanel(props: {
     onOpenPage: untrack(() => props.onOpenPage),
     onPositionCommit: () => {
       positionBarActive = false;
-      scheduleLayoutUpdate();
+      applyPendingLayout();
     },
     onPositionInput: scrollToPositionValue,
     onPositionPointerDown: () => {
@@ -1554,10 +1531,6 @@ function ScrollPreviewPanel(props: {
     },
     onRetry: loading.retry,
     onScroll: () => {
-      lastScrollTime = performance.now();
-      if (layoutDirty) {
-        scheduleLayoutUpdate();
-      }
       if (scrollFrame !== null) {
         return;
       }
@@ -1612,7 +1585,7 @@ function ScrollPreviewPanel(props: {
             !embedded,
           "border ehp-color-site-border ui-rounded-sm bg-[var(--color-site-elevated)]":
             embedded,
-          "relative h-[var(--scroll-preview-height)]": embedded,
+          "relative h-[var(--scroll-preview-height)] max-h-[100svh]": embedded,
           "w-full": true,
         }}
         style={{
@@ -1630,18 +1603,14 @@ function ScrollPreviewPanel(props: {
             <OverlayPreviewToolbar
               currentDisabled={props.highlightedPageNum() === null}
               onClose={() => onClose?.(centeredPreviewIndex())}
-              onCurrent={() => {
-                const highlightedPageNum = props.highlightedPageNum();
-                if (highlightedPageNum !== null) {
-                  flingAnimator.cancel();
-                  scrollToPage(highlightedPageNum);
-                }
-              }}
+              onCurrent={scrollToHighlightedPage}
               state={toolbarState}
             />
           }
         >
           <EmbeddedPreviewToolbar
+            currentDisabled={props.highlightedPageNum() === null}
+            onCurrent={scrollToHighlightedPage}
             onOpenOverlay={() => props.onOpenOverlay?.(centeredPageNum())}
             state={toolbarState}
           />
@@ -1654,12 +1623,13 @@ function ScrollPreviewPanel(props: {
 
 function PreviewTile(props: {
   alignment: "center" | "left" | "right";
-  allowUpscale: boolean;
   decodeCache: PreviewDecodeCache;
   failed: boolean;
   height: number;
   highlighted: boolean;
+  horizontal: boolean;
   item: GalleryPreviewItem | null;
+  maximumScale: number;
   pageNum: number;
   onOpenPage: (pageUrl: string, pageNum: number) => void;
   onRetry: () => void;
@@ -1677,8 +1647,10 @@ function PreviewTile(props: {
 
   return (
     <div
-      class="relative flex w-full min-w-0 items-start overflow-hidden rounded-sm bg-[var(--color-background)]"
+      class="relative flex w-full min-w-0 overflow-hidden rounded-sm bg-[var(--color-background)]"
       classList={{
+        "items-center": props.horizontal,
+        "items-start": !props.horizontal,
         "justify-center": props.alignment === "center",
         "justify-start": props.alignment === "left",
         "justify-end": props.alignment === "right",
@@ -1703,27 +1675,32 @@ function PreviewTile(props: {
           </button>
         }
       >
-        {(item) => (
-          <>
+        {(item) => {
+          const imageScale = () => Math.min(
+            props.maximumScale,
+            props.horizontal
+              ? props.height / item.thumbnail.height
+              : props.width / item.thumbnail.width,
+          );
+          return (
+            <>
             <Show
               when={item.thumbnail.kind === "background"}
               fallback={
                 <img
-                  class="pointer-events-none block object-contain select-none [-webkit-user-drag:none]"
-                  classList={{
-                    "h-full w-full": props.allowUpscale,
-                    "max-h-full max-w-full": !props.allowUpscale,
-                  }}
+                  class="pointer-events-none block flex-none select-none [-webkit-user-drag:none]"
                   src={item.thumbnail.url}
                   alt=""
                   width={item.thumbnail.width}
                   height={item.thumbnail.height}
                   style={{
-                    "object-position": props.alignment === "right"
-                      ? "right top"
-                      : props.alignment === "left"
-                        ? "left top"
-                        : "center top",
+                    height: `${item.thumbnail.height * imageScale()}px`,
+                    "object-position": props.horizontal
+                      ? props.alignment === "right"
+                        ? "right center"
+                        : "left center"
+                      : "center top",
+                    width: `${item.thumbnail.width * imageScale()}px`,
                   }}
                   decoding="async"
                   draggable={false}
@@ -1738,16 +1715,12 @@ function PreviewTile(props: {
                   "background-repeat": item.thumbnail.backgroundRepeat,
                   "background-size": item.thumbnail.backgroundSize,
                   height: `${item.thumbnail.height}px`,
-                  transform: `scale(${Math.min(
-                    props.allowUpscale ? Number.POSITIVE_INFINITY : 1,
-                    props.width / item.thumbnail.width,
-                    props.height / item.thumbnail.height,
-                  )})`,
-                  "transform-origin": props.alignment === "right"
-                    ? "right top"
-                    : props.alignment === "left"
-                      ? "left top"
-                      : "center top",
+                  transform: `scale(${imageScale()})`,
+                  "transform-origin": props.horizontal
+                    ? props.alignment === "right"
+                      ? "right center"
+                      : "left center"
+                    : "center top",
                   width: `${item.thumbnail.width}px`,
                 }}
                 role="img"
@@ -1772,8 +1745,9 @@ function PreviewTile(props: {
                 aria-hidden="true"
               />
             </Show>
-          </>
-        )}
+            </>
+          );
+        }}
       </Show>
     </div>
   );

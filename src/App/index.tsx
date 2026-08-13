@@ -577,11 +577,11 @@ function injectGalleryPreview(
               gState.settings.replacePreviewWithScroll &&
               gState.settings.touchUiEnabled &&
               gState.columnsEnabled(),
-            "relative [--scroll-preview-height:55lvh] w-[calc(100%-(var(--touch-gallery-gutter)*2))] mx-auto":
+            "relative [--scroll-preview-height:100svh] w-[calc(100%-(var(--touch-gallery-gutter)*2))] mx-auto":
               gState.settings.replacePreviewWithScroll &&
               gState.settings.touchUiEnabled &&
               !gState.columnsEnabled(),
-            "relative [--scroll-preview-height:70svh] w-[calc(100%-32px)] mx-auto":
+            "relative [--scroll-preview-height:100svh] w-[calc(100%-32px)] mx-auto":
               gState.settings.replacePreviewWithScroll &&
               !gState.settings.touchUiEnabled,
           }}
