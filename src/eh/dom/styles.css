@@ -1,18 +1,17 @@
-/* Style dynamic EhSyringe suggestions without observing its injected nodes. */
-.ehs-injected .eh-syringe-lite-auto-complete-list {
+.ehpeek-external-autocomplete {
   max-height: 60dvh !important;
   padding-block: var(--ui-space-sm) !important;
 }
 
-.ehs-injected .eh-syringe-lite-auto-complete-list .auto-complete-item {
+.ehpeek-external-autocomplete-item {
   box-sizing: border-box;
-  min-height: var(--ui-hit-size-xl);
-  padding: var(--ui-space-sm) var(--ui-space-lg) !important;
+  min-height: var(--ui-hit-size-lg);
+  padding: 0 var(--ui-space-lg) !important;
   font-size: var(--ui-font-size-lg) !important;
-  line-height: 1.25 !important;
+  line-height: inherit !important;
 }
 
-.ehs-injected .eh-syringe-lite-auto-complete-list .auto-complete-text {
+.ehpeek-external-autocomplete-text {
   font-size: inherit !important;
   line-height: inherit !important;
 }

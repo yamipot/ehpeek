@@ -924,7 +924,7 @@ function injectPage(page: eh.PageType): void {
   }
 }
 
-eh.EhSyringe.initialize();
+eh.initializeExternalAutocompleteUi();
 
 let historyRouteActive = eh.extractPageType().type === "readHistory";
 window.addEventListener("hashchange", () => {

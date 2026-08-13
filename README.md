@@ -17,6 +17,7 @@ Each feature above can be enabled independently in settings.
 EhPeek can work with the following scripts for a better experience and maintains best-effort compatibility with them; compatibility with other scripts is not guaranteed:
 
 - [EhSyringe](https://github.com/EhTagTranslation/EhSyringe) (tag autocomplete, translation)
+- [LOLICON Enhancer](https://sleazyfork.org/en/scripts/516145-lolicon-e-hentai-exhentai-enhancer) (tag autocomplete, quick tags/favorites, infinite scroll)
 
 ## Install
 

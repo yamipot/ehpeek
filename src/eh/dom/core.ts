@@ -1,10 +1,10 @@
 import type { JSX } from "solid-js";
 import { render } from "solid-js/web";
 import { markUiRoot } from "../../ui";
+import { externalDom } from "./external";
 
 const MANAGED_DOM_NODE_CLASS = "ehpeek-managed";
 const EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor";
-const EH_SYRINGE_IGNORE_SELECTOR = ".eh-syringe-ignore";
 const mountedNodes = new WeakMap<HTMLElement, () => void>();
 let managedDocumentElement: ManagedDomNode<HTMLElement> | null = null;
 let managedBody: ManagedDomNode<HTMLElement> | null = null;
@@ -152,13 +152,13 @@ function domSelector(
 export function originalPageNode<TElement extends Element>(
   node: DomNode<TElement>,
 ): boolean {
-  return node.closest(EH_SYRINGE_IGNORE_SELECTOR) === null;
+  return node.closest(externalDom.retainedOriginalPageSelector) === null;
 }
 
 export function retainedOriginalPageNode<TElement extends Element>(
   node: DomNode<TElement>,
 ): boolean {
-  return node.closest(EH_SYRINGE_IGNORE_SELECTOR) !== null;
+  return node.closest(externalDom.retainedOriginalPageSelector) !== null;
 }
 
 export function anyDomNode(): boolean {
@@ -218,7 +218,7 @@ export function documentBody(): ManagedDomNode<HTMLElement> {
 
 /**
  * Read-only access to original-page DOM before ownership is decided.
- * Selector queries exclude EhSyringe's retained copies unless the caller explicitly requests them for data extraction.
+ * Selector queries exclude retained translated copies unless the caller explicitly requests them for data extraction.
  */
 export class DomNode<T extends ParentNode = ParentNode> {
   readonly #node: T;

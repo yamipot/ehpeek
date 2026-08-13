@@ -60,10 +60,6 @@ const common = {
   scripts: script("script"),
 };
 
-const ehSyringe = {
-  root: cls("ehs-injected"),
-};
-
 const myTags = {
   tags: id("usertags_outer", {
     childs: {
@@ -388,7 +384,6 @@ const topBar = {
 /** Original E-H structure and the named EhPeek classes allowed on each owned node. */
 export const domClass = {
   common,
-  ehSyringe,
   gallery,
   myTags,
   page,

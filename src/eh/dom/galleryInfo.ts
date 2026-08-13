@@ -30,6 +30,7 @@ import {
   type GalleryPreviewDom,
 } from "./gallery";
 import { domClass } from "./domClass";
+import { externalDom } from "./external";
 
 const GALLERY_CATEGORY_FLAGS = {
   ct1: 1,
@@ -84,7 +85,7 @@ export function extractGalleryHistoryInfo(): GalleryHistoryInfo {
         .map((detailCell) => detailCell.text())
         .filter(Boolean)
         .join(" "));
-  // History needs E-H's stable timestamp; EhSyringe's visible copy may contain relative translated text.
+  // History needs E-H's stable timestamp; translated visible copies may contain relative text.
   const postedAt = page
     .one(domClass.gallery.info.details, anyDomNode)
     ?.all(domClass.gallery.info.details.rows.cells, anyDomNode)
@@ -293,7 +294,9 @@ export function manageGalleryInfo(
       .slice(0, 6);
 
   const readTag = (tag: DomNode<HTMLAnchorElement>) => {
-    const label = tag.text() || tag.attribute("ehs-tag")?.trim() || tag.attribute("title")?.trim() || "";
+    const label = tag.text() ||
+      tag.attribute(externalDom.tagLabelAttribute)?.trim() ||
+      tag.attribute("title")?.trim() || "";
     const href = tag.attribute("href") ?? "";
     const name = galleryTagNameFromUrl(href);
     if (!label || !name || !href) {
@@ -430,7 +433,7 @@ export function manageGalleryInfo(
     ?.removeAttributes("id", "style", "width", "height")
     .setAttributes({ alt: "", decoding: "async", loading: "eager", src: coverUrl });
   const managedNewTag = newTagButton && newTagField && newTagForm
-    ? source.newTag.move()?.apply("layout") ?? null
+    ? source.newTag.inplace()?.apply("layout") ?? null
     : null;
   const hostApply = { hide: "ehpeek-hide-original-gallery-info" } as const;
   managedNewTag

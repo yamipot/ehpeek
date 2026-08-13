@@ -68,9 +68,6 @@ export function manageSearchPanel() {
   } satisfies ManagedDomElements;
 
   (standardSearchBox ? elems.searchBox : elems.form).before(elems.mount);
-  if (standardSearchBox) {
-    elems.searchBox.remove();
-  }
   elems.searchInput.replaceWith(elems.searchControls);
   elems.searchControls.append(elems.searchInput);
   if (elems.clearButton && elems.clearActionMount) {
@@ -90,8 +87,6 @@ export function manageSearchPanel() {
     elems.fileSearchToggle.after(elems.fileSearchToggleMount);
     elems.fileSearchToggle.remove();
   }
-  elems.fileSearch?.remove();
-
   const formInsideSearchBox = source.box.form.one()?.sameNode(form) ?? false;
   const formId = form.attribute("id") || "ehpeek-search-form";
   const data = {
@@ -112,9 +107,8 @@ export function manageSearchPanel() {
     updateCategoryVisibility(open: boolean) {
       elems.categories?.setAttributes({ "aria-hidden": String(!open) });
     },
-    /** Activates E-H's original Search submit control. */
+    /** Activates the live Search submit control in case another script replaced it. */
     activateSearch() {
-      // EhSyringe replaces translated submit inputs, so resolve its live replacement at activation time.
       elems.form
         .all<HTMLInputElement | HTMLButtonElement>(
           `.${domClass.search.panel.submit.apply.hide}[type="submit"]`,

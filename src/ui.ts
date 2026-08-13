@@ -6,7 +6,7 @@ export type UiSite = "e-hentai" | "exhentai";
 const UI_ROOT_CLASS = "ehpeek-ui-root";
 const UI_STATE_STYLE_ID = "ehpeek-ui-state";
 const UI_SCALE_SELECTOR =
-  '.ehpeek-ui-root, body.ehpeek-touch-gallery-page, .eh-syringe-lite-auto-complete-list';
+  ".ehpeek-ui-root, body.ehpeek-touch-gallery-page, .ehpeek-external-autocomplete";
 
 const UI_SCALE_FACTORS = {
   xsmall: 0.8,

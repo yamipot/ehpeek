@@ -44,7 +44,6 @@ const landscapeUiScaleDefault: UiScale = touchUiDefault &&
 
 export const state = {
   app: {
-    ehSyringeDetected: persisted("ehpeek:ehsyringe:detected", false),
     locale: persistedEnum<AppLocale>(
       APP_LOCALE_SETTING_KEY,
       DEFAULT_APP_LOCALE,

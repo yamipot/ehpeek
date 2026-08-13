@@ -50,7 +50,7 @@
  */
 export * from "./core";
 export * from "./domClass";
-export * as EhSyringe from "./ehSyringe";
+export * from "./external";
 export * from "./galleryInfo";
 export * from "./gallery";
 export * from "./search";

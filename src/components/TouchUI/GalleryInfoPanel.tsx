@@ -299,7 +299,7 @@ export function GalleryInfoPanel(props: {
           )}</For>
           <TouchGalleryActionsMenu items={source.elems.actionItems} />
         </div>
-        {tagGroups().length > 0 && (
+        {(tagGroups().length > 0 || hasNewTag()) && (
           <div
             class="flex flex-col pt-2px"
             onDragStart={(event: DragEvent) => event.preventDefault()}
@@ -318,15 +318,17 @@ export function GalleryInfoPanel(props: {
                 aria-hidden="true"
               />
             </button>
-            <div class="grid min-w-0 w-full grid-cols-[max-content_minmax(0,1fr)] items-start ui-gap-x-xs ui-gap-y-sm">
-              <For each={tagGroups()}>{(group) => (
-                <TouchGalleryTagGroup
-                  group={group}
-                  tagging={tagging()}
-                  onTagOpen={openTagMenu}
-                />
-              )}</For>
-            </div>
+            <Show when={tagGroups().length > 0}>
+              <div class="grid min-w-0 w-full grid-cols-[max-content_minmax(0,1fr)] items-start ui-gap-x-xs ui-gap-y-sm">
+                <For each={tagGroups()}>{(group) => (
+                  <TouchGalleryTagGroup
+                    group={group}
+                    tagging={tagging()}
+                    onTagOpen={openTagMenu}
+                  />
+                )}</For>
+              </div>
+            </Show>
           </div>
         )}
         <Show when={hasNewTag()}>
