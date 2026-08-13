@@ -28,12 +28,16 @@ html.ehpeek-fit-to-viewport body {
 html.ehpeek-fit-to-viewport :is(
   .ido,
   .itg,
-  .ehpeek-expand-favorites-search,
-  #rangebar
+  .ehpeek-expand-favorites-search
 ) {
   box-sizing: border-box;
   min-width: 0 !important;
   width: 100% !important;
+  max-width: 100% !important;
+}
+
+html.ehpeek-fit-to-viewport #rangebar {
+  box-sizing: border-box;
   max-width: 100% !important;
 }
 
@@ -61,16 +65,15 @@ html.ehpeek-fit-to-viewport > body.ehpeek-touch-gallery-page {
   display: none !important;
 }
 
-.ehpeek-contain-search-results,
+.ehpeek-contain-search-results {
+  box-sizing: border-box;
+  overflow: visible;
+}
+
 .ehpeek-contain-favorites-results {
   box-sizing: border-box;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-}
-
-.ehpeek-contain-search-results.gld {
-  overflow-x: clip;
-  overflow-y: visible;
 }
 
 .ehpeek-enable-search-swipe-input {
@@ -573,7 +576,6 @@ html.ehpeek-fit-to-viewport > body.ehpeek-touch-gallery-page {
   box-shadow: none;
   color: var(--color-site-accent);
   vertical-align: middle;
-  font-size: var(--ui-font-size-sm);
   font-weight: 700;
   line-height: 1.3;
 }

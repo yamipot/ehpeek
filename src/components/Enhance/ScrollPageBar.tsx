@@ -113,7 +113,7 @@ export function ScrollPageBar(props: {
   );
 
   return (
-    <div ref={gestureHost}>
+    <div ref={gestureHost} class="touch-pan-y">
       <table class={PAGE_BAR_TABLE_CLASS}>
         <tbody>
           <tr>

@@ -759,12 +759,18 @@ function wireReaderCallbacks(
 
     return {
       onDoubleClick: (event: MouseEvent): void => {
-        if (state.overlay.image() === null) {
+        if (state.overlay.image() !== null) {
+          event.preventDefault();
+          event.stopPropagation();
+          state.overlay.update(null);
           return;
         }
-        event.preventDefault();
-        event.stopPropagation();
-        state.overlay.update(null);
+        const zone = event.clientX / viewportActions.viewportWidth();
+        if (zone >= 1 / 3 && zone <= 2 / 3 && prepareZoomAtPoint(event)) {
+          state.toolbar.close();
+          event.preventDefault();
+          event.stopPropagation();
+        }
       },
       onNativeScroll: (): void => {
         if (state.overlay.image() !== null || pagedMode()) {
@@ -1032,6 +1038,19 @@ function wireReaderCallbacks(
   function wireGesture(): PointerGestureCallbacks {
     const gesture: PointerGestureCallbacks = { dragAxis: "any" };
     let lastZoomTouchTap: { clientX: number; clientY: number; time: number } | null = null;
+    const isZoomDoubleTap = (info: PointerDragEnd, event: PointerEvent): boolean => {
+      const now = event.timeStamp || performance.now();
+      const doubleTap = lastZoomTouchTap !== null &&
+        now - lastZoomTouchTap.time <= ZOOM_DOUBLE_TAP_MS &&
+        Math.hypot(
+            info.clientX - lastZoomTouchTap.clientX,
+            info.clientY - lastZoomTouchTap.clientY,
+          ) <= ZOOM_DOUBLE_TAP_DISTANCE;
+      lastZoomTouchTap = doubleTap
+        ? null
+        : { clientX: info.clientX, clientY: info.clientY, time: now };
+      return doubleTap;
+    };
     const isPageReloadButtonTarget = (event: PointerEvent | MouseEvent): boolean =>
       event.target instanceof Element &&
       event.target.closest(".ehpeek-reader-page-reload") !== null;
@@ -1066,28 +1085,26 @@ function wireReaderCallbacks(
     };
     gesture.onTap = (info: PointerDragEnd, event: PointerEvent | MouseEvent): void => {
       viewportActions.cancelDrag();
-      if (
-        state.overlay.image() !== null &&
-        event instanceof PointerEvent &&
-        event.pointerType === "touch"
-      ) {
-        const now = event.timeStamp || performance.now();
-        const doubleTap = lastZoomTouchTap !== null &&
-          now - lastZoomTouchTap.time <= ZOOM_DOUBLE_TAP_MS &&
-          Math.hypot(
-              info.clientX - lastZoomTouchTap.clientX,
-              info.clientY - lastZoomTouchTap.clientY,
-            ) <= ZOOM_DOUBLE_TAP_DISTANCE;
-        lastZoomTouchTap = doubleTap
-          ? null
-          : { clientX: info.clientX, clientY: info.clientY, time: now };
-        if (doubleTap) {
+      const touchInput = event instanceof PointerEvent && event.pointerType === "touch";
+      if (state.overlay.image() !== null && touchInput) {
+        if (isZoomDoubleTap(info, event)) {
           state.overlay.update(null);
         }
         event.preventDefault();
         return;
       }
-      lastZoomTouchTap = null;
+
+      const zone = info.clientX / viewportActions.viewportWidth();
+      const centerTap = zone >= 1 / 3 && zone <= 2 / 3;
+      if (touchInput && centerTap) {
+        if (isZoomDoubleTap(info, event) && prepareZoomAtPoint(info)) {
+          state.toolbar.close();
+          event.preventDefault();
+          return;
+        }
+      } else {
+        lastZoomTouchTap = null;
+      }
       runSingleTap(info, event);
     };
     gesture.holdDelay = MOUSE_HOLD_ZOOM_MS;

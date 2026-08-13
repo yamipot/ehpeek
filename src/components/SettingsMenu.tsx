@@ -319,6 +319,14 @@ export function SettingsMenu(props: {
               label={texts.settings.enhanceThumbsLabel}
               onChange={(value) => updateDraft("enhanceThumbsGridsEnabled", value)}
             />
+            <Show when={draft.touchUiEnabled}>
+              <SwitchButton
+                checked={draft.fitToViewport}
+                description={texts.settings.fitToViewportHelp}
+                label={texts.settings.fitToViewportLabel}
+                onChange={(value) => updateDraft("fitToViewport", value)}
+              />
+            </Show>
             <SwitchButton
               checked={draft.replacePreviewWithScroll}
               description={texts.settings.replacePreviewWithScrollHelp}
@@ -374,14 +382,6 @@ export function SettingsMenu(props: {
               label={texts.settings.includeUnreadHistoryLabel}
               onChange={(value) => updateDraft("includeUnreadHistoryEnabled", value)}
             />
-            <Show when={draft.touchUiEnabled}>
-              <SwitchButton
-                checked={draft.fitToViewport}
-                description={texts.settings.fitToViewportHelp}
-                label={texts.settings.fitToViewportLabel}
-                onChange={(value) => updateDraft("fitToViewport", value)}
-              />
-            </Show>
             <SelectSetting
               label={texts.settings.portraitUiScaleLabel}
               options={UI_SCALE_OPTIONS}

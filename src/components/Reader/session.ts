@@ -126,6 +126,7 @@ export class ReaderSession {
       },
       ctrls: { update: setControls, value: controls },
       toolbar: {
+        close: () => setToolbarOpen(false),
         open: toolbarOpen,
         toggle: () => setToolbarOpen((open) => !open),
       },
