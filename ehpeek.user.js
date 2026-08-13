@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260813.0400
+// @version      260813.1117
 // @description  A touch-optimized E-H/ExH viewer
 // @description:ja  タッチ操作向けの E-H/ExH リーダー
 // @description:zh-CN  为触屏优化的 E-H/ExH 阅读器
@@ -1583,7 +1583,7 @@
   }
 
   // src/eh/dom/core.ts
-  var EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor", mountedNodes = /* @__PURE__ */ new WeakMap();
+  var HIDDEN_ORIGINAL_DOM_NODE_CLASS = "ehpeek-hide-original-node", EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor", mountedNodes = /* @__PURE__ */ new WeakMap();
   var managedBody = null, emptyDomApply = {}, emptyDomChilds = {};
   function defineDomNode() {
     return (selector, options = {}) => {
@@ -1884,6 +1884,9 @@
     setHidden(hidden) {
       return __privateGet(this, _node2).hidden = hidden, this;
     }
+    hideOriginal() {
+      return __privateGet(this, _node2).classList.add(HIDDEN_ORIGINAL_DOM_NODE_CLASS), this;
+    }
     replaceChildren(...children2) {
       __privateGet(this, _node2).replaceChildren(...children2.map((child) => child instanceof _ManagedDomNode ? __privateGet(child, _node2) : child));
     }
@@ -2107,6 +2110,7 @@
       ),
       imageLinkHost: query("#gdt, .gdtm, .gdtl"),
       pageBarBottom: cls("ptb"),
+      pageBarHost: cls("gtb"),
       pageBarTop: cls("ptt"),
       thumbs: id("gdt", {
         apply: {
@@ -3003,12 +3007,18 @@ Next page`,
       previewItems,
       startImage,
       totalImages
-    }, thumbsSource = source.thumbs.one(), pageBarTopSource = source.pageBarTop.one(), pageBarBottomSource = source.pageBarBottom.one(), createPageBarMount = (position) => createManagedElement("div").replaceClasses(
+    }, thumbsSource = source.thumbs.one(), pageBarTopSource = source.pageBarTop.one(), pageBarBottomSource = source.pageBarBottom.one(), pageBarTopHostSource = pageBarTopSource?.closest(
+      domClass.gallery.preview.pageBarHost
+    ), pageBarBottomHostSource = pageBarBottomSource?.closest(
+      domClass.gallery.preview.pageBarHost
+    ), createPageBarMount = (position) => createManagedElement("div").replaceClasses(
       `w-max max-w-full mx-auto overflow-x-auto touch-pan-y [-webkit-overflow-scrolling:touch] [&[data-dragging=true]]:select-none ${position === "top" ? "mt-2px mb-0" : "mt-0 mb-10px"}`
     ), elems = {
       mount: root === document && thumbsSource ? createManagedElement("div").replaceClasses("contents") : null,
       originalPageBarBottom: pageBarBottomSource?.inplace() ?? null,
+      originalPageBarBottomHost: pageBarBottomHostSource?.inplace() ?? null,
       originalPageBarTop: pageBarTopSource?.inplace() ?? null,
+      originalPageBarTopHost: pageBarTopHostSource?.inplace() ?? null,
       originalPageDescription: pageDescriptionSource?.inplace() ?? null,
       pageBarBottom: pageBarBottomSource ? createPageBarMount("bottom") : null,
       pageBarDescription: pageDescriptionSource && pageBarTopSource ? createManagedElement("div") : null,
@@ -3043,9 +3053,9 @@ Next page`,
       updatePreviewLoading(loading) {
         elems.thumbs?.attribute("aria-busy", String(loading));
       },
-      /** Removes the original Preview UI after its data has been detached for Scroll Preview. */
-      removeOriginalPreview() {
-        elems.originalPageBarTop?.remove(), elems.originalPageBarBottom?.remove(), elems.originalPageDescription?.remove(), elems.thumbs?.remove();
+      /** Gives Scroll Preview its own layout box while retaining the original Preview DOM. */
+      installScrollPreviewMount() {
+        elems.mount?.replaceClasses("ehpeek-scroll-preview-mount"), elems.originalPageBarTopHost?.hideOriginal(), elems.originalPageBarBottomHost?.hideOriginal(), elems.originalPageDescription?.hideOriginal(), elems.thumbs?.hideOriginal();
       },
       /** Replaces both original page bars with mounts owned by EhPeek pagination. */
       installPreviewPageBars() {
@@ -3414,7 +3424,7 @@ Next page`,
         let actions = elems.tagMenuAction.all(domClass.gallery.info.tagMenu.actions);
         if (actions.length === 0)
           throw activateTagMenu(tag2.contentSource), elems.newTag?.setHidden(!1).removeStyles("display"), new Error("Gallery tag actions could not be opened.");
-        selectedTagSource = tag2.contentSource, elems.tagMenuAction.apply("layout"), actions.find((action) => action.readAttribute("onclick")?.includes("toggle_tagmenu"))?.remove();
+        selectedTagSource = tag2.contentSource, elems.tagMenuAction.apply("layout"), actions.find((action) => action.readAttribute("onclick")?.includes("toggle_tagmenu"))?.hideOriginal();
       },
       /** Closes E-H's selected tag without replacing its action DOM. */
       closeGalleryTagMenu() {
@@ -3567,6 +3577,7 @@ Next page`,
       galleryHref,
       galleryLink,
       metadata,
+      originalGalleryLink: !1,
       row: row2,
       stackTags: !1,
       tags: [historyActions],
@@ -3587,7 +3598,7 @@ Next page`,
     });
     grids.elems.resultList.before(navigationTopMount), grids.elems.resultList.after(navigationBottomMount);
     for (let control2 of page2.all(domClass.search.controls, anyDomNode))
-      control2.inplace().remove();
+      control2.inplace().hideOriginal();
     let handle = {
       /** Applies new-tab semantics to History gallery links at activation time. */
       listenGalleryLinksOpenInNewTab: () => listenGalleryLinksOpenInNewTab(grids.elems.resultList),
@@ -3797,6 +3808,7 @@ Next page`,
         galleryHref: galleryLink?.attribute("href") ?? null,
         galleryLink: galleryLink?.inplace() ?? null,
         metadata: metadata.inplace(),
+        originalGalleryLink: !0,
         row: managedRow,
         stackTags: !0,
         tags: tags.map((item) => item.inplace()),
@@ -3830,7 +3842,7 @@ Next page`,
       let { detail, galleryLink, metadata, row: row2, tags, title } = source;
       if (galleryLink && title && source.galleryHref) {
         let titleLink = createManagedElement("a").attribute("href", source.galleryHref).replaceClasses("block min-w-0 ehp-color-site-text no-underline");
-        titleLink.append(title), galleryLink.before(detail), galleryLink.remove(), detail.replaceChildren(titleLink, metadata, ...tags), ensureEhPeekGridRowNavigation(
+        titleLink.append(title), galleryLink.before(detail), source.originalGalleryLink ? galleryLink.hideOriginal() : galleryLink.remove(), detail.replaceChildren(titleLink, metadata, ...tags), ensureEhPeekGridRowNavigation(
           row2,
           titleLink,
           source.galleryHref,
@@ -4053,7 +4065,7 @@ Next page`,
       searchControls,
       searchInput: searchInput.inplace(domClass.search.input.apply).apply("expand")
     };
-    (standardSearchBox ? elems.searchBox : elems.form).before(elems.mount), elems.searchInput.replaceWith(elems.searchControls), elems.searchControls.append(elems.searchInput), elems.clearButton && elems.clearActionMount && (elems.clearButton.remove(), elems.searchControls.append(elems.clearActionMount)), elems.searchControls.append(elems.searchActionMount), elems.categories && elems.optionLinks && elems.categoryToggleMount && (elems.optionLinks.after(elems.categories), elems.optionLinks.prepend(elems.categoryToggleMount)), elems.optionLinks && elems.advancedToggle && elems.advancedToggleMount && (elems.advancedToggle.after(elems.advancedToggleMount), elems.advancedToggle.remove()), elems.optionLinks && elems.fileSearchToggle && elems.fileSearchToggleMount && (elems.fileSearchToggle.after(elems.fileSearchToggleMount), elems.fileSearchToggle.remove());
+    (standardSearchBox ? elems.searchBox : elems.form).before(elems.mount), elems.searchInput.replaceWith(elems.searchControls), elems.searchControls.append(elems.searchInput), elems.clearButton && elems.clearActionMount && (elems.clearButton.hideOriginal(), elems.searchControls.append(elems.clearActionMount)), elems.searchControls.append(elems.searchActionMount), elems.categories && elems.optionLinks && elems.categoryToggleMount && (elems.optionLinks.after(elems.categories), elems.optionLinks.prepend(elems.categoryToggleMount)), elems.optionLinks && elems.advancedToggle && elems.advancedToggleMount && (elems.advancedToggle.after(elems.advancedToggleMount), elems.advancedToggle.hideOriginal()), elems.optionLinks && elems.fileSearchToggle && elems.fileSearchToggleMount && (elems.fileSearchToggle.after(elems.fileSearchToggleMount), elems.fileSearchToggle.hideOriginal());
     let formInsideSearchBox = source.box.form.one()?.sameNode(form2) ?? !1, formId = form2.attribute("id") || "ehpeek-search-form", data = {
       clearLabel: clearButton ? actionLabel(clearButton) : null,
       hasClear: elems.clearButton !== null && elems.clearActionMount !== null,
@@ -5840,7 +5852,7 @@ Next page`,
   function PositionBar(props) {
     let [dragging, setDragging] = createSignal(!1), track, thumb, dragOffset = 0, axis = untrack(() => props.axis), thickness = untrack(() => props.thickness ?? "normal"), horizontal = axis === "horizontal", minValue = () => props.minValue ?? 1, valueRange = () => Math.max(0, props.maxValue - minValue()), expanded = () => !!props.expanded || dragging(), visible = () => props.visible !== !1 || dragging(), logicalPosition = () => valueRange() === 0 ? 0 : (props.currentValue - minValue()) / valueRange() * 100, visualPosition = () => horizontal && props.reversed ? 100 - logicalPosition() : logicalPosition(), thumbRatio = () => clamp(props.visibleRatio ?? (props.visibleValueCount ?? 1) / Math.max(1, valueRange() + 1), 0, 1), draggable = () => valueRange() > 0 && thumbRatio() < 1, coordinate = (event) => horizontal ? event.clientX : event.clientY, valueAt = (pointerCoordinate) => {
       let trackRect = track.getBoundingClientRect(), trackStart = horizontal ? trackRect.left : trackRect.top, trackLength = horizontal ? trackRect.width : trackRect.height, thumbLength = horizontal ? thumb.offsetWidth : thumb.offsetHeight, visualRatio = clamp((pointerCoordinate - trackStart - dragOffset) / Math.max(1, trackLength - thumbLength), 0, 1), ratio = horizontal && props.reversed ? 1 - visualRatio : visualRatio;
-      return Math.round(minValue() + ratio * valueRange());
+      return minValue() + ratio * valueRange();
     }, inputAt = (event) => {
       let value = valueAt(coordinate(event));
       return props.onInput(value), value;
@@ -5967,11 +5979,70 @@ Next page`,
   };
 
   // src/components/Enhance/ScrollPreview.tsx
-  var _tmpl$9 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$25 = /* @__PURE__ */ template('<div><span class="flex items-center ui-gap-sm opacity-75"></span><div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>'), _tmpl$33 = /* @__PURE__ */ template('<div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] min-h-[var(--ui-control-size-xs)] flex-none items-center ui-gap-xs ui-px-xs ui-py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-xs"><span class="col-start-2 inline-flex min-h-[var(--ui-control-size-xs)] items-center ui-gap-xs ui-px-sm ui-rounded-xs bg-[var(--color-site-surface)] opacity-75"></span><div><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 ui-rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 ui-rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 ui-rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-xs)] h-[var(--ui-control-size-xs)] items-center justify-center p-0 ui-rounded-xs border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">'), _tmpl$43 = /* @__PURE__ */ template('<div class="relative min-h-0 w-full flex-1"><div class="absolute box-border bg-[var(--color-surface)] cursor-grab [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"><div class=relative>'), _tmpl$53 = /* @__PURE__ */ template("<div class=absolute>"), _tmpl$63 = /* @__PURE__ */ template('<div class="flex w-full justify-center ui-my-sm"><button type=button class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center ui-gap-sm ui-px-md ui-rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98">'), _tmpl$72 = /* @__PURE__ */ template('<div><section class="box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]">'), _tmpl$82 = /* @__PURE__ */ template('<div class="relative flex w-full min-w-0 items-start overflow-hidden rounded-sm bg-[var(--color-background)]">'), _tmpl$92 = /* @__PURE__ */ template('<button type=button class="flex w-full h-full flex-col items-center justify-center ui-gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"><span>'), _tmpl$0 = /* @__PURE__ */ template('<span class="pointer-events-none block flex-none"role=img>'), _tmpl$1 = /* @__PURE__ */ template('<a class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline">'), _tmpl$10 = /* @__PURE__ */ template('<span class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 border-solid border-[var(--color-danger)]"aria-hidden=true>'), _tmpl$11 = /* @__PURE__ */ template('<img class="pointer-events-none block object-contain select-none [-webkit-user-drag:none]"alt decoding=async>'), GRID_GAP = 8, HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6, MAX_TILE_WIDTH = 220, REFERENCE_PORTRAIT_ASPECT_RATIO = 7 / 5, MAX_CROSS_COUNT = 12, OVERSCAN_ROWS = 4, SCROLL_PIXEL_EPSILON = 1, PREVIEW_CONCURRENT_LOADS = 2, PREVIEW_LOAD_RADIUS = 2, OVERLAY_PREVIEW_ACTION_CLASS = ["inline-flex h-[var(--ui-control-size-md)] items-center justify-center py-0 ui-rounded-md border-0 bg-transparent text-[var(--color-site-text)] cursor-pointer font-sans textsize-sm font-700 leading-1", "opacity-90 hover:opacity-100 hover:bg-[var(--color-site-page)] focus-visible:opacity-100 disabled:opacity-40 disabled:cursor-default transition-[opacity,background-color] duration-160"].join(" "), OVERLAY_PREVIEW_ICON_ACTION_CLASS = `${OVERLAY_PREVIEW_ACTION_CLASS} w-[var(--ui-control-size-md)] px-0`, DECODE_CACHE_BYTES = 64 * 1024 * 1024, DECODE_CACHE_ITEMS = 160, NEXT_SCROLL_PREVIEW_DIRECTION = {
+  var _tmpl$9 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$25 = /* @__PURE__ */ template('<div><span class="flex items-center ui-gap-sm opacity-75"></span><div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>'), _tmpl$33 = /* @__PURE__ */ template('<div class="grid grid-cols-[minmax(0,1fr)_auto] min-h-[var(--ui-control-size-sm)] flex-none items-center ui-gap-sm ui-px-sm ui-py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-sm"><span class="inline-flex min-h-[var(--ui-control-size-sm)] items-center ui-gap-xs ui-px-sm ui-rounded-sm bg-[var(--color-site-surface)] opacity-75"></span><div><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">'), _tmpl$43 = /* @__PURE__ */ template('<div class="relative min-h-0 w-full flex-1"><div class="absolute box-border bg-[var(--color-surface)] cursor-grab [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"><div class=relative>'), _tmpl$53 = /* @__PURE__ */ template("<div class=absolute>"), _tmpl$63 = /* @__PURE__ */ template('<div class="flex w-full justify-center ui-my-sm"><button type=button class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center ui-gap-sm ui-px-md ui-rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98">'), _tmpl$72 = /* @__PURE__ */ template('<div><section class="box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]">'), _tmpl$82 = /* @__PURE__ */ template('<div class="relative flex w-full min-w-0 overflow-hidden rounded-sm bg-[var(--color-background)]">'), _tmpl$92 = /* @__PURE__ */ template('<button type=button class="flex w-full h-full flex-col items-center justify-center ui-gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"><span>'), _tmpl$0 = /* @__PURE__ */ template('<span class="pointer-events-none block flex-none"role=img>'), _tmpl$1 = /* @__PURE__ */ template('<a class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline">'), _tmpl$10 = /* @__PURE__ */ template('<span class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 border-solid border-[var(--color-danger)]"aria-hidden=true>'), _tmpl$11 = /* @__PURE__ */ template('<img class="pointer-events-none block flex-none select-none [-webkit-user-drag:none]"alt decoding=async>'), GRID_GAP = 8, HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6, MAX_LAYOUT_ASPECT_RATIO = 3, MAX_TILE_WIDTH = 220, MAX_CROSS_COUNT = 12, OVERSCAN_ROWS = 4, SCROLL_PIXEL_EPSILON = 1, PREVIEW_CONCURRENT_LOADS = 2, PREVIEW_LOAD_RADIUS = 2, OVERLAY_PREVIEW_ACTION_CLASS = ["inline-flex h-[var(--ui-control-size-md)] items-center justify-center py-0 ui-rounded-md border-0 bg-transparent text-[var(--color-site-text)] cursor-pointer font-sans textsize-sm font-700 leading-1", "opacity-90 hover:opacity-100 hover:bg-[var(--color-site-page)] focus-visible:opacity-100 disabled:opacity-40 disabled:cursor-default transition-[opacity,background-color] duration-160"].join(" "), OVERLAY_PREVIEW_ICON_ACTION_CLASS = `${OVERLAY_PREVIEW_ACTION_CLASS} w-[var(--ui-control-size-md)] px-0`, DECODE_CACHE_BYTES = 64 * 1024 * 1024, DECODE_CACHE_ITEMS = 160, NEXT_SCROLL_PREVIEW_DIRECTION = {
     ltr: "rtl",
     rtl: "ttb",
     ttb: "ltr"
   };
+  function layoutAspectRatio(aspectRatio) {
+    return clamp(aspectRatio, 1 / MAX_LAYOUT_ASPECT_RATIO, MAX_LAYOUT_ASPECT_RATIO);
+  }
+  function medianSize(sizes, estimatedSize) {
+    let sorted = [...sizes].sort((left, right) => left - right), middle = (sorted.length - 1) / 2, lower = sorted[Math.floor(middle)] ?? estimatedSize, upper = sorted[Math.ceil(middle)] ?? lower;
+    return (lower + upper) / 2;
+  }
+  function buildGroupGeometry(options) {
+    let estimatedGroupSize = options.horizontal ? options.tileCrossSize / options.estimatedAspectRatio : options.tileCrossSize * options.estimatedAspectRatio, totalGroups = Math.ceil(options.totalImages / options.crossCount), groupOffsets = [], groupSizes = [], offset = 0;
+    for (let group = 0; group < totalGroups; group += 1) {
+      let itemMainSizes = [], startPageNum = group * options.crossCount + 1, endPageNum = Math.min(options.totalImages, startPageNum + options.crossCount - 1);
+      for (let pageNum = startPageNum; pageNum <= endPageNum; pageNum += 1) {
+        let item = options.item(pageNum);
+        if (item === null)
+          continue;
+        let aspectRatio = layoutAspectRatio(item.aspectRatio), thumbnailCrossSize = options.horizontal ? item.thumbnail.height : item.thumbnail.width, itemCrossSize = thumbnailCrossSize * Math.min(options.itemScaleLimit, options.tileCrossSize / thumbnailCrossSize);
+        itemMainSizes.push(options.horizontal ? itemCrossSize / aspectRatio : itemCrossSize * aspectRatio);
+      }
+      let groupSize = medianSize(itemMainSizes, estimatedGroupSize);
+      groupOffsets.push(offset), groupSizes.push(groupSize), offset += groupSize + options.gap;
+    }
+    return {
+      estimatedGroupSize,
+      groupOffsets,
+      groupSizes,
+      totalMainSize: Math.max(1, offset - options.gap)
+    };
+  }
+  function groupAtOffset(layout, offset) {
+    let lastGroup = layout.groupOffsets.length - 1;
+    if (lastGroup <= 0 || offset <= 0)
+      return 0;
+    let low = 0, high = lastGroup;
+    for (; low < high; ) {
+      let middle = Math.ceil((low + high) / 2);
+      groupOffsetAt(layout, middle) <= offset ? low = middle : high = middle - 1;
+    }
+    return low;
+  }
+  function groupOffsetAt(layout, group) {
+    let offset = layout.groupOffsets[group];
+    if (offset === void 0)
+      throw new RangeError(`Invalid preview group: ${group}`);
+    return offset;
+  }
+  function groupSizeAt(layout, group) {
+    let size = layout.groupSizes[group];
+    if (size === void 0)
+      throw new RangeError(`Invalid preview group: ${group}`);
+    return size;
+  }
+  function logicalGroupOffset(layout, offset) {
+    let group = groupAtOffset(layout, offset), stride = groupSizeAt(layout, group) + layout.gap;
+    return group + clamp((offset - groupOffsetAt(layout, group)) / stride, 0, 1);
+  }
+  function physicalGroupOffset(layout, logicalOffset) {
+    let lastGroup = layout.groupOffsets.length - 1, group = clamp(Math.floor(logicalOffset), 0, lastGroup), fraction = clamp(logicalOffset - group, 0, 1);
+    return groupOffsetAt(layout, group) + fraction * (groupSizeAt(layout, group) + layout.gap);
+  }
   function createPreviewLoading(options) {
     let queue = new PriorityLoadQueue(PREVIEW_CONCURRENT_LOADS), requestedIndexes = /* @__PURE__ */ new Set(), [failedIndexes, setFailedIndexes] = createSignal(/* @__PURE__ */ new Set()), [loadingCount, setLoadingCount] = createSignal(0), loadToken = 0, sync = (centerIndex, retryIndex) => {
       let firstIndex = Math.max(0, centerIndex - PREVIEW_LOAD_RADIUS), lastIndex = Math.min(options.maxPreviewIndex, centerIndex + PREVIEW_LOAD_RADIUS), targets = [];
@@ -5991,8 +6062,8 @@ Next page`,
         let next = new Set(current);
         return next.delete(previewIndex), next;
       }), setLoadingCount((count) => count + 1), ++loadToken),
-      onLoaded: (previewIndex, loaded) => {
-        previewIndex === options.aspectPreviewIndex && options.onAspectRatio(loaded.data.dominantAspectRatio), setLoadingCount((count) => Math.max(0, count - 1));
+      onLoaded: () => {
+        setLoadingCount((count) => Math.max(0, count - 1));
       },
       onError: (previewIndex, error) => {
         requestedIndexes.delete(previewIndex), setFailedIndexes((current) => new Set(current).add(previewIndex)), setLoadingCount((count) => Math.max(0, count - 1)), options.onLoadError(error);
@@ -6059,7 +6130,7 @@ Next page`,
   }
   function EmbeddedPreviewToolbar(props) {
     return (() => {
-      var _el$0 = _tmpl$33(), _el$1 = _el$0.firstChild, _el$11 = _el$1.nextSibling, _el$12 = _el$11.firstChild, _el$13 = _el$12.nextSibling, _el$14 = _el$13.nextSibling, _el$15 = _el$14.nextSibling;
+      var _el$0 = _tmpl$33(), _el$1 = _el$0.firstChild, _el$11 = _el$1.nextSibling, _el$12 = _el$11.firstChild, _el$13 = _el$12.nextSibling, _el$14 = _el$13.nextSibling, _el$15 = _el$14.nextSibling, _el$16 = _el$15.nextSibling;
       return insert(_el$1, createComponent(Show, {
         get when() {
           return props.state.loading();
@@ -6071,19 +6142,25 @@ Next page`,
         get name() {
           return props.state.directionIcon;
         },
-        size: "var(--ui-icon-size-sm)"
+        size: "var(--ui-icon-size-md)"
       })), _el$13.$$click = () => props.state.onZoomOut(), insert(_el$13, createComponent(Icon2, {
         name: "zoom-out",
-        size: "var(--ui-icon-size-sm)"
+        size: "var(--ui-icon-size-md)"
       })), _el$14.$$click = () => props.state.onZoomIn(), insert(_el$14, createComponent(Icon2, {
         name: "zoom-in",
-        size: "var(--ui-icon-size-sm)"
-      })), _el$15.$$click = () => props.onOpenOverlay(), insert(_el$15, createComponent(Icon2, {
+        size: "var(--ui-icon-size-md)"
+      })), _el$15.$$click = () => props.onCurrent(), insert(_el$15, createComponent(Icon2, {
+        name: "locate",
+        size: "var(--ui-icon-size-md)"
+      })), _el$16.$$click = () => props.onOpenOverlay(), insert(_el$16, createComponent(Icon2, {
         name: "fullscreen",
-        size: "var(--ui-icon-size-sm)"
+        size: "var(--ui-icon-size-md)"
       })), createRenderEffect((_p$) => {
-        var _v$14 = `flex flex-none items-center ui-gap-xs ${props.state.leftHanded() ? "col-start-1 row-start-1 justify-self-start flex-row-reverse" : "col-start-3 justify-self-end"}`, _v$15 = props.state.directionLabel, _v$16 = props.state.directionLabel, _v$17 = i18n_default.common.actions.zoomOut, _v$18 = i18n_default.common.actions.zoomOut, _v$19 = props.state.zoomOutDisabled(), _v$20 = i18n_default.common.actions.zoomIn, _v$21 = i18n_default.common.actions.zoomIn, _v$22 = props.state.zoomInDisabled(), _v$23 = i18n_default.gallery.openScrollPreview, _v$24 = i18n_default.gallery.openScrollPreview;
-        return _v$14 !== _p$.e && className(_el$11, _p$.e = _v$14), _v$15 !== _p$.t && setAttribute(_el$12, "aria-label", _p$.t = _v$15), _v$16 !== _p$.a && setAttribute(_el$12, "title", _p$.a = _v$16), _v$17 !== _p$.o && setAttribute(_el$13, "aria-label", _p$.o = _v$17), _v$18 !== _p$.i && setAttribute(_el$13, "title", _p$.i = _v$18), _v$19 !== _p$.n && (_el$13.disabled = _p$.n = _v$19), _v$20 !== _p$.s && setAttribute(_el$14, "aria-label", _p$.s = _v$20), _v$21 !== _p$.h && setAttribute(_el$14, "title", _p$.h = _v$21), _v$22 !== _p$.r && (_el$14.disabled = _p$.r = _v$22), _v$23 !== _p$.d && setAttribute(_el$15, "aria-label", _p$.d = _v$23), _v$24 !== _p$.l && setAttribute(_el$15, "title", _p$.l = _v$24), _p$;
+        var _v$14 = {
+          "col-start-1 justify-self-start": !props.state.leftHanded(),
+          "col-start-2 justify-self-end": props.state.leftHanded()
+        }, _v$15 = `flex flex-none items-center ui-gap-xs ${props.state.leftHanded() ? "col-start-1 row-start-1 justify-self-start flex-row-reverse" : "col-start-2 justify-self-end"}`, _v$16 = props.state.directionLabel, _v$17 = props.state.directionLabel, _v$18 = i18n_default.common.actions.zoomOut, _v$19 = i18n_default.common.actions.zoomOut, _v$20 = props.state.zoomOutDisabled(), _v$21 = i18n_default.common.actions.zoomIn, _v$22 = i18n_default.common.actions.zoomIn, _v$23 = props.state.zoomInDisabled(), _v$24 = i18n_default.common.actions.current, _v$25 = i18n_default.common.actions.current, _v$26 = props.currentDisabled, _v$27 = i18n_default.gallery.openScrollPreview, _v$28 = i18n_default.gallery.openScrollPreview;
+        return _p$.e = classList(_el$1, _v$14, _p$.e), _v$15 !== _p$.t && className(_el$11, _p$.t = _v$15), _v$16 !== _p$.a && setAttribute(_el$12, "aria-label", _p$.a = _v$16), _v$17 !== _p$.o && setAttribute(_el$12, "title", _p$.o = _v$17), _v$18 !== _p$.i && setAttribute(_el$13, "aria-label", _p$.i = _v$18), _v$19 !== _p$.n && setAttribute(_el$13, "title", _p$.n = _v$19), _v$20 !== _p$.s && (_el$13.disabled = _p$.s = _v$20), _v$21 !== _p$.h && setAttribute(_el$14, "aria-label", _p$.h = _v$21), _v$22 !== _p$.r && setAttribute(_el$14, "title", _p$.r = _v$22), _v$23 !== _p$.d && (_el$14.disabled = _p$.d = _v$23), _v$24 !== _p$.l && setAttribute(_el$15, "aria-label", _p$.l = _v$24), _v$25 !== _p$.u && setAttribute(_el$15, "title", _p$.u = _v$25), _v$26 !== _p$.c && (_el$15.disabled = _p$.c = _v$26), _v$27 !== _p$.w && setAttribute(_el$16, "aria-label", _p$.w = _v$27), _v$28 !== _p$.m && setAttribute(_el$16, "title", _p$.m = _v$28), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -6095,30 +6172,31 @@ Next page`,
         h: void 0,
         r: void 0,
         d: void 0,
-        l: void 0
+        l: void 0,
+        u: void 0,
+        c: void 0,
+        w: void 0,
+        m: void 0
       }), _el$0;
     })();
   }
   function PreviewViewport(props) {
     let state2 = untrack(() => props.state);
     return (() => {
-      var _el$16 = _tmpl$43(), _el$17 = _el$16.firstChild, _el$18 = _el$17.firstChild;
-      addEventListener(_el$17, "wheel", state2.onWheel), addEventListener(_el$17, "scroll", state2.onScroll);
+      var _el$17 = _tmpl$43(), _el$18 = _el$17.firstChild, _el$19 = _el$18.firstChild;
+      addEventListener(_el$18, "wheel", state2.onWheel), addEventListener(_el$18, "scroll", state2.onScroll);
       var _ref$ = state2.onScroller;
-      return typeof _ref$ == "function" ? use(_ref$, _el$17) : state2.onScroller = _el$17, insert(_el$18, createComponent(For, {
+      return typeof _ref$ == "function" ? use(_ref$, _el$18) : state2.onScroller = _el$18, insert(_el$19, createComponent(For, {
         get each() {
           return state2.slots();
         },
         children: (slot) => {
-          let itemIndex = () => slot.pageNum - 1, group = () => Math.floor(itemIndex() / state2.layout().crossCount), crossIndex = () => itemIndex() % state2.layout().crossCount, left = () => state2.horizontal ? state2.rightToLeft ? Number.parseFloat(state2.canvasWidth()) - state2.layout().tileWidth - group() * state2.layout().mainStride : group() * state2.layout().mainStride : crossIndex() * (state2.layout().tileWidth + state2.layout().gap), top = () => state2.horizontal ? crossIndex() * (state2.layout().tileHeight + state2.layout().gap) : group() * state2.layout().mainStride;
+          let itemIndex = () => slot.pageNum - 1, group = () => Math.floor(itemIndex() / state2.layout().crossCount), crossIndex = () => itemIndex() % state2.layout().crossCount, groupSize = () => groupSizeAt(state2.layout(), group()), groupOffset = () => groupOffsetAt(state2.layout(), group()), left = () => state2.horizontal ? state2.rightToLeft ? Number.parseFloat(state2.canvasWidth()) - groupSize() - groupOffset() : groupOffset() : crossIndex() * (state2.layout().tileCrossSize + state2.layout().gap), top = () => state2.horizontal ? crossIndex() * (state2.layout().tileCrossSize + state2.layout().gap) : groupOffset(), height = () => state2.horizontal ? state2.layout().tileCrossSize : groupSize(), width = () => state2.horizontal ? groupSize() : state2.layout().tileCrossSize;
           return (() => {
-            var _el$19 = _tmpl$53();
-            return insert(_el$19, createComponent(PreviewTile, {
+            var _el$20 = _tmpl$53();
+            return insert(_el$20, createComponent(PreviewTile, {
               get alignment() {
                 return memo(() => !!state2.rightToLeft)() ? "right" : state2.horizontal ? "left" : "center";
-              },
-              get allowUpscale() {
-                return state2.allowUpscale();
               },
               get decodeCache() {
                 return state2.decodeCache;
@@ -6127,13 +6205,19 @@ Next page`,
                 return state2.failedIndexes().has(state2.previewCache.previewIndexForPage(slot.pageNum));
               },
               get height() {
-                return state2.layout().tileHeight;
+                return height();
               },
               get highlighted() {
                 return slot.pageNum === state2.highlightedPageNum();
               },
+              get horizontal() {
+                return state2.horizontal;
+              },
               get item() {
                 return slot.item;
+              },
+              get maximumScale() {
+                return state2.layout().itemScaleLimit;
               },
               get pageNum() {
                 return slot.pageNum;
@@ -6143,20 +6227,20 @@ Next page`,
               },
               onRetry: () => state2.onRetry(slot.pageNum),
               get width() {
-                return state2.layout().tileWidth;
+                return width();
               }
             })), createRenderEffect((_p$) => {
-              var _v$28 = `${state2.layout().tileHeight}px`, _v$29 = `${left()}px`, _v$30 = `${top()}px`, _v$31 = `${state2.layout().tileWidth}px`;
-              return _v$28 !== _p$.e && setStyleProperty(_el$19, "height", _p$.e = _v$28), _v$29 !== _p$.t && setStyleProperty(_el$19, "left", _p$.t = _v$29), _v$30 !== _p$.a && setStyleProperty(_el$19, "top", _p$.a = _v$30), _v$31 !== _p$.o && setStyleProperty(_el$19, "width", _p$.o = _v$31), _p$;
+              var _v$32 = `${height()}px`, _v$33 = `${left()}px`, _v$34 = `${top()}px`, _v$35 = `${width()}px`;
+              return _v$32 !== _p$.e && setStyleProperty(_el$20, "height", _p$.e = _v$32), _v$33 !== _p$.t && setStyleProperty(_el$20, "left", _p$.t = _v$33), _v$34 !== _p$.a && setStyleProperty(_el$20, "top", _p$.a = _v$34), _v$35 !== _p$.o && setStyleProperty(_el$20, "width", _p$.o = _v$35), _p$;
             }, {
               e: void 0,
               t: void 0,
               a: void 0,
               o: void 0
-            }), _el$19;
+            }), _el$20;
           })();
         }
-      })), insert(_el$16, createComponent(Show, {
+      })), insert(_el$17, createComponent(Show, {
         get when() {
           return state2.positionBarVisible();
         },
@@ -6169,16 +6253,21 @@ Next page`,
               return state2.horizontal ? "horizontal" : "vertical";
             },
             get currentValue() {
-              return state2.positionPage();
+              return state2.positionValue();
             },
             get expanded() {
               return !state2.horizontal;
             },
-            get maxValue() {
-              return state2.maxPageNum;
+            maxValue: 1,
+            minValue: 0,
+            get onCommit() {
+              return state2.onPositionCommit;
             },
             get onInput() {
               return state2.onPositionInput;
+            },
+            get onPointerDown() {
+              return state2.onPositionPointerDown;
             },
             get pixelScale() {
               return state2.pixelScale();
@@ -6200,13 +6289,13 @@ Next page`,
           });
         }
       }), null), createRenderEffect((_p$) => {
-        var _v$25 = state2.scrollerClassList, _v$26 = state2.canvasHeight(), _v$27 = state2.canvasWidth();
-        return _p$.e = classList(_el$17, _v$25, _p$.e), _v$26 !== _p$.t && setStyleProperty(_el$18, "height", _p$.t = _v$26), _v$27 !== _p$.a && setStyleProperty(_el$18, "width", _p$.a = _v$27), _p$;
+        var _v$29 = state2.scrollerClassList, _v$30 = state2.canvasHeight(), _v$31 = state2.canvasWidth();
+        return _p$.e = classList(_el$18, _v$29, _p$.e), _v$30 !== _p$.t && setStyleProperty(_el$19, "height", _p$.t = _v$30), _v$31 !== _p$.a && setStyleProperty(_el$19, "width", _p$.a = _v$31), _p$;
       }, {
         e: void 0,
         t: void 0,
         a: void 0
-      }), _el$16;
+      }), _el$17;
     })();
   }
   function ScrollPreview(props) {
@@ -6319,11 +6408,11 @@ Next page`,
         return !source.replaceOriginalPreview;
       },
       get children() {
-        var _el$20 = _tmpl$63(), _el$21 = _el$20.firstChild;
-        return _el$21.$$click = () => source.coordinator.openPreviewPage(session.continuePageNum() ?? 1), insert(_el$21, createComponent(Icon2, {
+        var _el$21 = _tmpl$63(), _el$22 = _el$21.firstChild;
+        return _el$22.$$click = () => source.coordinator.openPreviewPage(session.continuePageNum() ?? 1), insert(_el$22, createComponent(Icon2, {
           name: "grid",
           size: "var(--ui-icon-size-sm)"
-        }), null), insert(_el$21, () => i18n_default.gallery.scrollPreview, null), _el$20;
+        }), null), insert(_el$22, () => i18n_default.gallery.scrollPreview, null), _el$21;
       }
     });
   }
@@ -6392,17 +6481,26 @@ Next page`,
     });
   }
   function ScrollPreviewPanel(props) {
-    let decodeCache = untrack(() => props.decodeCache), embedded = untrack(() => props.embedded), previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, aspectPreviewIndex = previewCache.previewIndexForPage(untrack(() => props.targetPageNum ?? props.targetPreviewIndex * initialPreview.data.pageSize + 1)), [tileAspectRatio, setTileAspectRatio] = createSignal(initialPreview.data.dominantAspectRatio), initialTileAspectRatio = untrack(tileAspectRatio), pixelScale = () => props.pixelScale, initialPixelScale = untrack(pixelScale), readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? i18n_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? i18n_default.gallery.scrollPreviewDirectionRtl : i18n_default.gallery.scrollPreviewDirectionLtr, flingAnimator = new ScrollFlingAnimator(), crossCountOverride = () => props.crossCountOverride, [exitDragOffset, setExitDragOffset] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [positionBarReady, setPositionBarReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), [layout, setLayout] = createSignal({
+    let decodeCache = untrack(() => props.decodeCache), embedded = untrack(() => props.embedded), previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, estimatedAspectRatio = layoutAspectRatio(initialPreview.data.dominantAspectRatio), embeddedReferenceTileWidth = medianSize(initialPreview.data.previewItems.map((item) => item.thumbnail.width), MAX_TILE_WIDTH), pixelScale = () => props.pixelScale, initialPixelScale = untrack(pixelScale), readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", referenceThumbnailCrossSize = medianSize(initialPreview.data.previewItems.map((item) => horizontal ? item.thumbnail.height : item.thumbnail.width), horizontal ? MAX_TILE_WIDTH * estimatedAspectRatio : MAX_TILE_WIDTH), rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? i18n_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? i18n_default.gallery.scrollPreviewDirectionRtl : i18n_default.gallery.scrollPreviewDirectionLtr, flingAnimator = new ScrollFlingAnimator(), crossCountOverride = () => props.crossCountOverride, [exitDragOffset, setExitDragOffset] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [positionBarReady, setPositionBarReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), initialTileCrossSize = horizontal ? MAX_TILE_WIDTH * estimatedAspectRatio * initialPixelScale : MAX_TILE_WIDTH * initialPixelScale, initialGap = GRID_GAP * initialPixelScale, initialGeometry = buildGroupGeometry({
       crossCount: 1,
-      gap: GRID_GAP * initialPixelScale,
+      estimatedAspectRatio,
+      gap: initialGap,
       horizontal,
-      mainStride: horizontal ? (MAX_TILE_WIDTH + GRID_GAP) * initialPixelScale : (MAX_TILE_WIDTH * initialTileAspectRatio + GRID_GAP) * initialPixelScale,
-      tileHeight: MAX_TILE_WIDTH * initialTileAspectRatio * initialPixelScale,
-      tileWidth: MAX_TILE_WIDTH * initialPixelScale,
+      item: () => null,
+      itemScaleLimit: 1,
+      tileCrossSize: initialTileCrossSize,
+      totalImages
+    }), [layout, setLayout] = createSignal({
+      crossCount: 1,
+      gap: initialGap,
+      horizontal,
+      itemScaleLimit: 1,
+      tileCrossSize: initialTileCrossSize,
       viewportHeight: 1,
-      viewportWidth: 1
-    }), scroller, overlay, dragDirection = null, dragStartPosition = null, resizeAnchorPageNum = null, pinchStartCrossCount = 1, pinchMinimumCrossCount = 1, layoutFrame = null, scrollFrame = null, layoutHeight = 0, layoutWidth = 0, initialized = !1, disposed = !1, totalGroups = createMemo(() => Math.ceil(totalImages / layout().crossCount)), totalMainSize = createMemo(() => Math.max(1, totalGroups() * layout().mainStride - layout().gap)), mainViewportSize = createMemo(() => horizontal ? layout().viewportWidth : layout().viewportHeight), mainCanvasSize = createMemo(() => Math.max(totalMainSize(), mainViewportSize())), visibleStartGroup = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) - OVERSCAN_ROWS, 0, Math.max(0, totalGroups() - 1))), visibleEndGroup = createMemo(() => clamp(Math.ceil((scrollOffset() + mainViewportSize()) / layout().mainStride) + OVERSCAN_ROWS, visibleStartGroup(), Math.max(0, totalGroups() - 1))), visibleStartPageNum = createMemo(() => visibleStartGroup() * layout().crossCount + 1), visibleEndPageNum = createMemo(() => Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)), screenStartPageNum = createMemo(() => clamp(Math.floor(scrollOffset() / layout().mainStride) * layout().crossCount + 1, 1, totalImages)), screenEndPageNum = createMemo(() => {
-      let end = Math.max(scrollOffset(), scrollOffset() + mainViewportSize() - 1), endGroup = Math.floor(end / layout().mainStride);
+      viewportWidth: 1,
+      ...initialGeometry
+    }), scroller, overlay, dragDirection = null, dragStartPosition = null, resizeAnchorPageNum = null, pinchStartCrossCount = 1, pinchMinimumCrossCount = 1, layoutFrame = null, scrollFrame = null, layoutHeight = 0, layoutWidth = 0, layoutDirty = !1, pointerActive = !1, positionBarActive = !1, preserveResizeAnchor = !1, previewDataVersion = untrack(previewCache.previewDataVersion), initialized = !1, disposed = !1, totalGroups = createMemo(() => layout().groupSizes.length), totalMainSize = createMemo(() => layout().totalMainSize), mainViewportSize = createMemo(() => horizontal ? layout().viewportWidth : layout().viewportHeight), mainCanvasSize = createMemo(() => Math.max(totalMainSize(), mainViewportSize())), visibleStartGroup = createMemo(() => clamp(groupAtOffset(layout(), scrollOffset()) - OVERSCAN_ROWS, 0, Math.max(0, totalGroups() - 1))), visibleEndGroup = createMemo(() => clamp(groupAtOffset(layout(), scrollOffset() + mainViewportSize()) + OVERSCAN_ROWS, visibleStartGroup(), Math.max(0, totalGroups() - 1))), visibleStartPageNum = createMemo(() => visibleStartGroup() * layout().crossCount + 1), visibleEndPageNum = createMemo(() => Math.min(totalImages, (visibleEndGroup() + 1) * layout().crossCount)), screenStartPageNum = createMemo(() => clamp(groupAtOffset(layout(), scrollOffset()) * layout().crossCount + 1, 1, totalImages)), screenEndPageNum = createMemo(() => {
+      let end = Math.max(scrollOffset(), scrollOffset() + mainViewportSize() - 1), endGroup = groupAtOffset(layout(), end);
       return clamp((endGroup + 1) * layout().crossCount, screenStartPageNum(), totalImages);
     }), visibleSlots = createMemo(() => {
       previewCache.previewDataVersion();
@@ -6414,13 +6512,11 @@ Next page`,
         });
       return slots;
     }), centeredPageNum = () => {
-      let currentLayout = layout(), centerGroup = Math.floor((scrollOffset() + mainViewportSize() / 2) / currentLayout.mainStride);
+      let currentLayout = layout(), centerGroup = groupAtOffset(currentLayout, scrollOffset() + mainViewportSize() / 2);
       return clamp(centerGroup * currentLayout.crossCount + Math.floor(currentLayout.crossCount / 2) + 1, 1, totalImages);
     }, centeredPreviewIndex = () => previewCache.previewIndexForPage(centeredPageNum()), loading = createPreviewLoading({
-      aspectPreviewIndex,
       centeredPageNum,
       maxPreviewIndex,
-      onAspectRatio: setTileAspectRatio,
       onLoadError,
       previewCache,
       ready: previewLoadReady
@@ -6428,7 +6524,7 @@ Next page`,
       let targetPageNum = props.highlightedPageNum() ?? props.targetPageNum;
       return targetPageNum !== null && targetPageNum >= screenStartPageNum() && targetPageNum <= screenEndPageNum() ? targetPageNum : centeredPageNum();
     }, maximumCrossCount = () => horizontal ? Math.min(MAX_CROSS_COUNT, totalImages) : MAX_CROSS_COUNT, minimumCrossCount = (currentLayout) => {
-      let aspectRatio = tileAspectRatio(), crossSize = currentLayout.horizontal ? currentLayout.viewportHeight : currentLayout.viewportWidth, maximumTileCrossSize = currentLayout.horizontal ? Math.min(currentLayout.viewportHeight / 2, currentLayout.viewportWidth / 2 * aspectRatio) : Math.min(currentLayout.viewportWidth / 2, currentLayout.viewportHeight / 2 / aspectRatio);
+      let aspectRatio = estimatedAspectRatio, crossSize = currentLayout.horizontal ? currentLayout.viewportHeight : currentLayout.viewportWidth, maximumTileCrossSize = currentLayout.horizontal ? Math.min(currentLayout.viewportHeight / 2, currentLayout.viewportWidth / 2 * aspectRatio) : Math.min(currentLayout.viewportWidth / 2, currentLayout.viewportHeight / 2 / aspectRatio);
       return Math.max(1, Math.ceil((crossSize + currentLayout.gap) / (maximumTileCrossSize + currentLayout.gap)));
     }, resizeCrossCount = (delta) => {
       flingAnimator.cancel(), resizeAnchorPageNum = preferredLayoutAnchorPageNum();
@@ -6436,26 +6532,30 @@ Next page`,
       props.onCrossCountOverrideChange(clamp(currentLayout.crossCount + delta, minimumCrossCount(currentLayout), maximumCrossCount())), queueMicrotask(() => {
         resizeAnchorPageNum = null;
       });
-    }, scrollPositionPage = () => {
-      let maxOffset = Math.max(0, totalMainSize() - mainViewportSize());
-      return maxOffset === 0 || totalImages <= 1 ? 1 : Math.round(1 + clamp(scrollOffset() / maxOffset, 0, 1) * (totalImages - 1));
-    }, maxScrollOffset = () => Math.max(0, totalMainSize() - mainViewportSize()), readScrollOffset = () => {
+    }, maxScrollOffset = () => Math.max(0, totalMainSize() - mainViewportSize()), maxLogicalScrollOffset = () => logicalGroupOffset(layout(), maxScrollOffset()), scrollPositionValue = () => {
+      let maxLogicalOffset = maxLogicalScrollOffset();
+      return maxLogicalOffset === 0 ? 0 : clamp(logicalGroupOffset(layout(), scrollOffset()) / maxLogicalOffset, 0, 1);
+    }, readScrollOffset = () => {
       let value = horizontal ? rightToLeft ? maxScrollOffset() - scroller.scrollLeft : scroller.scrollLeft : scroller.scrollTop;
       return clamp(value, 0, maxScrollOffset());
     }, updateScrollOffset = (value) => {
       let next = clamp(value, 0, maxScrollOffset());
       horizontal ? scroller.scrollLeft = rightToLeft ? maxScrollOffset() - next : next : scroller.scrollTop = next, setScrollOffset(next);
-    }, scrollToPositionPage = (pageNum) => {
+    }, scrollToPositionValue = (value) => {
       flingAnimator.cancel();
-      let ratio = totalImages <= 1 ? 0 : (clamp(pageNum, 1, totalImages) - 1) / (totalImages - 1);
-      updateScrollOffset(ratio * maxScrollOffset());
+      let ratio = clamp(value, 0, 1);
+      if (ratio === 1) {
+        updateScrollOffset(maxScrollOffset());
+        return;
+      }
+      updateScrollOffset(physicalGroupOffset(layout(), ratio * maxLogicalScrollOffset()));
     }, requestDirectionChange = () => {
       window.confirm(i18n_default.gallery.confirmScrollPreviewDirection) && props.onDirectionChange?.(NEXT_SCROLL_PREVIEW_DIRECTION[readDirection], centeredPageNum());
     };
     createPointerGestureElement(() => scroller ?? null, () => ({
       dragAxis: embedded ? horizontal ? "x" : "y" : "any",
       onStart: () => {
-        flingAnimator.cancel(), dragDirection = null, dragStartPosition = horizontal ? scroller.scrollLeft : scroller.scrollTop;
+        flingAnimator.cancel(), pointerActive = !0, dragDirection = null, dragStartPosition = horizontal ? scroller.scrollLeft : scroller.scrollTop;
       },
       onMove: (info) => {
         if (dragDirection === null) {
@@ -6469,7 +6569,7 @@ Next page`,
         dragStartPosition !== null && (horizontal ? scroller.scrollLeft = dragStartPosition - info.dx : scroller.scrollTop = dragStartPosition - info.dy);
       },
       onEnd: (info) => {
-        if (dragStartPosition = null, dragDirection === "exit") {
+        if (dragStartPosition = null, pointerActive = !1, applyPendingLayout(), dragDirection === "exit") {
           let offset = exitDragOffset(), exitSize = horizontal ? overlay.clientHeight : overlay.clientWidth, exitVelocity = horizontal ? info.velocityY : info.velocityX, exit = Math.abs(offset) >= exitSize * 0.2 || Math.abs(exitVelocity) >= 0.6;
           if (dragDirection = null, exit) {
             let direction = offset === 0 ? Math.sign(exitVelocity) || 1 : Math.sign(offset), previewIndex = centeredPreviewIndex(), translation = horizontal ? `0, ${direction * 100}vh` : `${direction * 100}vw, 0`;
@@ -6520,12 +6620,12 @@ Next page`,
         embedded || props.onCrossCountOverrideChange(clamp(Math.round(pinchStartCrossCount / info.scale), pinchMinimumCrossCount, MAX_CROSS_COUNT));
       },
       onPinchEnd: () => {
-        resizeAnchorPageNum = null;
+        resizeAnchorPageNum = null, applyPendingLayout();
       }
     }));
     let scrollToPage = (pageNum, currentLayout = untrack(layout)) => {
-      let group = Math.floor((clamp(pageNum, 1, totalImages) - 1) / currentLayout.crossCount), tileMainSize = currentLayout.horizontal ? currentLayout.tileWidth : currentLayout.tileHeight;
-      updateScrollOffset(group * currentLayout.mainStride - (mainViewportSize() - tileMainSize) / 2);
+      let group = Math.floor((clamp(pageNum, 1, totalImages) - 1) / currentLayout.crossCount);
+      updateScrollOffset(groupOffsetAt(currentLayout, group) - (mainViewportSize() - groupSizeAt(currentLayout, group)) / 2);
     }, scrollToPreview = (previewIndex, currentLayout) => {
       scrollToPage(previewIndex * initialPreview.data.pageSize + 1, currentLayout);
     };
@@ -6533,31 +6633,60 @@ Next page`,
       let previewIndex = props.targetPreviewIndex, pageNum = props.targetPageNum;
       initialized && scroller.isConnected && (pageNum === null ? scrollToPreview(previewIndex, untrack(layout)) : scrollToPage(pageNum, untrack(layout)));
     });
-    let updateLayout = (resetEmbeddedHeight = !1) => {
-      setPreviewLoadReady(!1), resetEmbeddedHeight && embedded && overlay.style.removeProperty("height");
-      let width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), scale = pixelScale(), gap = GRID_GAP * scale, aspectRatio = tileAspectRatio(), baseMaxTileWidth = MAX_TILE_WIDTH * scale, referenceItemsPerRow = Math.max(1, Math.ceil((width + gap) / (baseMaxTileWidth + gap))), referenceItemWidth = Math.max(1, (width - gap * (referenceItemsPerRow - 1)) / referenceItemsPerRow), maxTileWidth = embedded ? referenceItemWidth * Math.sqrt(REFERENCE_PORTRAIT_ASPECT_RATIO / aspectRatio) : baseMaxTileWidth, anchorPageNum = initialized ? resizeAnchorPageNum ?? preferredLayoutAnchorPageNum() : null, itemsPerRow = Math.max(1, Math.ceil((width + gap) / (maxTileWidth + gap))), itemWidth = Math.max(1, (width - gap * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio)), availableRows = embedded ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap))) : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap))), automaticCrossCount = horizontal ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow)) : Math.min(itemsPerRow, maximumCrossCount()), crossCount = clamp(crossCountOverride() ?? automaticCrossCount, 1, maximumCrossCount()), availableTileHeight = Math.max(1, (height - gap * (crossCount - 1)) / crossCount), crossCountOverridden = crossCountOverride() !== null, overriddenTileWidth = Math.min(Math.max(1, (width - gap * (crossCount - 1)) / crossCount), width / 2, height / 2 / aspectRatio), tileHeight = horizontal ? crossCountOverridden ? Math.min(availableTileHeight, height / 2, width / 2 * aspectRatio) : Math.min(itemHeight, availableTileHeight) : Math.max(1, Math.round((crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount)) * aspectRatio)), tileWidth = horizontal ? crossCountOverridden ? tileHeight / aspectRatio : clamp(tileHeight / aspectRatio, 1, maxTileWidth) : crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount), fitEmbeddedHeight = embedded && !props.fillEmbeddedContainer(), viewportHeight = height;
+    let updateLayout = (resetEmbeddedHeight = !1, preserveViewportAnchor = !1) => {
+      preserveResizeAnchor = preserveViewportAnchor, setPreviewLoadReady(!1), layoutDirty = !1, resetEmbeddedHeight && embedded && overlay.style.removeProperty("height");
+      let previousLayout = untrack(layout), preservedAnchorPageNum = initialized && preserveViewportAnchor ? centeredPageNum() : null, preservedAnchorViewportRatio = preservedAnchorPageNum === null ? null : (() => {
+        let group = Math.floor((preservedAnchorPageNum - 1) / previousLayout.crossCount);
+        return (groupOffsetAt(previousLayout, group) + groupSizeAt(previousLayout, group) / 2 - scrollOffset()) / mainViewportSize();
+      })(), width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), scale = pixelScale(), gap = GRID_GAP * scale, aspectRatio = estimatedAspectRatio, baseMaxTileWidth = MAX_TILE_WIDTH * scale, maxTileWidth = embedded ? embeddedReferenceTileWidth * scale : baseMaxTileWidth, anchorPageNum = initialized ? resizeAnchorPageNum ?? preferredLayoutAnchorPageNum() : null, itemsPerRow = Math.max(1, embedded ? Math.round((width + gap) / (maxTileWidth + gap)) : Math.ceil((width + gap) / (maxTileWidth + gap))), itemWidth = Math.max(1, (width - gap * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio)), availableRows = embedded ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap))) : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap))), automaticCrossCount = horizontal ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow)) : Math.min(itemsPerRow, maximumCrossCount()), crossCount = clamp(crossCountOverride() ?? automaticCrossCount, 1, maximumCrossCount()), availableTileHeight = Math.max(1, (height - gap * (crossCount - 1)) / crossCount), crossCountOverridden = crossCountOverride() !== null, overriddenTileWidth = Math.min(Math.max(1, (width - gap * (crossCount - 1)) / crossCount), width / 2, height / 2 / aspectRatio), tileHeight = horizontal ? crossCountOverridden ? Math.min(availableTileHeight, height / 2, width / 2 * aspectRatio) : Math.min(itemHeight, availableTileHeight) : Math.max(1, Math.round((crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount)) * aspectRatio)), tileWidth = horizontal ? crossCountOverridden ? tileHeight / aspectRatio : clamp(tileHeight / aspectRatio, 1, maxTileWidth) : crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount), tileCrossSize = horizontal ? tileHeight : tileWidth, itemScaleLimit = embedded ? scale : Math.min(crossCountOverridden ? Number.POSITIVE_INFINITY : 1, tileCrossSize / referenceThumbnailCrossSize), geometry = buildGroupGeometry({
+        crossCount,
+        estimatedAspectRatio,
+        gap,
+        horizontal,
+        item: (pageNum) => untrack(() => previewCache.previewItem(pageNum)),
+        itemScaleLimit,
+        tileCrossSize,
+        totalImages
+      }), fitEmbeddedHeight = embedded && !props.fillEmbeddedContainer(), viewportHeight = height;
       if (fitEmbeddedHeight && horizontal)
-        viewportHeight = crossCount * tileHeight + (crossCount - 1) * gap, overlay.style.height = `${Math.ceil(overlay.clientHeight - height + viewportHeight)}px`;
+        viewportHeight = crossCount * tileCrossSize + (crossCount - 1) * gap, overlay.style.height = `${Math.ceil(overlay.clientHeight - height + viewportHeight)}px`;
       else if (fitEmbeddedHeight) {
-        let groupCount = Math.ceil(totalImages / crossCount), fittedScrollerHeight = groupCount * tileHeight + (groupCount - 1) * gap;
+        let fittedScrollerHeight = geometry.totalMainSize;
         viewportHeight = Math.min(height, fittedScrollerHeight), viewportHeight < height ? overlay.style.height = `${Math.ceil(overlay.clientHeight - height + viewportHeight)}px` : overlay.style.removeProperty("height");
       } else embedded && overlay.style.removeProperty("height");
       let next = {
         crossCount,
         gap,
         horizontal,
-        mainStride: (horizontal ? tileWidth : tileHeight) + gap,
-        tileHeight,
-        tileWidth,
+        itemScaleLimit,
+        tileCrossSize,
         viewportHeight,
-        viewportWidth: width
+        viewportWidth: width,
+        ...geometry
       };
       setLayout(next), layoutFrame !== null && window.cancelAnimationFrame(layoutFrame), layoutFrame = window.requestAnimationFrame(() => untrack(() => {
-        layoutFrame = null, scroller.isConnected && (initialized ? scrollToPage(anchorPageNum ?? centeredPageNum(), next) : (initialized = !0, props.targetPageNum === null ? scrollToPreview(props.targetPreviewIndex, next) : scrollToPage(props.targetPageNum, next)), setPreviewLoadReady(!0), setPositionBarReady(!0));
+        if (layoutFrame = null, !!scroller.isConnected) {
+          if (initialized)
+            if (preservedAnchorPageNum !== null && preservedAnchorViewportRatio !== null) {
+              let group = Math.floor((preservedAnchorPageNum - 1) / next.crossCount), center = groupOffsetAt(next, group) + groupSizeAt(next, group) / 2;
+              updateScrollOffset(center - preservedAnchorViewportRatio * (horizontal ? next.viewportWidth : next.viewportHeight));
+            } else
+              scrollToPage(anchorPageNum ?? centeredPageNum(), next);
+          else
+            initialized = !0, props.targetPageNum === null ? scrollToPreview(props.targetPreviewIndex, next) : scrollToPage(props.targetPageNum, next);
+          setPreviewLoadReady(!0), setPositionBarReady(!0), preserveResizeAnchor = !1;
+        }
       }));
+    }, applyPendingLayout = () => {
+      !layoutDirty || !initialized || pointerActive || positionBarActive || untrack(() => updateLayout(!0, !0));
+    }, markLayoutDirty = () => {
+      layoutDirty = !0, applyPendingLayout();
     };
     createEffect(() => {
-      crossCountOverride(), props.fillEmbeddedContainer(), pixelScale(), tileAspectRatio(), initialized && untrack(() => updateLayout(!0));
+      let nextVersion = previewCache.previewDataVersion();
+      nextVersion !== previewDataVersion && (previewDataVersion = nextVersion, initialized && untrack(markLayoutDirty));
+    }), createEffect(() => {
+      crossCountOverride(), props.fillEmbeddedContainer(), pixelScale(), initialized && untrack(() => updateLayout(!0));
     }), onMount(() => {
       let previousBodyOverflow = document.body.style.overflow, previousHtmlOverflow = document.documentElement.style.overflow;
       embedded || (document.body.style.overflow = "hidden", document.documentElement.style.overflow = "hidden", overlay.animate([{
@@ -6573,7 +6702,7 @@ Next page`,
       }));
       let resizeObserver = new ResizeObserver(() => untrack(() => {
         let width = scroller.clientWidth, height = scroller.clientHeight;
-        Math.abs(width - layoutWidth) <= 1 && Math.abs(height - layoutHeight) <= 1 || (layoutHeight = height, layoutWidth = width, updateLayout(!0));
+        Math.abs(width - layoutWidth) <= 1 && Math.abs(height - layoutHeight) <= 1 || (layoutHeight = height, layoutWidth = width, updateLayout(!0, preserveResizeAnchor));
       }));
       resizeObserver.observe(scroller), layoutHeight = scroller.clientHeight, layoutWidth = scroller.clientWidth, updateLayout(!0), onCleanup(() => {
         disposed = !0, flingAnimator.cancel(), resizeObserver.disconnect(), embedded || (document.body.style.overflow = previousBodyOverflow, document.documentElement.style.overflow = previousHtmlOverflow), layoutFrame !== null && window.cancelAnimationFrame(layoutFrame), scrollFrame !== null && window.cancelAnimationFrame(scrollFrame);
@@ -6590,8 +6719,10 @@ Next page`,
       onDirectionChange: requestDirectionChange,
       onZoomIn: () => resizeCrossCount(-1),
       onZoomOut: () => resizeCrossCount(1)
-    }, positionBarVisibleRatio = () => clamp(mainViewportSize() / mainCanvasSize(), 0, 1), viewportState = {
-      allowUpscale: () => embedded || crossCountOverride() !== null,
+    }, scrollToHighlightedPage = () => {
+      let highlightedPageNum = props.highlightedPageNum();
+      highlightedPageNum !== null && (flingAnimator.cancel(), scrollToPage(highlightedPageNum));
+    }, positionBarVisibleRatio = () => clamp(mainViewportSize() / (layout().estimatedGroupSize + layout().gap) / totalGroups(), 0, 1), viewportState = {
       canvasHeight: () => horizontal ? "100%" : `${totalMainSize()}px`,
       canvasWidth: () => horizontal ? `${mainCanvasSize()}px` : "100%",
       decodeCache,
@@ -6599,9 +6730,14 @@ Next page`,
       highlightedPageNum: untrack(() => props.highlightedPageNum),
       horizontal,
       layout,
-      maxPageNum: totalImages,
       onOpenPage: untrack(() => props.onOpenPage),
-      onPositionInput: scrollToPositionPage,
+      onPositionCommit: () => {
+        positionBarActive = !1, applyPendingLayout();
+      },
+      onPositionInput: scrollToPositionValue,
+      onPositionPointerDown: () => {
+        positionBarActive = !0;
+      },
       onRetry: loading.retry,
       onScroll: () => {
         scrollFrame === null && (scrollFrame = window.requestAnimationFrame(() => {
@@ -6613,9 +6749,9 @@ Next page`,
       },
       onWheel: () => flingAnimator.cancel(),
       pixelScale,
-      positionBarVisible: () => positionBarReady() && maxScrollOffset() > SCROLL_PIXEL_EPSILON && positionBarVisibleRatio() < 1 && (screenStartPageNum() > 1 || screenEndPageNum() < totalImages),
+      positionBarVisible: () => positionBarReady() && maxScrollOffset() > SCROLL_PIXEL_EPSILON && positionBarVisibleRatio() < 1,
       positionBarVisibleRatio,
-      positionPage: scrollPositionPage,
+      positionValue: scrollPositionValue,
       previewCache,
       rightToLeft,
       screenEndPageNum,
@@ -6636,8 +6772,8 @@ Next page`,
       thickness: embedded || !horizontal ? "narrow" : "normal"
     };
     return (() => {
-      var _el$22 = _tmpl$72(), _el$23 = _el$22.firstChild, _ref$2 = overlay;
-      return typeof _ref$2 == "function" ? use(_ref$2, _el$23) : overlay = _el$23, insert(_el$23, createComponent(Show, {
+      var _el$23 = _tmpl$72(), _el$24 = _el$23.firstChild, _ref$2 = overlay;
+      return typeof _ref$2 == "function" ? use(_ref$2, _el$24) : overlay = _el$24, insert(_el$24, createComponent(Show, {
         when: embedded,
         get fallback() {
           return createComponent(OverlayPreviewToolbar, {
@@ -6645,38 +6781,39 @@ Next page`,
               return props.highlightedPageNum() === null;
             },
             onClose: () => onClose?.(centeredPreviewIndex()),
-            onCurrent: () => {
-              let highlightedPageNum = props.highlightedPageNum();
-              highlightedPageNum !== null && (flingAnimator.cancel(), scrollToPage(highlightedPageNum));
-            },
+            onCurrent: scrollToHighlightedPage,
             state: toolbarState
           });
         },
         get children() {
           return createComponent(EmbeddedPreviewToolbar, {
+            get currentDisabled() {
+              return props.highlightedPageNum() === null;
+            },
+            onCurrent: scrollToHighlightedPage,
             onOpenOverlay: () => props.onOpenOverlay?.(centeredPageNum()),
             state: toolbarState
           });
         }
-      }), null), insert(_el$23, createComponent(PreviewViewport, {
+      }), null), insert(_el$24, createComponent(PreviewViewport, {
         state: viewportState
       }), null), createRenderEffect((_p$) => {
-        var _v$32 = {
+        var _v$36 = {
           contents: embedded,
           "fixed inset-0 z-[1300]": !embedded
-        }, _v$33 = {
+        }, _v$37 = {
           "absolute inset-0 bg-[var(--color-site-surface)] text-[var(--color-site-text)]": !embedded,
           "border ehp-color-site-border ui-rounded-sm bg-[var(--color-site-elevated)]": embedded,
-          "relative h-[var(--scroll-preview-height)]": embedded,
+          "relative h-[var(--scroll-preview-height)] max-h-[100svh]": embedded,
           "w-full": !0
-        }, _v$34 = embedded ? "1" : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`, _v$35 = embedded ? "none" : `translate3d(${horizontal ? 0 : exitDragOffset()}px, ${horizontal ? exitDragOffset() : 0}px, 0) scale(${1 - Math.min(0.03, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.03)})`;
-        return _p$.e = classList(_el$22, _v$32, _p$.e), _p$.t = classList(_el$23, _v$33, _p$.t), _v$34 !== _p$.a && setStyleProperty(_el$23, "opacity", _p$.a = _v$34), _v$35 !== _p$.o && setStyleProperty(_el$23, "transform", _p$.o = _v$35), _p$;
+        }, _v$38 = embedded ? "1" : `${1 - Math.min(0.15, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.15)}`, _v$39 = embedded ? "none" : `translate3d(${horizontal ? 0 : exitDragOffset()}px, ${horizontal ? exitDragOffset() : 0}px, 0) scale(${1 - Math.min(0.03, Math.abs(exitDragOffset()) / Math.max(1, horizontal ? window.innerHeight : window.innerWidth) * 0.03)})`;
+        return _p$.e = classList(_el$23, _v$36, _p$.e), _p$.t = classList(_el$24, _v$37, _p$.t), _v$38 !== _p$.a && setStyleProperty(_el$24, "opacity", _p$.a = _v$38), _v$39 !== _p$.o && setStyleProperty(_el$24, "transform", _p$.o = _v$39), _p$;
       }, {
         e: void 0,
         t: void 0,
         a: void 0,
         o: void 0
-      }), _el$22;
+      }), _el$23;
     })();
   }
   function PreviewTile(props) {
@@ -6684,16 +6821,16 @@ Next page`,
     return createEffect(() => {
       releaseDecodedImage?.(), releaseDecodedImage = props.item?.thumbnail.url ? props.decodeCache.retain(props.item.thumbnail.url) : null;
     }), onCleanup(() => releaseDecodedImage?.()), (() => {
-      var _el$24 = _tmpl$82();
-      return insert(_el$24, createComponent(Show, {
+      var _el$25 = _tmpl$82();
+      return insert(_el$25, createComponent(Show, {
         get when() {
           return props.item;
         },
         keyed: !0,
         get fallback() {
           return (() => {
-            var _el$25 = _tmpl$92(), _el$26 = _el$25.firstChild;
-            return _el$25.$$click = () => props.onRetry(), insert(_el$25, createComponent(Show, {
+            var _el$26 = _tmpl$92(), _el$27 = _el$26.firstChild;
+            return _el$26.$$click = () => props.onRetry(), insert(_el$26, createComponent(Show, {
               get when() {
                 return props.failed;
               },
@@ -6703,82 +6840,86 @@ Next page`,
                   size: "var(--ui-icon-size-lg)"
                 });
               }
-            }), _el$26), insert(_el$26, () => props.pageNum), createRenderEffect((_p$) => {
-              var _v$40 = !!props.failed, _v$41 = !props.failed;
-              return _v$40 !== _p$.e && _el$25.classList.toggle("cursor-pointer", _p$.e = _v$40), _v$41 !== _p$.t && (_el$25.disabled = _p$.t = _v$41), _p$;
+            }), _el$27), insert(_el$27, () => props.pageNum), createRenderEffect((_p$) => {
+              var _v$46 = !!props.failed, _v$47 = !props.failed;
+              return _v$46 !== _p$.e && _el$26.classList.toggle("cursor-pointer", _p$.e = _v$46), _v$47 !== _p$.t && (_el$26.disabled = _p$.t = _v$47), _p$;
             }, {
               e: void 0,
               t: void 0
-            }), _el$25;
+            }), _el$26;
           })();
         },
-        children: (item) => [createComponent(Show, {
-          get when() {
-            return item.thumbnail.kind === "background";
-          },
-          get fallback() {
-            return (() => {
-              var _el$30 = _tmpl$11();
-              return setAttribute(_el$30, "draggable", !1), createRenderEffect((_p$) => {
-                var _v$54 = {
-                  "h-full w-full": props.allowUpscale,
-                  "max-h-full max-w-full": !props.allowUpscale
-                }, _v$55 = item.thumbnail.url, _v$56 = item.thumbnail.width, _v$57 = item.thumbnail.height;
-                return _p$.e = classList(_el$30, _v$54, _p$.e), _v$55 !== _p$.t && setAttribute(_el$30, "src", _p$.t = _v$55), _v$56 !== _p$.a && setAttribute(_el$30, "width", _p$.a = _v$56), _v$57 !== _p$.o && setAttribute(_el$30, "height", _p$.o = _v$57), _p$;
+        children: (item) => {
+          let imageScale = () => Math.min(props.maximumScale, props.horizontal ? props.height / item.thumbnail.height : props.width / item.thumbnail.width);
+          return [createComponent(Show, {
+            get when() {
+              return item.thumbnail.kind === "background";
+            },
+            get fallback() {
+              return (() => {
+                var _el$31 = _tmpl$11();
+                return setAttribute(_el$31, "draggable", !1), createRenderEffect((_p$) => {
+                  var _v$60 = item.thumbnail.url, _v$61 = item.thumbnail.width, _v$62 = item.thumbnail.height, _v$63 = `${item.thumbnail.height * imageScale()}px`, _v$64 = props.horizontal ? props.alignment === "right" ? "right center" : "left center" : "center top", _v$65 = `${item.thumbnail.width * imageScale()}px`;
+                  return _v$60 !== _p$.e && setAttribute(_el$31, "src", _p$.e = _v$60), _v$61 !== _p$.t && setAttribute(_el$31, "width", _p$.t = _v$61), _v$62 !== _p$.a && setAttribute(_el$31, "height", _p$.a = _v$62), _v$63 !== _p$.o && setStyleProperty(_el$31, "height", _p$.o = _v$63), _v$64 !== _p$.i && setStyleProperty(_el$31, "object-position", _p$.i = _v$64), _v$65 !== _p$.n && setStyleProperty(_el$31, "width", _p$.n = _v$65), _p$;
+                }, {
+                  e: void 0,
+                  t: void 0,
+                  a: void 0,
+                  o: void 0,
+                  i: void 0,
+                  n: void 0
+                }), _el$31;
+              })();
+            },
+            get children() {
+              var _el$28 = _tmpl$0();
+              return createRenderEffect((_p$) => {
+                var _v$48 = `url(${JSON.stringify(item.thumbnail.url)})`, _v$49 = item.thumbnail.backgroundPosition, _v$50 = item.thumbnail.backgroundRepeat, _v$51 = item.thumbnail.backgroundSize, _v$52 = `${item.thumbnail.height}px`, _v$53 = `scale(${imageScale()})`, _v$54 = props.horizontal ? props.alignment === "right" ? "right center" : "left center" : "center top", _v$55 = `${item.thumbnail.width}px`, _v$56 = `Page ${item.pageNum}`;
+                return _v$48 !== _p$.e && setStyleProperty(_el$28, "background-image", _p$.e = _v$48), _v$49 !== _p$.t && setStyleProperty(_el$28, "background-position", _p$.t = _v$49), _v$50 !== _p$.a && setStyleProperty(_el$28, "background-repeat", _p$.a = _v$50), _v$51 !== _p$.o && setStyleProperty(_el$28, "background-size", _p$.o = _v$51), _v$52 !== _p$.i && setStyleProperty(_el$28, "height", _p$.i = _v$52), _v$53 !== _p$.n && setStyleProperty(_el$28, "transform", _p$.n = _v$53), _v$54 !== _p$.s && setStyleProperty(_el$28, "transform-origin", _p$.s = _v$54), _v$55 !== _p$.h && setStyleProperty(_el$28, "width", _p$.h = _v$55), _v$56 !== _p$.r && setAttribute(_el$28, "aria-label", _p$.r = _v$56), _p$;
               }, {
                 e: void 0,
                 t: void 0,
                 a: void 0,
-                o: void 0
-              }), _el$30;
-            })();
-          },
-          get children() {
-            var _el$27 = _tmpl$0();
-            return createRenderEffect((_p$) => {
-              var _v$42 = `url(${JSON.stringify(item.thumbnail.url)})`, _v$43 = item.thumbnail.backgroundPosition, _v$44 = item.thumbnail.backgroundRepeat, _v$45 = item.thumbnail.backgroundSize, _v$46 = `${item.thumbnail.height}px`, _v$47 = `scale(${Math.min(props.allowUpscale ? Number.POSITIVE_INFINITY : 1, props.width / item.thumbnail.width, props.height / item.thumbnail.height)})`, _v$48 = props.alignment === "right" ? "right top" : props.alignment === "left" ? "left top" : "center top", _v$49 = `${item.thumbnail.width}px`, _v$50 = `Page ${item.pageNum}`;
-              return _v$42 !== _p$.e && setStyleProperty(_el$27, "background-image", _p$.e = _v$42), _v$43 !== _p$.t && setStyleProperty(_el$27, "background-position", _p$.t = _v$43), _v$44 !== _p$.a && setStyleProperty(_el$27, "background-repeat", _p$.a = _v$44), _v$45 !== _p$.o && setStyleProperty(_el$27, "background-size", _p$.o = _v$45), _v$46 !== _p$.i && setStyleProperty(_el$27, "height", _p$.i = _v$46), _v$47 !== _p$.n && setStyleProperty(_el$27, "transform", _p$.n = _v$47), _v$48 !== _p$.s && setStyleProperty(_el$27, "transform-origin", _p$.s = _v$48), _v$49 !== _p$.h && setStyleProperty(_el$27, "width", _p$.h = _v$49), _v$50 !== _p$.r && setAttribute(_el$27, "aria-label", _p$.r = _v$50), _p$;
+                o: void 0,
+                i: void 0,
+                n: void 0,
+                s: void 0,
+                h: void 0,
+                r: void 0
+              }), _el$28;
+            }
+          }), (() => {
+            var _el$29 = _tmpl$1();
+            return _el$29.$$click = (event) => {
+              event.preventDefault(), event.stopPropagation(), props.onOpenPage(item.pageUrl, item.pageNum);
+            }, setAttribute(_el$29, "draggable", !1), createRenderEffect((_p$) => {
+              var _v$57 = item.pageUrl, _v$58 = `Page ${item.pageNum}`, _v$59 = props.highlighted ? "page" : void 0;
+              return _v$57 !== _p$.e && setAttribute(_el$29, "href", _p$.e = _v$57), _v$58 !== _p$.t && setAttribute(_el$29, "aria-label", _p$.t = _v$58), _v$59 !== _p$.a && setAttribute(_el$29, "aria-current", _p$.a = _v$59), _p$;
             }, {
               e: void 0,
               t: void 0,
-              a: void 0,
-              o: void 0,
-              i: void 0,
-              n: void 0,
-              s: void 0,
-              h: void 0,
-              r: void 0
-            }), _el$27;
-          }
-        }), (() => {
-          var _el$28 = _tmpl$1();
-          return _el$28.$$click = (event) => {
-            event.preventDefault(), event.stopPropagation(), props.onOpenPage(item.pageUrl, item.pageNum);
-          }, setAttribute(_el$28, "draggable", !1), createRenderEffect((_p$) => {
-            var _v$51 = item.pageUrl, _v$52 = `Page ${item.pageNum}`, _v$53 = props.highlighted ? "page" : void 0;
-            return _v$51 !== _p$.e && setAttribute(_el$28, "href", _p$.e = _v$51), _v$52 !== _p$.t && setAttribute(_el$28, "aria-label", _p$.t = _v$52), _v$53 !== _p$.a && setAttribute(_el$28, "aria-current", _p$.a = _v$53), _p$;
-          }, {
-            e: void 0,
-            t: void 0,
-            a: void 0
-          }), _el$28;
-        })(), createComponent(Show, {
-          get when() {
-            return props.highlighted;
-          },
-          get children() {
-            return _tmpl$10();
-          }
-        })]
+              a: void 0
+            }), _el$29;
+          })(), createComponent(Show, {
+            get when() {
+              return props.highlighted;
+            },
+            get children() {
+              return _tmpl$10();
+            }
+          })];
+        }
       })), createRenderEffect((_p$) => {
-        var _v$36 = props.alignment === "center", _v$37 = props.alignment === "left", _v$38 = props.alignment === "right", _v$39 = `${props.height}px`;
-        return _v$36 !== _p$.e && _el$24.classList.toggle("justify-center", _p$.e = _v$36), _v$37 !== _p$.t && _el$24.classList.toggle("justify-start", _p$.t = _v$37), _v$38 !== _p$.a && _el$24.classList.toggle("justify-end", _p$.a = _v$38), _v$39 !== _p$.o && setStyleProperty(_el$24, "height", _p$.o = _v$39), _p$;
+        var _v$40 = !!props.horizontal, _v$41 = !props.horizontal, _v$42 = props.alignment === "center", _v$43 = props.alignment === "left", _v$44 = props.alignment === "right", _v$45 = `${props.height}px`;
+        return _v$40 !== _p$.e && _el$25.classList.toggle("items-center", _p$.e = _v$40), _v$41 !== _p$.t && _el$25.classList.toggle("items-start", _p$.t = _v$41), _v$42 !== _p$.a && _el$25.classList.toggle("justify-center", _p$.a = _v$42), _v$43 !== _p$.o && _el$25.classList.toggle("justify-start", _p$.o = _v$43), _v$44 !== _p$.i && _el$25.classList.toggle("justify-end", _p$.i = _v$44), _v$45 !== _p$.n && setStyleProperty(_el$25, "height", _p$.n = _v$45), _p$;
       }, {
         e: void 0,
         t: void 0,
         a: void 0,
-        o: void 0
-      }), _el$24;
+        o: void 0,
+        i: void 0,
+        n: void 0
+      }), _el$25;
     })();
   }
   var PreviewDecodeCache = class {
@@ -8066,7 +8207,7 @@ Next page`,
             onChange: (value) => {
               setChanged(!0), setDraft("locale", value);
             }
-          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260813.0400", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => i18n_default.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => i18n_default.settings.licenses), insert(_el$28, createComponent(Icon2, {
+          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260813.1117", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => i18n_default.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => i18n_default.settings.licenses), insert(_el$28, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$30.$$click = (event) => {
@@ -9365,6 +9506,18 @@ html.ehpeek-fit-to-viewport > body.ehpeek-touch-gallery-page {
   display: none !important;
 }
 
+:root .ehpeek-hide-original-node.ehpeek-hide-original-node {
+  display: none !important;
+}
+
+.ehpeek-scroll-preview-mount {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
 .ehpeek-contain-search-results {
   box-sizing: border-box;
   overflow: visible;
@@ -10367,6 +10520,10 @@ body.ehpeek-touch-gallery-page #gdt[class] {
   align-items: start;
 }
 
+body.ehpeek-touch-gallery-page #gdt.ehpeek-hide-original-node {
+  display: none !important;
+}
+
 body.ehpeek-touch-gallery-page #gdt :is(.gdtm, .gdtl),
 body.ehpeek-touch-gallery-page #gdt > div {
   display: flex !important;
@@ -10530,6 +10687,13 @@ body.ehpeek-touch-gallery-page :is(
   -ms-overflow-style: none;
 }
 
+body.ehpeek-touch-gallery-page
+  .ehpeek-touch-gallery-layout-right
+  > .ehpeek-scroll-preview-mount {
+  min-height: 0;
+  height: 100%;
+}
+
 body.ehpeek-touch-gallery-page :is(
   .ehpeek-touch-gallery-layout-left,
   .ehpeek-touch-gallery-layout-right
@@ -10686,7 +10850,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .textsize-md{font-size:var(--ui-font-size-md);}
 .textsize-sm{font-size:var(--ui-font-size-sm);}
 .textsize-xl{font-size:var(--ui-font-size-xl);}
-.textsize-xs{font-size:var(--ui-font-size-xs);}
 .ehp-color-site-accent{color:var(--color-site-accent);}
 .ehp-color-site-text{color:var(--color-site-text);}
 .ehp-color-text{color:var(--color-text);}
@@ -10719,8 +10882,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root .hover\\:ehp-col
 .\\[--progress-bar-fill\\:0\\%\\]{--progress-bar-fill:0%;}
 .\\[--progress-bar-track-direction\\:to_right\\]{--progress-bar-track-direction:to right;}
 .\\[--scroll-preview-height\\:100\\%\\]{--scroll-preview-height:100%;}
-.\\[--scroll-preview-height\\:55lvh\\]{--scroll-preview-height:55lvh;}
-.\\[--scroll-preview-height\\:70svh\\]{--scroll-preview-height:70svh;}
+.\\[--scroll-preview-height\\:100svh\\]{--scroll-preview-height:100svh;}
 .\\[-webkit-appearance\\:none\\]{-webkit-appearance:none;}
 .\\[-webkit-overflow-scrolling\\:touch\\]{-webkit-overflow-scrolling:touch;}
 .\\[-webkit-tap-highlight-color\\:transparent\\]{-webkit-tap-highlight-color:transparent;}
@@ -10754,7 +10916,6 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root .hover\\:ehp-col
 .\\[touch-action\\:pan-x\\]{touch-action:pan-x;}
 .\\[touch-action\\:pan-y\\]{touch-action:pan-y;}
 .\\[unicode-bidi\\:plaintext\\]{unicode-bidi:plaintext;}
-.\\[width\\:min\\(calc\\(100\\%-\\(var\\(--touch-gallery-gutter\\)\\*2\\)\\)\\,90lvh\\)\\]{width:min(calc(100% - (var(--touch-gallery-gutter) * 2)),90lvh);}
 .pointer-events-auto{pointer-events:auto;}
 .\\[\\&\\[data-open\\=false\\]\\]\\:pointer-events-none[data-open=false],
 .pointer-events-none{pointer-events:none;}
@@ -10810,7 +10971,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root .hover\\:ehp-col
 .grid-cols-\\[max-content_minmax\\(0\\,1fr\\)\\]{grid-template-columns:max-content minmax(0,1fr);}
 .grid-cols-\\[max-content_minmax\\(var\\(--ui-control-size-md\\)\\,1fr\\)_var\\(--ui-control-size-xl\\)_var\\(--ui-control-size-xl\\)\\]{grid-template-columns:max-content minmax(var(--ui-control-size-md),1fr) var(--ui-control-size-xl) var(--ui-control-size-xl);}
 .grid-cols-\\[minmax\\(0\\,1\\.6fr\\)_minmax\\(0\\,1fr\\)_minmax\\(0\\,1fr\\)\\]{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr);}
-.grid-cols-\\[minmax\\(0\\,1fr\\)_auto_minmax\\(0\\,1fr\\)\\]{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);}
+.grid-cols-\\[minmax\\(0\\,1fr\\)_auto\\]{grid-template-columns:minmax(0,1fr) auto;}
 .grid-cols-\\[repeat\\(3\\,minmax\\(0\\,1fr\\)\\)\\],
 .grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr));}
 .grid-cols-1{grid-template-columns:repeat(1,minmax(0,1fr));}
@@ -10846,8 +11007,8 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root .hover\\:ehp-col
 .h-\\[var\\(--reader-page-height\\)\\]{height:var(--reader-page-height);}
 .h-\\[var\\(--scroll-preview-height\\)\\]{height:var(--scroll-preview-height);}
 .h-\\[var\\(--ui-control-size-md\\)\\]{height:var(--ui-control-size-md);}
+.h-\\[var\\(--ui-control-size-sm\\)\\]{height:var(--ui-control-size-sm);}
 .h-\\[var\\(--ui-control-size-xl\\)\\]{height:var(--ui-control-size-xl);}
-.h-\\[var\\(--ui-control-size-xs\\)\\]{height:var(--ui-control-size-xs);}
 .h-\\[var\\(--ui-icon-size-md\\)\\]{height:var(--ui-icon-size-md);}
 .h-\\[var\\(--ui-icon-size-sm\\)\\]{height:var(--ui-icon-size-sm);}
 .h-\\[var\\(--ui-icon-size-xl\\)\\]{height:var(--ui-icon-size-xl);}
@@ -10858,6 +11019,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root .hover\\:ehp-col
 .h-8px{height:8px;}
 .h-full{height:100%;}
 .h1{height:0.25rem;}
+.max-h-\\[100svh\\]{max-height:100svh;}
 .max-h-\\[60dvh\\]{max-height:60dvh;}
 .max-h-\\[calc\\(100dvh-\\(var\\(--ui-space-lg\\)\\*2\\)\\)\\]{max-height:calc(100dvh - (var(--ui-space-lg) * 2));}
 .max-h-\\[calc\\(100dvh-16px\\)\\]{max-height:calc(100dvh - 16px);}
@@ -10891,17 +11053,17 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root .hover\\:ehp-col
 .min-w-full{min-width:100%;}
 .w-\\[65\\%\\]{width:65%;}
 .w-\\[calc\\(100\\%_-_\\(var\\(--ui-space-sm\\)\\*2\\)\\)\\]{width:calc(100% - (var(--ui-space-sm) * 2));}
+.w-\\[calc\\(100\\%-\\(var\\(--touch-gallery-gutter\\)\\*2\\)\\)\\]{width:calc(100% - (var(--touch-gallery-gutter) * 2));}
+.w-\\[calc\\(100\\%-32px\\)\\]{width:calc(100% - 32px);}
 .w-\\[calc\\(var\\(--ui-control-size-lg\\)\\*4\\+var\\(--ui-space-md\\)\\*4\\)\\]{width:calc(var(--ui-control-size-lg) * 4 + var(--ui-space-md) * 4);}
 .w-\\[calc\\(var\\(--ui-control-size-xl\\)\\*6\\)\\]{width:calc(var(--ui-control-size-xl) * 6);}
 .w-\\[min\\(680px\\,calc\\(100vw-24px\\)\\)\\]{width:min(680px,calc(100vw - 24px));}
 .w-\\[min\\(78vw\\,calc\\(var\\(--ui-control-size-xl\\)\\*4\\)\\)\\]{width:min(78vw,calc(var(--ui-control-size-xl) * 4));}
-.w-\\[min\\(calc\\(100\\%-32px\\)\\,1212px\\)\\]{width:min(calc(100% - 32px),1212px);}
 .w-\\[var\\(--reader-frame-width\\)\\]{width:var(--reader-frame-width);}
 .w-\\[var\\(--reader-page-width\\)\\]{width:var(--reader-page-width);}
 .w-\\[var\\(--ui-control-size-md\\)\\]{width:var(--ui-control-size-md);}
 .w-\\[var\\(--ui-control-size-sm\\)\\]{width:var(--ui-control-size-sm);}
 .w-\\[var\\(--ui-control-size-xl\\)\\]{width:var(--ui-control-size-xl);}
-.w-\\[var\\(--ui-control-size-xs\\)\\]{width:var(--ui-control-size-xs);}
 .w-\\[var\\(--ui-icon-size-md\\)\\]{width:var(--ui-icon-size-md);}
 .w-\\[var\\(--ui-icon-size-sm\\)\\]{width:var(--ui-icon-size-sm);}
 .w-\\[var\\(--ui-icon-size-xl\\)\\]{width:var(--ui-icon-size-xl);}
@@ -14032,7 +14194,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
         }
       }));
     }), previewMount && allowFeatureFailure("Gallery Preview enhancements", () => {
-      gState.settings.replacePreviewWithScroll && preview.handle.removeOriginalPreview(), previewMount.mount(() => createComponent(OverlayHostProvider, {
+      gState.settings.replacePreviewWithScroll && preview.handle.installScrollPreviewMount(), previewMount.mount(() => createComponent(OverlayHostProvider, {
         host: overlayHost,
         get children() {
           var _el$6 = _tmpl$610();
@@ -14071,8 +14233,8 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
           })(), null), createRenderEffect((_$p) => classList(_el$6, {
             contents: !gState.settings.replacePreviewWithScroll,
             "relative h-full w-full [--scroll-preview-height:100%]": gState.settings.replacePreviewWithScroll && gState.settings.touchUiEnabled && gState.columnsEnabled(),
-            "relative [--scroll-preview-height:55lvh] [width:min(calc(100%-(var(--touch-gallery-gutter)*2)),90lvh)] mx-auto": gState.settings.replacePreviewWithScroll && gState.settings.touchUiEnabled && !gState.columnsEnabled(),
-            "relative [--scroll-preview-height:70svh] w-[min(calc(100%-32px),1212px)] mx-auto": gState.settings.replacePreviewWithScroll && !gState.settings.touchUiEnabled
+            "relative [--scroll-preview-height:100svh] w-[calc(100%-(var(--touch-gallery-gutter)*2))] mx-auto": gState.settings.replacePreviewWithScroll && gState.settings.touchUiEnabled && !gState.columnsEnabled(),
+            "relative [--scroll-preview-height:100svh] w-[calc(100%-32px)] mx-auto": gState.settings.replacePreviewWithScroll && !gState.settings.touchUiEnabled
           }, _$p)), _el$6;
         }
       }));
