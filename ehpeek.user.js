@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260807.1338
+// @version      260813.0400
 // @description  A touch-optimized E-H/ExH viewer
 // @description:ja  タッチ操作向けの E-H/ExH リーダー
 // @description:zh-CN  为触屏优化的 E-H/ExH 阅读器
@@ -36,10 +36,6 @@
     throw TypeError(msg);
   };
   var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: !0, configurable: !0, writable: !0, value }) : obj[key] = value;
-  var __export = (target, all) => {
-    for (var name in all)
-      __defProp(target, name, { get: all[name], enumerable: !0 });
-  };
   var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key != "symbol" ? key + "" : key, value), __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot " + msg);
   var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj)), __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value), __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), setter ? setter.call(obj, value) : member.set(obj, value), value);
 
@@ -1276,7 +1272,7 @@
   }
 
   // src/eh/url.ts
-  var EXHENTAI_HOST = "exhentai.org", EXHENTAI_ONION_HOST = "exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion";
+  var EXHENTAI_HOST = "exhentai.org", EXHENTAI_ONION_HOST = "exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion", SEARCH_CATEGORY_PATH = /^\/(?:doujinshi|manga|artistcg|gamecg|western|non-h|imageset|cosplay|asianporn|misc)\/?$/i;
   function ehSiteTheme(url = window.location.href) {
     let hostname = new URL(url, window.location.href).hostname;
     return hostname === EXHENTAI_HOST || hostname.endsWith(`.${EXHENTAI_HOST}`) || hostname === EXHENTAI_ONION_HOST || hostname.endsWith(`.${EXHENTAI_ONION_HOST}`) ? "exhentai" : "e-hentai";
@@ -1351,7 +1347,7 @@
       } : parsed.pathname === "/uconfig.php" ? {
         type: "settings",
         url: parsed.href
-      } : parsed.pathname === "/" || parsed.pathname.startsWith("/tag/") || parsed.pathname.startsWith("/uploader/") || /^\/(?:popular|watched)\/?$/.test(parsed.pathname) ? {
+      } : parsed.pathname === "/" || SEARCH_CATEGORY_PATH.test(parsed.pathname) || parsed.pathname.startsWith("/tag/") || parsed.pathname.startsWith("/uploader/") || /^\/(?:popular|watched)\/?$/.test(parsed.pathname) ? {
         type: "search",
         url: parsed.href
       } : {
@@ -1466,7 +1462,7 @@
   var ehpeek_spectrum_ui_sizes_default = { control: { xs: "24px", sm: "32px", md: "40px", lg: "48px", xl: "56px" }, font: { xs: "10px", sm: "14px", md: "16px", lg: "20px", xl: "28px" }, icon: { xs: "14px", sm: "16px", md: "20px", lg: "22px", xl: "26px" }, space: { xs: "4px", sm: "8px", md: "12px", lg: "16px", xl: "24px" }, radius: { xs: "3px", sm: "4px", md: "6px", lg: "8px", xl: "10px" } };
 
   // src/ui.ts
-  var UI_ROOT_CLASS = "ehpeek-ui-root", UI_STATE_STYLE_ID = "ehpeek-ui-state", UI_SCALE_SELECTOR = ".ehpeek-ui-root, body.ehpeek-touch-gallery-page, .eh-syringe-lite-auto-complete-list", UI_SCALE_FACTORS = {
+  var UI_ROOT_CLASS = "ehpeek-ui-root", UI_STATE_STYLE_ID = "ehpeek-ui-state", UI_SCALE_SELECTOR = ".ehpeek-ui-root, body.ehpeek-touch-gallery-page, .ehpeek-external-autocomplete", UI_SCALE_FACTORS = {
     xsmall: 0.8,
     small: 1,
     medium: 1.25,
@@ -1550,8 +1546,44 @@
     return Number(pixels);
   }
 
+  // src/eh/dom/external.ts
+  var AUTOCOMPLETE_INPUT_SELECTOR = "#f_search, #newtagfield", AUTOCOMPLETE_ROOT_CLASS = "ehpeek-external-autocomplete", AUTOCOMPLETE_ITEM_CLASS = "ehpeek-external-autocomplete-item", AUTOCOMPLETE_TEXT_CLASS = "ehpeek-external-autocomplete-text", externalDom = {
+    retainedOriginalPageSelector: ".eh-syringe-ignore",
+    tagLabelAttribute: "ehs-tag"
+  }, EXTERNAL_AUTOCOMPLETE_SOURCES = [
+    {
+      items: ".auto-complete-item",
+      root: ".eh-syringe-lite-auto-complete-list",
+      text: ".auto-complete-text"
+    },
+    {
+      items: ".lolicon-autocomplete-item",
+      root: ".lolicon-autocomplete-dropdown",
+      text: null
+    }
+  ];
+  function initializeExternalAutocompleteUi() {
+    let observer = null, mark = () => {
+      for (let source of EXTERNAL_AUTOCOMPLETE_SOURCES)
+        document.querySelectorAll(source.root).forEach((root) => {
+          root.classList.add(AUTOCOMPLETE_ROOT_CLASS), root.querySelectorAll(source.items).forEach((item) => {
+            item.classList.add(AUTOCOMPLETE_ITEM_CLASS);
+          }), source.text && root.querySelectorAll(source.text).forEach((text) => {
+            text.classList.add(AUTOCOMPLETE_TEXT_CLASS);
+          });
+        });
+    }, stopObserving = () => {
+      observer?.disconnect(), observer = null;
+    }, startObserving = (event) => {
+      !(event.target instanceof Element) || !event.target.matches(AUTOCOMPLETE_INPUT_SELECTOR) || (stopObserving(), mark(), observer = new MutationObserver(mark), observer.observe(document.body, { childList: !0, subtree: !0 }));
+    }, stopWhenInputBlurs = (event) => {
+      event.target instanceof Element && event.target.matches(AUTOCOMPLETE_INPUT_SELECTOR) && stopObserving();
+    };
+    document.addEventListener("focusin", startObserving), document.addEventListener("focusout", stopWhenInputBlurs);
+  }
+
   // src/eh/dom/core.ts
-  var EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor", EH_SYRINGE_IGNORE_SELECTOR = ".eh-syringe-ignore", mountedNodes = /* @__PURE__ */ new WeakMap();
+  var EHPEEK_ANCHOR_ATTRIBUTE = "data-ehpeek-anchor", mountedNodes = /* @__PURE__ */ new WeakMap();
   var managedBody = null, emptyDomApply = {}, emptyDomChilds = {};
   function defineDomNode() {
     return (selector, options = {}) => {
@@ -1578,7 +1610,10 @@
     return typeof source == "string" ? source : source.selector;
   }
   function originalPageNode(node) {
-    return node.closest(EH_SYRINGE_IGNORE_SELECTOR) === null;
+    return node.closest(externalDom.retainedOriginalPageSelector) === null;
+  }
+  function retainedOriginalPageNode(node) {
+    return node.closest(externalDom.retainedOriginalPageSelector) !== null;
   }
   function anyDomNode() {
     return !0;
@@ -1676,16 +1711,13 @@
     sameNode(other) {
       return __privateGet(this, _node) === __privateGet(other, _node);
     }
-    observe(source, acquire, onManaged, options = { childList: !0, subtree: !0 }) {
+    observe(source, onObserved, options = { childList: !0, subtree: !0 }) {
       let seen = [], cleanups = [], scan = () => {
         for (let node of this.all(domSelector(source))) {
           if (seen.some((candidate) => candidate.sameNode(node)))
             continue;
           seen.push(node);
-          let managed = acquire(node);
-          if (!managed)
-            continue;
-          let cleanup = onManaged(managed);
+          let cleanup = onObserved(node);
           cleanup && cleanups.push(cleanup);
         }
       }, observer = new MutationObserver(scan);
@@ -1916,7 +1948,7 @@
   // src/eh/dom/domClass.ts
   var sharedApply = {
     coverlessSearchGrid: "ehpeek-expand-coverless-search-grid",
-    constrainResultsToViewport: "ehpeek-constrain-results-to-viewport",
+    fitToViewport: "ehpeek-fit-to-viewport",
     galleryTagMenuItem: "ehpeek-layout-gallery-tag-menu-item",
     hideOriginalSearchAction: "ehpeek-hide-original-search-action",
     historyLabel: "ehpeek-prefix-read-history-label",
@@ -1929,15 +1961,13 @@
     footer: query("body > .dp"),
     html: tag("html", {
       apply: {
-        constrainResults: sharedApply.constrainResultsToViewport,
+        fitToViewport: sharedApply.fitToViewport,
         galleryTouchLayout: "ehpeek-touch-gallery-page",
         galleryWideLayout: "ehpeek-gallery-wide-layout-root"
       }
     }),
     body: tag("body", {
       apply: {
-        constrainFavoritesNavigation: "ehpeek-constrain-favorites-navigation",
-        constrainResults: sharedApply.constrainResultsToViewport,
         galleryTouchLayout: "ehpeek-touch-gallery-page",
         galleryWideLayout: "ehpeek-gallery-wide-layout-root",
         hidePreviewPageBars: "ehpeek-hide-original-preview-page-bars"
@@ -1952,8 +1982,6 @@
     ),
     links: anchor("a[href]"),
     scripts: script("script")
-  }, ehSyringe = {
-    root: cls("ehs-injected")
   }, myTags = {
     tags: id("usertags_outer", {
       childs: {
@@ -2254,6 +2282,9 @@
   }, topBar = {
     galleryTitle: query("#gd2, h1"),
     navigation: id("nb", {
+      apply: {
+        hide: "ehpeek-hide-original-top-bar"
+      },
       childs: {
         links: anchor("a[href]", {
           apply: {
@@ -2264,7 +2295,6 @@
     })
   }, domClass = {
     common,
-    ehSyringe,
     gallery,
     myTags,
     page,
@@ -2272,12 +2302,6 @@
     settings,
     topBar
   };
-
-  // src/eh/dom/ehSyringe.ts
-  var ehSyringe_exports = {};
-  __export(ehSyringe_exports, {
-    initialize: () => initialize
-  });
 
   // locales/en.json
   var en_default = {
@@ -2398,6 +2422,7 @@ Next page`,
       scrollPreviewDirectionLtr: "Scroll Preview: left to right",
       scrollPreviewDirectionRtl: "Scroll Preview: right to left",
       favoriteTag: "Add My Tag",
+      copyOriginalTag: "Copy Original Tag",
       editFavoriteNote: "Edit Note",
       discardFavoriteNote: "Discard note edits?",
       removeFavoriteTag: "Remove My Tag",
@@ -2428,6 +2453,8 @@ Next page`,
       openGalleryInNewTabHelp: "Opens gallery links in a new browser tab",
       uiControlsLabel: "UI Layout",
       uiScaleLabel: "UI Scale",
+      portraitUiScaleLabel: "Portrait UI Scale",
+      landscapeUiScaleLabel: "Landscape UI Scale",
       leftHandedControlsLabel: "Left-handed controls",
       columnsLabel: "Two Columns",
       enhance: "Enhance",
@@ -2445,7 +2472,9 @@ Next page`,
       searchHistoryLabel: "Search History",
       searchHistoryHelp: "Keeps a history of search keywords",
       touchUiLabel: "Touch UI",
-      touchUiHelp: "Uses touch-friendly navigation UI"
+      touchUiHelp: "Uses touch-friendly navigation UI",
+      fitToViewportLabel: "Fit Pages to Screen",
+      fitToViewportHelp: "Fits pages to the browser width"
     },
     search: {
       advancedOptions: "Advanced Options",
@@ -2580,6 +2609,7 @@ Next page`,
       scrollPreviewDirectionLtr: "スクロールプレビュー：左から右",
       scrollPreviewDirectionRtl: "スクロールプレビュー：右から左",
       favoriteTag: "マイタグを追加",
+      copyOriginalTag: "元のタグをコピー",
       editFavoriteNote: "メモを編集",
       discardFavoriteNote: "メモの変更を破棄しますか？",
       removeFavoriteTag: "マイタグを削除",
@@ -2610,6 +2640,8 @@ Next page`,
       openGalleryInNewTabHelp: "ギャラリーリンクをブラウザーの新しいタブで開きます",
       uiControlsLabel: "UI レイアウト",
       uiScaleLabel: "UI スケール",
+      portraitUiScaleLabel: "縦向き UI スケール",
+      landscapeUiScaleLabel: "横向き UI スケール",
       leftHandedControlsLabel: "左手用コントロール",
       columnsLabel: "2 列",
       enhance: "拡張",
@@ -2627,7 +2659,9 @@ Next page`,
       searchHistoryLabel: "検索履歴",
       searchHistoryHelp: "検索キーワードの履歴を保存します",
       touchUiLabel: "タッチ UI",
-      touchUiHelp: "タッチ操作に適したナビゲーション UI を使用します"
+      touchUiHelp: "タッチ操作に適したナビゲーション UI を使用します",
+      fitToViewportLabel: "ページを画面幅に合わせる",
+      fitToViewportHelp: "ページをブラウザーの幅に合わせます"
     },
     search: {
       advancedOptions: "詳細オプション",
@@ -2762,6 +2796,7 @@ Next page`,
       scrollPreviewDirectionLtr: "滚动预览：从左向右",
       scrollPreviewDirectionRtl: "滚动预览：从右向左",
       favoriteTag: "添加我的标签",
+      copyOriginalTag: "复制原始标签",
       editFavoriteNote: "编辑备注",
       discardFavoriteNote: "放弃备注修改？",
       removeFavoriteTag: "移除我的标签",
@@ -2792,6 +2827,8 @@ Next page`,
       openGalleryInNewTabHelp: "在新的浏览器标签页中打开画廊链接",
       uiControlsLabel: "界面布局",
       uiScaleLabel: "界面缩放",
+      portraitUiScaleLabel: "竖屏界面缩放",
+      landscapeUiScaleLabel: "横屏界面缩放",
       leftHandedControlsLabel: "左手控制",
       columnsLabel: "双栏",
       enhance: "增强",
@@ -2809,7 +2846,9 @@ Next page`,
       searchHistoryLabel: "搜索历史",
       searchHistoryHelp: "保存搜索关键词历史",
       touchUiLabel: "触控界面",
-      touchUiHelp: "使用适合触控操作的导航界面"
+      touchUiHelp: "使用适合触控操作的导航界面",
+      fitToViewportLabel: "页面贴合屏幕",
+      fitToViewportHelp: "使页面贴合浏览器宽度"
     },
     search: {
       advancedOptions: "高级选项",
@@ -2838,222 +2877,6 @@ Next page`,
     APP_LOCALE_SETTING_KEY,
     DEFAULT_APP_LOCALE
   ), appLocale = APP_LOCALES.includes(storedLocale) ? storedLocale : DEFAULT_APP_LOCALE, i18n_default = localeTexts[appLocale];
-
-  // src/state/index.ts
-  var touchUiDefault = window.matchMedia("(pointer: coarse)").matches, portraitUiScaleDefault = touchUiDefault ? "large" : "small", landscapeUiScaleDefault = touchUiDefault && Math.min(window.screen.width, window.screen.height) >= 600 ? "medium" : portraitUiScaleDefault, state = {
-    app: {
-      ehSyringeDetected: persisted("ehpeek:ehsyringe:detected", !1),
-      locale: persistedEnum(
-        APP_LOCALE_SETTING_KEY,
-        DEFAULT_APP_LOCALE,
-        APP_LOCALES
-      ),
-      leftHandedControls: persisted("ehpeek:left-handed-controls", !1),
-      openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", !1),
-      portraitUiScale: persistedEnum("ehpeek:ui-scale:portrait", portraitUiScaleDefault, UI_SCALE_NAMES),
-      landscapeUiScale: persistedEnum("ehpeek:ui-scale:landscape", landscapeUiScaleDefault, UI_SCALE_NAMES)
-    },
-    reader: {
-      enabled: persisted("ehpeek:reader:enabled", !0),
-      exitOnFullscreenExit: persisted("ehpeek:reader:exit-on-fullscreen-exit", !1),
-      fullscreen: persisted("ehpeek:reader:fullscreen", !1),
-      portraitControls: readerControls("portrait"),
-      landscapeControls: readerControls("landscape"),
-      scrollTtbScale: persisted("ehpeek:reader:scroll-ttb-scale", null),
-      scrollHorizontalScale: persisted("ehpeek:reader:scroll-horizontal-scale", null)
-    },
-    gallery: {
-      enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", !0),
-      replacePreviewWithScroll: persisted("ehpeek:scroll-preview:replace-original", !1),
-      embeddedScrollPreviewSingleDirection: persisted(
-        "ehpeek:gallery-scroll-preview:single-direction",
-        "rtl"
-      ),
-      embeddedScrollPreviewColumnsDirection: persisted(
-        "ehpeek:gallery-scroll-preview:columns-direction",
-        "ttb"
-      ),
-      scrollPreviewDirection: persisted(
-        "ehpeek:scroll-preview:direction",
-        "ttb"
-      ),
-      myTags: persisted("ehpeek:my-tags:enabled", !0),
-      myTagAppearances: localJson("ehpeek:my-tags", [], isMyTagAppearance),
-      myTagSets: localJson("ehpeek:my-tag-sets", [], isMyTagSetOption),
-      readHistory: persisted("ehpeek:read-history:enabled", !0),
-      includeUnreadHistory: persisted("ehpeek:read-history:include-unread", !0),
-      readHistoryCount: persisted("ehpeek:history-count", 0),
-      titlePreference: localEnum(
-        "ehpeek:gallery-title-preference",
-        "main",
-        ["main", "sub"]
-      )
-    },
-    search: {
-      enhance: persisted("ehpeek:enhance-search:enabled", !0),
-      grid: localOptionalEnum(
-        "ehpeek:search-grid",
-        ["ehpeek", "ehpeek-lite"]
-      ),
-      history: persisted("ehpeek:search-history:enabled", !0),
-      searchHistory: persisted("ehpeek:search:history", [])
-    },
-    touch: {
-      enabled: persisted("ehpeek:touch-ui:enabled", touchUiDefault),
-      portraitColumns: persisted("ehpeek:touch-ui:portrait-columns", !1),
-      landscapeColumns: persisted("ehpeek:touch-ui:landscape-columns", !0)
-    }
-  };
-  function currentReaderOrientation() {
-    return window.matchMedia("(orientation: landscape)").matches ? "landscape" : "portrait";
-  }
-  function currentReaderControlsState() {
-    return currentReaderOrientation() === "landscape" ? state.reader.landscapeControls : state.reader.portraitControls;
-  }
-  function loadSearchHistory() {
-    let history = state.search.searchHistory.reload();
-    return Array.isArray(history) ? history.filter((item) => typeof item == "string") : [];
-  }
-  function addSearchHistory(value) {
-    let normalized = value.trim();
-    if (!normalized)
-      return loadSearchHistory();
-    let history = [normalized, ...loadSearchHistory().filter((item) => item !== normalized)];
-    return state.search.searchHistory.set(history), history;
-  }
-  function removeSearchHistory(value) {
-    let history = loadSearchHistory().filter((item) => item !== value);
-    return state.search.searchHistory.set(history), history;
-  }
-  function persisted(key, defaultValue) {
-    let item = {
-      defaultValue,
-      value: GM_getValue(key, defaultValue),
-      set(value) {
-        item.value = value, GM_setValue(key, value);
-      },
-      reload() {
-        return item.value = GM_getValue(key, defaultValue), item.value;
-      }
-    };
-    return item;
-  }
-  function persistedEnum(key, defaultValue, values) {
-    let read = () => {
-      let value = GM_getValue(key, defaultValue);
-      return values.includes(value) ? value : (GM_setValue(key, defaultValue), defaultValue);
-    }, item = {
-      defaultValue,
-      value: read(),
-      set(value) {
-        item.value = value, GM_setValue(key, value);
-      },
-      reload() {
-        return item.value = read(), item.value;
-      }
-    };
-    return item;
-  }
-  function readerControls(orientation) {
-    return {
-      navigationMode: persisted(`ehpeek:reader:navigation-mode:${orientation}`, "scroll"),
-      scrollDirection: persisted(`ehpeek:reader:scroll-direction:${orientation}`, "ttb"),
-      pagedDirection: persisted(`ehpeek:reader:paged-direction:${orientation}`, "rtl"),
-      pageLayout: persisted(`ehpeek:reader:page-layout:${orientation}`, "single"),
-      rightTapAction: persisted(`ehpeek:reader:right-tap-action:${orientation}`, "previous")
-    };
-  }
-  function normalizeReaderScrollSizeScale(scale) {
-    return Number.isFinite(scale) ? Math.min(100, Math.max(1e-3, scale)) : 1;
-  }
-  function localOptionalEnum(key, values) {
-    let read = () => {
-      let value = window.localStorage.getItem(key);
-      return values.includes(value) ? value : null;
-    }, item = {
-      defaultValue: null,
-      value: read(),
-      set(value) {
-        item.value = value, value !== null ? window.localStorage.setItem(key, value) : window.localStorage.removeItem(key);
-      },
-      reload() {
-        return item.value = read(), item.value;
-      }
-    };
-    return item;
-  }
-  function localEnum(key, defaultValue, values) {
-    let read = () => {
-      let value = window.localStorage.getItem(key);
-      return values.includes(value) ? value : defaultValue;
-    }, item = {
-      defaultValue,
-      value: read(),
-      set(value) {
-        item.value = value, window.localStorage.setItem(key, value);
-      },
-      reload() {
-        return item.value = read(), item.value;
-      }
-    };
-    return item;
-  }
-  function localJson(key, defaultValue, valid) {
-    let read = () => {
-      try {
-        let value = JSON.parse(window.localStorage.getItem(key) ?? "null");
-        return Array.isArray(value) ? value.filter(valid) : defaultValue;
-      } catch {
-        return defaultValue;
-      }
-    }, item = {
-      defaultValue,
-      value: read(),
-      set(value) {
-        item.value = value, window.localStorage.setItem(key, JSON.stringify(value));
-      },
-      reload() {
-        return item.value = read(), item.value;
-      },
-      clear() {
-        item.value = defaultValue, window.localStorage.removeItem(key);
-      },
-      stored() {
-        return window.localStorage.getItem(key) !== null;
-      }
-    };
-    return item;
-  }
-  function isMyTagAppearance(value) {
-    if (!value || typeof value != "object" || Array.isArray(value))
-      return !1;
-    let item = value;
-    return typeof item.name == "string" && typeof item.backgroundColor == "string" && typeof item.color == "string" && typeof item.id == "string" && typeof item.tagSet == "string";
-  }
-  function isMyTagSetOption(value) {
-    if (!value || typeof value != "object" || Array.isArray(value))
-      return !1;
-    let item = value;
-    return typeof item.label == "string" && typeof item.selected == "boolean" && typeof item.value == "string";
-  }
-
-  // src/eh/dom/ehSyringe.ts
-  var INJECTION_TIMEOUT_MS = 3e3;
-  function initialize() {
-    detect();
-  }
-  async function detect() {
-    document.readyState === "loading" && await new Promise((resolve) => {
-      document.addEventListener("DOMContentLoaded", () => resolve(), { once: !0 });
-    });
-    let detected = isInjected();
-    return !detected && state.app.ehSyringeDetected.value && (await new Promise((resolve) => {
-      window.setTimeout(resolve, INJECTION_TIMEOUT_MS);
-    }), detected = isInjected()), state.app.ehSyringeDetected.value !== detected && state.app.ehSyringeDetected.set(detected), detected;
-  }
-  function isInjected() {
-    return DomNode.from(document.documentElement).matches(domClass.ehSyringe.root);
-  }
 
   // src/utils.ts
   function clamp(value, min, max) {
@@ -3327,7 +3150,19 @@ Next page`,
     cta: 512
   };
   function extractGalleryHistoryInfo() {
-    let page2 = DomNode.from(document), source = page2.use(domClass.gallery.info), category = source.category.one(), categoryClass = (category?.one(domClass.gallery.info.category.appearance)?.attribute("class") ?? category?.attribute("class") ?? "").split(/\s+/).find((className2) => /^ct[1-9a]$/.test(className2)), rows = source.details.rows.all().map((detailRow) => detailRow.all(domClass.gallery.info.details.rows.cells).slice(1).map((detailCell) => detailCell.text()).filter(Boolean).join(" ")), postedAt = page2.one(domClass.gallery.info.details, anyDomNode)?.all(domClass.gallery.info.details.rows.cells, anyDomNode).map((cell2) => parseGalleryPostedAt(cell2.text())).find((value) => value !== void 0), ratingMatch = (page2.all(domClass.common.scripts).map((pageScript) => pageScript.text()).find((script2) => script2.includes("display_rating")) ?? "").match(/\bdisplay_rating\s*=\s*(-?\d+(?:\.\d+)?)/), rating = Number(ratingMatch?.[1]), cover = source.cover.one(), coverUrl = source.cover.image.one()?.attribute("src") ?? "";
+    let page2 = DomNode.from(document), source = page2.use(domClass.gallery.info), category = source.category.one(), historyCategory = page2.one(
+      domClass.gallery.info.category,
+      retainedOriginalPageNode
+    ) ?? category, categoryClass = (historyCategory?.one(
+      domClass.gallery.info.category.appearance,
+      anyDomNode
+    )?.attribute("class") ?? historyCategory?.attribute("class") ?? "").split(/\s+/).find((className2) => /^ct[1-9a]$/.test(className2)), readDetailRows = (details) => details?.all(domClass.gallery.info.details.rows, anyDomNode).map((detailRow) => detailRow.all(
+      domClass.gallery.info.details.rows.cells,
+      anyDomNode
+    ).slice(1).map((detailCell) => detailCell.text()).filter(Boolean).join(" ")) ?? [], retainedDetails = page2.one(
+      domClass.gallery.info.details,
+      retainedOriginalPageNode
+    ), retainedRows = readDetailRows(retainedDetails), rows = retainedRows.length > 0 ? retainedRows : source.details.rows.all().map((detailRow) => detailRow.all(domClass.gallery.info.details.rows.cells).slice(1).map((detailCell) => detailCell.text()).filter(Boolean).join(" ")), postedAt = page2.one(domClass.gallery.info.details, anyDomNode)?.all(domClass.gallery.info.details.rows.cells, anyDomNode).map((cell2) => parseGalleryPostedAt(cell2.text())).find((value) => value !== void 0), ratingMatch = (page2.all(domClass.common.scripts).map((pageScript) => pageScript.text()).find((script2) => script2.includes("display_rating")) ?? "").match(/\bdisplay_rating\s*=\s*(-?\d+(?:\.\d+)?)/), rating = Number(ratingMatch?.[1]), cover = source.cover.one(), coverUrl = source.cover.image.one()?.attribute("src") ?? "";
     if (!coverUrl && cover)
       for (let node of [cover, ...cover.all(domClass.common.descendants)]) {
         let match = node.computedStyle().backgroundImage.match(/url\(["']?(.+?)["']?\)/);
@@ -3337,15 +3172,15 @@ Next page`,
         }
       }
     return {
-      category: category?.text() || void 0,
+      category: historyCategory?.text() || void 0,
       categoryClass,
       coverUrl: coverUrl || void 0,
       language: rows[3] || void 0,
       postedAt,
       rating: ratingMatch && Number.isFinite(rating) ? rating : void 0,
-      title: source.titleMain.one()?.text() || void 0,
-      titleSub: source.titleSub.one()?.text() || void 0,
-      uploader: source.uploader.one()?.text() || void 0
+      title: page2.one(domClass.gallery.info.titleMain, retainedOriginalPageNode)?.text() || source.titleMain.one()?.text() || void 0,
+      titleSub: page2.one(domClass.gallery.info.titleSub, retainedOriginalPageNode)?.text() || source.titleSub.one()?.text() || void 0,
+      uploader: page2.one(domClass.gallery.info.uploader, retainedOriginalPageNode)?.text() || source.uploader.one()?.text() || void 0
     };
   }
   function parseGalleryPostedAt(value) {
@@ -3437,7 +3272,7 @@ Next page`,
       let href = node.attribute("href")?.trim() ?? "";
       return node.hasAttribute("onclick") || !!(href && href !== "#" && !/^javascript:/i.test(href));
     }).slice(0, 6), readTag = (tag2) => {
-      let label = tag2.text() || tag2.attribute("ehs-tag")?.trim() || tag2.attribute("title")?.trim() || "", href = tag2.attribute("href") ?? "", name = galleryTagNameFromUrl(href);
+      let label = tag2.text() || tag2.attribute(externalDom.tagLabelAttribute)?.trim() || tag2.attribute("title")?.trim() || "", href = tag2.attribute("href") ?? "", name = galleryTagNameFromUrl(href);
       if (!label || !name || !href)
         return null;
       let container = tag2.closest(domClass.gallery.tagContainer) ?? tag2, tagStyle = tag2.computedStyle(), containerStyle = container.computedStyle(), myTagId = tag2.attribute("data-ehpeek-my-tag-id"), myTagSet = tag2.attribute("data-ehpeek-my-tag-set");
@@ -3513,7 +3348,7 @@ Next page`,
       uploaderUrl: uploader?.attribute("href") ?? ""
     }, coverUrl = readCoverUrl(cover, coverSource), managedCover = coverUrl ? source.cover.image.clone()?.replaceClasses("").apply("fit") ?? createManagedElement("img", { fit: "ehpeek-fit-gallery-cover" }).apply("fit") : null;
     managedCover?.removeAttributes("id", "style", "width", "height").setAttributes({ alt: "", decoding: "async", loading: "eager", src: coverUrl });
-    let managedNewTag = newTagButton && newTagField && newTagForm ? source.newTag.move()?.apply("layout") ?? null : null, hostApply = { hide: "ehpeek-hide-original-gallery-info" };
+    let managedNewTag = newTagButton && newTagField && newTagForm ? source.newTag.inplace()?.apply("layout") ?? null : null, hostApply = { hide: "ehpeek-hide-original-gallery-info" };
     managedNewTag?.setHidden(!1).removeStyles("display");
     let elems = {
       actionItems: actionSources.map((item) => item.move(domClass.gallery.actions.items.apply).apply("layout")),
@@ -3589,11 +3424,11 @@ Next page`,
       updateGalleryFavorite
     } };
   }
-  function mutateGalleryTouchLayout() {
+  function mutateGalleryTouchLayout(fitToViewport) {
     let page2 = DomNode.from(document).use(domClass.page), html = page2.html.inplace(), body = page2.body.inplace();
     if (!html || !body)
       throw new Error("Gallery page layout is unavailable.");
-    html.apply("galleryTouchLayout"), body.apply("galleryTouchLayout");
+    html.apply("galleryTouchLayout"), body.apply("galleryTouchLayout"), fitToViewport && html.apply("fitToViewport");
   }
   function mutateGalleryWideLayout(info, preview, initiallyEnabled, replacesOriginalPreview) {
     let page2 = DomNode.from(document).use(domClass.page), source = DomNode.from(document).use(domClass.gallery), html = page2.html.inplace(), body = page2.body.inplace(), footer = page2.footer.inplace(), comments = source.comments.inplace(), commentsAnchor = source.commentsAnchor.inplace(), pageBarTopHost = source.preview.pageBarTop.one()?.parent()?.inplace() ?? null, pageBarBottomHost = source.preview.pageBarBottom.one()?.parent()?.inplace() ?? null, previewMount = preview.elems.mount, thumbs = preview.elems.thumbs;
@@ -3608,13 +3443,13 @@ Next page`,
         positions = [...leftNodes, ...rightNodes, footer].filter((node) => node !== null).map((node) => {
           let marker = createManagedElement("span").setHidden(!0);
           return node.before(marker), { marker, node };
-        }), info.elems.host.before(layout), layout.append(left, right, ...footer ? [footer] : []), left.append(...leftNodes), right.append(...rightNodes);
+        }), info.elems.host.before(layout), layout.append(left, right, ...footer ? [footer] : []), left.append(...leftNodes), right.append(...rightNodes), window.dispatchEvent(new Event("resize"));
         return;
       }
       if (!enabled && layout) {
         for (let { marker, node } of positions)
           marker.after(node), marker.remove();
-        positions = [], layout.remove(), layout = null, html.removeClasses("ehpeek-gallery-wide-layout-root"), body.removeClasses("ehpeek-gallery-wide-layout-root");
+        positions = [], layout.remove(), layout = null, html.removeClasses("ehpeek-gallery-wide-layout-root"), body.removeClasses("ehpeek-gallery-wide-layout-root"), window.dispatchEvent(new Event("resize"));
       }
     };
     return update(), {
@@ -3672,6 +3507,13 @@ Next page`,
   }
 
   // src/eh/dom/search.ts
+  function listenGalleryLinksOpenInNewTab(host) {
+    let handleClick = (event) => {
+      let link = event.target instanceof Element ? DomNode.from(event.target).closest(domClass.search.results.galleryLinks) : null;
+      link?.closest(domClass.search.results) && link.inplace().setAttributes({ target: "_blank", rel: "noopener noreferrer" });
+    };
+    return host.listen("click", handleClick, !0);
+  }
   function createReadHistoryGridRow(item, titlePreference) {
     let info = item.info, metadataItems = [], appendMetadata = (value, className2) => {
       if (!value)
@@ -3747,6 +3589,8 @@ Next page`,
     for (let control2 of page2.all(domClass.search.controls, anyDomNode))
       control2.inplace().remove();
     let handle = {
+      /** Applies new-tab semantics to History gallery links at activation time. */
+      listenGalleryLinksOpenInNewTab: () => listenGalleryLinksOpenInNewTab(grids.elems.resultList),
       /** Replaces the visible History rows without navigating away from the current document. */
       updateReadHistoryItems: grids.handle.updateItems,
       /** Reports explicit removal requests without exposing History rows. */
@@ -3776,14 +3620,15 @@ Next page`,
     let source = DomNode.from(document).use(domClass.search), resultSource = source.results.one();
     if (!resultSource)
       return null;
-    let data = {
-      nextUrl: source.navigation.next.one()?.attribute("href") ?? null,
-      previousUrl: source.navigation.previous.one()?.attribute("href") ?? null
-    }, resultHost = resultSource.parent()?.inplace() ?? null, elems = {
+    let resultHost = resultSource.parent()?.inplace() ?? null, elems = {
       resultList: resultSource.inplace(domClass.search.results.apply),
       searchInput: source.input.inplace()
     };
-    return { data, elems, handle: {
+    return { elems, handle: {
+      /** Reads the live original link so swipe navigation matches the current page controls. */
+      readNavigationUrl(direction) {
+        return (direction === "next" ? source.navigation.next.one() : source.navigation.previous.one())?.attribute("href") ?? null;
+      },
       /** Routes the original pagination controls through the active page owner. */
       interceptSearchNavigation(onNavigate) {
         let handleClick = (event) => {
@@ -3792,12 +3637,11 @@ Next page`,
         };
         return document.addEventListener("click", handleClick, !0), () => document.removeEventListener("click", handleClick, !0);
       },
-      /** Replaces the current result page for enhanced swipe navigation. */
-      async loadSearchPage(url) {
-        let response = await requestPage(url);
+      /** Replaces the current result page without deciding browser-history behavior. */
+      async loadSearchPage(url, signal) {
+        let response = await requestPage(url, { signal });
         if (!replaceSearchPageContent(response.document))
           throw new Error(i18n_default.errors.searchPageContentNotFound);
-        window.history.pushState(window.history.state, "", url);
       },
       /** Returns enhanced Search navigation to its input, or the page top when absent. */
       scrollSearchPageToInput() {
@@ -3816,21 +3660,23 @@ Next page`,
         elems.resultList.apply("swipe");
       },
       /** Applies new-tab semantics at activation time so replaced result pages need no rebinding. */
-      listenGalleryLinksOpenInNewTab() {
-        if (!resultHost)
-          return () => {
-          };
-        let handleClick = (event) => {
-          let link = event.target instanceof Element ? DomNode.from(event.target).closest(domClass.search.results.galleryLinks) : null;
-          link?.closest(domClass.search.results) && link.inplace().setAttributes({ target: "_blank", rel: "noopener noreferrer" });
-        };
-        return resultHost.listen("click", handleClick, !0);
+      listenGalleryLinksOpenInNewTab: () => resultHost ? listenGalleryLinksOpenInNewTab(resultHost) : () => {
+      },
+      /** Reports rows appended by third-party infinite-scroll integrations. */
+      listenResultRowsAdded(callback) {
+        let observer = new MutationObserver((records) => {
+          records.some((record) => Array.from(record.addedNodes).some((node) => node instanceof HTMLTableRowElement || node instanceof Element && node.querySelector("tr"))) && callback();
+        });
+        return observer.observe(elems.resultList.Component(), {
+          childList: !0,
+          subtree: !0
+        }), () => observer.disconnect();
       }
     } };
   }
-  function manageSearchTextInput() {
-    let inputSource = DomNode.from(document).use(domClass.search).input.one(), formSource = inputSource?.form() ?? null, submitSource = formSource?.one(domClass.search.submit) ?? inputSource?.parent()?.one(domClass.search.submitFallback) ?? null;
-    if (!inputSource || !submitSource)
+  function manageSearchTextInput(inputSource) {
+    let formSource = inputSource?.form() ?? null, submitSource = formSource?.one(domClass.search.submit) ?? inputSource?.parent()?.one(domClass.search.submitFallback) ?? null;
+    if (!submitSource)
       return null;
     let elems = {
       form: formSource?.inplace() ?? null,
@@ -3872,6 +3718,19 @@ Next page`,
       }
     } };
   }
+  function observeSearchBar(onManaged) {
+    return DomNode.from(document).observe(
+      domClass.search.panel.box,
+      (searchBar) => {
+        let input2 = searchBar.one(domClass.search.input);
+        if (!input2)
+          return;
+        let source = manageSearchTextInput(input2);
+        if (source)
+          return onManaged(source);
+      }
+    );
+  }
   function manageReadHistoryGrids(options) {
     let resultList = createManagedElement("table").replaceClasses("itg"), body = createManagedElement("tbody"), visibleRows = [];
     resultList.append(body).addClasses(
@@ -3904,7 +3763,7 @@ Next page`,
     };
   }
   function manageSearchGrids(mode) {
-    let source = DomNode.from(document).use(domClass.search), resultList = source.results.one();
+    let managedAttribute = "data-ehpeek-search-grid-managed", source = DomNode.from(document).use(domClass.search), resultList = source.results.one();
     if (!resultList)
       return;
     let rows = source.results.rows.all().map(manageSearchGridRow).filter((row2) => row2 !== null);
@@ -3914,6 +3773,8 @@ Next page`,
       mode
     );
     function manageSearchGridRow(row2) {
+      if (row2.hasAttribute(managedAttribute))
+        return null;
       let thumbnailCell = row2.one(domClass.search.results.rows.cover), contentCell = row2.one(domClass.search.results.rows.content), detail = contentCell?.one(domClass.search.results.rows.content.detail), metadata = contentCell?.one(domClass.search.results.rows.content.metadata);
       if (!thumbnailCell || !contentCell || !detail || !metadata)
         return null;
@@ -3929,13 +3790,14 @@ Next page`,
         field?.inplace().addClasses(className2);
       for (let field of extraMetadata)
         field.inplace().addClasses("ehpeek-search-meta-extra");
-      return {
+      let managedRow = row2.inplace();
+      return managedRow.attribute(managedAttribute, "true"), {
         coverImage: coverImage?.inplace() ?? null,
         detail: detail.inplace(),
         galleryHref: galleryLink?.attribute("href") ?? null,
         galleryLink: galleryLink?.inplace() ?? null,
         metadata: metadata.inplace(),
-        row: row2.inplace(),
+        row: managedRow,
         stackTags: !0,
         tags: tags.map((item) => item.inplace()),
         title: title?.inplace() ?? null,
@@ -4087,12 +3949,9 @@ Next page`,
     let currentElement = current.inplace(), incomingElement = incoming.clone();
     currentElement.replaceWith(incomingElement);
   }
-  function favoritesPageTouch() {
+  function favoritesPageTouch(fitToViewport) {
     let page2 = DomNode.from(document), pageSource = page2.use(domClass.page), source = page2.use(domClass.search);
-    pageSource.html.inplace()?.apply("constrainResults"), pageSource.body.inplace()?.apply(
-      "constrainResults",
-      "constrainFavoritesNavigation"
-    );
+    fitToViewport && pageSource.html.inplace()?.apply("fitToViewport");
     let categories = source.favorites.categories.one(), categorySelect = categories ? manageFavoritesCategories(categories) : null, searchHostApply = { expand: "ehpeek-expand-favorites-search" };
     source.favorites.input.one()?.form()?.parent()?.inplace(searchHostApply).apply("expand");
     let resultSource = source.results.one();
@@ -4136,14 +3995,14 @@ Next page`,
       items: categories.map(({ source }) => source.inplace())
     };
   }
-  function searchResultsPageTouch() {
+  function searchResultsPageTouch(fitToViewport) {
     let page2 = DomNode.from(document), pageSource = page2.use(domClass.page), source = page2.use(domClass.search);
-    pageSource.html.inplace()?.apply("constrainResults"), pageSource.body.inplace()?.apply("constrainResults");
+    fitToViewport && pageSource.html.inplace()?.apply("fitToViewport");
     let resultSource = source.results.one();
     resultSource && resultSource.inplace(domClass.search.results.apply).apply("containSearch");
   }
-  function manageTouchResultsPage(page2) {
-    let apply = () => page2.type === "favorites" ? favoritesPageTouch() : ((page2.type === "search" || page2.type === "readHistory") && searchResultsPageTouch(), null), favoritesCategory = apply(), data = { favoritesCategory: favoritesCategory?.info ?? null }, elems = {
+  function manageTouchResultsPage(page2, fitToViewport) {
+    let apply = () => page2.type === "favorites" ? favoritesPageTouch(fitToViewport) : ((page2.type === "search" || page2.type === "readHistory") && searchResultsPageTouch(fitToViewport), null), favoritesCategory = apply(), data = { favoritesCategory: favoritesCategory?.info ?? null }, elems = {
       favoriteCategoryItems: favoritesCategory?.items ?? []
     };
     return { data, elems, handle: {
@@ -4194,7 +4053,7 @@ Next page`,
       searchControls,
       searchInput: searchInput.inplace(domClass.search.input.apply).apply("expand")
     };
-    (standardSearchBox ? elems.searchBox : elems.form).before(elems.mount), standardSearchBox && elems.searchBox.remove(), elems.searchInput.replaceWith(elems.searchControls), elems.searchControls.append(elems.searchInput), elems.clearButton && elems.clearActionMount && (elems.clearButton.remove(), elems.searchControls.append(elems.clearActionMount)), elems.searchControls.append(elems.searchActionMount), elems.categories && elems.optionLinks && elems.categoryToggleMount && (elems.optionLinks.after(elems.categories), elems.optionLinks.prepend(elems.categoryToggleMount)), elems.optionLinks && elems.advancedToggle && elems.advancedToggleMount && (elems.advancedToggle.after(elems.advancedToggleMount), elems.advancedToggle.remove()), elems.optionLinks && elems.fileSearchToggle && elems.fileSearchToggleMount && (elems.fileSearchToggle.after(elems.fileSearchToggleMount), elems.fileSearchToggle.remove()), elems.fileSearch?.remove();
+    (standardSearchBox ? elems.searchBox : elems.form).before(elems.mount), elems.searchInput.replaceWith(elems.searchControls), elems.searchControls.append(elems.searchInput), elems.clearButton && elems.clearActionMount && (elems.clearButton.remove(), elems.searchControls.append(elems.clearActionMount)), elems.searchControls.append(elems.searchActionMount), elems.categories && elems.optionLinks && elems.categoryToggleMount && (elems.optionLinks.after(elems.categories), elems.optionLinks.prepend(elems.categoryToggleMount)), elems.optionLinks && elems.advancedToggle && elems.advancedToggleMount && (elems.advancedToggle.after(elems.advancedToggleMount), elems.advancedToggle.remove()), elems.optionLinks && elems.fileSearchToggle && elems.fileSearchToggleMount && (elems.fileSearchToggle.after(elems.fileSearchToggleMount), elems.fileSearchToggle.remove());
     let formInsideSearchBox = source.box.form.one()?.sameNode(form2) ?? !1, formId = form2.attribute("id") || "ehpeek-search-form", data = {
       clearLabel: clearButton ? actionLabel(clearButton) : null,
       hasClear: elems.clearButton !== null && elems.clearActionMount !== null,
@@ -4206,7 +4065,7 @@ Next page`,
       updateCategoryVisibility(open) {
         elems.categories?.setAttributes({ "aria-hidden": String(!open) });
       },
-      /** Activates E-H's original Search submit control. */
+      /** Activates the live Search submit control in case another script replaced it. */
       activateSearch() {
         elems.form.all(
           `.${domClass.search.panel.submit.apply.hide}[type="submit"]`
@@ -4258,12 +4117,27 @@ Next page`,
       favoritesHref: new URL("/favorites.php", window.location.href).href,
       homeHref: links[0]?.attribute("href") ?? "/"
     }, elems = {
-      mount,
-      navItems: source.navigation.links.moveAll().map((link) => link.apply("layout"))
-    };
-    return original.inplace().replaceWith(elems.mount), {
+      mount
+    }, originalNavigation = original.inplace(domClass.topBar.navigation.apply).apply("hide").setAttributes({ "aria-hidden": "true" }), navigationTargets = [];
+    return originalNavigation.before(elems.mount), {
       data,
-      elems
+      elems,
+      handle: {
+        /** Reads the live original navigation only when TouchUI opens its menu. */
+        readNavigationItems() {
+          let current = source.navigation.links.requery();
+          return navigationTargets = current.map((link) => link.inplace()), current.map((link, index) => ({
+            href: link.attribute("href") ?? "#",
+            index,
+            label: link.text(),
+            target: link.attribute("target")
+          }));
+        },
+        /** Delegates activation to the retained original node, including third-party handlers. */
+        activateNavigationItem(index) {
+          navigationTargets[index]?.click();
+        }
+      }
     };
   }
 
@@ -4450,8 +4324,25 @@ Next page`,
     name: "columns-2"
   }));
 
+  // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/copy.mjs
+  var iconNode10 = [["rect", {
+    width: "14",
+    height: "14",
+    x: "8",
+    y: "8",
+    rx: "2",
+    ry: "2",
+    key: "17jyea"
+  }], ["path", {
+    d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2",
+    key: "zix9uf"
+  }]], Copy = (props) => createComponent(Icon, mergeProps(props, {
+    iconNode: iconNode10,
+    name: "copy"
+  }));
+
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/download.mjs
-  var iconNode10 = [["path", {
+  var iconNode11 = [["path", {
     d: "M12 15V3",
     key: "m9g1x1"
   }], ["path", {
@@ -4461,12 +4352,12 @@ Next page`,
     d: "m7 10 5 5 5-5",
     key: "brsn70"
   }]], Download = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode10,
+    iconNode: iconNode11,
     name: "download"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/ellipsis-vertical.mjs
-  var iconNode11 = [["circle", {
+  var iconNode12 = [["circle", {
     cx: "12",
     cy: "12",
     r: "1",
@@ -4482,12 +4373,12 @@ Next page`,
     r: "1",
     key: "lyex9k"
   }]], EllipsisVertical = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode11,
+    iconNode: iconNode12,
     name: "ellipsis-vertical"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/external-link.mjs
-  var iconNode12 = [["path", {
+  var iconNode13 = [["path", {
     d: "M15 3h6v6",
     key: "1q9fwt"
   }], ["path", {
@@ -4497,24 +4388,24 @@ Next page`,
     d: "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6",
     key: "a6xqqp"
   }]], ExternalLink = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode12,
+    iconNode: iconNode13,
     name: "external-link"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/file.mjs
-  var iconNode13 = [["path", {
+  var iconNode14 = [["path", {
     d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
     key: "1oefj6"
   }], ["path", {
     d: "M14 2v5a1 1 0 0 0 1 1h5",
     key: "wfsgrz"
   }]], File = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode13,
+    iconNode: iconNode14,
     name: "file"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/grid-2x2.mjs
-  var iconNode14 = [["path", {
+  var iconNode15 = [["path", {
     d: "M12 3v18",
     key: "108xh3"
   }], ["path", {
@@ -4528,21 +4419,21 @@ Next page`,
     rx: "2",
     key: "h1oib"
   }]], Grid2x2 = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode14,
+    iconNode: iconNode15,
     name: "grid-2x2"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/heart.mjs
-  var iconNode15 = [["path", {
+  var iconNode16 = [["path", {
     d: "M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5",
     key: "mvr1a0"
   }]], Heart = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode15,
+    iconNode: iconNode16,
     name: "heart"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/history.mjs
-  var iconNode16 = [["path", {
+  var iconNode17 = [["path", {
     d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8",
     key: "1357e3"
   }], ["path", {
@@ -4552,24 +4443,24 @@ Next page`,
     d: "M12 7v5l4 2",
     key: "1fdv2h"
   }]], History = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode16,
+    iconNode: iconNode17,
     name: "history"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/house.mjs
-  var iconNode17 = [["path", {
+  var iconNode18 = [["path", {
     d: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8",
     key: "5wwlr5"
   }], ["path", {
     d: "M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",
     key: "r6nss1"
   }]], House = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode17,
+    iconNode: iconNode18,
     name: "house"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/hand.mjs
-  var iconNode18 = [["path", {
+  var iconNode19 = [["path", {
     d: "M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2",
     key: "1fvzgz"
   }], ["path", {
@@ -4582,12 +4473,12 @@ Next page`,
     d: "M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15",
     key: "1s1gnw"
   }]], Hand = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode18,
+    iconNode: iconNode19,
     name: "hand"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/info.mjs
-  var iconNode19 = [["circle", {
+  var iconNode20 = [["circle", {
     cx: "12",
     cy: "12",
     r: "10",
@@ -4599,12 +4490,12 @@ Next page`,
     d: "M12 8h.01",
     key: "e9boi3"
   }]], Info = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode19,
+    iconNode: iconNode20,
     name: "info"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/locate-fixed.mjs
-  var iconNode20 = [["line", {
+  var iconNode21 = [["line", {
     x1: "2",
     x2: "5",
     y1: "12",
@@ -4639,12 +4530,12 @@ Next page`,
     r: "3",
     key: "1v7zrd"
   }]], LocateFixed = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode20,
+    iconNode: iconNode21,
     name: "locate-fixed"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/maximize.mjs
-  var iconNode21 = [["path", {
+  var iconNode22 = [["path", {
     d: "M8 3H5a2 2 0 0 0-2 2v3",
     key: "1dcmit"
   }], ["path", {
@@ -4657,12 +4548,12 @@ Next page`,
     d: "M16 21h3a2 2 0 0 0 2-2v-3",
     key: "18trek"
   }]], Maximize = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode21,
+    iconNode: iconNode22,
     name: "maximize"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/minimize.mjs
-  var iconNode22 = [["path", {
+  var iconNode23 = [["path", {
     d: "M8 3v3a2 2 0 0 1-2 2H3",
     key: "hohbtr"
   }], ["path", {
@@ -4675,12 +4566,12 @@ Next page`,
     d: "M16 21v-3a2 2 0 0 1 2-2h3",
     key: "ph8mxp"
   }]], Minimize = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode22,
+    iconNode: iconNode23,
     name: "minimize"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/move-horizontal.mjs
-  var iconNode23 = [["path", {
+  var iconNode24 = [["path", {
     d: "m18 8 4 4-4 4",
     key: "1ak13k"
   }], ["path", {
@@ -4690,12 +4581,12 @@ Next page`,
     d: "m6 8-4 4 4 4",
     key: "15zrgr"
   }]], MoveHorizontal = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode23,
+    iconNode: iconNode24,
     name: "move-horizontal"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/move-vertical.mjs
-  var iconNode24 = [["path", {
+  var iconNode25 = [["path", {
     d: "M12 2v20",
     key: "t6zp3m"
   }], ["path", {
@@ -4705,12 +4596,12 @@ Next page`,
     d: "m8 6 4-4 4 4",
     key: "ybng9g"
   }]], MoveVertical = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode24,
+    iconNode: iconNode25,
     name: "move-vertical"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/palette.mjs
-  var iconNode25 = [["path", {
+  var iconNode26 = [["path", {
     d: "M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z",
     key: "e79jfc"
   }], ["circle", {
@@ -4738,33 +4629,33 @@ Next page`,
     fill: "currentColor",
     key: "fotxhn"
   }]], Palette = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode25,
+    iconNode: iconNode26,
     name: "palette"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/pencil.mjs
-  var iconNode26 = [["path", {
+  var iconNode27 = [["path", {
     d: "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
     key: "1a8usu"
   }], ["path", {
     d: "m15 5 4 4",
     key: "1mk7zo"
   }]], Pencil = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode26,
+    iconNode: iconNode27,
     name: "pencil"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/play.mjs
-  var iconNode27 = [["path", {
+  var iconNode28 = [["path", {
     d: "M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z",
     key: "10ikf1"
   }]], Play = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode27,
+    iconNode: iconNode28,
     name: "play"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/refresh-cw.mjs
-  var iconNode28 = [["path", {
+  var iconNode29 = [["path", {
     d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8",
     key: "v9h5vc"
   }], ["path", {
@@ -4777,12 +4668,12 @@ Next page`,
     d: "M8 16H3v5",
     key: "1cv678"
   }]], RefreshCw = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode28,
+    iconNode: iconNode29,
     name: "refresh-cw"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/rows-3.mjs
-  var iconNode29 = [["rect", {
+  var iconNode30 = [["rect", {
     width: "18",
     height: "18",
     x: "3",
@@ -4796,12 +4687,12 @@ Next page`,
     d: "M21 15H3",
     key: "9uk58r"
   }]], Rows3 = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode29,
+    iconNode: iconNode30,
     name: "rows-3"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/scan-line.mjs
-  var iconNode30 = [["path", {
+  var iconNode31 = [["path", {
     d: "M3 7V5a2 2 0 0 1 2-2h2",
     key: "aa7l1z"
   }], ["path", {
@@ -4817,12 +4708,12 @@ Next page`,
     d: "M7 12h10",
     key: "b7w52i"
   }]], ScanLine = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode30,
+    iconNode: iconNode31,
     name: "scan-line"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/search.mjs
-  var iconNode31 = [["path", {
+  var iconNode32 = [["path", {
     d: "m21 21-4.34-4.34",
     key: "14j7rj"
   }], ["circle", {
@@ -4831,12 +4722,12 @@ Next page`,
     r: "8",
     key: "4ej97u"
   }]], Search = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode31,
+    iconNode: iconNode32,
     name: "search"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/settings.mjs
-  var iconNode32 = [["path", {
+  var iconNode33 = [["path", {
     d: "M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915",
     key: "1i5ecw"
   }], ["circle", {
@@ -4845,12 +4736,12 @@ Next page`,
     r: "3",
     key: "1v7zrd"
   }]], Settings = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode32,
+    iconNode: iconNode33,
     name: "settings"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/sparkles.mjs
-  var iconNode33 = [["path", {
+  var iconNode34 = [["path", {
     d: "M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z",
     key: "1s2grr"
   }], ["path", {
@@ -4865,33 +4756,33 @@ Next page`,
     r: "2",
     key: "6kqj1y"
   }]], Sparkles = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode33,
+    iconNode: iconNode34,
     name: "sparkles"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/star.mjs
-  var iconNode34 = [["path", {
+  var iconNode35 = [["path", {
     d: "M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z",
     key: "r04s7s"
   }]], Star = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode34,
+    iconNode: iconNode35,
     name: "star"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/x.mjs
-  var iconNode35 = [["path", {
+  var iconNode36 = [["path", {
     d: "M18 6 6 18",
     key: "1bl5f8"
   }], ["path", {
     d: "m6 6 12 12",
     key: "d8bk6v"
   }]], X = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode35,
+    iconNode: iconNode36,
     name: "x"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/zoom-in.mjs
-  var iconNode36 = [["circle", {
+  var iconNode37 = [["circle", {
     cx: "11",
     cy: "11",
     r: "8",
@@ -4915,12 +4806,12 @@ Next page`,
     y2: "11",
     key: "durymu"
   }]], ZoomIn = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode36,
+    iconNode: iconNode37,
     name: "zoom-in"
   }));
 
   // node_modules/.pnpm/lucide-solid@1.26.0_solid-js@1.9.14/node_modules/lucide-solid/dist/esm/icons/zoom-out.mjs
-  var iconNode37 = [["circle", {
+  var iconNode38 = [["circle", {
     cx: "11",
     cy: "11",
     r: "8",
@@ -4938,7 +4829,7 @@ Next page`,
     y2: "11",
     key: "durymu"
   }]], ZoomOut = (props) => createComponent(Icon, mergeProps(props, {
-    iconNode: iconNode37,
+    iconNode: iconNode38,
     name: "zoom-out"
   }));
 
@@ -5001,6 +4892,7 @@ Next page`,
     "chevron-left": ChevronLeft,
     "chevron-right": ChevronRight,
     close: X,
+    copy: Copy,
     download: Download,
     edit: Pencil,
     "external-link": ExternalLink,
@@ -5438,31 +5330,48 @@ Next page`,
 
   // src/components/Enhance/EnhanceSearchGrids.tsx
   function EnhanceSearchGrids(props) {
-    let [gestureTarget, setGestureTarget] = createSignal(null), [loading, setLoading] = createSignal(!1), source = untrack(() => props.source), navigationLoading = !1, swipeUrl = (direction) => direction === "next" ? source.data.nextUrl : source.data.previousUrl, navigate = async (url) => {
-      if (!navigationLoading) {
-        navigationLoading = !0, setLoading(!0), source.handle.updateSearchLoading(!0);
-        try {
-          await source.handle.loadSearchPage(url);
-          let nextSource = manageSearchResults();
-          if (!nextSource)
-            throw new Error(i18n_default.errors.searchPageContentNotFound);
-          source = nextSource, props.onPageChange(source), source.handle.ensureSearchSwipeInput(), setGestureTarget(source.elems.resultList.Component()), source.handle.scrollSearchPageToInput();
-        } catch (error) {
-          console.error("[ehpeek]", error);
-        } finally {
-          navigationLoading = !1, setLoading(!1), source.handle.updateSearchLoading(!1);
-        }
+    let [gestureTarget, setGestureTarget] = createSignal(null), [loading, setLoading] = createSignal(!1), source = untrack(() => props.source), navigationController = null, swipeUrl = (direction) => source.handle.readNavigationUrl(direction === "next" ? "next" : "previous"), navigate = async (url, options) => {
+      if (navigationController && !options.replacePending)
+        return;
+      navigationController?.abort();
+      let controller = new AbortController();
+      navigationController = controller;
+      let loadingSource = source;
+      setLoading(!0), loadingSource.handle.updateSearchLoading(!0);
+      try {
+        if (await loadingSource.handle.loadSearchPage(url, controller.signal), controller.signal.aborted)
+          return;
+        let nextSource = manageSearchResults();
+        if (!nextSource)
+          throw new Error(i18n_default.errors.searchPageContentNotFound);
+        options.pushHistory && window.history.pushState(window.history.state, "", url), source = nextSource, props.onPageChange(source), source.handle.ensureSearchSwipeInput(), setGestureTarget(source.elems.resultList.Component()), source.handle.scrollSearchPageToInput();
+      } catch (error) {
+        controller.signal.aborted || console.error("[ehpeek]", error);
+      } finally {
+        loadingSource.handle.updateSearchLoading(!1), navigationController === controller && (navigationController = null, setLoading(!1));
       }
     }, onNavigation = (url) => {
-      navigate(url);
+      navigate(url, {
+        pushHistory: !0
+      });
     };
     return onMount(() => {
-      source.handle.ensureSearchSwipeInput(), setGestureTarget(source.elems.resultList.Component()), onCleanup(source.handle.interceptSearchNavigation(onNavigation));
+      let previousScrollRestoration = window.history.scrollRestoration, onHistoryNavigation = () => {
+        navigate(window.location.href, {
+          pushHistory: !1,
+          replacePending: !0
+        });
+      };
+      window.history.scrollRestoration = "manual", source.handle.ensureSearchSwipeInput(), setGestureTarget(source.elems.resultList.Component()), window.addEventListener("popstate", onHistoryNavigation), onCleanup(source.handle.interceptSearchNavigation(onNavigation)), onCleanup(() => {
+        navigationController?.abort(), window.removeEventListener("popstate", onHistoryNavigation), window.history.scrollRestoration = previousScrollRestoration;
+      });
     }), [createComponent(PageSwipe, {
       canNavigate: (direction) => !!swipeUrl(direction),
       onNavigate: (direction) => {
         let url = swipeUrl(direction);
-        url && navigate(url);
+        url && navigate(url, {
+          pushHistory: !0
+        });
       },
       target: gestureTarget
     }), createComponent(LoadingOverlay, {
@@ -5476,7 +5385,7 @@ Next page`,
   }
 
   // src/components/Enhance/ScrollPageBar.tsx
-  var _tmpl$6 = /* @__PURE__ */ template('<div class="w-full ui-mb-xs text-center textsize-sm">'), _tmpl$23 = /* @__PURE__ */ template('<a class="flex !ui-hit-w-sm !ui-hit-h-sm items-center justify-center box-border !p-0 ui-rounded-sm !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)]">'), _tmpl$32 = /* @__PURE__ */ template('<td class="!ui-hit-w-sm !ui-hit-h-sm !p-0 ui-rounded-sm cursor-pointer text-center align-middle select-none">'), _tmpl$42 = /* @__PURE__ */ template("<span>"), _tmpl$52 = /* @__PURE__ */ template('<td class="!ui-hit-w-sm !ui-hit-h-sm !p-0 ui-rounded-sm cursor-pointer text-center align-middle select-none cursor-default"><span class="flex !ui-hit-w-sm !ui-hit-h-sm items-center justify-center box-border !p-0 ui-rounded-sm !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)] invisible">'), _tmpl$62 = /* @__PURE__ */ template('<div><table class="border-separate border-spacing-[var(--ui-space-xs)]"><tbody><tr>'), _tmpl$7 = /* @__PURE__ */ template('<span class="flex !ui-hit-w-sm !ui-hit-h-sm items-center justify-center box-border !p-0 ui-rounded-sm !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)]"aria-current=page>'), DRAG_PIXEL_STEP = 18;
+  var _tmpl$6 = /* @__PURE__ */ template('<div class="w-full ui-mb-xs text-center textsize-sm">'), _tmpl$23 = /* @__PURE__ */ template('<a class="flex !ui-hit-w-sm !ui-hit-h-sm items-center justify-center box-border !p-0 ui-rounded-sm !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)]">'), _tmpl$32 = /* @__PURE__ */ template('<td class="!ui-hit-w-sm !ui-hit-h-sm !p-0 ui-rounded-sm cursor-pointer text-center align-middle select-none">'), _tmpl$42 = /* @__PURE__ */ template("<span>"), _tmpl$52 = /* @__PURE__ */ template('<td class="!ui-hit-w-sm !ui-hit-h-sm !p-0 ui-rounded-sm cursor-pointer text-center align-middle select-none cursor-default"><span class="flex !ui-hit-w-sm !ui-hit-h-sm items-center justify-center box-border !p-0 ui-rounded-sm !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-transparent !text-[var(--color-site-text)] visited:!text-[var(--color-site-text)] hover:!bg-[var(--color-site-item-hover)] hover:!text-[var(--color-site-text)] active:!text-[var(--color-site-text)] invisible">'), _tmpl$62 = /* @__PURE__ */ template('<div class=touch-pan-y><table class="border-separate border-spacing-[var(--ui-space-xs)]"><tbody><tr>'), _tmpl$7 = /* @__PURE__ */ template('<span class="flex !ui-hit-w-sm !ui-hit-h-sm items-center justify-center box-border !p-0 ui-rounded-sm !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline !border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)]"aria-current=page>'), DRAG_PIXEL_STEP = 18;
   var PAGE_BAR_LINK_CLASS = "flex !ui-hit-w-sm !ui-hit-h-sm items-center justify-center box-border !p-0 ui-rounded-sm !border textsize-sm font-inherit no-underline hover:no-underline active:no-underline";
   var PAGE_BAR_CURRENT_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)]", PAGE_BAR_DISABLED_COLOR_CLASS = "!border-transparent !bg-[color-mix(in_srgb,var(--color-site-page)_82%,black)] !text-[var(--color-site-text)] opacity-40 cursor-default";
   function GalleryPageDescription(props) {
@@ -6924,6 +6833,204 @@ Next page`,
   };
   delegateEvents(["click"]);
 
+  // src/state/index.ts
+  var touchUiDefault = window.matchMedia("(pointer: coarse)").matches, portraitUiScaleDefault = touchUiDefault ? "large" : "small", landscapeUiScaleDefault = touchUiDefault && Math.min(window.screen.width, window.screen.height) >= 600 ? "medium" : portraitUiScaleDefault, state = {
+    app: {
+      locale: persistedEnum(
+        APP_LOCALE_SETTING_KEY,
+        DEFAULT_APP_LOCALE,
+        APP_LOCALES
+      ),
+      leftHandedControls: persisted("ehpeek:left-handed-controls", !1),
+      openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", !1),
+      portraitUiScale: persistedEnum("ehpeek:ui-scale:portrait", portraitUiScaleDefault, UI_SCALE_NAMES),
+      landscapeUiScale: persistedEnum("ehpeek:ui-scale:landscape", landscapeUiScaleDefault, UI_SCALE_NAMES)
+    },
+    reader: {
+      enabled: persisted("ehpeek:reader:enabled", !0),
+      exitOnFullscreenExit: persisted("ehpeek:reader:exit-on-fullscreen-exit", !1),
+      fullscreen: persisted("ehpeek:reader:fullscreen", !1),
+      portraitControls: readerControls("portrait"),
+      landscapeControls: readerControls("landscape"),
+      scrollTtbScale: persisted("ehpeek:reader:scroll-ttb-scale", null),
+      scrollHorizontalScale: persisted("ehpeek:reader:scroll-horizontal-scale", null)
+    },
+    gallery: {
+      enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", !0),
+      replacePreviewWithScroll: persisted("ehpeek:scroll-preview:replace-original", !1),
+      embeddedScrollPreviewSingleDirection: persisted(
+        "ehpeek:gallery-scroll-preview:single-direction",
+        "rtl"
+      ),
+      embeddedScrollPreviewColumnsDirection: persisted(
+        "ehpeek:gallery-scroll-preview:columns-direction",
+        "ttb"
+      ),
+      scrollPreviewDirection: persisted(
+        "ehpeek:scroll-preview:direction",
+        "ttb"
+      ),
+      myTags: persisted("ehpeek:my-tags:enabled", !0),
+      myTagAppearances: localJson("ehpeek:my-tags", [], isMyTagAppearance),
+      myTagSets: localJson("ehpeek:my-tag-sets", [], isMyTagSetOption),
+      readHistory: persisted("ehpeek:read-history:enabled", !0),
+      includeUnreadHistory: persisted("ehpeek:read-history:include-unread", !0),
+      readHistoryCompactEstimate: persisted("ehpeek:history-count", 0),
+      titlePreference: localEnum(
+        "ehpeek:gallery-title-preference",
+        "main",
+        ["main", "sub"]
+      )
+    },
+    search: {
+      enhance: persisted("ehpeek:enhance-search:enabled", !0),
+      grid: localOptionalEnum(
+        "ehpeek:search-grid",
+        ["ehpeek", "ehpeek-lite"]
+      ),
+      history: persisted("ehpeek:search-history:enabled", !0),
+      searchHistory: persisted("ehpeek:search:history", [])
+    },
+    touch: {
+      enabled: persisted("ehpeek:touch-ui:enabled", touchUiDefault),
+      fitToViewport: persisted("ehpeek:touch-ui:fit-to-viewport", !0),
+      portraitColumns: persisted("ehpeek:touch-ui:portrait-columns", !1),
+      landscapeColumns: persisted("ehpeek:touch-ui:landscape-columns", !0)
+    }
+  };
+  function currentReaderOrientation() {
+    return window.matchMedia("(orientation: landscape)").matches ? "landscape" : "portrait";
+  }
+  function currentReaderControlsState() {
+    return currentReaderOrientation() === "landscape" ? state.reader.landscapeControls : state.reader.portraitControls;
+  }
+  function loadSearchHistory() {
+    let history = state.search.searchHistory.reload();
+    return Array.isArray(history) ? history.filter((item) => typeof item == "string") : [];
+  }
+  function addSearchHistory(value) {
+    let normalized = value.trim();
+    if (!normalized)
+      return loadSearchHistory();
+    let history = [normalized, ...loadSearchHistory().filter((item) => item !== normalized)];
+    return state.search.searchHistory.set(history), history;
+  }
+  function removeSearchHistory(value) {
+    let history = loadSearchHistory().filter((item) => item !== value);
+    return state.search.searchHistory.set(history), history;
+  }
+  function persisted(key, defaultValue) {
+    let item = {
+      defaultValue,
+      value: GM_getValue(key, defaultValue),
+      set(value) {
+        item.value = value, GM_setValue(key, value);
+      },
+      reload() {
+        return item.value = GM_getValue(key, defaultValue), item.value;
+      }
+    };
+    return item;
+  }
+  function persistedEnum(key, defaultValue, values) {
+    let read = () => {
+      let value = GM_getValue(key, defaultValue);
+      return values.includes(value) ? value : (GM_setValue(key, defaultValue), defaultValue);
+    }, item = {
+      defaultValue,
+      value: read(),
+      set(value) {
+        item.value = value, GM_setValue(key, value);
+      },
+      reload() {
+        return item.value = read(), item.value;
+      }
+    };
+    return item;
+  }
+  function readerControls(orientation) {
+    return {
+      navigationMode: persisted(`ehpeek:reader:navigation-mode:${orientation}`, "scroll"),
+      scrollDirection: persisted(`ehpeek:reader:scroll-direction:${orientation}`, "ttb"),
+      pagedDirection: persisted(`ehpeek:reader:paged-direction:${orientation}`, "rtl"),
+      pageLayout: persisted(`ehpeek:reader:page-layout:${orientation}`, "single"),
+      rightTapAction: persisted(`ehpeek:reader:right-tap-action:${orientation}`, "previous")
+    };
+  }
+  function normalizeReaderScrollSizeScale(scale) {
+    return Number.isFinite(scale) ? Math.min(100, Math.max(1e-3, scale)) : 1;
+  }
+  function localOptionalEnum(key, values) {
+    let read = () => {
+      let value = window.localStorage.getItem(key);
+      return values.includes(value) ? value : null;
+    }, item = {
+      defaultValue: null,
+      value: read(),
+      set(value) {
+        item.value = value, value !== null ? window.localStorage.setItem(key, value) : window.localStorage.removeItem(key);
+      },
+      reload() {
+        return item.value = read(), item.value;
+      }
+    };
+    return item;
+  }
+  function localEnum(key, defaultValue, values) {
+    let read = () => {
+      let value = window.localStorage.getItem(key);
+      return values.includes(value) ? value : defaultValue;
+    }, item = {
+      defaultValue,
+      value: read(),
+      set(value) {
+        item.value = value, window.localStorage.setItem(key, value);
+      },
+      reload() {
+        return item.value = read(), item.value;
+      }
+    };
+    return item;
+  }
+  function localJson(key, defaultValue, valid) {
+    let read = () => {
+      try {
+        let value = JSON.parse(window.localStorage.getItem(key) ?? "null");
+        return Array.isArray(value) ? value.filter(valid) : defaultValue;
+      } catch {
+        return defaultValue;
+      }
+    }, item = {
+      defaultValue,
+      value: read(),
+      set(value) {
+        item.value = value, window.localStorage.setItem(key, JSON.stringify(value));
+      },
+      reload() {
+        return item.value = read(), item.value;
+      },
+      clear() {
+        item.value = defaultValue, window.localStorage.removeItem(key);
+      },
+      stored() {
+        return window.localStorage.getItem(key) !== null;
+      }
+    };
+    return item;
+  }
+  function isMyTagAppearance(value) {
+    if (!value || typeof value != "object" || Array.isArray(value))
+      return !1;
+    let item = value;
+    return typeof item.name == "string" && typeof item.backgroundColor == "string" && typeof item.color == "string" && typeof item.id == "string" && typeof item.tagSet == "string";
+  }
+  function isMyTagSetOption(value) {
+    if (!value || typeof value != "object" || Array.isArray(value))
+      return !1;
+    let item = value;
+    return typeof item.label == "string" && typeof item.selected == "boolean" && typeof item.value == "string";
+  }
+
   // src/state/readHistory.ts
   var HISTORY_KEY_PREFIX = "ehpeek:history:", HISTORY_QUEUE_KEY_PREFIX = "ehpeek:hist_q:", READ_HISTORY_LIMIT = 3e3, HISTORY_COMPACT_THRESHOLD = 4e3, SAVE_DELAY_MS = 1e4, READ_HISTORY_ARCHIVE_TYPE = "ehpeek-read-history", READ_HISTORY_ARCHIVE_VERSION = 1, ReadingProgressSession = class {
     constructor(baseRecord, initial) {
@@ -6932,7 +7039,7 @@ Next page`,
       this.lastSaved = null;
       this.timer = null;
       this.flush = () => {
-        this.timer !== null && (window.clearTimeout(this.timer), this.timer = null), this.pending && (this.sameProgress(this.pending, this.lastSaved) || (saveReadHistory(this.pending), this.lastSaved = this.pending), this.pending = null);
+        this.timer !== null && (window.clearTimeout(this.timer), this.timer = null), this.pending && (this.sameProgress(this.pending, this.lastSaved) || (this.lastSaved = saveReadHistory(this.pending)), this.pending = null);
       };
       this.onVisibilityChange = () => {
         document.visibilityState === "hidden" && this.flush();
@@ -6968,28 +7075,15 @@ Next page`,
   function loadReadHistory(galleryId, token) {
     return GM_getValue(historyKey(galleryId, token), null);
   }
-  function loadReadHistoryRecords() {
-    return GM_listValues().filter((key) => key.startsWith(HISTORY_QUEUE_KEY_PREFIX)).sort((left, right) => right.localeCompare(left)).map((key) => {
-      let reference = GM_getValue(key, null);
-      if (!reference)
-        return null;
-      let record = GM_getValue(
-        `${HISTORY_KEY_PREFIX}${reference}`,
-        null
-      );
-      return record?.queueOrder === queueOrderFromKey(key) ? record : null;
-    }).filter((record) => record !== null);
-  }
   function loadDisplayReadHistoryRecords() {
-    return loadReadHistoryRecords().filter(
-      (record) => record.gallery !== void 0
-    );
+    let keys = GM_listValues();
+    return clearLegacyHistoryQueue(keys), loadAllReadHistoryRecords(keys).filter((record) => record.gallery !== void 0).slice(0, READ_HISTORY_LIMIT);
   }
   function exportReadHistory() {
     let archive = {
       type: READ_HISTORY_ARCHIVE_TYPE,
       version: READ_HISTORY_ARCHIVE_VERSION,
-      records: loadReadHistoryRecords().map((record) => ({
+      records: loadAllReadHistoryRecords().map((record) => ({
         galleryId: record.galleryId,
         gallery: mergeGalleryInfo(void 0, record.gallery),
         pageNum: record.pageNum,
@@ -7016,23 +7110,22 @@ Next page`,
     }
     for (let [reference, record] of imported) {
       let key = `${HISTORY_KEY_PREFIX}${reference}`, previous = GM_getValue(key, null), importedIsNewer = !previous || record.updatedAt >= previous.updatedAt, retained = importedIsNewer ? record : previous;
-      GM_setValue(key, {
+      GM_setValue(key, storedReadHistoryRecord({
         ...retained,
-        gallery: importedIsNewer ? mergeGalleryInfo(previous?.gallery, record.gallery) : mergeGalleryInfo(record.gallery, previous.gallery),
-        queueOrder: previous?.queueOrder ?? ""
-      });
+        gallery: importedIsNewer ? mergeGalleryInfo(previous?.gallery, record.gallery) : mergeGalleryInfo(record.gallery, previous.gallery)
+      }));
     }
     return pruneReadHistory(), Math.min(imported.size, READ_HISTORY_LIMIT);
   }
   function clearReadHistory() {
     for (let key of GM_listValues())
       (key.startsWith(HISTORY_KEY_PREFIX) || key.startsWith(HISTORY_QUEUE_KEY_PREFIX)) && GM_deleteValue(key);
-    state.gallery.readHistoryCount.set(0);
+    state.gallery.readHistoryCompactEstimate.set(0);
   }
   function removeReadHistory(galleryId, token) {
-    let key = historyKey(galleryId, token), record = GM_getValue(key, null);
-    record && (GM_deleteValue(key), GM_deleteValue(queueKey(record.queueOrder)), state.gallery.readHistoryCount.set(
-      Math.max(0, state.gallery.readHistoryCount.reload() - 1)
+    let key = historyKey(galleryId, token);
+    GM_getValue(key, null) && (GM_deleteValue(key), state.gallery.readHistoryCompactEstimate.set(
+      Math.max(0, state.gallery.readHistoryCompactEstimate.reload() - 1)
     ));
   }
   function updateReadHistoryGalleryInfo(galleryId, token, gallery2) {
@@ -7043,7 +7136,7 @@ Next page`,
       ...record,
       gallery: mergeGalleryInfo(record.gallery, gallery2)
     };
-    return GM_setValue(historyKey(galleryId, token), updated), updated;
+    return saveReadHistory(updated);
   }
   function recordGalleryVisit(galleryId, token, totalPages, gallery2) {
     let existing = loadReadHistory(galleryId, token), record = existing ? {
@@ -7059,18 +7152,26 @@ Next page`,
       totalPages,
       updatedAt: Date.now()
     };
-    return saveReadHistory(record), record;
+    return saveReadHistory(record);
   }
   function saveReadHistory(record) {
-    let key = historyKey(record.galleryId, record.token), previous = GM_getValue(key, null), exists = previous !== null, queueOrder = createQueueOrder(record);
-    if (GM_setValue(key, {
-      ...record,
-      gallery: mergeGalleryInfo(previous?.gallery, record.gallery),
-      queueOrder
-    }), GM_setValue(queueKey(queueOrder), historyReference(record.galleryId, record.token)), !exists) {
-      let count = state.gallery.readHistoryCount.reload() + 1;
-      state.gallery.readHistoryCount.set(count), count >= HISTORY_COMPACT_THRESHOLD && pruneReadHistory();
+    let key = historyKey(record.galleryId, record.token), previous = GM_getValue(key, null), exists = previous !== null;
+    if (previous && previous.updatedAt > record.updatedAt) {
+      let retained = storedReadHistoryRecord({
+        ...previous,
+        gallery: mergeGalleryInfo(previous.gallery, record.gallery)
+      });
+      return GM_setValue(key, retained), retained;
     }
+    let saved = storedReadHistoryRecord({
+      ...record,
+      gallery: mergeGalleryInfo(previous?.gallery, record.gallery)
+    });
+    if (GM_setValue(key, saved), !exists) {
+      let estimate = state.gallery.readHistoryCompactEstimate.reload() + 1;
+      state.gallery.readHistoryCompactEstimate.set(estimate), estimate >= HISTORY_COMPACT_THRESHOLD && pruneReadHistory();
+    }
+    return saved;
   }
   function mergeGalleryInfo(previous, current) {
     let merged = {
@@ -7159,36 +7260,33 @@ Next page`,
   function historyKey(galleryId, token) {
     return `${HISTORY_KEY_PREFIX}${historyReference(galleryId, token)}`;
   }
+  function loadAllReadHistoryRecords(keys = GM_listValues()) {
+    return keys.filter((key) => key.startsWith(HISTORY_KEY_PREFIX)).map((key) => GM_getValue(key, null)).filter((record) => record !== null).sort((left, right) => right.updatedAt - left.updatedAt);
+  }
+  function clearLegacyHistoryQueue(keys) {
+    for (let key of keys)
+      key.startsWith(HISTORY_QUEUE_KEY_PREFIX) && GM_deleteValue(key);
+  }
   function pruneReadHistory() {
-    let keys = GM_listValues(), queueKeys = keys.filter((key) => key.startsWith(HISTORY_QUEUE_KEY_PREFIX)), records = keys.filter((key) => key.startsWith(HISTORY_KEY_PREFIX)).map((key) => ({ key, record: GM_getValue(key, null) })).filter(
+    let records = GM_listValues().filter((key) => key.startsWith(HISTORY_KEY_PREFIX)).map((key) => ({ key, record: GM_getValue(key, null) })).filter(
       (entry) => entry.record !== null
     ).sort((left, right) => right.record.updatedAt - left.record.updatedAt), retained = records.slice(0, READ_HISTORY_LIMIT);
     for (let entry of records.slice(retained.length))
       GM_deleteValue(entry.key);
-    retained.forEach((entry) => {
-      let queueOrder = createQueueOrder(entry.record), record = { ...entry.record, queueOrder };
-      GM_setValue(entry.key, record), GM_setValue(
-        queueKey(queueOrder),
-        historyReference(record.galleryId, record.token)
-      );
-    });
-    for (let key of queueKeys) {
-      let reference = GM_getValue(key, null), record = reference ? GM_getValue(`${HISTORY_KEY_PREFIX}${reference}`, null) : null;
-      (!record || queueKey(record.queueOrder) !== key) && GM_deleteValue(key);
-    }
-    state.gallery.readHistoryCount.set(retained.length);
+    state.gallery.readHistoryCompactEstimate.set(retained.length);
   }
   function historyReference(galleryId, token) {
     return `${galleryId}:${token}`;
   }
-  function queueKey(order) {
-    return `${HISTORY_QUEUE_KEY_PREFIX}${order}`;
-  }
-  function queueOrderFromKey(key) {
-    return key.slice(HISTORY_QUEUE_KEY_PREFIX.length);
-  }
-  function createQueueOrder(record) {
-    return `${record.updatedAt}-${record.galleryId}`;
+  function storedReadHistoryRecord(record) {
+    return {
+      galleryId: record.galleryId,
+      gallery: record.gallery,
+      token: record.token,
+      pageNum: record.pageNum,
+      totalPages: record.totalPages,
+      updatedAt: record.updatedAt
+    };
   }
 
   // src/components/Enhance/ReadHistory.tsx
@@ -7580,16 +7678,17 @@ Next page`,
   };
   function Dialog(props) {
     onMount(() => {
-      let scrollRoots = [document.documentElement, document.body], overflowStyles = scrollRoots.map((root) => ({
+      let scrollRoots = [document.documentElement, document.body], overflowStyles = props.lockPageScroll ? scrollRoots.map((root) => ({
         priority: root.style.getPropertyPriority("overflow"),
         value: root.style.getPropertyValue("overflow")
-      })), closeOnEscape = (event) => {
+      })) : [], closeOnEscape = (event) => {
         event.key === "Escape" && (event.preventDefault(), event.stopImmediatePropagation(), props.onClose());
       };
-      for (let root of scrollRoots)
-        root.style.setProperty("overflow", "hidden", "important");
+      if (props.lockPageScroll)
+        for (let root of scrollRoots)
+          root.style.setProperty("overflow", "hidden", "important");
       window.addEventListener("keydown", closeOnEscape, !0), onCleanup(() => {
-        window.removeEventListener("keydown", closeOnEscape, !0), scrollRoots.forEach((root, index) => {
+        window.removeEventListener("keydown", closeOnEscape, !0), props.lockPageScroll && scrollRoots.forEach((root, index) => {
           let previous = overflowStyles[index];
           previous?.value ? root.style.setProperty("overflow", previous.value, previous.priority) : root.style.removeProperty("overflow");
         });
@@ -7829,6 +7928,24 @@ Next page`,
               return i18n_default.settings.enhanceThumbsLabel;
             },
             onChange: (value) => updateDraft("enhanceThumbsGridsEnabled", value)
+          }), null), insert(_el$18, createComponent(Show, {
+            get when() {
+              return draft.touchUiEnabled;
+            },
+            get children() {
+              return createComponent(SwitchButton, {
+                get checked() {
+                  return draft.fitToViewport;
+                },
+                get description() {
+                  return i18n_default.settings.fitToViewportHelp;
+                },
+                get label() {
+                  return i18n_default.settings.fitToViewportLabel;
+                },
+                onChange: (value) => updateDraft("fitToViewport", value)
+              });
+            }
           }), null), insert(_el$18, createComponent(SwitchButton, {
             get checked() {
               return draft.replacePreviewWithScroll;
@@ -7919,14 +8036,25 @@ Next page`,
             onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
           }), null), insert(_el$19, createComponent(SelectSetting, {
             get label() {
-              return i18n_default.settings.uiScaleLabel;
+              return i18n_default.settings.portraitUiScaleLabel;
             },
             options: UI_SCALE_OPTIONS,
             get value() {
-              return draft.uiScale;
+              return draft.portraitUiScale;
             },
             onChange: (value) => {
-              setChanged(!0), setDraft("uiScale", value);
+              setChanged(!0), setDraft("portraitUiScale", value);
+            }
+          }), null), insert(_el$19, createComponent(SelectSetting, {
+            get label() {
+              return i18n_default.settings.landscapeUiScaleLabel;
+            },
+            options: UI_SCALE_OPTIONS,
+            get value() {
+              return draft.landscapeUiScale;
+            },
+            onChange: (value) => {
+              setChanged(!0), setDraft("landscapeUiScale", value);
             }
           }), null), insert(_el$19, createComponent(SelectSetting, {
             label: "Language",
@@ -7938,7 +8066,7 @@ Next page`,
             onChange: (value) => {
               setChanged(!0), setDraft("locale", value);
             }
-          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260807.1338", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => i18n_default.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => i18n_default.settings.licenses), insert(_el$28, createComponent(Icon2, {
+          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260813.0400", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => i18n_default.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => i18n_default.settings.licenses), insert(_el$28, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$30.$$click = (event) => {
@@ -8121,8 +8249,28 @@ Next page`,
   }
 
   // src/components/TouchUI/GalleryInfoPanel.tsx
-  var _tmpl$18 = /* @__PURE__ */ template("<div>"), _tmpl$210 = /* @__PURE__ */ template('<button type=button class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:ui-rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"><span class="flex gap-1px pointer-events-none text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true>'), _tmpl$37 = /* @__PURE__ */ template('<div class="text-center textsize-md font-700"aria-live=polite>'), _tmpl$47 = /* @__PURE__ */ template('<div class="grid grid-cols-2 ui-gap-sm ui-pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="flex w-full min-h-[var(--ui-control-size-md)] items-center justify-center ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108"></button><button type=button class="flex w-full min-h-[var(--ui-control-size-md)] items-center justify-center ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">'), _tmpl$56 = /* @__PURE__ */ template('<section class="flex box-border w-full flex-col ui-mb-sm ehp-color-site-text font-sans"><div class="relative grid min-h-[clamp(130px,21vh,170px)] ui-pt-sm safe-pr-sm ui-pb-xl safe-pl-sm ehp-color-site-surface ehp-color-site-text"><div><div class="flex self-stretch min-w-0 flex-col items-start ui-gap-xs pt-1px"><div class="flex min-w-0 w-full flex-none flex-col ui-gap-xs items-start pb-2px"><div class="line-clamp-4 flex-none overflow-hidden [font-size:var(--ui-font-size-lg)] font-400 leading-[1.16] text-left break-anywhere"></div><div class="line-clamp-3 flex-none overflow-hidden opacity-82 textsize-md leading-[1.2] text-left break-anywhere"></div></div><div class="flex min-w-0 max-w-full flex-none items-center ui-gap-sm"><a class="box-border flex-none whitespace-nowrap ui-rounded-xs border border-solid ui-py-xs ui-px-xs text-center textsize-md font-700 leading-[1.1] uppercase no-underline hover:no-underline active:no-underline"></a></div></div></div></div><div class="relative z-1 grid grid-cols-[1fr_1fr] min-h-[var(--ui-control-size-xl)] mt--8px safe-mr-sm safe-ml-sm overflow-visible ui-rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"><div class="contents [direction:ltr]"></div><div class="flex min-w-0 border-0 border-solid border-[var(--color-site-page)] [direction:ltr]"></div></div><div class="flex flex-col ui-gap-sm ui-pt-md safe-pr-sm ui-pb-sm safe-pl-sm ehp-color-site-page ehp-color-site-text"><div class="grid grid-cols-[repeat(3,minmax(0,1fr))] ui-gap-y-sm ui-gap-x-sm items-center [font-size:var(--ui-font-size-lg)] leading-[1.2] text-center">'), _tmpl$66 = /* @__PURE__ */ template('<div class="flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">'), _tmpl$75 = /* @__PURE__ */ template('<a class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap opacity-82 textsize-md font-700 leading-[1.1] no-underline hover:underline active:underline">'), _tmpl$84 = /* @__PURE__ */ template('<button type=button class="flex w-[65%] max-w-full flex-none self-end flex-col items-end ui-gap-xs mt-auto p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-right cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:ui-rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"><div class="relative inline-flex [&amp;_.ehpeek-icon]:w-[var(--ui-icon-size-lg)] [&amp;_.ehpeek-icon]:h-[var(--ui-icon-size-lg)]"><span class="flex gap-1px text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></div><div class="flex items-center justify-end ui-gap-xs text-[var(--color-muted)] [font-size:var(--ui-font-size-lg)] leading-[1.15] whitespace-nowrap"><span aria-live=polite>'), _tmpl$93 = /* @__PURE__ */ template('<span class="flex-none ui-pl-xs border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">'), _tmpl$02 = /* @__PURE__ */ template('<div class="line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">'), _tmpl$19 = /* @__PURE__ */ template('<div class="flex flex-col pt-2px"><button type=button><span></span><span aria-hidden=true></span></button><div class="grid min-w-0 w-full grid-cols-[max-content_minmax(0,1fr)] items-start ui-gap-x-xs ui-gap-y-sm">'), _tmpl$102 = /* @__PURE__ */ template('<div class="absolute top-[calc(var(--ui-control-size-md)+var(--ui-space-sm))] right-0 z-overlay flex w-[min(78vw,calc(var(--ui-control-size-xl)*4))] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated">'), _tmpl$112 = /* @__PURE__ */ template('<div class="relative flex min-w-0 items-center justify-center"><button type=button class="inline-flex w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] items-center justify-center border-0 bg-transparent ehp-color-site-text"aria-haspopup=menu>'), _tmpl$122 = /* @__PURE__ */ template('<section class=contents><div class="box-border min-h-[var(--ui-control-size-sm)] whitespace-nowrap ui-rounded-xl bg-[var(--color-site-elevated)] ui-py-xs ui-px-md text-center lowercase ehp-color-site-accent textsize-md font-600"></div><div class="flex flex-wrap ui-gap-xs">'), _tmpl$132 = /* @__PURE__ */ template('<a class="ehpeek-touch-gallery-tag inline-flex flex-none box-border max-w-full min-h-[var(--ui-control-size-sm)] items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 ui-rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] ui-px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-text no-underline transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent">'), _tmpl$142 = /* @__PURE__ */ template('<div role=dialog aria-modal=true><div class="box-border flex w-full max-w-[calc(var(--ui-control-size-xl)*5.25)] max-h-[calc(100dvh-(var(--ui-space-lg)*2))] flex-col overflow-x-hidden overflow-y-auto overscroll-contain whitespace-nowrap border ehp-color-site-border ui-rounded-md ehp-color-site-elevated shadow-xl"role=menu>'), _tmpl$152 = /* @__PURE__ */ template('<div class="absolute top-full left-0 right-0 z-2 ui-mt-xs max-h-240px overflow-y-auto overscroll-contain ui-rounded-md border ehp-color-site-border ehp-color-site-elevated shadow-xl"role=listbox>'), _tmpl$162 = /* @__PURE__ */ template('<div class="flex flex-col ui-gap-sm ehp-color-site-text textsize-md font-600"><span></span><div class=relative><button type=button class="flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-rounded-md border ehp-color-site-border !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text ui-px-md font-inherit text-left textsize-md cursor-pointer"aria-haspopup=listbox><span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"></span><span class=flex-none aria-hidden=true>'), _tmpl$172 = /* @__PURE__ */ template('<div class="flex flex-col ui-gap-sm ehp-color-site-text textsize-md font-600"><span></span><div class="overflow-hidden ui-rounded-md border ehp-color-site-border"role=radiogroup>'), _tmpl$182 = /* @__PURE__ */ template('<div class="grid grid-cols-2 ui-gap-md"><button type=button class="flex w-full min-h-[var(--ui-control-size-md)] items-center justify-center ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]"></button><button type=button class="flex w-full min-h-[var(--ui-control-size-md)] items-center justify-center ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default ui-gap-md border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108"><span>'), _tmpl$192 = /* @__PURE__ */ template("<button type=button role=menuitem><span>"), _tmpl$20 = /* @__PURE__ */ template("<button type=button role=option><span>"), _tmpl$21 = /* @__PURE__ */ template("<button type=button role=radio><span>"), _tmpl$222 = /* @__PURE__ */ template('<span class="contents [&amp;_*]:!bg-transparent [&amp;_*]:!text-inherit"translate=no>'), _tmpl$232 = /* @__PURE__ */ template('<div class="flex flex-col ui-gap-md ui-pt-lg ui-px-lg"><textarea class="box-border min-h-[calc(var(--ui-control-size-xl)*3)] w-full resize-y ui-rounded-md border ehp-color-site-border bg-[var(--color-site-surface)] ui-p-md ehp-color-site-text font-inherit textsize-md leading-[1.4]"></textarea><div class="grid grid-cols-1 ui-gap-md"><button type=button class="min-h-[var(--ui-control-size-md)] ui-rounded-md border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] font-inherit textsize-md font-700">'), _tmpl$242 = /* @__PURE__ */ template('<div class="relative z-2 min-w-0"><button type=button class="flex min-w-0 w-full h-full ui-hit-min-h-xl flex-col items-center justify-center ui-gap-xs ui-py-md ui-px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-lg)] font-700 normal-case"aria-haspopup=menu><span class="block leading-[1.15]"></span><span class="block opacity-78 normal-case"aria-hidden=true>'), _tmpl$252 = /* @__PURE__ */ template('<button type=button class="flex box-border w-full ui-hit-min-h-md items-center ui-gap-md ui-py-xs ui-px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left cursor-pointer"><span class="flex-none ehp-color-site-text"aria-hidden=true></span><span>'), _tmpl$262 = /* @__PURE__ */ template('<div class="flex box-border w-full ui-hit-min-h-md items-center ui-gap-md ui-py-xs ui-px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left">'), _tmpl$272 = /* @__PURE__ */ template('<button type=button class="flex box-border w-full ui-hit-min-h-md items-center ui-gap-md ui-py-xs ui-px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left cursor-pointer"><span class="flex-none ehp-color-site-text"aria-hidden=true></span><span></span><span aria-hidden=true>'), RATING_STAR_INDEXES = [0, 1, 2, 3, 4];
-  var GALLERY_FAVORITE_ICON_SIZE = "var(--ui-icon-size-lg)";
+  var _tmpl$18 = /* @__PURE__ */ template("<div>"), _tmpl$210 = /* @__PURE__ */ template('<button type=button class="relative inline-flex self-center max-w-full overflow-hidden p-0 border-0 bg-transparent cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:ui-rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"><span class="flex gap-1px pointer-events-none text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true>'), _tmpl$37 = /* @__PURE__ */ template('<div class="text-center textsize-md font-700"aria-live=polite>'), _tmpl$47 = /* @__PURE__ */ template('<div class="grid grid-cols-2 ui-gap-sm ui-pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="flex w-full min-h-[var(--ui-control-size-md)] items-center justify-center ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108"></button><button type=button class="flex w-full min-h-[var(--ui-control-size-md)] items-center justify-center ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">'), _tmpl$56 = /* @__PURE__ */ template('<section class="flex box-border w-full flex-col ui-mb-sm ehp-color-site-text font-sans"><div class="ehpeek-touch-gallery-summary-container relative grid min-h-[clamp(130px,21vh,170px)] ui-pt-sm safe-pr-sm safe-pl-sm ehp-color-site-surface ehp-color-site-text"><div><div class="ehpeek-touch-gallery-summary-details flex self-stretch min-w-0 flex-col items-start ui-gap-xs pt-1px"><div class="flex min-w-0 w-full flex-none flex-col ui-gap-xs items-start pb-2px"><div class="line-clamp-4 flex-none overflow-hidden [font-size:var(--ui-font-size-lg)] font-400 leading-[1.16] text-left break-anywhere"></div><div class="line-clamp-3 flex-none overflow-hidden opacity-82 textsize-md leading-[1.2] text-left break-anywhere"></div></div><div class="flex min-w-0 max-w-full flex-none items-center ui-gap-sm"><a class="box-border flex-none whitespace-nowrap ui-rounded-xs border border-solid ui-py-xs ui-px-xs text-center textsize-md font-700 leading-[1.1] uppercase no-underline hover:no-underline active:no-underline"></a></div></div><div class="ehpeek-touch-gallery-primary-actions relative z-1 grid grid-cols-[1fr_1fr] min-h-[var(--ui-control-size-xl)] overflow-visible ui-rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"><div class="contents [direction:ltr]"></div><div class="flex min-w-0 border-0 border-solid border-[var(--color-site-page)] [direction:ltr]"></div></div></div></div><div class="flex flex-col ui-gap-sm ui-pt-md safe-pr-sm ui-pb-sm safe-pl-sm ehp-color-site-page ehp-color-site-text"><div class="grid grid-cols-[repeat(3,minmax(0,1fr))] ui-gap-y-sm ui-gap-x-sm items-center [font-size:var(--ui-font-size-lg)] leading-[1.2] text-center">'), _tmpl$66 = /* @__PURE__ */ template('<div class="ehpeek-touch-gallery-summary-cover flex self-center justify-self-stretch w-full max-h-full aspect-[2/3] items-center justify-center overflow-hidden rounded-3px">'), _tmpl$75 = /* @__PURE__ */ template('<a class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap opacity-82 textsize-md font-700 leading-[1.1] no-underline hover:underline active:underline">'), _tmpl$84 = /* @__PURE__ */ template('<button type=button class="flex w-[65%] max-w-full flex-none self-end flex-col items-end ui-gap-xs mt-auto p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-right cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:ui-rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"><div class="relative inline-flex [&amp;_.ehpeek-icon]:w-[var(--ui-icon-size-lg)] [&amp;_.ehpeek-icon]:h-[var(--ui-icon-size-lg)]"><span class="flex gap-1px text-[var(--color-muted)] opacity-40"aria-hidden=true></span><span aria-hidden=true></span></div><div class="flex items-center justify-end ui-gap-xs text-[var(--color-muted)] [font-size:var(--ui-font-size-lg)] leading-[1.15] whitespace-nowrap"><span aria-live=polite>'), _tmpl$93 = /* @__PURE__ */ template('<span class="flex-none ui-pl-xs border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">'), _tmpl$02 = /* @__PURE__ */ template('<div class="line-clamp-2 min-w-0 overflow-hidden whitespace-normal break-normal">'), _tmpl$19 = /* @__PURE__ */ template('<div class="grid min-w-0 w-full grid-cols-[max-content_minmax(0,1fr)] items-start ui-gap-x-xs ui-gap-y-sm">'), _tmpl$102 = /* @__PURE__ */ template('<div class="flex flex-col pt-2px"><button type=button><span></span><span aria-hidden=true>'), _tmpl$112 = /* @__PURE__ */ template('<div class="absolute top-[calc(var(--ui-control-size-md)+var(--ui-space-sm))] right-0 z-overlay flex w-[min(78vw,calc(var(--ui-control-size-xl)*4))] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated">'), _tmpl$122 = /* @__PURE__ */ template('<div class="relative flex min-w-0 items-center justify-center"><button type=button class="inline-flex w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] items-center justify-center border-0 bg-transparent ehp-color-site-text"aria-haspopup=menu>'), _tmpl$132 = /* @__PURE__ */ template('<section class=contents><div class="box-border min-h-[var(--ui-control-size-sm)] whitespace-nowrap ui-rounded-xl bg-[var(--color-site-elevated)] ui-py-xs ui-px-md text-center lowercase ehp-color-site-accent textsize-md font-600"></div><div class="flex flex-wrap ui-gap-xs">'), _tmpl$142 = /* @__PURE__ */ template('<a class="ehpeek-touch-gallery-tag inline-flex flex-none box-border max-w-full min-h-[var(--ui-control-size-sm)] items-center overflow-hidden text-ellipsis whitespace-nowrap appearance-none m-0 py-0 ui-rounded-xl border border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] ui-px-lg ehp-color-site-text font-inherit font-700 textsize-md cursor-pointer select-text no-underline transition-[border-color,background-color,color] duration-120 hover:border-[var(--color-site-border)] hover:bg-[var(--color-site-accent-hover)] hover:ehp-color-site-accent">'), _tmpl$152 = /* @__PURE__ */ template('<div role=dialog aria-modal=true><div class="box-border flex w-full max-w-[calc(var(--ui-control-size-xl)*5.25)] max-h-[calc(100dvh-(var(--ui-space-lg)*2))] flex-col overflow-x-hidden overflow-y-auto overscroll-contain whitespace-nowrap border ehp-color-site-border ui-rounded-md ehp-color-site-elevated shadow-xl"role=menu>'), _tmpl$162 = /* @__PURE__ */ template('<div class="absolute top-full left-0 right-0 z-2 ui-mt-xs max-h-240px overflow-y-auto overscroll-contain ui-rounded-md border ehp-color-site-border ehp-color-site-elevated shadow-xl"role=listbox>'), _tmpl$172 = /* @__PURE__ */ template('<div class="flex flex-col ui-gap-sm ehp-color-site-text textsize-md font-600"><span></span><div class=relative><button type=button class="flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-rounded-md border ehp-color-site-border !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text ui-px-md font-inherit text-left textsize-md cursor-pointer"aria-haspopup=listbox><span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"></span><span class=flex-none aria-hidden=true>'), _tmpl$182 = /* @__PURE__ */ template('<div class="flex flex-col ui-gap-sm ehp-color-site-text textsize-md font-600"><span></span><div class="overflow-hidden ui-rounded-md border ehp-color-site-border"role=radiogroup>'), _tmpl$192 = /* @__PURE__ */ template('<div class="grid grid-cols-2 ui-gap-md"><button type=button class="flex w-full min-h-[var(--ui-control-size-md)] items-center justify-center ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]"></button><button type=button class="flex w-full min-h-[var(--ui-control-size-md)] items-center justify-center ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center textsize-md font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 disabled:opacity-50 disabled:cursor-default ui-gap-md border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108"><span>'), _tmpl$20 = /* @__PURE__ */ template("<button type=button role=menuitem><span>"), _tmpl$21 = /* @__PURE__ */ template("<button type=button role=option><span>"), _tmpl$222 = /* @__PURE__ */ template("<button type=button role=radio><span>"), _tmpl$232 = /* @__PURE__ */ template('<span class="contents [&amp;_*]:!bg-transparent [&amp;_*]:!text-inherit"translate=no>'), _tmpl$242 = /* @__PURE__ */ template('<div class="flex flex-col ui-gap-md ui-pt-lg ui-px-lg"><textarea class="box-border min-h-[calc(var(--ui-control-size-xl)*3)] w-full resize-y ui-rounded-md border ehp-color-site-border bg-[var(--color-site-surface)] ui-p-md ehp-color-site-text font-inherit textsize-md leading-[1.4]"></textarea><div class="grid grid-cols-1 ui-gap-md"><button type=button class="min-h-[var(--ui-control-size-md)] ui-rounded-md border border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] font-inherit textsize-md font-700">'), _tmpl$252 = /* @__PURE__ */ template('<div class="relative z-2 min-w-0"><button type=button class="flex min-w-0 w-full h-full ui-hit-min-h-xl flex-col items-center justify-center ui-gap-xs ui-py-md ui-px-lg border-0 bg-transparent ehp-color-site-text text-center uppercase [touch-action:manipulation] [font-size:var(--ui-font-size-lg)] font-700 normal-case"aria-haspopup=menu><span class="block leading-[1.15]"></span><span class="block opacity-78 normal-case"aria-hidden=true>'), _tmpl$262 = /* @__PURE__ */ template('<button type=button class="flex box-border w-full ui-hit-min-h-md items-center ui-gap-md ui-py-xs ui-px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left cursor-pointer"><span class="flex-none ehp-color-site-text"aria-hidden=true></span><span>'), _tmpl$272 = /* @__PURE__ */ template('<div class="flex box-border w-full ui-hit-min-h-md items-center ui-gap-md ui-py-xs ui-px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left">'), _tmpl$282 = /* @__PURE__ */ template('<button type=button class="flex box-border w-full ui-hit-min-h-md items-center ui-gap-md ui-py-xs ui-px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left cursor-pointer"><span class="flex-none ehp-color-site-text"aria-hidden=true></span><span></span><span aria-hidden=true>'), RATING_STAR_INDEXES = [0, 1, 2, 3, 4];
+  var GALLERY_FAVORITE_ICON_SIZE = "var(--ui-icon-size-lg)", TAG_NAMESPACE_PREFIXES = {
+    artist: "a",
+    character: "c",
+    cosplayer: "cos",
+    female: "f",
+    group: "g",
+    language: "l",
+    location: "loc",
+    male: "m",
+    mixed: "x",
+    other: "o",
+    parody: "p",
+    reclass: "r"
+  };
+  function exactTagQuery(name) {
+    let separator = name.indexOf(":");
+    if (separator < 0)
+      return `tag:${name}$`;
+    let namespace = name.slice(0, separator).toLowerCase();
+    return `${TAG_NAMESPACE_PREFIXES[namespace] ?? namespace}:${name.slice(separator + 1)}$`;
+  }
   function GalleryInfoPanel(props) {
     let source = untrack(() => props.source), rating = source.data.rating, hasCover = source.elems.cover !== null, [ratingValue, setRatingValue] = createSignal(rating?.value ?? 0), [ratingPreview, setRatingPreview] = createSignal(null), [ratingPickerOpen, setRatingPickerOpen] = createSignal(!1), [ratingSubmitted, setRatingSubmitted] = createSignal(rating?.rated ?? !1), [ratingCount] = createSignal(rating?.count ?? ""), [ratingValueLabel] = createSignal(rating?.label ?? ""), initialTagGroups = source.data.tagGroups.map((group) => ({
       ...group,
@@ -8171,8 +8319,8 @@ Next page`,
       }))), setSelectedTag((tag2) => tag2?.url === updatedTag.url ? updatedTag : tag2);
     };
     return (() => {
-      var _el$ = _tmpl$56(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.firstChild, _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$5.nextSibling, _el$9 = _el$8.firstChild, _el$0 = _el$2.nextSibling, _el$1 = _el$0.firstChild, _el$10 = _el$1.nextSibling, _el$11 = _el$0.nextSibling, _el$12 = _el$11.firstChild;
-      return className(_el$3, `grid ui-gap-sm items-stretch ${hasCover ? "ehpeek-touch-gallery-summary-has-cover" : "grid-cols-1"}`), insert(_el$3, hasCover && (() => {
+      var _el$ = _tmpl$56(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.firstChild, _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$5.nextSibling, _el$9 = _el$8.firstChild, _el$0 = _el$4.nextSibling, _el$1 = _el$0.firstChild, _el$10 = _el$1.nextSibling, _el$11 = _el$2.nextSibling, _el$12 = _el$11.firstChild;
+      return className(_el$3, `ehpeek-touch-gallery-summary grid ui-gap-sm items-stretch ${hasCover ? "ehpeek-touch-gallery-summary-has-cover" : "grid-cols-1"}`), insert(_el$3, hasCover && (() => {
         var _el$21 = _tmpl$66();
         return insert(_el$21, createComponent(DomNode2, {
           get node() {
@@ -8240,23 +8388,31 @@ Next page`,
           return source.elems.actionItems;
         }
       }), null), insert(_el$11, (() => {
-        var _c$2 = memo(() => tagGroups().length > 0);
+        var _c$2 = memo(() => !!(tagGroups().length > 0 || hasNewTag()));
         return () => _c$2() && (() => {
-          var _el$31 = _tmpl$19(), _el$32 = _el$31.firstChild, _el$33 = _el$32.firstChild, _el$34 = _el$33.nextSibling, _el$35 = _el$32.nextSibling;
+          var _el$31 = _tmpl$102(), _el$32 = _el$31.firstChild, _el$33 = _el$32.firstChild, _el$34 = _el$33.nextSibling;
           return _el$31.addEventListener("dragstart", (event) => event.preventDefault()), _el$32.$$click = () => {
             setTagging((enabled) => !enabled);
-          }, insert(_el$33, () => i18n_default.gallery.tagging), insert(_el$35, createComponent(For, {
-            get each() {
-              return tagGroups();
+          }, insert(_el$33, () => i18n_default.gallery.tagging), insert(_el$31, createComponent(Show, {
+            get when() {
+              return tagGroups().length > 0;
             },
-            children: (group) => createComponent(TouchGalleryTagGroup, {
-              group,
-              get tagging() {
-                return tagging();
-              },
-              onTagOpen: openTagMenu
-            })
-          })), createRenderEffect((_p$) => {
+            get children() {
+              var _el$35 = _tmpl$19();
+              return insert(_el$35, createComponent(For, {
+                get each() {
+                  return tagGroups();
+                },
+                children: (group) => createComponent(TouchGalleryTagGroup, {
+                  group,
+                  get tagging() {
+                    return tagging();
+                  },
+                  onTagOpen: openTagMenu
+                })
+              })), _el$35;
+            }
+          }), null), createRenderEffect((_p$) => {
             var _v$10 = `inline-flex self-end ui-hit-min-h-xs items-center justify-center ui-gap-sm ui-mb-xs ui-rounded-xl border-0 ui-px-md font-inherit font-700 textsize-sm cursor-pointer transition-[background-color,color] duration-120 ${tagging() ? "bg-[var(--color-site-accent-hover)] ehp-color-site-accent" : "bg-[var(--color-site-surface)] ehp-color-site-text"}`, _v$11 = tagging(), _v$12 = `block flex-none ui-w-md ui-h-md rounded-full ${tagging() ? "bg-[var(--color-state-on)]" : "bg-[var(--color-state-off)]"}`;
             return _v$10 !== _p$.e && className(_el$32, _p$.e = _v$10), _v$11 !== _p$.t && setAttribute(_el$32, "aria-pressed", _p$.t = _v$11), _v$12 !== _p$.a && className(_el$34, _p$.a = _v$12), _p$;
           }, {
@@ -8292,6 +8448,7 @@ Next page`,
             get label() {
               return i18n_default.gallery.rate;
             },
+            lockPageScroll: !0,
             onClose: closeRatingPicker,
             get title() {
               return i18n_default.gallery.rate;
@@ -8361,7 +8518,7 @@ Next page`,
         document.removeEventListener("click", onClick);
       });
     }), (() => {
-      var _el$36 = _tmpl$112(), _el$37 = _el$36.firstChild, _ref$ = root;
+      var _el$36 = _tmpl$122(), _el$37 = _el$36.firstChild, _ref$ = root;
       return typeof _ref$ == "function" ? use(_ref$, _el$36) : root = _el$36, _el$37.$$click = (event) => {
         event.stopPropagation(), setOpen((value) => !value);
       }, insert(_el$37, createComponent(Icon2, {
@@ -8371,7 +8528,7 @@ Next page`,
           return open();
         },
         get children() {
-          var _el$38 = _tmpl$102();
+          var _el$38 = _tmpl$112();
           return insert(_el$38, createComponent(DomNodes, {
             get nodes() {
               return props.items;
@@ -8383,7 +8540,7 @@ Next page`,
   }
   function TouchGalleryTagGroup(props) {
     return (() => {
-      var _el$39 = _tmpl$122(), _el$40 = _el$39.firstChild, _el$41 = _el$40.nextSibling;
+      var _el$39 = _tmpl$132(), _el$40 = _el$39.firstChild, _el$41 = _el$40.nextSibling;
       return insert(_el$40, () => props.group.namespace), _el$41.$$click = (event) => {
         if (!props.tagging || event.defaultPrevented || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
           return;
@@ -8401,7 +8558,7 @@ Next page`,
   }
   function TouchGalleryTag(props) {
     return (() => {
-      var _el$42 = _tmpl$132();
+      var _el$42 = _tmpl$142();
       return setAttribute(_el$42, "draggable", !1), insert(_el$42, createComponent(TouchGalleryTagContent, {
         get tag() {
           return props.tag;
@@ -8461,7 +8618,7 @@ Next page`,
       }
     };
     return [(() => {
-      var _el$43 = _tmpl$142(), _el$44 = _el$43.firstChild;
+      var _el$43 = _tmpl$152(), _el$44 = _el$43.firstChild;
       return _el$43.$$click = (event) => {
         event.target === event.currentTarget && props.onClose();
       }, _el$44.$$click = () => {
@@ -8486,6 +8643,20 @@ Next page`,
             }
           }), createComponent(Show, {
             get when() {
+              return props.tag;
+            },
+            children: (tag2) => (() => {
+              var _el$59 = _tmpl$20(), _el$60 = _el$59.firstChild;
+              return _el$59.$$click = (event) => {
+                event.stopPropagation(), navigator.clipboard.writeText(exactTagQuery(tag2().name)).then(onClose, (error) => {
+                  console.error("[ehpeek] Copy gallery tag failed", error), window.alert(error instanceof Error ? error.message : i18n_default.errors.loadFailed);
+                });
+              }, insert(_el$59, createComponent(Icon2, {
+                name: "copy"
+              }), _el$60), insert(_el$60, () => i18n_default.gallery.copyOriginalTag), createRenderEffect(() => className(_el$59, sharedApply.galleryTagMenuItem)), _el$59;
+            })()
+          }), createComponent(Show, {
+            get when() {
               return state.gallery.myTags.value;
             },
             get children() {
@@ -8499,22 +8670,22 @@ Next page`,
                   },
                   get fallback() {
                     return (() => {
-                      var _el$61 = _tmpl$192(), _el$62 = _el$61.firstChild;
-                      return _el$61.$$click = (event) => {
+                      var _el$63 = _tmpl$20(), _el$64 = _el$63.firstChild;
+                      return _el$63.$$click = (event) => {
                         event.stopPropagation(), updateFavoriteTag(tag2());
-                      }, insert(_el$61, createComponent(Icon2, {
+                      }, insert(_el$63, createComponent(Icon2, {
                         name: "heart",
                         filled: !0
-                      }), _el$62), insert(_el$62, () => i18n_default.gallery.removeFavoriteTag), createRenderEffect(() => className(_el$61, sharedApply.galleryTagMenuItem)), _el$61;
+                      }), _el$64), insert(_el$64, () => i18n_default.gallery.removeFavoriteTag), createRenderEffect(() => className(_el$63, sharedApply.galleryTagMenuItem)), _el$63;
                     })();
                   },
                   get children() {
-                    var _el$59 = _tmpl$192(), _el$60 = _el$59.firstChild;
-                    return _el$59.$$click = () => {
+                    var _el$61 = _tmpl$20(), _el$62 = _el$61.firstChild;
+                    return _el$61.$$click = () => {
                       setFavoriteTag(tag2()), setCollectionOpen(!1), setFavoriteDialogOpen(!0);
-                    }, insert(_el$59, createComponent(Icon2, {
+                    }, insert(_el$61, createComponent(Icon2, {
                       name: "heart"
-                    }), _el$60), insert(_el$60, () => i18n_default.gallery.favoriteTag), createRenderEffect(() => className(_el$59, sharedApply.galleryTagMenuItem)), _el$59;
+                    }), _el$62), insert(_el$62, () => i18n_default.gallery.favoriteTag), createRenderEffect(() => className(_el$61, sharedApply.galleryTagMenuItem)), _el$61;
                   }
                 })
               });
@@ -8539,6 +8710,7 @@ Next page`,
           get label() {
             return i18n_default.gallery.favoriteTag;
           },
+          lockPageScroll: !0,
           onClose: closeFavoriteTagDialog,
           get title() {
             return i18n_default.gallery.favoriteTag;
@@ -8561,20 +8733,20 @@ Next page`,
               },
               get children() {
                 return [(() => {
-                  var _el$45 = _tmpl$162(), _el$46 = _el$45.firstChild, _el$47 = _el$46.nextSibling, _el$48 = _el$47.firstChild, _el$49 = _el$48.firstChild, _el$50 = _el$49.nextSibling;
+                  var _el$45 = _tmpl$172(), _el$46 = _el$45.firstChild, _el$47 = _el$46.nextSibling, _el$48 = _el$47.firstChild, _el$49 = _el$48.firstChild, _el$50 = _el$49.nextSibling;
                   return insert(_el$46, () => i18n_default.gallery.tagCollection), _el$48.$$click = () => setCollectionOpen((open) => !open), insert(_el$49, () => tagSets.find((option2) => option2.value === selectedTagSet())?.label ?? selectedTagSet()), insert(_el$50, () => collectionOpen() ? "▴" : "▾"), insert(_el$47, createComponent(Show, {
                     get when() {
                       return collectionOpen();
                     },
                     get children() {
-                      var _el$51 = _tmpl$152();
+                      var _el$51 = _tmpl$162();
                       return insert(_el$51, createComponent(For, {
                         each: tagSets,
                         children: (option2) => (() => {
-                          var _el$63 = _tmpl$20(), _el$64 = _el$63.firstChild;
-                          return _el$63.$$click = () => {
+                          var _el$65 = _tmpl$21(), _el$66 = _el$65.firstChild;
+                          return _el$65.$$click = () => {
                             setSelectedTagSet(option2.value), setCollectionOpen(!1);
-                          }, insert(_el$64, () => option2.label), insert(_el$63, createComponent(Show, {
+                          }, insert(_el$66, () => option2.label), insert(_el$65, createComponent(Show, {
                             get when() {
                               return selectedTagSet() === option2.value;
                             },
@@ -8585,24 +8757,24 @@ Next page`,
                             }
                           }), null), createRenderEffect((_p$) => {
                             var _v$21 = `flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-px-md border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b ehp-color-site-text font-inherit text-left textsize-md cursor-pointer ${selectedTagSet() === option2.value ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)]"}`, _v$22 = selectedTagSet() === option2.value;
-                            return _v$21 !== _p$.e && className(_el$63, _p$.e = _v$21), _v$22 !== _p$.t && setAttribute(_el$63, "aria-selected", _p$.t = _v$22), _p$;
+                            return _v$21 !== _p$.e && className(_el$65, _p$.e = _v$21), _v$22 !== _p$.t && setAttribute(_el$65, "aria-selected", _p$.t = _v$22), _p$;
                           }, {
                             e: void 0,
                             t: void 0
-                          }), _el$63;
+                          }), _el$65;
                         })()
                       })), createRenderEffect(() => setAttribute(_el$51, "aria-label", i18n_default.gallery.tagCollection)), _el$51;
                     }
                   }), null), createRenderEffect(() => setAttribute(_el$48, "aria-expanded", collectionOpen())), _el$45;
                 })(), (() => {
-                  var _el$52 = _tmpl$172(), _el$53 = _el$52.firstChild, _el$54 = _el$53.nextSibling;
+                  var _el$52 = _tmpl$182(), _el$53 = _el$52.firstChild, _el$54 = _el$53.nextSibling;
                   return insert(_el$53, () => i18n_default.gallery.tagBehavior), insert(_el$54, createComponent(For, {
                     get each() {
                       return [["marked", i18n_default.gallery.markTag], ["watched", i18n_default.gallery.watchTag], ["hidden", i18n_default.gallery.hideTag]];
                     },
                     children: ([value, label]) => (() => {
-                      var _el$65 = _tmpl$21(), _el$66 = _el$65.firstChild;
-                      return _el$65.$$click = () => setTagMode(value), insert(_el$66, label), insert(_el$65, createComponent(Show, {
+                      var _el$67 = _tmpl$222(), _el$68 = _el$67.firstChild;
+                      return _el$67.$$click = () => setTagMode(value), insert(_el$68, label), insert(_el$67, createComponent(Show, {
                         get when() {
                           return tagMode() === value;
                         },
@@ -8613,15 +8785,15 @@ Next page`,
                         }
                       }), null), createRenderEffect((_p$) => {
                         var _v$23 = `flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-px-md border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b ehp-color-site-text font-inherit text-left textsize-md cursor-pointer ${tagMode() === value ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)]"}`, _v$24 = tagMode() === value;
-                        return _v$23 !== _p$.e && className(_el$65, _p$.e = _v$23), _v$24 !== _p$.t && setAttribute(_el$65, "aria-checked", _p$.t = _v$24), _p$;
+                        return _v$23 !== _p$.e && className(_el$67, _p$.e = _v$23), _v$24 !== _p$.t && setAttribute(_el$67, "aria-checked", _p$.t = _v$24), _p$;
                       }, {
                         e: void 0,
                         t: void 0
-                      }), _el$65;
+                      }), _el$67;
                     })()
                   })), createRenderEffect(() => setAttribute(_el$54, "aria-label", i18n_default.gallery.tagBehavior)), _el$52;
                 })(), (() => {
-                  var _el$55 = _tmpl$182(), _el$56 = _el$55.firstChild, _el$57 = _el$56.nextSibling, _el$58 = _el$57.firstChild;
+                  var _el$55 = _tmpl$192(), _el$56 = _el$55.firstChild, _el$57 = _el$56.nextSibling, _el$58 = _el$57.firstChild;
                   return _el$56.$$click = closeFavoriteTagDialog, insert(_el$56, () => i18n_default.common.actions.close), _el$57.$$click = () => {
                     let tag2 = favoriteTag();
                     tag2 && updateFavoriteTag(tag2);
@@ -8648,8 +8820,8 @@ Next page`,
     return onMount(() => {
       onCleanup(props.tag.contentSource.mirrorContentTo(host));
     }), (() => {
-      var _el$67 = _tmpl$222(), _ref$2 = host;
-      return typeof _ref$2 == "function" ? use(_ref$2, _el$67) : host = _el$67, _el$67;
+      var _el$69 = _tmpl$232(), _ref$2 = host;
+      return typeof _ref$2 == "function" ? use(_ref$2, _el$69) : host = _el$69, _el$69;
     })();
   }
   function TouchGalleryFavoriteButton(props) {
@@ -8685,16 +8857,16 @@ Next page`,
       }
     };
     return (() => {
-      var _el$68 = _tmpl$242(), _el$69 = _el$68.firstChild, _el$70 = _el$69.firstChild, _el$71 = _el$70.nextSibling;
-      return _el$69.$$click = (event) => {
+      var _el$70 = _tmpl$252(), _el$71 = _el$70.firstChild, _el$72 = _el$71.firstChild, _el$73 = _el$72.nextSibling;
+      return _el$71.$$click = (event) => {
         event.stopPropagation(), open() ? closeMenu() : openMenu();
-      }, insert(_el$70, () => favorite().label), insert(_el$71, createComponent(Icon2, {
+      }, insert(_el$72, () => favorite().label), insert(_el$73, createComponent(Icon2, {
         name: "heart",
         size: "var(--ui-icon-size-lg)",
         get filled() {
           return favorited();
         }
-      })), insert(_el$68, createComponent(Show, {
+      })), insert(_el$70, createComponent(Show, {
         get when() {
           return open();
         },
@@ -8755,11 +8927,11 @@ Next page`,
                           }
                         })
                       }), (() => {
-                        var _el$76 = _tmpl$252(), _el$77 = _el$76.firstChild, _el$78 = _el$77.nextSibling;
-                        return _el$76.$$click = () => setEditingNote(!0), insert(_el$77, createComponent(Icon2, {
+                        var _el$78 = _tmpl$262(), _el$79 = _el$78.firstChild, _el$80 = _el$79.nextSibling;
+                        return _el$78.$$click = () => setEditingNote(!0), insert(_el$79, createComponent(Icon2, {
                           name: "edit",
                           size: GALLERY_FAVORITE_ICON_SIZE
-                        })), insert(_el$78, () => i18n_default.gallery.editFavoriteNote), _el$76;
+                        })), insert(_el$80, () => i18n_default.gallery.editFavoriteNote), _el$78;
                       })(), createComponent(For, {
                         get each() {
                           return options().filter((option2) => option2.value === "favdel");
@@ -8773,8 +8945,8 @@ Next page`,
                       })];
                     },
                     get children() {
-                      var _el$72 = _tmpl$232(), _el$73 = _el$72.firstChild, _el$74 = _el$73.nextSibling, _el$75 = _el$74.firstChild;
-                      return _el$73.$$input = (event) => setNoteDraft(event.currentTarget.value), _el$75.$$click = () => setEditingNote(!1), insert(_el$75, () => i18n_default.common.actions.confirm), createRenderEffect(() => _el$73.value = noteDraft()), _el$72;
+                      var _el$74 = _tmpl$242(), _el$75 = _el$74.firstChild, _el$76 = _el$75.nextSibling, _el$77 = _el$76.firstChild;
+                      return _el$75.$$input = (event) => setNoteDraft(event.currentTarget.value), _el$77.$$click = () => setEditingNote(!1), insert(_el$77, () => i18n_default.common.actions.confirm), createRenderEffect(() => _el$75.value = noteDraft()), _el$74;
                     }
                   });
                 }
@@ -8784,42 +8956,42 @@ Next page`,
         }
       }), null), createRenderEffect((_p$) => {
         var _v$25 = favorite().color ?? void 0, _v$26 = open();
-        return _v$25 !== _p$.e && setStyleProperty(_el$69, "color", _p$.e = _v$25), _v$26 !== _p$.t && setAttribute(_el$69, "aria-expanded", _p$.t = _v$26), _p$;
+        return _v$25 !== _p$.e && setStyleProperty(_el$71, "color", _p$.e = _v$25), _v$26 !== _p$.t && setAttribute(_el$71, "aria-expanded", _p$.t = _v$26), _p$;
       }, {
         e: void 0,
         t: void 0
-      }), _el$68;
+      }), _el$70;
     })();
   }
   function TouchGalleryFavoriteStatus(props) {
     return (() => {
-      var _el$79 = _tmpl$262();
-      return insert(_el$79, () => props.text), _el$79;
+      var _el$81 = _tmpl$272();
+      return insert(_el$81, () => props.text), _el$81;
     })();
   }
   function TouchGalleryFavoriteOption(props) {
     return (() => {
-      var _el$80 = _tmpl$272(), _el$81 = _el$80.firstChild, _el$82 = _el$81.nextSibling, _el$83 = _el$82.nextSibling;
-      return _el$80.$$click = (event) => {
+      var _el$82 = _tmpl$282(), _el$83 = _el$82.firstChild, _el$84 = _el$83.nextSibling, _el$85 = _el$84.nextSibling;
+      return _el$82.$$click = (event) => {
         event.stopPropagation(), props.onSelect();
-      }, insert(_el$81, createComponent(Icon2, {
+      }, insert(_el$83, createComponent(Icon2, {
         name: "heart",
         size: GALLERY_FAVORITE_ICON_SIZE,
         get filled() {
           return props.option.value !== "favdel";
         }
-      })), insert(_el$82, () => props.option.label), insert(_el$83, createComponent(Icon2, {
+      })), insert(_el$84, () => props.option.label), insert(_el$85, createComponent(Icon2, {
         name: "check",
         size: "var(--ui-icon-size-sm)"
       })), createRenderEffect((_p$) => {
         var _v$27 = props.option.selected, _v$28 = props.option.color ?? void 0, _v$29 = `ml-auto flex-none ehp-color-site-text ${props.option.selected ? "visible" : "invisible"}`, _v$30 = props.option.color ?? void 0;
-        return _v$27 !== _p$.e && setAttribute(_el$80, "aria-pressed", _p$.e = _v$27), _v$28 !== _p$.t && setStyleProperty(_el$81, "color", _p$.t = _v$28), _v$29 !== _p$.a && className(_el$83, _p$.a = _v$29), _v$30 !== _p$.o && setStyleProperty(_el$83, "color", _p$.o = _v$30), _p$;
+        return _v$27 !== _p$.e && setAttribute(_el$82, "aria-pressed", _p$.e = _v$27), _v$28 !== _p$.t && setStyleProperty(_el$83, "color", _p$.t = _v$28), _v$29 !== _p$.a && className(_el$85, _p$.a = _v$29), _v$30 !== _p$.o && setStyleProperty(_el$85, "color", _p$.o = _v$30), _p$;
       }, {
         e: void 0,
         t: void 0,
         a: void 0,
         o: void 0
-      }), _el$80;
+      }), _el$82;
     })();
   }
   function ratingFromPointer(clientX, element) {
@@ -8934,7 +9106,7 @@ Next page`,
   delegateEvents(["click"]);
 
   // src/components/TouchUI/TopBar.tsx
-  var _tmpl$40 = /* @__PURE__ */ template('<div class="absolute top-[calc(100%+var(--ui-space-xs))] left-0 z-overlay flex ui-gap-xs ui-p-xs overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated"role=menu><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></button><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"><span>'), _tmpl$213 = /* @__PURE__ */ template('<div class=relative><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$310 = /* @__PURE__ */ template('<button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$49 = /* @__PURE__ */ template('<div class="absolute top-[calc(100%+var(--ui-space-xs))] right-0 z-overlay flex w-max min-w-[calc(var(--ui-control-size-xl)*2.25)] max-w-[calc(100vw-var(--ui-space-md))] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated">'), _tmpl$57 = /* @__PURE__ */ template('<nav class="relative z-ui flex box-border w-full h-[var(--ui-control-size-xl)] items-center justify-between safe-px-md ehp-color-site-surface ehp-color-site-text font-sans"><div class="flex items-center ui-gap-xs"><a class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)] [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]"></a></div><div class="flex items-center ui-gap-xs"><a class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><a class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$67 = /* @__PURE__ */ template('<a class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)", TOUCH_TOP_BAR_PROJECT_ICON_SIZE = "var(--ehpeek-touch-top-bar-project-icon-size)", TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE = "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
+  var _tmpl$40 = /* @__PURE__ */ template('<div class="absolute top-[calc(100%+var(--ui-space-xs))] left-0 z-overlay flex ui-gap-xs ui-p-xs overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated"role=menu><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></button><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"><span>'), _tmpl$213 = /* @__PURE__ */ template('<div class=relative><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"aria-haspopup=menu>'), _tmpl$310 = /* @__PURE__ */ template('<button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$49 = /* @__PURE__ */ template('<div class="absolute top-[calc(100%+var(--ui-space-xs))] right-0 z-overlay flex w-max min-w-[calc(var(--ui-control-size-xl)*2.25)] max-w-[calc(100vw-var(--ui-space-md))] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated">'), _tmpl$57 = /* @__PURE__ */ template("<a class=ehpeek-layout-top-bar-menu-item>"), _tmpl$67 = /* @__PURE__ */ template('<nav class="relative z-ui flex box-border w-full h-[var(--ui-control-size-xl)] items-center justify-between safe-px-md ehp-color-site-surface ehp-color-site-text font-sans"><div class="flex items-center ui-gap-xs"><a class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)] [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]"></a></div><div class="flex items-center ui-gap-xs"><a class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><a class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]"></a><button type=button class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), _tmpl$76 = /* @__PURE__ */ template('<a class="inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]">'), TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)", TOUCH_TOP_BAR_PROJECT_ICON_SIZE = "var(--ehpeek-touch-top-bar-project-icon-size)", TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE = "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
   function TouchTopBarUiMenu(props) {
     let [open, setOpen] = createSignal(!1), root;
     return onMount(() => {
@@ -9010,7 +9182,12 @@ Next page`,
     })();
   }
   function TouchTopBarMenu(props) {
-    let [open, setOpen] = createSignal(!1), root;
+    let [open, setOpen] = createSignal(!1), [navItems, setNavItems] = createSignal([]), root, toggleMenu = () => {
+      setOpen((value) => {
+        let next = !value;
+        return next && setNavItems(props.source.handle.readNavigationItems()), next;
+      });
+    };
     return onMount(() => {
       let onClick = (event) => {
         event.target instanceof Element && root.contains(event.target) || setOpen(!1);
@@ -9021,7 +9198,7 @@ Next page`,
     }), (() => {
       var _el$8 = _tmpl$213(), _el$9 = _el$8.firstChild, _ref$2 = root;
       return typeof _ref$2 == "function" ? use(_ref$2, _el$8) : root = _el$8, _el$9.$$click = (event) => {
-        event.stopPropagation(), setOpen((value) => !value);
+        event.stopPropagation(), toggleMenu();
       }, insert(_el$9, createComponent(Icon2, {
         name: "menu",
         size: TOUCH_TOP_BAR_ICON_SIZE
@@ -9033,12 +9210,20 @@ Next page`,
           var _el$0 = _tmpl$49();
           return insert(_el$0, createComponent(For, {
             get each() {
-              return props.navItems;
+              return navItems();
             },
-            children: (item) => {
-              let Component = item.Component;
-              return createComponent(Component, {});
-            }
+            children: (item) => (() => {
+              var _el$1 = _tmpl$57();
+              return _el$1.$$click = (event) => {
+                event.preventDefault(), setOpen(!1), props.source.handle.activateNavigationItem(item.index);
+              }, insert(_el$1, () => item.label), createRenderEffect((_p$) => {
+                var _v$12 = item.href, _v$13 = item.target ?? void 0;
+                return _v$12 !== _p$.e && setAttribute(_el$1, "href", _p$.e = _v$12), _v$13 !== _p$.t && setAttribute(_el$1, "target", _p$.t = _v$13), _p$;
+              }, {
+                e: void 0,
+                t: void 0
+              }), _el$1;
+            })()
           })), createRenderEffect((_$p) => classList(_el$0, {
             "!right-auto left-0": props.leftHanded()
           }, _$p)), _el$0;
@@ -9048,12 +9233,12 @@ Next page`,
   }
   function TouchTopBar(props) {
     return (() => {
-      var _el$1 = _tmpl$57(), _el$10 = _el$1.firstChild, _el$11 = _el$10.firstChild, _el$12 = _el$10.nextSibling, _el$13 = _el$12.firstChild, _el$14 = _el$13.nextSibling, _el$15 = _el$14.nextSibling;
-      return insert(_el$11, createComponent(Icon2, {
+      var _el$10 = _tmpl$67(), _el$11 = _el$10.firstChild, _el$12 = _el$11.firstChild, _el$13 = _el$11.nextSibling, _el$14 = _el$13.firstChild, _el$15 = _el$14.nextSibling, _el$16 = _el$15.nextSibling;
+      return insert(_el$12, createComponent(Icon2, {
         name: "panda-peek",
         size: TOUCH_TOP_BAR_PROJECT_ICON_SIZE,
         strokeWidth: 1.8
-      })), insert(_el$10, createComponent(TouchTopBarUiMenu, {
+      })), insert(_el$11, createComponent(TouchTopBarUiMenu, {
         get leftHandedControls() {
           return props.leftHandedControls;
         },
@@ -9063,38 +9248,38 @@ Next page`,
         get columns() {
           return props.columns;
         }
-      }), null), insert(_el$13, createComponent(Icon2, {
+      }), null), insert(_el$14, createComponent(Icon2, {
         name: "search",
         size: TOUCH_TOP_BAR_ICON_SIZE
-      })), insert(_el$14, createComponent(Icon2, {
+      })), insert(_el$15, createComponent(Icon2, {
         name: "heart",
         size: TOUCH_TOP_BAR_ICON_SIZE
-      })), insert(_el$12, createComponent(Show, {
+      })), insert(_el$13, createComponent(Show, {
         get when() {
           return props.historyHref;
         },
         children: (historyHref) => (() => {
-          var _el$16 = _tmpl$67();
-          return insert(_el$16, createComponent(Icon2, {
+          var _el$17 = _tmpl$76();
+          return insert(_el$17, createComponent(Icon2, {
             name: "history",
             size: TOUCH_TOP_BAR_ICON_SIZE
-          })), createRenderEffect(() => setAttribute(_el$16, "href", historyHref())), _el$16;
+          })), createRenderEffect(() => setAttribute(_el$17, "href", historyHref())), _el$17;
         })()
-      }), _el$15), _el$15.$$click = (event) => {
+      }), _el$16), _el$16.$$click = (event) => {
         event.stopPropagation(), props.onSettingsMenuOpen();
-      }, insert(_el$15, createComponent(Icon2, {
+      }, insert(_el$16, createComponent(Icon2, {
         name: "settings",
         size: TOUCH_TOP_BAR_ICON_SIZE
-      })), insert(_el$12, createComponent(TouchTopBarMenu, {
+      })), insert(_el$13, createComponent(TouchTopBarMenu, {
         get leftHanded() {
           return props.leftHandedControls.enabled;
         },
-        get navItems() {
-          return props.source.elems.navItems;
+        get source() {
+          return props.source;
         }
       }), null), createRenderEffect((_p$) => {
-        var _v$12 = !!props.leftHandedControls.enabled(), _v$13 = !!props.leftHandedControls.enabled(), _v$14 = props.source.data.homeHref, _v$15 = !!props.leftHandedControls.enabled(), _v$16 = props.source.data.homeHref, _v$17 = props.source.data.favoritesHref;
-        return _v$12 !== _p$.e && _el$1.classList.toggle("flex-row-reverse", _p$.e = _v$12), _v$13 !== _p$.t && _el$10.classList.toggle("flex-row-reverse", _p$.t = _v$13), _v$14 !== _p$.a && setAttribute(_el$11, "href", _p$.a = _v$14), _v$15 !== _p$.o && _el$12.classList.toggle("flex-row-reverse", _p$.o = _v$15), _v$16 !== _p$.i && setAttribute(_el$13, "href", _p$.i = _v$16), _v$17 !== _p$.n && setAttribute(_el$14, "href", _p$.n = _v$17), _p$;
+        var _v$14 = !!props.leftHandedControls.enabled(), _v$15 = !!props.leftHandedControls.enabled(), _v$16 = props.source.data.homeHref, _v$17 = !!props.leftHandedControls.enabled(), _v$18 = props.source.data.homeHref, _v$19 = props.source.data.favoritesHref;
+        return _v$14 !== _p$.e && _el$10.classList.toggle("flex-row-reverse", _p$.e = _v$14), _v$15 !== _p$.t && _el$11.classList.toggle("flex-row-reverse", _p$.t = _v$15), _v$16 !== _p$.a && setAttribute(_el$12, "href", _p$.a = _v$16), _v$17 !== _p$.o && _el$13.classList.toggle("flex-row-reverse", _p$.o = _v$17), _v$18 !== _p$.i && setAttribute(_el$14, "href", _p$.i = _v$18), _v$19 !== _p$.n && setAttribute(_el$15, "href", _p$.n = _v$19), _p$;
       }, {
         e: void 0,
         t: void 0,
@@ -9102,7 +9287,7 @@ Next page`,
         o: void 0,
         i: void 0,
         n: void 0
-      }), _el$1;
+      }), _el$10;
     })();
   }
   delegateEvents(["click"]);
@@ -9114,71 +9299,81 @@ Next page`,
   }
 
   // src/eh/dom/styles.css
-  var styles_default = `/* Style dynamic EhSyringe suggestions without observing its injected nodes. */
-.ehs-injected .eh-syringe-lite-auto-complete-list {
+  var styles_default = `.ehpeek-external-autocomplete {
   max-height: 60dvh !important;
   padding-block: var(--ui-space-sm) !important;
 }
 
-.ehs-injected .eh-syringe-lite-auto-complete-list .auto-complete-item {
+.ehpeek-external-autocomplete-item {
   box-sizing: border-box;
-  min-height: var(--ui-hit-size-xl);
-  padding: var(--ui-space-sm) var(--ui-space-lg) !important;
+  min-height: var(--ui-hit-size-lg);
+  padding: 0 var(--ui-space-lg) !important;
   font-size: var(--ui-font-size-lg) !important;
-  line-height: 1.25 !important;
+  line-height: inherit !important;
 }
 
-.ehs-injected .eh-syringe-lite-auto-complete-list .auto-complete-text {
+.ehpeek-external-autocomplete-text {
   font-size: inherit !important;
   line-height: inherit !important;
 }
 
-/* Keep TouchUI result tables inside the viewport without adding layout wrappers. */
-html.ehpeek-constrain-results-to-viewport,
-body.ehpeek-constrain-results-to-viewport {
+/* This root mode is the single ownership signal for fitting original pages to the viewport. */
+html.ehpeek-fit-to-viewport,
+html.ehpeek-fit-to-viewport body {
   min-width: 0 !important;
   max-width: 100% !important;
   overflow-x: hidden !important;
 }
 
-.ehpeek-constrain-results-to-viewport .ido,
-.ehpeek-constrain-results-to-viewport .itg {
+html.ehpeek-fit-to-viewport :is(
+  .ido,
+  .itg,
+  .ehpeek-expand-favorites-search
+) {
   box-sizing: border-box;
   min-width: 0 !important;
   width: 100% !important;
   max-width: 100% !important;
 }
 
-.ehpeek-expand-favorites-search {
+html.ehpeek-fit-to-viewport #rangebar {
   box-sizing: border-box;
-  min-width: 0 !important;
-  width: 100% !important;
   max-width: 100% !important;
 }
 
-.ehpeek-constrain-favorites-navigation .searchnav {
+html.ehpeek-fit-to-viewport .searchnav {
   box-sizing: border-box;
   max-width: 100% !important;
   overflow-x: auto;
+}
+
+html.ehpeek-fit-to-viewport > body.ehpeek-touch-gallery-page {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+:where(html.ehpeek-fit-to-viewport)
+  body.ehpeek-touch-gallery-page
+  :is(.gm, #gdt[class]) {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  width: calc(100% - (var(--touch-gallery-gutter) * 2)) !important;
+  max-width: none !important;
 }
 
 .ehpeek-hide-original-favorites-categories {
   display: none !important;
 }
 
-.ehpeek-contain-search-results,
-.ehpeek-contain-favorites-results {
+.ehpeek-contain-search-results {
   box-sizing: border-box;
-  min-width: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
+  overflow: visible;
 }
 
-.ehpeek-contain-search-results.gld {
-  overflow-x: clip;
-  overflow-y: visible;
+.ehpeek-contain-favorites-results {
+  box-sizing: border-box;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 
 .ehpeek-enable-search-swipe-input {
@@ -9195,7 +9390,6 @@ body.ehpeek-constrain-results-to-viewport {
 /* Compact wide Favorites columns while preserving the original table structure. */
 .ehpeek-compact-all-favorites-results {
   table-layout: auto !important;
-  width: 100% !important;
   overflow-x: hidden !important;
 }
 
@@ -9233,7 +9427,6 @@ body.ehpeek-constrain-results-to-viewport {
 @media (max-width: 849px) {
   .ehpeek-contain-favorites-results {
     table-layout: auto !important;
-    width: 100% !important;
   }
 
   .ehpeek-contain-favorites-results > tbody > tr > .gl2e {
@@ -9271,7 +9464,6 @@ body.ehpeek-constrain-results-to-viewport {
 /* Present original Search rows through one shared EhPeek layout state. */
 .ehpeek-layout-search-grid {
   display: block !important;
-  width: 100% !important;
   table-layout: auto !important;
 }
 
@@ -9438,6 +9630,11 @@ body.ehpeek-constrain-results-to-viewport {
 }
 
 .ehpeek-layout-search-grid .ehpeek-search-meta-posted {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
   grid-column: 2;
   grid-row: 1;
   text-align: center !important;
@@ -9541,10 +9738,11 @@ body.ehpeek-constrain-results-to-viewport {
 
 .ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite > tbody > tr {
   aspect-ratio: 3 / 1;
+  width: min(100%, 1134px) !important;
   height: auto !important;
   min-height: 0 !important;
   max-height: none !important;
-  overflow: hidden !important;
+  margin-inline: auto !important;
 }
 
 .ehpeek-layout-search-grid.ehpeek-layout-search-grid-lite
@@ -9605,11 +9803,6 @@ body.ehpeek-constrain-results-to-viewport {
   object-position: top center !important;
 }
 
-.ehpeek-layout-search-grid-lite > tbody > tr > .gl2e,
-.ehpeek-layout-search-grid-lite .gl4e {
-  overflow: hidden !important;
-}
-
 .ehpeek-layout-search-grid-lite .gl4e {
   gap: var(--ui-space-xs) !important;
   height: 100% !important;
@@ -9625,8 +9818,10 @@ body.ehpeek-constrain-results-to-viewport {
 
 .ehpeek-layout-search-grid-lite .ehpeek-stack-search-grid-tags {
   display: flex !important;
+  flex: 1 1 auto !important;
   flex-wrap: wrap;
   align-items: flex-start;
+  overflow: hidden !important;
   gap: var(--ui-space-xs) var(--ui-space-sm) !important;
 }
 
@@ -9681,7 +9876,6 @@ body.ehpeek-constrain-results-to-viewport {
   box-shadow: none;
   color: var(--color-site-accent);
   vertical-align: middle;
-  font-size: var(--ui-font-size-sm);
   font-weight: 700;
   line-height: 1.3;
 }
@@ -9977,6 +10171,10 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   line-height: 1.2 !important;
 }
 
+.ehpeek-hide-original-top-bar {
+  display: none !important;
+}
+
 .ehpeek-layout-top-bar-menu-item {
   min-height: var(--ui-control-size-lg) !important;
   padding: var(--ui-space-md) !important;
@@ -9987,6 +10185,7 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   box-sizing: border-box !important;
   display: block !important;
   width: 100% !important;
+  height: auto !important;
   padding-top: var(--ui-space-md) !important;
 }
 
@@ -10095,8 +10294,38 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 
 .ehpeek-touch-gallery-summary-has-cover {
   grid-template-columns:
-    minmax(60px, 38%)
+    minmax(60px, min(38%, 34dvh))
     minmax(0, 1fr);
+}
+
+.ehpeek-touch-gallery-primary-actions {
+  grid-column: 1 / -1;
+}
+
+.ehpeek-touch-gallery-summary-container {
+  container-type: inline-size;
+}
+
+@container (min-width: 720px) {
+  .ehpeek-touch-gallery-summary {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .ehpeek-touch-gallery-summary-cover {
+    grid-row: 1 / 3;
+  }
+
+  .ehpeek-touch-gallery-summary-details {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .ehpeek-touch-gallery-primary-actions {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+    width: min(100%, 90dvh);
+  }
 }
 
 .ehpeek-touch-search-panel {
@@ -10110,8 +10339,6 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
 
 html.ehpeek-touch-gallery-page,
 body.ehpeek-touch-gallery-page {
-  min-width: 0 !important;
-  overflow-x: hidden !important;
   text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
 }
@@ -10129,33 +10356,9 @@ body.ehpeek-touch-gallery-page.ehpeek-gallery-wide-layout-root {
 
 body.ehpeek-touch-gallery-page {
   box-sizing: border-box;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
   background: var(--color-site-page) !important;
   font-size: var(--ui-font-size-sm) !important;
   line-height: 1.35 !important;
-}
-
-body.ehpeek-touch-gallery-page :is(
-  .ehpeek-hide-original-gallery-info,
-  .gpc,
-  #gdt[class],
-  #cdiv,
-  .ptt,
-  .ptb
-) {
-  box-sizing: border-box !important;
-  width: calc(100% - (var(--touch-gallery-gutter) * 2)) !important;
-  max-width: none !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-}
-
-body.ehpeek-touch-gallery-page :is(#gdt[class], .ptt, .ptb) {
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch;
 }
 
 body.ehpeek-touch-gallery-page #gdt[class] {
@@ -10183,6 +10386,32 @@ body.ehpeek-touch-gallery-page #gdt a {
 body.ehpeek-touch-gallery-page #cdiv {
   font-size: var(--ui-font-size-md) !important;
   line-height: 1.5 !important;
+}
+
+body.ehpeek-touch-gallery-page #cdiv .c2 {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  height: auto !important;
+}
+
+body.ehpeek-touch-gallery-page #cdiv .c2 > .c3 {
+  flex: 1 1 auto;
+  order: 1;
+  margin-right: auto;
+}
+
+body.ehpeek-touch-gallery-page #cdiv .c2 > .c5 {
+  order: 2;
+  width: auto !important;
+  white-space: nowrap;
+}
+
+body.ehpeek-touch-gallery-page #cdiv .c2 > .c4 {
+  order: 3;
+  width: auto !important;
+  white-space: nowrap;
 }
 
 body.ehpeek-touch-gallery-page #cdiv .c6 {
@@ -10270,20 +10499,6 @@ body.ehpeek-touch-gallery-page #cdiv :is(
 
 body.ehpeek-touch-gallery-page #cdiv input[type="text"] {
   min-width: min(100%, 15em);
-}
-
-body.ehpeek-touch-gallery-page :is(
-  .ehpeek-hide-original-gallery-info,
-  .gpc,
-  #gdt[class],
-  #cdiv,
-  .ptt,
-  .ptb
-) {
-  width: min(
-    calc(100% - (var(--touch-gallery-gutter) * 2)),
-    90dvh
-  ) !important;
 }
 
 body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout {
@@ -10382,8 +10597,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .z-reader{z-index:1200;}
 .z-ui{z-index:1000;}
 .ui-my-sm{margin-top:var(--ui-space-sm);margin-bottom:var(--ui-space-sm);}
-.safe-ml-sm{margin-left:max(8px,env(safe-area-inset-left,0px));}
-.safe-mr-sm{margin-right:max(8px,env(safe-area-inset-right,0px));}
 .ui-mb-sm{margin-bottom:var(--ui-space-sm);}
 .ui-mb-xs{margin-bottom:var(--ui-space-xs);}
 .ui-mt-md{margin-top:var(--ui-space-md);}
@@ -10460,7 +10673,6 @@ body.ehpeek-touch-gallery-page .ehpeek-touch-gallery-layout > .dp {
 .ui-pb-lg{padding-bottom:var(--ui-space-lg);}
 .ui-pb-md{padding-bottom:var(--ui-space-md);}
 .ui-pb-sm{padding-bottom:var(--ui-space-sm);}
-.ui-pb-xl{padding-bottom:var(--ui-space-xl);}
 .ui-pb-xs{padding-bottom:var(--ui-space-xs);}
 .ui-pl-lg{padding-left:var(--ui-space-lg);}
 .ui-pl-md{padding-left:var(--ui-space-md);}
@@ -10517,7 +10729,8 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root .hover\\:ehp-col
 .\\[appearance\\:none\\]{appearance:none;}
 .\\[bottom\\:var\\(--ui-space-sm\\)\\]{bottom:var(--ui-space-sm);}
 .\\[contain\\:inline-size\\]{contain:inline-size;}
-.\\[container-type\\:inline-size\\]{container-type:inline-size;}
+.\\[container-type\\:inline-size\\],
+.\\@container{container-type:inline-size;}
 .\\[container-type\\:size\\]{container-type:size;}
 .\\[direction\\:ltr\\]{direction:ltr;}
 .\\[direction\\:rtl\\]{direction:rtl;}
@@ -10609,7 +10822,6 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root .hover\\:ehp-col
 .mb-0{margin-bottom:0;}
 .mb-10px{margin-bottom:10px;}
 .ml-auto{margin-left:auto;}
-.mt--8px{margin-top:-8px;}
 .mt-0{margin-top:0;}
 .mt-2px{margin-top:2px;}
 .mt-auto{margin-top:auto;}
@@ -11045,16 +11257,22 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
   input[type="button"],
   input[type="submit"],
   [role="button"],
-  [role="tab"],
-  [data-ehpeek-pressable="true"]
+  [role="tab"]
 ):not(:disabled, [aria-disabled="true"], .cursor-default):hover {
   filter: brightness(1.08);
+  cursor: pointer;
+}
+
+html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
+  .ehpeek-ui-root
+  [data-ehpeek-pressable="true"]:hover {
+  background-image: linear-gradient(rgb(255 255 255 / 8%) 0 0);
   cursor: pointer;
 }
 `;
 
   // src/components/Reader/Viewport.tsx
-  var _tmpl$41 = /* @__PURE__ */ template("<div tabindex=-1><main>"), _tmpl$214 = /* @__PURE__ */ template('<span class="pointer-events-none absolute [right:var(--ui-space-sm)] [bottom:var(--ui-space-sm)] z-1 block w-[var(--ui-icon-size-xl)] h-[var(--ui-icon-size-xl)] box-border animate-spin rounded-full border-2px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]"role=status>'), _tmpl$311 = /* @__PURE__ */ template('<section><div class="relative flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [container-type:size]">'), _tmpl$410 = /* @__PURE__ */ template('<button type=button class="ehpeek-reader-page-reload appearance-none inline-flex ui-hit-square-xl items-center justify-center border border-[var(--color-border)] ui-rounded-md bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-lg font-700 leading-1 hover:bg-[var(--color-badge)] active:scale-96 [touch-action:manipulation]">'), _tmpl$58 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$68 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] opacity-80 break-anywhere textsize-sm font-500 leading-[1.4] [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$76 = /* @__PURE__ */ template("<div>"), _tmpl$85 = /* @__PURE__ */ template('<span class="flex w-full h-full flex-col items-center justify-center ui-gap-xl overflow-hidden"aria-hidden=true><span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]"></span><span class="block w-[var(--ui-icon-size-xl)] h-[var(--ui-icon-size-xl)] flex-none box-border animate-spin rounded-full border-4px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]">'), FALLBACK_ASPECT_RATIO = 1.42, PAGE_SLOT_SPACING = 8, DEFAULT_DECODED_IMAGE_CACHE_LIMIT = 24, DECODED_IMAGE_CACHE_BYTES = 96 * 1024 * 1024, HORIZONTAL_FLING_VELOCITY_MULTIPLIER = 1.4, HORIZONTAL_FLING_MAX_VELOCITY = 1.8;
+  var _tmpl$41 = /* @__PURE__ */ template("<div tabindex=-1><main>"), _tmpl$214 = /* @__PURE__ */ template('<span class="pointer-events-none absolute [right:var(--ui-space-sm)] [bottom:var(--ui-space-sm)] z-1 block w-[var(--ui-icon-size-xl)] h-[var(--ui-icon-size-xl)] box-border animate-spin rounded-full border-2px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]"role=status>'), _tmpl$311 = /* @__PURE__ */ template('<section><div class="relative flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [container-type:size]">'), _tmpl$410 = /* @__PURE__ */ template('<button type=button class="ehpeek-reader-page-reload appearance-none inline-flex ui-hit-square-xl items-center justify-center border border-[var(--color-border)] ui-rounded-md bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-lg font-700 leading-1 hover:bg-[var(--color-badge)] active:scale-96 [touch-action:manipulation]">'), _tmpl$58 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$68 = /* @__PURE__ */ template('<div class="max-w-[min(86vw,760px)] opacity-80 break-anywhere textsize-sm font-500 leading-[1.4] [direction:ltr] [unicode-bidi:plaintext]">'), _tmpl$77 = /* @__PURE__ */ template("<div>"), _tmpl$85 = /* @__PURE__ */ template('<span class="flex w-full h-full flex-col items-center justify-center ui-gap-xl overflow-hidden"aria-hidden=true><span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]"></span><span class="block w-[var(--ui-icon-size-xl)] h-[var(--ui-icon-size-xl)] flex-none box-border animate-spin rounded-full border-4px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]">'), FALLBACK_ASPECT_RATIO = 1.42, PAGE_SLOT_SPACING = 8, DEFAULT_DECODED_IMAGE_CACHE_LIMIT = 24, DECODED_IMAGE_CACHE_BYTES = 96 * 1024 * 1024, HORIZONTAL_FLING_VELOCITY_MULTIPLIER = 1.4, HORIZONTAL_FLING_MAX_VELOCITY = 1.8;
   function pageWindowNumbers(currentPageNum, windowSize) {
     let numbers = [];
     for (let offset = -windowSize; offset <= windowSize; offset += 1)
@@ -11437,7 +11655,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
       event.preventDefault(), event.stopPropagation();
     };
     return (() => {
-      var _el$6 = _tmpl$76();
+      var _el$6 = _tmpl$77();
       return insert(_el$6, createComponent(Show, {
         get when() {
           return props.content.state === "error";
@@ -11727,7 +11945,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
   delegateEvents(["pointerdown", "input", "pointerup"]);
 
   // src/components/Reader/Toolbar.tsx
-  var _tmpl$51 = /* @__PURE__ */ template("<div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>"), _tmpl$215 = /* @__PURE__ */ template("<div role=status><span>"), _tmpl$312 = /* @__PURE__ */ template('<div class="grid ui-gap-md font-sans textsize-md"><details class="textsize-sm opacity-75"><summary class="cursor-pointer font-700"></summary><p class="m-0 ui-mt-sm leading-[1.4]"></p><div class="ui-mt-md flex flex-wrap items-center ui-gap-x-md ui-gap-y-sm"><span class=font-700>:'), _tmpl$411 = /* @__PURE__ */ template('<div class=contents><div><div class="flex flex-col ui-gap-sm"><button type=button></button><button type=button></button><button type=button></button></div></div><div><div><div><button type=button></button><button type=button></button><button type=button>?</button><button type=button></button></div></div></div><div></div><div class="fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out safe-right-md bottom-[calc(12px+env(safe-area-inset-bottom,0px))] safe-left-md [&amp;[data-open=false]]:opacity-0 [&amp;[data-open=false]]:translate-y-[calc(100%+16px)] [&amp;[data-open=false]]:pointer-events-none">'), _tmpl$59 = /* @__PURE__ */ template('<div class="fixed z-overlay top-1/2 left-1/2 w-max max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 pointer-events-none ui-rounded-lg bg-[var(--color-badge)] ehp-color-text ui-px-xl ui-py-lg font-sans textsize-lg font-700 leading-[1.3] whitespace-pre-line text-center shadow-xl">'), _tmpl$69 = /* @__PURE__ */ template('<div class="grid ui-gap-md"><button type=button><span class="textsize-md font-700"></span><span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75"></span></button><button type=button><span class="textsize-md font-700"></span><span class="textsize-sm opacity-75">'), _tmpl$77 = /* @__PURE__ */ template('<a class="text-[var(--color-accent)] hover:underline"rel="noopener noreferrer"target=_blank>'), READER_BUTTON_CLASS = ["inline-flex ui-hit-min-w-md ui-hit-h-md items-center justify-center ui-px-md py-0 ui-rounded-md", "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:opacity-40 disabled:cursor-default"].join(" "), READER_TOOLBAR_BUTTON_CLASS = `${READER_BUTTON_CLASS} !w-[var(--ui-control-size-lg)] !min-w-0 !ui-px-sm flex-none`, READER_FLOATING_ACTION_CLASS = [READER_BUTTON_CLASS, "!min-w-[var(--ui-control-size-lg)] !h-[var(--ui-control-size-lg)] opacity-85 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-160"].join(" "), READER_FLOATING_ICON_ACTION_CLASS = `${READER_FLOATING_ACTION_CLASS} !w-[calc(var(--ui-control-size-lg)*2)] px-0`, READER_ICON_SIZE = "var(--ui-icon-size-md)", TIME_FORMATTER = new Intl.DateTimeFormat(void 0, {
+  var _tmpl$51 = /* @__PURE__ */ template("<div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>"), _tmpl$215 = /* @__PURE__ */ template("<div role=status><span>"), _tmpl$312 = /* @__PURE__ */ template('<div class="grid ui-gap-md font-sans textsize-md"><details class="textsize-sm opacity-75"><summary class="cursor-pointer font-700"></summary><p class="m-0 ui-mt-sm leading-[1.4]"></p><div class="ui-mt-md flex flex-wrap items-center ui-gap-x-md ui-gap-y-sm"><span class=font-700>:'), _tmpl$411 = /* @__PURE__ */ template('<div class=contents><div><div class="flex flex-col ui-gap-sm"><button type=button></button><button type=button></button><button type=button></button></div></div><div><div><div><button type=button></button><button type=button></button><button type=button>?</button><button type=button></button></div></div></div><div></div><div class="fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out safe-right-md bottom-[calc(12px+env(safe-area-inset-bottom,0px))] safe-left-md [&amp;[data-open=false]]:opacity-0 [&amp;[data-open=false]]:translate-y-[calc(100%+16px)] [&amp;[data-open=false]]:pointer-events-none">'), _tmpl$59 = /* @__PURE__ */ template('<div class="fixed z-overlay top-1/2 left-1/2 w-max max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 pointer-events-none ui-rounded-lg bg-[var(--color-badge)] ehp-color-text ui-px-xl ui-py-lg font-sans textsize-lg font-700 leading-[1.3] whitespace-pre-line text-center shadow-xl">'), _tmpl$69 = /* @__PURE__ */ template('<div class="grid ui-gap-md"><button type=button><span class="textsize-md font-700"></span><span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75"></span></button><button type=button><span class="textsize-md font-700"></span><span class="textsize-sm opacity-75">'), _tmpl$78 = /* @__PURE__ */ template('<a class="text-[var(--color-accent)] hover:underline"rel="noopener noreferrer"target=_blank>'), READER_BUTTON_CLASS = ["inline-flex ui-hit-min-w-md ui-hit-h-md items-center justify-center ui-px-md py-0 ui-rounded-md", "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:opacity-40 disabled:cursor-default"].join(" "), READER_TOOLBAR_BUTTON_CLASS = `${READER_BUTTON_CLASS} !w-[var(--ui-control-size-lg)] !min-w-0 !ui-px-sm flex-none`, READER_FLOATING_ACTION_CLASS = [READER_BUTTON_CLASS, "!min-w-[var(--ui-control-size-lg)] !h-[var(--ui-control-size-lg)] opacity-85 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-160"].join(" "), READER_FLOATING_ICON_ACTION_CLASS = `${READER_FLOATING_ACTION_CLASS} !w-[calc(var(--ui-control-size-lg)*2)] px-0`, READER_ICON_SIZE = "var(--ui-icon-size-md)", TIME_FORMATTER = new Intl.DateTimeFormat(void 0, {
     hour: "2-digit",
     minute: "2-digit"
   }), DOWNLOAD_OPTION_CLASS = ["flex w-full ui-hit-min-h-lg flex-col items-start justify-center ui-gap-xs ui-px-lg ui-py-md ui-rounded-md", "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer text-left", "hover:bg-[var(--color-badge)] disabled:opacity-40 disabled:cursor-default"].join(" ");
@@ -11940,14 +12158,14 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
                   return props.downloadInfos;
                 },
                 children: (downloadInfo) => [(() => {
-                  var _el$38 = _tmpl$77();
+                  var _el$38 = _tmpl$78();
                   return insert(_el$38, () => `${i18n_default.reader.displayedImageShort} ${downloadInfo.pageNum}`), createRenderEffect(() => setAttribute(_el$38, "href", downloadInfo.currentImageUrl)), _el$38;
                 })(), createComponent(Show, {
                   get when() {
                     return downloadInfo.originalImageUrl;
                   },
                   children: (originalImageUrl) => (() => {
-                    var _el$39 = _tmpl$77();
+                    var _el$39 = _tmpl$78();
                     return insert(_el$39, () => `${i18n_default.reader.originalImageShort} ${downloadInfo.pageNum}`), createRenderEffect(() => setAttribute(_el$39, "href", originalImageUrl())), _el$39;
                   })()
                 })]
@@ -12148,6 +12366,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
         },
         ctrls: { update: setControls, value: controls },
         toolbar: {
+          close: () => setToolbarOpen(!1),
           open: toolbarOpen,
           toggle: () => setToolbarOpen((open) => !open)
         },
@@ -12554,7 +12773,9 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
     })();
   }
   function wireReaderCallbacks(session, options, previewCache, coordinator) {
-    let state2 = session.state, viewportActions, zoomOverlay, totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : void 0, renderWindowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE2, preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE2, pages = /* @__PURE__ */ new Map(), loadedImages = /* @__PURE__ */ new Map(), pagedTargetPageNumber = null, syncToken = 0, closed = !1, loadDirection = 1, loadDirectionEdgePageNum = state2.navi.currentPageNum(), scrollFitPageNum = state2.navi.currentPageNum(), pagedMode = () => state2.ctrls.value().navigationMode === "paged", doublePageActive = () => pagedMode() && state2.ctrls.value().pageLayout === "double" && !(state2.ctrls.value().firstPageSeparate && state2.navi.currentPageNum() === 1), readerOrientation = currentReaderOrientation(), updateReaderViewportSize = () => {
+    let state2 = session.state, viewportActions, zoomOverlay, totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : void 0, renderWindowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE2, preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE2, pages = /* @__PURE__ */ new Map(), loadedImages = /* @__PURE__ */ new Map(), pagedTargetPageNumber = null, syncToken = 0, closed = !1, loadDirection = 1, loadDirectionEdgePageNum = state2.navi.currentPageNum(), scrollFitPageNum = state2.navi.currentPageNum(), pagedMode = () => state2.ctrls.value().navigationMode === "paged", doublePageActive = () => pagedMode() && state2.ctrls.value().pageLayout === "double" && !(state2.ctrls.value().firstPageSeparate && state2.navi.currentPageNum() === 1), stopViewportMotion = () => {
+      pagedTargetPageNumber = null, viewportActions.stopMotion();
+    }, readerOrientation = currentReaderOrientation(), updateReaderViewportSize = () => {
       state2.scrollViewport.setViewportWidth(Math.max(1, window.innerWidth)), state2.scrollViewport.setViewportHeight(Math.max(1, window.innerHeight));
       let nextOrientation = currentReaderOrientation();
       nextOrientation !== readerOrientation && (readerOrientation = nextOrientation, updateControls(configuredReaderControls()));
@@ -12574,7 +12795,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
         ...requestedControls,
         direction: requestedControls.navigationMode === "scroll" ? persistedControls.scrollDirection.value : persistedControls.pagedDirection.value
       };
-      persistedControls.navigationMode.set(controls.navigationMode), controls.navigationMode === "scroll" ? persistedControls.scrollDirection.set(controls.direction) : persistedControls.pagedDirection.set(controls.direction), persistedControls.pageLayout.set(controls.pageLayout), persistedControls.rightTapAction.set(controls.rightTapAction), state2.ctrls.update(controls), controls.navigationMode !== "scroll" && state2.scrollViewport.setAdjusting(!1), controls.navigationMode !== previous.navigationMode || controls.pageLayout !== previous.pageLayout || controls.firstPageSeparate !== previous.firstPageSeparate ? (viewportActions.stopMotion(), viewportActions.resetPosition(), setCurrentPageNumber(state2.navi.currentPageNum(), !0)) : controls.direction !== previous.direction && (syncViewportWindow(), scrollToCurrentPage());
+      persistedControls.navigationMode.set(controls.navigationMode), controls.navigationMode === "scroll" ? persistedControls.scrollDirection.set(controls.direction) : persistedControls.pagedDirection.set(controls.direction), persistedControls.pageLayout.set(controls.pageLayout), persistedControls.rightTapAction.set(controls.rightTapAction), state2.ctrls.update(controls), controls.navigationMode !== "scroll" && state2.scrollViewport.setAdjusting(!1), controls.navigationMode !== previous.navigationMode || controls.pageLayout !== previous.pageLayout || controls.firstPageSeparate !== previous.firstPageSeparate ? (stopViewportMotion(), viewportActions.resetPosition(), setCurrentPageNumber(state2.navi.currentPageNum(), !0)) : controls.direction !== previous.direction && (syncViewportWindow(), scrollToCurrentPage());
     }
     function requestReaderClose() {
       closed || (closed = coordinator.requestCloseReader());
@@ -12587,7 +12808,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
       let image2 = imageAtPoint(point);
       if (!image2)
         return !1;
-      viewportActions.stopMotion(), viewportActions.cancelDrag();
+      stopViewportMotion(), viewportActions.cancelDrag();
       let zoomScale = viewportActions.pageZoomScale(image2.pageNum);
       return state2.overlay.update(image2), zoomOverlay.reset({
         centerX: point.clientX,
@@ -12608,7 +12829,9 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
     }
     function syncAfterPageChange(options2) {
       let token = ++syncToken, missing = pageWindowNumbers(state2.navi.currentPageNum(), renderWindowSize).filter((number) => isRealPageNum(number) && !pages.has(number));
-      syncViewportWindow(), maintainLoadQueue(), notifyActivePageChange(), options2.scrollIntoView && scrollToCurrentPage(options2.scrollMotion), missing.length > 0 && loadMissingPages(missing, token);
+      syncViewportWindow(), maintainLoadQueue(), notifyActivePageChange(), options2.scrollIntoView && scrollToCurrentPage({
+        motion: options2.scrollMotion
+      }), missing.length > 0 && loadMissingPages(missing, token);
     }
     async function loadMissingPages(pageNums, token) {
       let pageGroups = /* @__PURE__ */ new Map();
@@ -12700,19 +12923,25 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
     function animatePagedStep(delta) {
       let base = pagedTargetPageNumber ?? state2.navi.currentPageNum(), target = clamp(Math.round(base + delta), 1, maxProgressPageNum());
       if (target === base) {
-        scrollToCurrentPage("animated");
+        scrollToCurrentPage({
+          motion: "animated",
+          overrideTarget: !1
+        });
         return;
       }
       if (viewportActions.pageOffset(target) === null) {
-        pagedTargetPageNumber = null, setCurrentPageNumber(target, !0, "animated");
+        setCurrentPageNumber(target, !0, "animated");
         return;
       }
       state2.navi.setDirection(target > base ? 1 : -1), pagedTargetPageNumber = target, viewportActions.moveToPage(target, "animated", () => {
-        pagedTargetPageNumber === target && (pagedTargetPageNumber = null, setCurrentPageNumber(target, !0));
+        pagedTargetPageNumber === target && setCurrentPageNumber(target, !0);
       });
     }
-    function scrollToCurrentPage(motion = "instant") {
-      viewportActions.moveToPage(state2.navi.currentPageNum(), motion);
+    function scrollToCurrentPage({
+      motion = "instant",
+      overrideTarget = !0
+    } = {}) {
+      pagedTargetPageNumber !== null && !overrideTarget || (pagedTargetPageNumber = null, viewportActions.moveToPage(state2.navi.currentPageNum(), motion));
     }
     function updatePageNumber() {
       let pageNum = state2.navi.currentPageNum(), downloadPageNums = doublePageActive() ? [pageNum, pageNum + 1] : [pageNum];
@@ -12824,7 +13053,12 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
         session.clearTimeout(scrollBarTimer), session.clearTimeout(scrollGestureTimer);
       }), {
         onDoubleClick: (event) => {
-          state2.overlay.image() !== null && (event.preventDefault(), event.stopPropagation(), state2.overlay.update(null));
+          if (state2.overlay.image() !== null) {
+            event.preventDefault(), event.stopPropagation(), state2.overlay.update(null);
+            return;
+          }
+          let zone = event.clientX / viewportActions.viewportWidth();
+          zone >= 1 / 3 && zone <= 2 / 3 && prepareZoomAtPoint(event) && (state2.toolbar.close(), event.preventDefault(), event.stopPropagation());
         },
         onNativeScroll: () => {
           if (state2.overlay.image() !== null || pagedMode() || state2.scrollViewport.adjusting() || (updateScrollBarActivity(), viewportActions.isDragging()))
@@ -12967,7 +13201,14 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
     function wireGesture() {
       let gesture2 = {
         dragAxis: "any"
-      }, lastZoomTouchTap = null, isPageReloadButtonTarget = (event) => event.target instanceof Element && event.target.closest(".ehpeek-reader-page-reload") !== null, shouldStartDrag = (event) => state2.overlay.image() !== null || pagedMode() || state2.ctrls.value().direction !== "ttb" || event.pointerType === "mouse", isPreviewSwipe = (info) => pagedMode() ? state2.ctrls.value().direction === "ttb" ? Math.abs(info.dx) >= PAGED_PREVIEW_SWIPE_THRESHOLD && Math.abs(info.dy) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT : info.dy >= PAGED_PREVIEW_SWIPE_THRESHOLD && Math.abs(info.dx) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT : !1, runSingleTap = (info, event) => {
+      }, lastZoomTouchTap = null, isZoomDoubleTap = (info, event) => {
+        let now = event.timeStamp || performance.now(), doubleTap = lastZoomTouchTap !== null && now - lastZoomTouchTap.time <= ZOOM_DOUBLE_TAP_MS && Math.hypot(info.clientX - lastZoomTouchTap.clientX, info.clientY - lastZoomTouchTap.clientY) <= ZOOM_DOUBLE_TAP_DISTANCE;
+        return lastZoomTouchTap = doubleTap ? null : {
+          clientX: info.clientX,
+          clientY: info.clientY,
+          time: now
+        }, doubleTap;
+      }, isPageReloadButtonTarget = (event) => event.target instanceof Element && event.target.closest(".ehpeek-reader-page-reload") !== null, shouldStartDrag = (event) => state2.overlay.image() !== null || pagedMode() || state2.ctrls.value().direction !== "ttb" || event.pointerType === "mouse", isPreviewSwipe = (info) => pagedMode() ? state2.ctrls.value().direction === "ttb" ? Math.abs(info.dx) >= PAGED_PREVIEW_SWIPE_THRESHOLD && Math.abs(info.dy) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT : info.dy >= PAGED_PREVIEW_SWIPE_THRESHOLD && Math.abs(info.dx) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT : !1, runSingleTap = (info, event) => {
         if (state2.overlay.image() !== null)
           event.preventDefault();
         else if (viewportActions.isHitEndPage(info))
@@ -12978,16 +13219,21 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
         }
       };
       return gesture2.onTap = (info, event) => {
-        if (viewportActions.cancelDrag(), state2.overlay.image() !== null && event instanceof PointerEvent && event.pointerType === "touch") {
-          let now = event.timeStamp || performance.now(), doubleTap = lastZoomTouchTap !== null && now - lastZoomTouchTap.time <= ZOOM_DOUBLE_TAP_MS && Math.hypot(info.clientX - lastZoomTouchTap.clientX, info.clientY - lastZoomTouchTap.clientY) <= ZOOM_DOUBLE_TAP_DISTANCE;
-          lastZoomTouchTap = doubleTap ? null : {
-            clientX: info.clientX,
-            clientY: info.clientY,
-            time: now
-          }, doubleTap && state2.overlay.update(null), event.preventDefault();
+        viewportActions.cancelDrag();
+        let touchInput = event instanceof PointerEvent && event.pointerType === "touch";
+        if (state2.overlay.image() !== null && touchInput) {
+          isZoomDoubleTap(info, event) && state2.overlay.update(null), event.preventDefault();
           return;
         }
-        lastZoomTouchTap = null, runSingleTap(info, event);
+        let zone = info.clientX / viewportActions.viewportWidth(), centerTap = zone >= 1 / 3 && zone <= 2 / 3;
+        if (touchInput && centerTap) {
+          if (isZoomDoubleTap(info, event) && prepareZoomAtPoint(info)) {
+            state2.toolbar.close(), event.preventDefault();
+            return;
+          }
+        } else
+          lastZoomTouchTap = null;
+        runSingleTap(info, event);
       }, gesture2.holdDelay = MOUSE_HOLD_ZOOM_MS, gesture2.onHold = (info, event) => (event instanceof PointerEvent ? event.pointerType === "mouse" : event instanceof MouseEvent) ? (lastZoomTouchTap = null, state2.overlay.image() !== null ? (state2.overlay.update(null), "consume") : prepareZoomAtPoint(info) ? (zoomOverlay.movePinch({
         centerX: info.clientX,
         centerY: info.clientY,
@@ -12997,7 +13243,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
           zoomOverlay.startDrag();
           return;
         }
-        viewportActions.beginDrag();
+        pagedTargetPageNumber = null, viewportActions.beginDrag();
       }, gesture2.onMove = (info) => {
         if (state2.overlay.image() !== null) {
           zoomOverlay.moveDrag(info);
@@ -13010,7 +13256,9 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
       }, gesture2.onEnd = (info) => {
         if (state2.overlay.image() === null) {
           if (viewportActions.cancelDrag(), isPreviewSwipe(info)) {
-            scrollToCurrentPage("animated"), coordinator.openPreviewPage(state2.navi.currentPageNum());
+            scrollToCurrentPage({
+              motion: "animated"
+            }), coordinator.openPreviewPage(state2.navi.currentPageNum());
             return;
           }
           if (!pagedMode()) {
@@ -13018,13 +13266,17 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
             return;
           }
           if (state2.ctrls.value().direction === "ttb") {
-            info.dy >= PAGED_SWIPE_THRESHOLD ? turnPageBy(-1) : info.dy <= -PAGED_SWIPE_THRESHOLD ? turnPageBy(1) : scrollToCurrentPage("animated");
+            info.dy >= PAGED_SWIPE_THRESHOLD ? turnPageBy(-1) : info.dy <= -PAGED_SWIPE_THRESHOLD ? turnPageBy(1) : scrollToCurrentPage({
+              motion: "animated"
+            });
             return;
           }
-          info.dx >= PAGED_SWIPE_THRESHOLD ? turnPageBy(state2.navi.rightDragDelta()) : info.dx <= -PAGED_SWIPE_THRESHOLD ? turnPageBy(state2.navi.leftDragDelta()) : scrollToCurrentPage("animated");
+          info.dx >= PAGED_SWIPE_THRESHOLD ? turnPageBy(state2.navi.rightDragDelta()) : info.dx <= -PAGED_SWIPE_THRESHOLD ? turnPageBy(state2.navi.leftDragDelta()) : scrollToCurrentPage({
+            motion: "animated"
+          });
         }
       }, gesture2.onPinchStart = (info) => {
-        if (lastZoomTouchTap = null, viewportActions.stopMotion(), viewportActions.cancelDrag(), !pagedMode() && state2.overlay.image() === null)
+        if (lastZoomTouchTap = null, stopViewportMotion(), viewportActions.cancelDrag(), !pagedMode() && state2.overlay.image() === null)
           return scrollViewport.startPinch();
         if (state2.overlay.image() !== null)
           return zoomOverlay.startPinch({
@@ -13468,11 +13720,13 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
       includeUnreadHistoryEnabled: read(state.gallery.includeUnreadHistory),
       searchHistoryEnabled: read(state.search.history),
       touchUiEnabled: read(state.touch.enabled),
-      uiScale: read(currentUiScaleSetting())
+      fitToViewport: read(state.touch.fitToViewport),
+      portraitUiScale: read(state.app.portraitUiScale),
+      landscapeUiScale: read(state.app.landscapeUiScale)
     };
   }
   function applySettingsMenuState(next) {
-    next.touchUiEnabled || clearBackToTopPosition(), state.app.openGalleryInNewTab.set(next.openGalleryInNewTab), state.app.locale.set(next.locale), state.reader.enabled.set(next.readerEnabled), state.reader.exitOnFullscreenExit.set(next.exitReaderOnFullscreenExit), state.reader.fullscreen.set(next.readerFullscreenEnabled), state.gallery.replacePreviewWithScroll.set(next.replacePreviewWithScroll), state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled), state.search.enhance.set(next.enhanceSearchGridsEnabled), state.gallery.myTags.set(next.myTagsEnabled), state.gallery.readHistory.set(next.readHistoryEnabled), state.gallery.includeUnreadHistory.set(next.includeUnreadHistoryEnabled), state.search.history.set(next.searchHistoryEnabled), state.touch.enabled.set(next.touchUiEnabled), currentUiScaleSetting().set(next.uiScale), window.location.reload();
+    next.touchUiEnabled || clearBackToTopPosition(), state.app.openGalleryInNewTab.set(next.openGalleryInNewTab), state.app.locale.set(next.locale), state.reader.enabled.set(next.readerEnabled), state.reader.exitOnFullscreenExit.set(next.exitReaderOnFullscreenExit), state.reader.fullscreen.set(next.readerFullscreenEnabled), state.gallery.replacePreviewWithScroll.set(next.replacePreviewWithScroll), state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled), state.search.enhance.set(next.enhanceSearchGridsEnabled), state.gallery.myTags.set(next.myTagsEnabled), state.gallery.readHistory.set(next.readHistoryEnabled), state.gallery.includeUnreadHistory.set(next.includeUnreadHistoryEnabled), state.search.history.set(next.searchHistoryEnabled), state.touch.enabled.set(next.touchUiEnabled), state.touch.fitToViewport.set(next.fitToViewport), state.app.portraitUiScale.set(next.portraitUiScale), state.app.landscapeUiScale.set(next.landscapeUiScale), window.location.reload();
   }
   var gState = (() => {
     let settings2 = settingsMenuState(), [columnsEnabled, setColumnsEnabled] = createSignal(currentColumnsEnabled()), [leftHandedControls, setLeftHandedControls2] = createSignal(state.app.leftHandedControls.value), [settingsMenuOpen, setSettingsMenuOpen] = createSignal(!1), [uiScale, setUiScale] = createSignal(currentUiScale());
@@ -13518,7 +13772,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
     pointer: window.matchMedia("(hover: hover) and (pointer: fine)").matches ? "mouse" : "touch",
     site: ehSiteTheme()
   });
-  var PRESS_MIN_VISIBLE_MS = 100, PRESS_MOVE_TOLERANCE_PX = 8, pressedInteraction, pressedClearTimer, pendingPress, clearPressedInteraction = () => {
+  var PRESS_MIN_VISIBLE_MS = 100, PRESS_MOVE_TOLERANCE_PX = 8, UI_INTERACTION_SELECTOR = "a[href], button, input, select, textarea, label, [onclick], [role=button], [role=tab]", UI_PRESSABLE_SELECTOR = "[data-ehpeek-pressable=true]", pressedInteraction, pressedClearTimer, pendingPress, clearPressedInteraction = () => {
     pressedClearTimer !== void 0 && (window.clearTimeout(pressedClearTimer), pressedClearTimer = void 0), pendingPress = void 0, pressedInteraction?.removeAttribute("data-ehpeek-pressed"), pressedInteraction = void 0;
   }, showPressedInteraction = (interaction) => {
     pressedInteraction = interaction, interaction.setAttribute("data-ehpeek-pressed", "true");
@@ -13527,7 +13781,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
   };
   document.addEventListener("pointerdown", (event) => {
     event.pointerType !== "mouse" && setUiPointer("touch"), clearPressedInteraction();
-    let interaction = event.target instanceof Element ? event.target.closest("[data-ehpeek-pressable=true], a[href], button, input, select, textarea, label, [onclick], [role=button], [role=tab]") : null;
+    let interaction = event.target instanceof Element ? event.target.closest(UI_INTERACTION_SELECTOR) : null;
     interaction?.closest(".ehpeek-ui-root") && (pendingPress = {
       interaction,
       pointerId: event.pointerId,
@@ -13543,6 +13797,10 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
   }, {
     capture: !0,
     passive: !0
+  });
+  document.addEventListener("click", (event) => {
+    let target = event.target instanceof Element ? event.target : null, interaction = target?.closest(UI_INTERACTION_SELECTOR), pressable = target?.closest(UI_PRESSABLE_SELECTOR);
+    interaction || !pressable?.closest(".ehpeek-ui-root") || (clearPressedInteraction(), showPressedInteraction(pressable), releasePressedInteraction());
   });
   document.addEventListener("pointercancel", clearPressedInteraction, {
     capture: !0,
@@ -13649,7 +13907,11 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
           get initState() {
             return {
               ...gState.settings,
-              uiScale: gState.uiScale()
+              ...window.matchMedia("(orientation: landscape)").matches ? {
+                landscapeUiScale: gState.uiScale()
+              } : {
+                portraitUiScale: gState.uiScale()
+              }
             };
           },
           onApply: (next) => {
@@ -13663,7 +13925,14 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
     }));
   }
   function injectCommon(page2) {
-    if (!gState.settings.touchUiEnabled) {
+    if (gState.settings.searchHistoryEnabled && allowFeatureFailure("Search history", () => {
+      let host = null;
+      observeSearchBar((source) => {
+        host ?? (host = createAppMount()), host.mount(() => createComponent(SearchHistory, {
+          source
+        }));
+      });
+    }), !gState.settings.touchUiEnabled) {
       allowFeatureFailure("Desktop settings entry", () => {
         let settingsMount = manageSettingsMenuMount();
         settingsMount && settingsMount.mount(() => (() => {
@@ -13718,7 +13987,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
   function injectGalleryDetails(previewCache, coordinator) {
     let preview = previewCache.current();
     allowFeatureFailure("Touch GalleryInfo", () => {
-      mutateGalleryTouchLayout();
+      mutateGalleryTouchLayout(gState.settings.fitToViewport);
       let galleryInfoDom = requirePageDependency("Touch GalleryInfo", manageGalleryInfo(preview.data));
       galleryInfoDom.handle.installGalleryInfoPanel(), galleryInfoDom.elems.mount.mount(() => createComponent(OverlayHostProvider, {
         host: overlayHost,
@@ -13836,7 +14105,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
     });
   }
   function injectSearchControls(page2) {
-    let touchResultsDom = manageTouchResultsPage(page2);
+    let touchResultsDom = manageTouchResultsPage(page2, gState.settings.fitToViewport);
     return allowFeatureFailure("Touch Search panel", () => {
       let searchPanelDom = manageSearchPanel();
       searchPanelDom && (markUiRoot(searchPanelDom.elems.form.Component()), searchPanelDom.elems.mount.mount(() => createComponent(TouchSearchPanel, {
@@ -13868,7 +14137,9 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
     markUiRoot(initialResultsDom.elems.resultList.Component());
     let updateSearchGridModeSelector = () => {
       mutateSearchGridModeSelect(state.search.grid.value, (mode) => {
-        state.search.grid.set(mode), window.location.assign(new URL("/?inline_set=dm_e", window.location.href).href);
+        state.search.grid.set(mode);
+        let url = new URL(window.location.href);
+        url.searchParams.set("inline_set", "dm_e"), window.location.assign(url.href);
       }, () => {
         state.search.grid.set(null);
       });
@@ -13879,11 +14150,20 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
     let updateSearchReadHistoryAppearance = () => {
       gState.settings.readHistoryEnabled && mutateSearchReadHistoryAppearance(loadReadHistory);
     };
-    allowFeatureFailure("Search Read History appearance", updateSearchReadHistoryAppearance), gState.settings.openGalleryInNewTab && allowFeatureFailure("Gallery links in new tabs", () => {
+    allowFeatureFailure("Search Read History appearance", updateSearchReadHistoryAppearance);
+    let stopObservingAppendedResults = () => {
+    }, observeAppendedResults = (source) => {
+      stopObservingAppendedResults(), stopObservingAppendedResults = source.handle.listenResultRowsAdded(() => {
+        allowFeatureFailure("Appended Search results", () => {
+          searchGridMode && manageSearchGrids(searchGridMode), updateSearchReadHistoryAppearance();
+        });
+      });
+    };
+    observeAppendedResults(initialResultsDom), gState.settings.openGalleryInNewTab && allowFeatureFailure("Gallery links in new tabs", () => {
       initialResultsDom.handle.listenGalleryLinksOpenInNewTab();
     });
     let updateSearchPage = (source) => {
-      setResultsDom(source), updateSearchGridModeSelector(), searchGridMode && manageSearchGrids(searchGridMode), updateSearchReadHistoryAppearance();
+      markUiRoot(source.elems.resultList.Component()), setResultsDom(source), observeAppendedResults(source), updateSearchGridModeSelector(), searchGridMode && manageSearchGrids(searchGridMode), updateSearchReadHistoryAppearance();
     }, mountSearchPagination = (onPageChange) => {
       gState.settings.enhanceSearchGridsEnabled && allowFeatureFailure("Enhanced Search pagination", () => {
         createAppMount().mount(() => createComponent(EnhanceSearchGrids, {
@@ -13897,18 +14177,10 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
       createEffect(() => {
         resultsDom().handle.updateResultColumns(gState.columnsEnabled());
       }), mountSearchPagination((source) => {
-        markUiRoot(source.elems.resultList.Component()), updateSearchPage(source), touchResultsDom.handle.updateTouchResultsLayout();
+        updateSearchPage(source), touchResultsDom.handle.updateTouchResultsLayout();
       });
     } else
       mountSearchPagination(updateSearchPage);
-    gState.settings.searchHistoryEnabled && allowFeatureFailure("Search history", () => {
-      let searchTextInput = manageSearchTextInput();
-      if (!searchTextInput)
-        return;
-      createAppMount().mount(() => createComponent(SearchHistory, {
-        source: searchTextInput
-      }));
-    });
   }
   function injectReadHistoryPage(page2) {
     let records = loadDisplayReadHistoryRecords(), pageCount = Math.max(1, Math.ceil(records.length / 25)), pageIndex = Math.min(page2.pageIndex, pageCount - 1), items = records.map((record) => ({
@@ -13919,10 +14191,10 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
       totalPages: record.totalPages,
       updatedAt: record.updatedAt
     })), historyDom = requirePageDependency("Read History page", manageReadHistoryPage(items.slice(pageIndex * 25, (pageIndex + 1) * 25), state.gallery.titlePreference.reload(), state.search.grid.value ?? "ehpeek-lite"));
-    markUiRoot(historyDom.elems.resultList.Component()), gState.settings.touchUiEnabled && (createEffect(() => {
+    markUiRoot(historyDom.elems.resultList.Component()), markUiRoot(historyDom.elems.navigationBottomMount.Component()), gState.settings.openGalleryInNewTab && historyDom.handle.listenGalleryLinksOpenInNewTab(), gState.settings.touchUiEnabled && (createEffect(() => {
       historyDom.handle.updateResultColumns(gState.columnsEnabled());
     }), allowFeatureFailure("Touch Read History layout", () => {
-      manageTouchResultsPage(page2);
+      manageTouchResultsPage(page2, !0);
     })), historyDom.elems.navigationTopMount.mount(() => createComponent(ReadHistoryPage, {
       initialPageIndex: pageIndex,
       items,
@@ -13977,7 +14249,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root :is(
         break;
     }
   }
-  ehSyringe_exports.initialize();
+  initializeExternalAutocompleteUi();
   var historyRouteActive = extractPageType().type === "readHistory";
   window.addEventListener("hashchange", () => {
     let nextHistoryRouteActive = extractPageType().type === "readHistory";
@@ -14022,6 +14294,7 @@ lucide-solid/dist/esm/icons/check.mjs:
 lucide-solid/dist/esm/icons/chevron-left.mjs:
 lucide-solid/dist/esm/icons/chevron-right.mjs:
 lucide-solid/dist/esm/icons/columns-2.mjs:
+lucide-solid/dist/esm/icons/copy.mjs:
 lucide-solid/dist/esm/icons/download.mjs:
 lucide-solid/dist/esm/icons/ellipsis-vertical.mjs:
 lucide-solid/dist/esm/icons/external-link.mjs:
