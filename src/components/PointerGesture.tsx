@@ -216,7 +216,7 @@ class PointerGesture {
       velocityY: 0,
     };
 
-    const captureTarget = this.target;
+    const captureTarget = event.target as Element | null;
 
     if (canDrag && "pointerId" in event && typeof captureTarget?.setPointerCapture === "function") {
       captureTarget.setPointerCapture(pointerId);

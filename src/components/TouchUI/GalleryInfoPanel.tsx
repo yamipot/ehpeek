@@ -28,6 +28,30 @@ const RATING_ACTION_BUTTON_CLASS =
 const GALLERY_FAVORITE_ROW_CLASS =
   "flex box-border w-full ui-hit-min-h-md items-center ui-gap-md ui-py-xs ui-px-lg border-0 border-b ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text font-inherit textsize-md leading-[1.2] text-left";
 const GALLERY_FAVORITE_ICON_SIZE = "var(--ui-icon-size-lg)";
+const TAG_NAMESPACE_PREFIXES: Readonly<Record<string, string>> = {
+  artist: "a",
+  character: "c",
+  cosplayer: "cos",
+  female: "f",
+  group: "g",
+  language: "l",
+  location: "loc",
+  male: "m",
+  mixed: "x",
+  other: "o",
+  parody: "p",
+  reclass: "r",
+};
+
+function exactTagQuery(name: string): string {
+  const separator = name.indexOf(":");
+  if (separator < 0) {
+    return `tag:${name}$`;
+  }
+  const namespace = name.slice(0, separator).toLowerCase();
+  const prefix = TAG_NAMESPACE_PREFIXES[namespace] ?? namespace;
+  return `${prefix}:${name.slice(separator + 1)}$`;
+}
 
 type GalleryPanelTagGroup = GalleryInfoTagGroup;
 
@@ -619,6 +643,28 @@ function TouchGalleryTagMenu(props: {
             fallback={<WelcomeIcon embedded label={texts.common.status.loading} showIcon={false} />}
           >
             <DomNode node={props.source.elems.tagMenuAction} />
+            <Show when={props.tag}>{(tag) => (
+              <button
+                type="button"
+                class={sharedApply.galleryTagMenuItem}
+                role="menuitem"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void navigator.clipboard.writeText(exactTagQuery(tag().name)).then(
+                    onClose,
+                    (error: unknown) => {
+                      console.error("[ehpeek] Copy gallery tag failed", error);
+                      window.alert(
+                        error instanceof Error ? error.message : texts.errors.loadFailed,
+                      );
+                    },
+                  );
+                }}
+              >
+                <Icon name="copy" />
+                <span>{texts.gallery.copyOriginalTag}</span>
+              </button>
+            )}</Show>
             <Show when={state.gallery.myTags.value}>
               <Show when={props.tag}>{(tag) => (
                 <Show

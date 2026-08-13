@@ -8,6 +8,7 @@ import Check from "lucide-solid/icons/check";
 import ChevronLeft from "lucide-solid/icons/chevron-left";
 import ChevronRight from "lucide-solid/icons/chevron-right";
 import Columns2 from "lucide-solid/icons/columns-2";
+import Copy from "lucide-solid/icons/copy";
 import Download from "lucide-solid/icons/download";
 import EllipsisVertical from "lucide-solid/icons/ellipsis-vertical";
 import ExternalLink from "lucide-solid/icons/external-link";
@@ -51,6 +52,7 @@ export type IconName =
   | "chevron-left"
   | "chevron-right"
   | "close"
+  | "copy"
   | "download"
   | "edit"
   | "external-link"
@@ -129,6 +131,7 @@ const LUCIDE_ICONS: Record<LucideIconName, LucideIcon> = {
   "chevron-left": ChevronLeft,
   "chevron-right": ChevronRight,
   close: X,
+  copy: Copy,
   download: Download,
   edit: Pencil,
   "external-link": ExternalLink,
