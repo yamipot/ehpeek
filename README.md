@@ -26,8 +26,8 @@ EhPeek can work with the following scripts for a better experience and maintains
 
 | Channel | Sources |
 | --- | --- |
-| Stable | [Sleazy Fork](https://sleazyfork.org/en/scripts/588026-ehpeek) · [GitHub](https://github.com/yamipot/ehpeek/raw/build-stable/ehpeek.user.js) · [jsDelivr](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-stable/ehpeek.user.js) |
-| Latest | [GitHub](https://github.com/yamipot/ehpeek/raw/build-master/ehpeek.user.js) · [jsDelivr](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-master/ehpeek.user.js) |
+| Stable | [Sleazy Fork](https://sleazyfork.org/en/scripts/588026-ehpeek) · [jsDelivr](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-stable/ehpeek.user.js) · [Raw](https://raw.githubusercontent.com/yamipot/ehpeek/build-stable/ehpeek.user.js) |
+| Latest | [jsDelivr](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-master/ehpeek.user.js) · [Raw](https://raw.githubusercontent.com/yamipot/ehpeek/build-master/ehpeek.user.js) |
 
 ## Preview
 

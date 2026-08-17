@@ -44,6 +44,7 @@ jobs:
         run: pnpm build
 
       - name: Publish built userscript branch
+        id: publish
         if: >-
           github.event_name != 'pull_request' &&
           (github.ref_name == 'master' || github.ref_name == 'stable')
@@ -75,7 +76,21 @@ jobs:
           git add ehpeek.user.js
           if git diff --cached --quiet; then
             echo "No build output changes."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git commit -m "build ehpeek from ${GITHUB_SHA}"
           git push origin "HEAD:${publish_branch}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Purge jsDelivr cache
+        if: steps.publish.outputs.changed == 'true'
+        continue-on-error: true
+        run: >-
+          curl
+          --fail-with-body
+          --retry 3
+          --retry-all-errors
+          --show-error
+          --silent
+          "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@build-${GITHUB_REF_NAME}/ehpeek.user.js"
