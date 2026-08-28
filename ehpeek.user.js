@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260813.1117
+// @version      260817.1101
 // @description  A touch-optimized E-H/ExH viewer
 // @description:ja  タッチ操作向けの E-H/ExH リーダー
 // @description:zh-CN  为触屏优化的 E-H/ExH 阅读器
@@ -8207,7 +8207,7 @@ Next page`,
             onChange: (value) => {
               setChanged(!0), setDraft("locale", value);
             }
-          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260813.1117", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => i18n_default.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => i18n_default.settings.licenses), insert(_el$28, createComponent(Icon2, {
+          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260817.1101", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => i18n_default.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => i18n_default.settings.licenses), insert(_el$28, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$30.$$click = (event) => {
@@ -11700,7 +11700,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
       return _el$.addEventListener("wheel", (event) => {
         let delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
         props.callbacks.onWheel(delta, event);
-      }), _el$.addEventListener("scroll", () => props.callbacks.onNativeScroll()), _el$.$$dblclick = (event) => props.callbacks.onDoubleClick(event), use((element) => {
+      }), _el$.addEventListener("scroll", () => props.callbacks.onNativeScroll()), use((element) => {
         scroller = element, scrollerApi = createPagesScroller(element);
       }, _el$), insert(_el$2, createComponent(For, {
         get each() {
@@ -12019,7 +12019,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
       width
     };
   }
-  delegateEvents(["dblclick", "pointerdown", "click"]);
+  delegateEvents(["pointerdown", "click"]);
 
   // src/components/Widgets/ProgressBar.css
   var ProgressBar_default = `.ehpeek-progress-bar::-webkit-slider-runnable-track {
@@ -13214,14 +13214,6 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
       return onCleanup(() => {
         session.clearTimeout(scrollBarTimer), session.clearTimeout(scrollGestureTimer);
       }), {
-        onDoubleClick: (event) => {
-          if (state2.overlay.image() !== null) {
-            event.preventDefault(), event.stopPropagation(), state2.overlay.update(null);
-            return;
-          }
-          let zone = event.clientX / viewportActions.viewportWidth();
-          zone >= 1 / 3 && zone <= 2 / 3 && prepareZoomAtPoint(event) && (state2.toolbar.close(), event.preventDefault(), event.stopPropagation());
-        },
         onNativeScroll: () => {
           if (state2.overlay.image() !== null || pagedMode() || state2.scrollViewport.adjusting() || (updateScrollBarActivity(), viewportActions.isDragging()))
             return;
@@ -13363,9 +13355,9 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
     function wireGesture() {
       let gesture2 = {
         dragAxis: "any"
-      }, lastZoomTouchTap = null, isZoomDoubleTap = (info, event) => {
-        let now = event.timeStamp || performance.now(), doubleTap = lastZoomTouchTap !== null && now - lastZoomTouchTap.time <= ZOOM_DOUBLE_TAP_MS && Math.hypot(info.clientX - lastZoomTouchTap.clientX, info.clientY - lastZoomTouchTap.clientY) <= ZOOM_DOUBLE_TAP_DISTANCE;
-        return lastZoomTouchTap = doubleTap ? null : {
+      }, lastZoomTap = null, isZoomDoubleTap = (info, event) => {
+        let now = event.timeStamp || performance.now(), doubleTap = lastZoomTap !== null && now - lastZoomTap.time <= ZOOM_DOUBLE_TAP_MS && Math.hypot(info.clientX - lastZoomTap.clientX, info.clientY - lastZoomTap.clientY) <= ZOOM_DOUBLE_TAP_DISTANCE;
+        return lastZoomTap = doubleTap ? null : {
           clientX: info.clientX,
           clientY: info.clientY,
           time: now
@@ -13381,22 +13373,20 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
         }
       };
       return gesture2.onTap = (info, event) => {
-        viewportActions.cancelDrag();
-        let touchInput = event instanceof PointerEvent && event.pointerType === "touch";
-        if (state2.overlay.image() !== null && touchInput) {
+        if (viewportActions.cancelDrag(), state2.overlay.image() !== null) {
           isZoomDoubleTap(info, event) && state2.overlay.update(null), event.preventDefault();
           return;
         }
-        let zone = info.clientX / viewportActions.viewportWidth(), centerTap = zone >= 1 / 3 && zone <= 2 / 3;
-        if (touchInput && centerTap) {
+        let zone = info.clientX / viewportActions.viewportWidth();
+        if (zone >= 1 / 3 && zone <= 2 / 3) {
           if (isZoomDoubleTap(info, event) && prepareZoomAtPoint(info)) {
             state2.toolbar.close(), event.preventDefault();
             return;
           }
         } else
-          lastZoomTouchTap = null;
+          lastZoomTap = null;
         runSingleTap(info, event);
-      }, gesture2.holdDelay = MOUSE_HOLD_ZOOM_MS, gesture2.onHold = (info, event) => (event instanceof PointerEvent ? event.pointerType === "mouse" : event instanceof MouseEvent) ? (lastZoomTouchTap = null, state2.overlay.image() !== null ? (state2.overlay.update(null), "consume") : prepareZoomAtPoint(info) ? (zoomOverlay.movePinch({
+      }, gesture2.holdDelay = MOUSE_HOLD_ZOOM_MS, gesture2.onHold = (info, event) => (event instanceof PointerEvent ? event.pointerType === "mouse" : event instanceof MouseEvent) ? (lastZoomTap = null, state2.overlay.image() !== null ? (state2.overlay.update(null), "consume") : prepareZoomAtPoint(info) ? (zoomOverlay.movePinch({
         centerX: info.clientX,
         centerY: info.clientY,
         scale: 2
@@ -13438,7 +13428,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
           });
         }
       }, gesture2.onPinchStart = (info) => {
-        if (lastZoomTouchTap = null, stopViewportMotion(), viewportActions.cancelDrag(), !pagedMode() && state2.overlay.image() === null)
+        if (lastZoomTap = null, stopViewportMotion(), viewportActions.cancelDrag(), !pagedMode() && state2.overlay.image() === null)
           return scrollViewport.startPinch();
         if (state2.overlay.image() !== null)
           return zoomOverlay.startPinch({
