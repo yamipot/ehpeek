@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260817.1101
+// @version      260902.1404
 // @description  A touch-optimized E-H/ExH viewer
 // @description:ja  タッチ操作向けの E-H/ExH リーダー
 // @description:zh-CN  为触屏优化的 E-H/ExH 阅读器
@@ -5999,10 +5999,10 @@ Next page`,
         let item = options.item(pageNum);
         if (item === null)
           continue;
-        let aspectRatio = layoutAspectRatio(item.aspectRatio), thumbnailCrossSize = options.horizontal ? item.thumbnail.height : item.thumbnail.width, itemCrossSize = thumbnailCrossSize * Math.min(options.itemScaleLimit, options.tileCrossSize / thumbnailCrossSize);
+        let aspectRatio = layoutAspectRatio(item.aspectRatio), itemCrossSize = (options.horizontal ? item.thumbnail.height : item.thumbnail.width) * options.itemScaleLimit;
         itemMainSizes.push(options.horizontal ? itemCrossSize / aspectRatio : itemCrossSize * aspectRatio);
       }
-      let groupSize = medianSize(itemMainSizes, estimatedGroupSize);
+      let groupSize = itemMainSizes.length === 0 ? estimatedGroupSize : Math.max(...itemMainSizes);
       groupOffsets.push(offset), groupSizes.push(groupSize), offset += groupSize + options.gap;
     }
     return {
@@ -6481,7 +6481,7 @@ Next page`,
     });
   }
   function ScrollPreviewPanel(props) {
-    let decodeCache = untrack(() => props.decodeCache), embedded = untrack(() => props.embedded), previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, estimatedAspectRatio = layoutAspectRatio(initialPreview.data.dominantAspectRatio), embeddedReferenceTileWidth = medianSize(initialPreview.data.previewItems.map((item) => item.thumbnail.width), MAX_TILE_WIDTH), pixelScale = () => props.pixelScale, initialPixelScale = untrack(pixelScale), readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", referenceThumbnailCrossSize = medianSize(initialPreview.data.previewItems.map((item) => horizontal ? item.thumbnail.height : item.thumbnail.width), horizontal ? MAX_TILE_WIDTH * estimatedAspectRatio : MAX_TILE_WIDTH), rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? i18n_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? i18n_default.gallery.scrollPreviewDirectionRtl : i18n_default.gallery.scrollPreviewDirectionLtr, flingAnimator = new ScrollFlingAnimator(), crossCountOverride = () => props.crossCountOverride, [exitDragOffset, setExitDragOffset] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [positionBarReady, setPositionBarReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), initialTileCrossSize = horizontal ? MAX_TILE_WIDTH * estimatedAspectRatio * initialPixelScale : MAX_TILE_WIDTH * initialPixelScale, initialGap = GRID_GAP * initialPixelScale, initialGeometry = buildGroupGeometry({
+    let decodeCache = untrack(() => props.decodeCache), embedded = untrack(() => props.embedded), previewCache = untrack(() => props.previewCache), onClose = untrack(() => props.onClose), onLoadError = untrack(() => props.onLoadError), initialPreview = untrack(() => previewCache.current()), totalImages = initialPreview.data.totalImages, maxPreviewIndex = initialPreview.data.maxIndex, estimatedAspectRatio = layoutAspectRatio(initialPreview.data.dominantAspectRatio), embeddedReferenceTileWidth = medianSize(initialPreview.data.previewItems.map((item) => item.thumbnail.width), MAX_TILE_WIDTH), pixelScale = () => props.pixelScale, initialPixelScale = untrack(pixelScale), readDirection = untrack(() => props.readDirection), horizontal = readDirection !== "ttb", referenceThumbnailCrossSize = Math.max(...initialPreview.data.previewItems.map((item) => horizontal ? item.thumbnail.height : item.thumbnail.width)), rightToLeft = readDirection === "rtl", directionIcon = readDirection === "ttb" ? "arrow-down" : readDirection === "rtl" ? "arrow-left" : "arrow-right", directionLabel = readDirection === "ttb" ? i18n_default.gallery.scrollPreviewDirectionTtb : readDirection === "rtl" ? i18n_default.gallery.scrollPreviewDirectionRtl : i18n_default.gallery.scrollPreviewDirectionLtr, flingAnimator = new ScrollFlingAnimator(), crossCountOverride = () => props.crossCountOverride, [exitDragOffset, setExitDragOffset] = createSignal(0), [previewLoadReady, setPreviewLoadReady] = createSignal(!1), [positionBarReady, setPositionBarReady] = createSignal(!1), [scrollOffset, setScrollOffset] = createSignal(0), initialTileCrossSize = horizontal ? MAX_TILE_WIDTH * estimatedAspectRatio * initialPixelScale : MAX_TILE_WIDTH * initialPixelScale, initialGap = GRID_GAP * initialPixelScale, initialGeometry = buildGroupGeometry({
       crossCount: 1,
       estimatedAspectRatio,
       gap: initialGap,
@@ -6633,12 +6633,12 @@ Next page`,
       let previewIndex = props.targetPreviewIndex, pageNum = props.targetPageNum;
       initialized && scroller.isConnected && (pageNum === null ? scrollToPreview(previewIndex, untrack(layout)) : scrollToPage(pageNum, untrack(layout)));
     });
-    let updateLayout = (resetEmbeddedHeight = !1, preserveViewportAnchor = !1) => {
-      preserveResizeAnchor = preserveViewportAnchor, setPreviewLoadReady(!1), layoutDirty = !1, resetEmbeddedHeight && embedded && overlay.style.removeProperty("height");
+    let updateLayout = (fitEmbeddedPanel = !0, preserveViewportAnchor = !1) => {
+      preserveResizeAnchor = preserveViewportAnchor, setPreviewLoadReady(!1), layoutDirty = !1, fitEmbeddedPanel && embedded && overlay.style.removeProperty("height");
       let previousLayout = untrack(layout), preservedAnchorPageNum = initialized && preserveViewportAnchor ? centeredPageNum() : null, preservedAnchorViewportRatio = preservedAnchorPageNum === null ? null : (() => {
         let group = Math.floor((preservedAnchorPageNum - 1) / previousLayout.crossCount);
         return (groupOffsetAt(previousLayout, group) + groupSizeAt(previousLayout, group) / 2 - scrollOffset()) / mainViewportSize();
-      })(), width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), scale = pixelScale(), gap = GRID_GAP * scale, aspectRatio = estimatedAspectRatio, baseMaxTileWidth = MAX_TILE_WIDTH * scale, maxTileWidth = embedded ? embeddedReferenceTileWidth * scale : baseMaxTileWidth, anchorPageNum = initialized ? resizeAnchorPageNum ?? preferredLayoutAnchorPageNum() : null, itemsPerRow = Math.max(1, embedded ? Math.round((width + gap) / (maxTileWidth + gap)) : Math.ceil((width + gap) / (maxTileWidth + gap))), itemWidth = Math.max(1, (width - gap * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio)), availableRows = embedded ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap))) : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap))), automaticCrossCount = horizontal ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow)) : Math.min(itemsPerRow, maximumCrossCount()), crossCount = clamp(crossCountOverride() ?? automaticCrossCount, 1, maximumCrossCount()), availableTileHeight = Math.max(1, (height - gap * (crossCount - 1)) / crossCount), crossCountOverridden = crossCountOverride() !== null, overriddenTileWidth = Math.min(Math.max(1, (width - gap * (crossCount - 1)) / crossCount), width / 2, height / 2 / aspectRatio), tileHeight = horizontal ? crossCountOverridden ? Math.min(availableTileHeight, height / 2, width / 2 * aspectRatio) : Math.min(itemHeight, availableTileHeight) : Math.max(1, Math.round((crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount)) * aspectRatio)), tileWidth = horizontal ? crossCountOverridden ? tileHeight / aspectRatio : clamp(tileHeight / aspectRatio, 1, maxTileWidth) : crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount), tileCrossSize = horizontal ? tileHeight : tileWidth, itemScaleLimit = embedded ? scale : Math.min(crossCountOverridden ? Number.POSITIVE_INFINITY : 1, tileCrossSize / referenceThumbnailCrossSize), geometry = buildGroupGeometry({
+      })(), width = Math.max(1, scroller.clientWidth), height = Math.max(1, scroller.clientHeight), scale = pixelScale(), gap = GRID_GAP * scale, aspectRatio = estimatedAspectRatio, baseMaxTileWidth = MAX_TILE_WIDTH * scale, maxTileWidth = embedded ? embeddedReferenceTileWidth * scale : baseMaxTileWidth, anchorPageNum = initialized ? resizeAnchorPageNum ?? preferredLayoutAnchorPageNum() : null, itemsPerRow = Math.max(1, embedded ? Math.round((width + gap) / (maxTileWidth + gap)) : Math.ceil((width + gap) / (maxTileWidth + gap))), itemWidth = Math.max(1, (width - gap * (itemsPerRow - 1)) / itemsPerRow), itemHeight = Math.max(1, Math.round(itemWidth * aspectRatio)), availableRows = embedded ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap))) : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap))), automaticCrossCount = horizontal ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow)) : Math.min(itemsPerRow, maximumCrossCount()), crossCount = clamp(crossCountOverride() ?? automaticCrossCount, 1, maximumCrossCount()), availableTileHeight = Math.max(1, (height - gap * (crossCount - 1)) / crossCount), crossCountOverridden = crossCountOverride() !== null, overriddenTileWidth = Math.min(Math.max(1, (width - gap * (crossCount - 1)) / crossCount), width / 2, height / 2 / aspectRatio), tileHeight = horizontal ? crossCountOverridden ? Math.min(availableTileHeight, height / 2, width / 2 * aspectRatio) : Math.min(itemHeight, availableTileHeight) : Math.max(1, Math.round((crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount)) * aspectRatio)), tileWidth = horizontal ? crossCountOverridden ? tileHeight / aspectRatio : clamp(tileHeight / aspectRatio, 1, maxTileWidth) : crossCountOverridden ? overriddenTileWidth : Math.max(1, (width - gap * (crossCount - 1)) / crossCount), tileCrossSize = horizontal ? tileHeight : tileWidth, itemScaleLimit = tileCrossSize / referenceThumbnailCrossSize, geometry = buildGroupGeometry({
         crossCount,
         estimatedAspectRatio,
         gap,
@@ -6648,12 +6648,12 @@ Next page`,
         tileCrossSize,
         totalImages
       }), fitEmbeddedHeight = embedded && !props.fillEmbeddedContainer(), viewportHeight = height;
-      if (fitEmbeddedHeight && horizontal)
+      if (fitEmbeddedPanel && fitEmbeddedHeight && horizontal)
         viewportHeight = crossCount * tileCrossSize + (crossCount - 1) * gap, overlay.style.height = `${Math.ceil(overlay.clientHeight - height + viewportHeight)}px`;
-      else if (fitEmbeddedHeight) {
+      else if (fitEmbeddedPanel && fitEmbeddedHeight) {
         let fittedScrollerHeight = geometry.totalMainSize;
         viewportHeight = Math.min(height, fittedScrollerHeight), viewportHeight < height ? overlay.style.height = `${Math.ceil(overlay.clientHeight - height + viewportHeight)}px` : overlay.style.removeProperty("height");
-      } else embedded && overlay.style.removeProperty("height");
+      } else fitEmbeddedPanel && embedded && overlay.style.removeProperty("height");
       let next = {
         crossCount,
         gap,
@@ -6678,7 +6678,7 @@ Next page`,
         }
       }));
     }, applyPendingLayout = () => {
-      !layoutDirty || !initialized || pointerActive || positionBarActive || untrack(() => updateLayout(!0, !0));
+      !layoutDirty || !initialized || pointerActive || positionBarActive || untrack(() => updateLayout(crossCountOverride() === null, !0));
     }, markLayoutDirty = () => {
       layoutDirty = !0, applyPendingLayout();
     };
@@ -6686,7 +6686,9 @@ Next page`,
       let nextVersion = previewCache.previewDataVersion();
       nextVersion !== previewDataVersion && (previewDataVersion = nextVersion, initialized && untrack(markLayoutDirty));
     }), createEffect(() => {
-      crossCountOverride(), props.fillEmbeddedContainer(), pixelScale(), initialized && untrack(() => updateLayout(!0));
+      crossCountOverride(), initialized && untrack(() => updateLayout(!1));
+    }), createEffect(() => {
+      props.fillEmbeddedContainer(), pixelScale(), initialized && untrack(() => updateLayout(!0));
     }), onMount(() => {
       let previousBodyOverflow = document.body.style.overflow, previousHtmlOverflow = document.documentElement.style.overflow;
       embedded || (document.body.style.overflow = "hidden", document.documentElement.style.overflow = "hidden", overlay.animate([{
@@ -6850,7 +6852,7 @@ Next page`,
           })();
         },
         children: (item) => {
-          let imageScale = () => Math.min(props.maximumScale, props.horizontal ? props.height / item.thumbnail.height : props.width / item.thumbnail.width);
+          let imageScale = () => Math.min(props.maximumScale, props.height / item.thumbnail.height, props.width / item.thumbnail.width);
           return [createComponent(Show, {
             get when() {
               return item.thumbnail.kind === "background";
@@ -8207,7 +8209,7 @@ Next page`,
             onChange: (value) => {
               setChanged(!0), setDraft("locale", value);
             }
-          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260817.1101", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => i18n_default.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => i18n_default.settings.licenses), insert(_el$28, createComponent(Icon2, {
+          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260902.1404", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => i18n_default.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => i18n_default.settings.licenses), insert(_el$28, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$30.$$click = (event) => {
@@ -12794,7 +12796,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
   // src/components/Reader/index.tsx
   var _tmpl$70 = /* @__PURE__ */ template("<header class=contents>"), _tmpl$217 = /* @__PURE__ */ template('<div id=ehpeek-reader class="fixed inset-0 z-reader overflow-hidden ehp-color-reader font-sans textsize-sm leading-[1.4]">');
   registerGlobalStyle("ehpeek-reader-style", Reader_default);
-  var DEFAULT_WINDOW_SIZE2 = 10, PAGED_SWIPE_THRESHOLD = 24, PAGED_PREVIEW_SWIPE_THRESHOLD = 48, PAGED_PREVIEW_SWIPE_AXIS_LIMIT = 32, PAGED_WHEEL_THRESHOLD = 8, HORIZONTAL_SCROLL_WHEEL_FACTOR = 0.5, PROGRESS_IDLE_COMMIT_MS = 180, LOADED_IMAGE_INFO_CACHE_LIMIT = 160, PROGRESSIVE_IMAGE_SIZE_THRESHOLD = 2 * 1024 * 1024, CONCURRENT_IMAGE_BYTE_LIMIT = 6 * 1024 * 1024, MIN_CONCURRENT_IMAGE_LOADS = 3, SCROLL_GESTURE_IDLE_MS = 160, SCROLL_BAR_IDLE_MS = 900, SCROLL_BAR_SHOW_DISTANCE = 48, SCROLL_BAR_EXPAND_VIEWPORTS = 2, MOUSE_HOLD_ZOOM_MS = 350, ZOOM_DOUBLE_TAP_MS = 300, ZOOM_DOUBLE_TAP_DISTANCE = 36, TAP_CANCEL_DISTANCE = 8, FALLBACK_ASPECT_RATIO2 = 1.42;
+  var DEFAULT_WINDOW_SIZE2 = 10, PAGED_SWIPE_THRESHOLD = 24, PAGED_PREVIEW_SWIPE_THRESHOLD = 48, PAGED_PREVIEW_SWIPE_AXIS_LIMIT = 32, PAGED_WHEEL_THRESHOLD = 8, HORIZONTAL_SCROLL_WHEEL_FACTOR = 0.5, PROGRESS_IDLE_COMMIT_MS = 180, LOADED_IMAGE_INFO_CACHE_LIMIT = 160, PROGRESSIVE_IMAGE_SIZE_THRESHOLD = 2 * 1024 * 1024, CONCURRENT_IMAGE_BYTE_LIMIT = 6 * 1024 * 1024, MIN_CONCURRENT_IMAGE_LOADS = 3, SCROLL_GESTURE_IDLE_MS = 160, SCROLL_BAR_IDLE_MS = 900, SCROLL_BAR_SHOW_DISTANCE = 48, SCROLL_BAR_EXPAND_VIEWPORTS = 2, MOUSE_HOLD_ZOOM_MS = 350, ZOOM_DOUBLE_TAP_MS = 300, ZOOM_DOUBLE_TAP_DISTANCE = 36, ZOOM_DOUBLE_TAP_SCALE = 1.2, TAP_CANCEL_DISTANCE = 8, FALLBACK_ASPECT_RATIO2 = 1.42;
   function Reader(props) {
     let overlayHost2 = useOverlayHost(), options = untrack(() => props.options), totalPages = options.totalPages ?? 0, previewCache = untrack(() => props.previewCache), session = new ReaderSession(options), readerState = session.state, scrollFitPageNum = readerState.navi.currentPageNum(), readerCallbacks = wireReaderCallbacks(session, options, previewCache, untrack(() => props.coordinator)), coordinator = untrack(() => props.coordinator);
     coordinator.attachReader({
@@ -12966,7 +12968,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
       let pageNum = viewportActions.pageNumAtPoint(point);
       return pageNum === null || !viewportActions.pageImageReady(pageNum) ? null : loadedImages.get(pageNum) ?? null;
     }
-    function prepareZoomAtPoint(point) {
+    function prepareZoomAtPoint(point, scaleMultiplier = 1) {
       let image2 = imageAtPoint(point);
       if (!image2)
         return !1;
@@ -12975,7 +12977,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
       return state2.overlay.update(image2), zoomOverlay.reset({
         centerX: point.clientX,
         centerY: point.clientY,
-        scale: zoomScale
+        scale: zoomScale * scaleMultiplier
       }), !0;
     }
     function setCurrentPageNumber(pageNumber, scrollIntoView, scrollMotion = "instant") {
@@ -13379,7 +13381,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
         }
         let zone = info.clientX / viewportActions.viewportWidth();
         if (zone >= 1 / 3 && zone <= 2 / 3) {
-          if (isZoomDoubleTap(info, event) && prepareZoomAtPoint(info)) {
+          if (isZoomDoubleTap(info, event) && prepareZoomAtPoint(info, ZOOM_DOUBLE_TAP_SCALE)) {
             state2.toolbar.close(), event.preventDefault();
             return;
           }
