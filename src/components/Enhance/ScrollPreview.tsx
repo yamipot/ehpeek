@@ -114,15 +114,14 @@ function buildGroupGeometry(options: {
       const thumbnailCrossSize = options.horizontal
         ? item.thumbnail.height
         : item.thumbnail.width;
-      const itemCrossSize = thumbnailCrossSize * Math.min(
-        options.itemScaleLimit,
-        options.tileCrossSize / thumbnailCrossSize,
-      );
+      const itemCrossSize = thumbnailCrossSize * options.itemScaleLimit;
       itemMainSizes.push(options.horizontal
         ? itemCrossSize / aspectRatio
         : itemCrossSize * aspectRatio);
     }
-    const groupSize = medianSize(itemMainSizes, estimatedGroupSize);
+    const groupSize = itemMainSizes.length === 0
+      ? estimatedGroupSize
+      : Math.max(...itemMainSizes);
     groupOffsets.push(offset);
     groupSizes.push(groupSize);
     offset += groupSize + options.gap;
@@ -805,11 +804,10 @@ function ScrollPreviewPanel(props: {
   const initialPixelScale = untrack(pixelScale);
   const readDirection = untrack(() => props.readDirection);
   const horizontal = readDirection !== "ttb";
-  const referenceThumbnailCrossSize = medianSize(
-    initialPreview.data.previewItems.map((item) => horizontal
+  const referenceThumbnailCrossSize = Math.max(
+    ...initialPreview.data.previewItems.map((item) => horizontal
       ? item.thumbnail.height
       : item.thumbnail.width),
-    horizontal ? MAX_TILE_WIDTH * estimatedAspectRatio : MAX_TILE_WIDTH,
   );
   const rightToLeft = readDirection === "rtl";
   const directionIcon = readDirection === "ttb"
@@ -1301,14 +1299,7 @@ function ScrollPreviewPanel(props: {
         ? overriddenTileWidth
         : Math.max(1, (width - gap * (crossCount - 1)) / crossCount);
     const tileCrossSize = horizontal ? tileHeight : tileWidth;
-    const itemScaleLimit = embedded
-      ? crossCountOverridden
-        ? Number.POSITIVE_INFINITY
-        : tileCrossSize / referenceThumbnailCrossSize
-      : Math.min(
-        crossCountOverridden ? Number.POSITIVE_INFINITY : 1,
-        tileCrossSize / referenceThumbnailCrossSize,
-      );
+    const itemScaleLimit = tileCrossSize / referenceThumbnailCrossSize;
     const geometry = buildGroupGeometry({
       crossCount,
       estimatedAspectRatio,
@@ -1686,9 +1677,8 @@ function PreviewTile(props: {
         {(item) => {
           const imageScale = () => Math.min(
             props.maximumScale,
-            props.horizontal
-              ? props.height / item.thumbnail.height
-              : props.width / item.thumbnail.width,
+            props.height / item.thumbnail.height,
+            props.width / item.thumbnail.width,
           );
           return (
             <>
