@@ -35,7 +35,8 @@ EhPeek can work with the following scripts for a better experience and maintains
   <tr>
     <td align="center"><img width="200" alt="preview1" src="https://github.com/user-attachments/assets/081a7205-a1cd-49ea-ab25-b79a2cb63356" /></td>
     <td align="center"><img width="200" alt="preview2" src="https://github.com/user-attachments/assets/2fe1ebfd-7961-4273-88d1-5245999923e1" /></td>
-    <td align="center"><img width="307" alt="scroll" src="https://github.com/user-attachments/assets/b88b5fa2-22cb-43b7-b7ce-0dbc3927daf3" /></td>
+    <td align="center"><img width="200" alt="scroll" src="https://github.com/user-attachments/assets/c5ad0fdb-b408-4394-86da-d5222c0f57b1" /></td>
+
   </tr>
   <tr>
     <td align="center">Browsing</td>
