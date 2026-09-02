@@ -1213,13 +1213,13 @@ function ScrollPreviewPanel(props: {
   });
 
   const updateLayout = (
-    resetEmbeddedHeight = false,
+    fitEmbeddedPanel = true,
     preserveViewportAnchor = false,
   ): void => {
     preserveResizeAnchor = preserveViewportAnchor;
     setPreviewLoadReady(false);
     layoutDirty = false;
-    if (resetEmbeddedHeight && embedded) {
+    if (fitEmbeddedPanel && embedded) {
       overlay.style.removeProperty("height");
     }
     const previousLayout = untrack(layout);
@@ -1302,7 +1302,9 @@ function ScrollPreviewPanel(props: {
         : Math.max(1, (width - gap * (crossCount - 1)) / crossCount);
     const tileCrossSize = horizontal ? tileHeight : tileWidth;
     const itemScaleLimit = embedded
-      ? scale
+      ? crossCountOverridden
+        ? Number.POSITIVE_INFINITY
+        : tileCrossSize / referenceThumbnailCrossSize
       : Math.min(
         crossCountOverridden ? Number.POSITIVE_INFINITY : 1,
         tileCrossSize / referenceThumbnailCrossSize,
@@ -1319,11 +1321,11 @@ function ScrollPreviewPanel(props: {
     });
     const fitEmbeddedHeight = embedded && !props.fillEmbeddedContainer();
     let viewportHeight = height;
-    if (fitEmbeddedHeight && horizontal) {
+    if (fitEmbeddedPanel && fitEmbeddedHeight && horizontal) {
       viewportHeight = crossCount * tileCrossSize + (crossCount - 1) * gap;
       overlay.style.height =
         `${Math.ceil(overlay.clientHeight - height + viewportHeight)}px`;
-    } else if (fitEmbeddedHeight) {
+    } else if (fitEmbeddedPanel && fitEmbeddedHeight) {
       const fittedScrollerHeight = geometry.totalMainSize;
       viewportHeight = Math.min(height, fittedScrollerHeight);
       if (viewportHeight < height) {
@@ -1332,7 +1334,7 @@ function ScrollPreviewPanel(props: {
       } else {
         overlay.style.removeProperty("height");
       }
-    } else if (embedded) {
+    } else if (fitEmbeddedPanel && embedded) {
       overlay.style.removeProperty("height");
     }
     const next = {
@@ -1396,7 +1398,7 @@ function ScrollPreviewPanel(props: {
     ) {
       return;
     }
-    untrack(() => updateLayout(true, true));
+    untrack(() => updateLayout(crossCountOverride() === null, true));
   };
 
   const markLayoutDirty = (): void => {
@@ -1417,6 +1419,12 @@ function ScrollPreviewPanel(props: {
 
   createEffect(() => {
     crossCountOverride();
+    if (initialized) {
+      untrack(() => updateLayout(false));
+    }
+  });
+
+  createEffect(() => {
     props.fillEmbeddedContainer();
     pixelScale();
     if (initialized) {

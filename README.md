@@ -1,16 +1,17 @@
 # <img src="./icon.svg" width="42" alt="ehpeek panda icon" align="absmiddle"> EhPeek
 
 [![GitHub](https://img.shields.io/badge/GitHub-EhPeek-181717?style=flat&logo=github)](https://github.com/yamipot/ehpeek)
-[![Sleazy Fork](https://img.shields.io/badge/Sleazy%20Fork-EhPeek-8b0000?style=flat)](https://sleazyfork.org/en/scripts/588026-ehpeek)
+ [![SleazyFork installs](https://img.shields.io/greasyfork/dt/588026?label=SleazyFork&color=8b0000)](https://sleazyfork.org/en/scripts/588026-ehpeek)
+ [![jsDelivr downloads](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdata.jsdelivr.com%2Fv1%2Fstats%2Fpackages%2Fgh%2Fyamipot%2Fehpeek%3Fperiod%3Dall&query=%24.hits.total&label=jsDelivr&color=ff5627&logo=jsdelivr)](https://www.jsdelivr.com/package/gh/yamipot/ehpeek)
 
 A userscript that turns E-H / ExH pages into a touch-optimized gallery reader. Inspired by [EhViewer-NekoInverter/EhViewer](https://github.com/EhViewer-NekoInverter/EhViewer).
 
 ## Features
 
-- Touch-optimized layouts; two-column view
+- Touch-optimized layouts and controls for one-handed use
 - Reader with paged and continuous-scroll modes
 - Scroll preview for browsing galleries at a glance
-- Gesture navigation, reading history, pinch zoom, etc.
+- Gesture navigation, reading history, pinch zoom, two-column view, etc.
 
 Each feature above can be enabled independently in settings.
 
@@ -27,7 +28,7 @@ EhPeek can work with the following scripts for a better experience and maintains
 | Channel | Sources |
 | --- | --- |
 | Stable | [Sleazy Fork](https://sleazyfork.org/en/scripts/588026-ehpeek) · [jsDelivr](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-stable/ehpeek.user.js) · [Raw](https://raw.githubusercontent.com/yamipot/ehpeek/build-stable/ehpeek.user.js) |
-| Latest | [jsDelivr](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-master/ehpeek.user.js) · [Raw](https://raw.githubusercontent.com/yamipot/ehpeek/build-master/ehpeek.user.js) |
+| Beta | [jsDelivr](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-master/ehpeek.user.js) · [Raw](https://raw.githubusercontent.com/yamipot/ehpeek/build-master/ehpeek.user.js) |
 
 ## Preview
 
@@ -39,8 +40,8 @@ EhPeek can work with the following scripts for a better experience and maintains
 
   </tr>
   <tr>
-    <td align="center">Browsing</td>
-    <td align="center">Reader</td>
+    <td align="center">Browsing<br><sub>(Choose view mode "EhPeek")</sub></td>
+    <td align="center">Reader<br><sub>(Enable "General - Reader")</sub></td>
     <td align="center">Scroll Preview</td>
   </tr>
 </table>
