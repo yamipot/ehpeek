@@ -33,9 +33,9 @@ EhPeek can work with the following scripts for a better experience and maintains
 
 <table>
   <tr>
-    <td align="center"><img width="200" alt="preview1" src="https://github.com/user-attachments/assets/081a7205-a1cd-49ea-ab25-b79a2cb63356" /></td>
-    <td align="center"><img width="200" alt="preview2" src="https://github.com/user-attachments/assets/2fe1ebfd-7961-4273-88d1-5245999923e1" /></td>
-    <td align="center"><img width="200" alt="scroll" src="https://github.com/user-attachments/assets/c5ad0fdb-b408-4394-86da-d5222c0f57b1" /></td>
+    <td align="center"><img width="160" alt="preview1" src="https://github.com/user-attachments/assets/081a7205-a1cd-49ea-ab25-b79a2cb63356" /></td>
+    <td align="center"><img width="160" alt="preview2" src="https://github.com/user-attachments/assets/2fe1ebfd-7961-4273-88d1-5245999923e1" /></td>
+    <td align="center"><img width="160" alt="scroll" src="https://github.com/user-attachments/assets/c5ad0fdb-b408-4394-86da-d5222c0f57b1" /></td>
 
   </tr>
   <tr>
@@ -46,7 +46,7 @@ EhPeek can work with the following scripts for a better experience and maintains
 </table>
 <table>
   <tr>
-    <td colspan="3" align="center"><img width="634" alt="horizontal1" src="https://github.com/user-attachments/assets/f41321b1-6d52-48a4-b90a-e10134d1f3dc" /></td>
+    <td colspan="3" align="center"><img width="520" alt="horizontal1" src="https://github.com/user-attachments/assets/f41321b1-6d52-48a4-b90a-e10134d1f3dc" /></td>
   </tr>
   <tr>
     <td colspan="3" align="center">Two-column view</td>
