@@ -62,6 +62,7 @@ const SCROLL_BAR_EXPAND_VIEWPORTS = 2;
 const MOUSE_HOLD_ZOOM_MS = 350;
 const ZOOM_DOUBLE_TAP_MS = 300;
 const ZOOM_DOUBLE_TAP_DISTANCE = 36;
+const ZOOM_DOUBLE_TAP_SCALE = 1.2;
 const TAP_CANCEL_DISTANCE = 8;
 const FALLBACK_ASPECT_RATIO = 1.42;
 export type { ReaderOptions } from "./session";
@@ -302,7 +303,10 @@ function wireReaderCallbacks(
       : loadedImages.get(pageNum) ?? null;
   }
 
-  function prepareZoomAtPoint(point: { clientX: number; clientY: number }): boolean {
+  function prepareZoomAtPoint(
+    point: { clientX: number; clientY: number },
+    scaleMultiplier = 1,
+  ): boolean {
     const image = imageAtPoint(point);
     if (!image) {
       return false;
@@ -311,7 +315,11 @@ function wireReaderCallbacks(
     viewportActions.cancelDrag();
     const zoomScale = viewportActions.pageZoomScale(image.pageNum);
     state.overlay.update(image);
-    zoomOverlay.reset({ centerX: point.clientX, centerY: point.clientY, scale: zoomScale });
+    zoomOverlay.reset({
+      centerX: point.clientX,
+      centerY: point.clientY,
+      scale: zoomScale * scaleMultiplier,
+    });
     return true;
   }
 
@@ -1085,7 +1093,10 @@ function wireReaderCallbacks(
       const zone = info.clientX / viewportActions.viewportWidth();
       const centerTap = zone >= 1 / 3 && zone <= 2 / 3;
       if (centerTap) {
-        if (isZoomDoubleTap(info, event) && prepareZoomAtPoint(info)) {
+        if (
+          isZoomDoubleTap(info, event) &&
+          prepareZoomAtPoint(info, ZOOM_DOUBLE_TAP_SCALE)
+        ) {
           state.toolbar.close();
           event.preventDefault();
           return;
