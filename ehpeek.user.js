@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260902.1404
-// @description  A touch-optimized E-H/ExH viewer
-// @description:ja  タッチ操作向けの E-H/ExH リーダー
-// @description:zh-CN  为触屏优化的 E-H/ExH 阅读器
+// @version      260904.1706
+// @description  A full-featured, touch-optimized E-H/ExH viewer. Features: a built-in reader, zoomable gallery previews, mobile UI adaptation, gesture navigation, reading history, and more.
+// @description:ja  タッチ操作向けの多機能 E-H/ExH ビューア。内蔵リーダー、ズーム対応のギャラリープレビュー、モバイル向け UI、ジェスチャー操作、閲覧履歴など。
+// @description:zh-CN  针对触屏优化的 E-H/ExH 阅读器。功能： 内置阅读器、可缩放画廊预览、移动端 UI 适配、手势导航、阅读历史等。
 // @icon         https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @icon64       https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg
 // @license      MIT
@@ -2310,7 +2310,7 @@
   // locales/en.json
   var en_default = {
     metadata: {
-      description: "A touch-optimized E-H/ExH viewer"
+      description: "A full-featured, touch-optimized E-H/ExH viewer. Features: a built-in reader, zoomable gallery previews, mobile UI adaptation, gesture navigation, reading history, and more."
     },
     common: {
       actions: {
@@ -2497,7 +2497,7 @@ Next page`,
   // locales/ja.json
   var ja_default = {
     metadata: {
-      description: "タッチ操作向けの E-H/ExH リーダー"
+      description: "タッチ操作向けの多機能 E-H/ExH ビューア。内蔵リーダー、ズーム対応のギャラリープレビュー、モバイル向け UI、ジェスチャー操作、閲覧履歴など。"
     },
     common: {
       actions: {
@@ -2684,7 +2684,7 @@ Next page`,
   // locales/zh-CN.json
   var zh_CN_default = {
     metadata: {
-      description: "为触屏优化的 E-H/ExH 阅读器"
+      description: "针对触屏优化的 E-H/ExH 阅读器。功能： 内置阅读器、可缩放画廊预览、移动端 UI 适配、手势导航、阅读历史等。"
     },
     common: {
       actions: {
@@ -5979,7 +5979,7 @@ Next page`,
   };
 
   // src/components/Enhance/ScrollPreview.tsx
-  var _tmpl$9 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$25 = /* @__PURE__ */ template('<div><span class="flex items-center ui-gap-sm opacity-75"></span><div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>'), _tmpl$33 = /* @__PURE__ */ template('<div class="grid grid-cols-[minmax(0,1fr)_auto] min-h-[var(--ui-control-size-sm)] flex-none items-center ui-gap-sm ui-px-sm ui-py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-sm"><span class="inline-flex min-h-[var(--ui-control-size-sm)] items-center ui-gap-xs ui-px-sm ui-rounded-sm bg-[var(--color-site-surface)] opacity-75"></span><div><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">'), _tmpl$43 = /* @__PURE__ */ template('<div class="relative min-h-0 w-full flex-1"><div class="absolute box-border bg-[var(--color-surface)] cursor-grab [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"><div class=relative>'), _tmpl$53 = /* @__PURE__ */ template("<div class=absolute>"), _tmpl$63 = /* @__PURE__ */ template('<div class="flex w-full justify-center ui-my-sm"><button type=button class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center ui-gap-sm ui-px-md ui-rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98">'), _tmpl$72 = /* @__PURE__ */ template('<div><section class="box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]">'), _tmpl$82 = /* @__PURE__ */ template('<div class="relative flex w-full min-w-0 overflow-hidden rounded-sm bg-[var(--color-background)]">'), _tmpl$92 = /* @__PURE__ */ template('<button type=button class="flex w-full h-full flex-col items-center justify-center ui-gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"><span>'), _tmpl$0 = /* @__PURE__ */ template('<span class="pointer-events-none block flex-none"role=img>'), _tmpl$1 = /* @__PURE__ */ template('<a class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline">'), _tmpl$10 = /* @__PURE__ */ template('<span class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 border-solid border-[var(--color-danger)]"aria-hidden=true>'), _tmpl$11 = /* @__PURE__ */ template('<img class="pointer-events-none block flex-none select-none [-webkit-user-drag:none]"alt decoding=async>'), GRID_GAP = 8, HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6, MAX_LAYOUT_ASPECT_RATIO = 3, MAX_TILE_WIDTH = 220, MAX_CROSS_COUNT = 12, OVERSCAN_ROWS = 4, SCROLL_PIXEL_EPSILON = 1, PREVIEW_CONCURRENT_LOADS = 2, PREVIEW_LOAD_RADIUS = 2, OVERLAY_PREVIEW_ACTION_CLASS = ["inline-flex h-[var(--ui-control-size-md)] items-center justify-center py-0 ui-rounded-md border-0 bg-transparent text-[var(--color-site-text)] cursor-pointer font-sans textsize-sm font-700 leading-1", "opacity-90 hover:opacity-100 hover:bg-[var(--color-site-page)] focus-visible:opacity-100 disabled:opacity-40 disabled:cursor-default transition-[opacity,background-color] duration-160"].join(" "), OVERLAY_PREVIEW_ICON_ACTION_CLASS = `${OVERLAY_PREVIEW_ACTION_CLASS} w-[var(--ui-control-size-md)] px-0`, DECODE_CACHE_BYTES = 64 * 1024 * 1024, DECODE_CACHE_ITEMS = 160, NEXT_SCROLL_PREVIEW_DIRECTION = {
+  var _tmpl$9 = /* @__PURE__ */ template('<span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner">'), _tmpl$25 = /* @__PURE__ */ template('<div><span class="flex items-center ui-gap-sm opacity-75"></span><div><button type=button></button><button type=button></button><button type=button></button><button type=button></button><button type=button>'), _tmpl$33 = /* @__PURE__ */ template('<div class="grid grid-cols-[minmax(0,1fr)_auto] min-h-[var(--ui-control-size-sm)] flex-none items-center ui-gap-sm ui-px-sm ui-py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-sm"><span class="inline-flex min-h-[var(--ui-control-size-sm)] items-center ui-gap-xs ui-px-sm ui-rounded-sm bg-[var(--color-site-surface)] opacity-75"></span><div><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96"></button><button type=button class="inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96">'), _tmpl$43 = /* @__PURE__ */ template('<div class="relative min-h-0 w-full flex-1"><div class="absolute box-border bg-[var(--color-surface)] cursor-grab [&amp;[data-dragging=true]]:cursor-grabbing [&amp;[data-dragging=true]]:select-none [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"><div class=relative>'), _tmpl$53 = /* @__PURE__ */ template("<div class=absolute>"), _tmpl$63 = /* @__PURE__ */ template('<div class="flex w-full justify-center ui-my-sm"><button type=button class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center ui-gap-sm ui-px-md ui-rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98">'), _tmpl$72 = /* @__PURE__ */ template('<div><section class="box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]">'), _tmpl$82 = /* @__PURE__ */ template('<div class="relative flex w-full min-w-0 items-center justify-center overflow-hidden rounded-sm bg-[var(--color-background)]">'), _tmpl$92 = /* @__PURE__ */ template('<button type=button class="flex w-full h-full flex-col items-center justify-center ui-gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"><span>'), _tmpl$0 = /* @__PURE__ */ template('<span class="pointer-events-none block flex-none"role=img style=transform-origin:center>'), _tmpl$1 = /* @__PURE__ */ template('<a class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline">'), _tmpl$10 = /* @__PURE__ */ template('<span class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 border-solid border-[var(--color-danger)]"aria-hidden=true>'), _tmpl$11 = /* @__PURE__ */ template('<img class="pointer-events-none block flex-none select-none [-webkit-user-drag:none]"alt decoding=async>'), GRID_GAP = 8, HORIZONTAL_FLING_VELOCITY_FACTOR = 1.6, MAX_LAYOUT_ASPECT_RATIO = 3, MAX_TILE_WIDTH = 220, MAX_CROSS_COUNT = 12, OVERSCAN_ROWS = 4, SCROLL_PIXEL_EPSILON = 1, PREVIEW_CONCURRENT_LOADS = 2, PREVIEW_LOAD_RADIUS = 2, OVERLAY_PREVIEW_ACTION_CLASS = ["inline-flex h-[var(--ui-control-size-md)] items-center justify-center py-0 ui-rounded-md border-0 bg-transparent text-[var(--color-site-text)] cursor-pointer font-sans textsize-sm font-700 leading-1", "opacity-90 hover:opacity-100 hover:bg-[var(--color-site-page)] focus-visible:opacity-100 disabled:opacity-40 disabled:cursor-default transition-[opacity,background-color] duration-160"].join(" "), OVERLAY_PREVIEW_ICON_ACTION_CLASS = `${OVERLAY_PREVIEW_ACTION_CLASS} w-[var(--ui-control-size-md)] px-0`, DECODE_CACHE_BYTES = 64 * 1024 * 1024, DECODE_CACHE_ITEMS = 160, NEXT_SCROLL_PREVIEW_DIRECTION = {
     ltr: "rtl",
     rtl: "ttb",
     ttb: "ltr"
@@ -6195,9 +6195,6 @@ Next page`,
           return (() => {
             var _el$20 = _tmpl$53();
             return insert(_el$20, createComponent(PreviewTile, {
-              get alignment() {
-                return memo(() => !!state2.rightToLeft)() ? "right" : state2.horizontal ? "left" : "center";
-              },
               get decodeCache() {
                 return state2.decodeCache;
               },
@@ -6209,9 +6206,6 @@ Next page`,
               },
               get highlighted() {
                 return slot.pageNum === state2.highlightedPageNum();
-              },
-              get horizontal() {
-                return state2.horizontal;
               },
               get item() {
                 return slot.item;
@@ -6843,8 +6837,8 @@ Next page`,
                 });
               }
             }), _el$27), insert(_el$27, () => props.pageNum), createRenderEffect((_p$) => {
-              var _v$46 = !!props.failed, _v$47 = !props.failed;
-              return _v$46 !== _p$.e && _el$26.classList.toggle("cursor-pointer", _p$.e = _v$46), _v$47 !== _p$.t && (_el$26.disabled = _p$.t = _v$47), _p$;
+              var _v$40 = !!props.failed, _v$41 = !props.failed;
+              return _v$40 !== _p$.e && _el$26.classList.toggle("cursor-pointer", _p$.e = _v$40), _v$41 !== _p$.t && (_el$26.disabled = _p$.t = _v$41), _p$;
             }, {
               e: void 0,
               t: void 0
@@ -6861,23 +6855,22 @@ Next page`,
               return (() => {
                 var _el$31 = _tmpl$11();
                 return setAttribute(_el$31, "draggable", !1), createRenderEffect((_p$) => {
-                  var _v$60 = item.thumbnail.url, _v$61 = item.thumbnail.width, _v$62 = item.thumbnail.height, _v$63 = `${item.thumbnail.height * imageScale()}px`, _v$64 = props.horizontal ? props.alignment === "right" ? "right center" : "left center" : "center top", _v$65 = `${item.thumbnail.width * imageScale()}px`;
-                  return _v$60 !== _p$.e && setAttribute(_el$31, "src", _p$.e = _v$60), _v$61 !== _p$.t && setAttribute(_el$31, "width", _p$.t = _v$61), _v$62 !== _p$.a && setAttribute(_el$31, "height", _p$.a = _v$62), _v$63 !== _p$.o && setStyleProperty(_el$31, "height", _p$.o = _v$63), _v$64 !== _p$.i && setStyleProperty(_el$31, "object-position", _p$.i = _v$64), _v$65 !== _p$.n && setStyleProperty(_el$31, "width", _p$.n = _v$65), _p$;
+                  var _v$53 = item.thumbnail.url, _v$54 = item.thumbnail.width, _v$55 = item.thumbnail.height, _v$56 = `${item.thumbnail.height * imageScale()}px`, _v$57 = `${item.thumbnail.width * imageScale()}px`;
+                  return _v$53 !== _p$.e && setAttribute(_el$31, "src", _p$.e = _v$53), _v$54 !== _p$.t && setAttribute(_el$31, "width", _p$.t = _v$54), _v$55 !== _p$.a && setAttribute(_el$31, "height", _p$.a = _v$55), _v$56 !== _p$.o && setStyleProperty(_el$31, "height", _p$.o = _v$56), _v$57 !== _p$.i && setStyleProperty(_el$31, "width", _p$.i = _v$57), _p$;
                 }, {
                   e: void 0,
                   t: void 0,
                   a: void 0,
                   o: void 0,
-                  i: void 0,
-                  n: void 0
+                  i: void 0
                 }), _el$31;
               })();
             },
             get children() {
               var _el$28 = _tmpl$0();
               return createRenderEffect((_p$) => {
-                var _v$48 = `url(${JSON.stringify(item.thumbnail.url)})`, _v$49 = item.thumbnail.backgroundPosition, _v$50 = item.thumbnail.backgroundRepeat, _v$51 = item.thumbnail.backgroundSize, _v$52 = `${item.thumbnail.height}px`, _v$53 = `scale(${imageScale()})`, _v$54 = props.horizontal ? props.alignment === "right" ? "right center" : "left center" : "center top", _v$55 = `${item.thumbnail.width}px`, _v$56 = `Page ${item.pageNum}`;
-                return _v$48 !== _p$.e && setStyleProperty(_el$28, "background-image", _p$.e = _v$48), _v$49 !== _p$.t && setStyleProperty(_el$28, "background-position", _p$.t = _v$49), _v$50 !== _p$.a && setStyleProperty(_el$28, "background-repeat", _p$.a = _v$50), _v$51 !== _p$.o && setStyleProperty(_el$28, "background-size", _p$.o = _v$51), _v$52 !== _p$.i && setStyleProperty(_el$28, "height", _p$.i = _v$52), _v$53 !== _p$.n && setStyleProperty(_el$28, "transform", _p$.n = _v$53), _v$54 !== _p$.s && setStyleProperty(_el$28, "transform-origin", _p$.s = _v$54), _v$55 !== _p$.h && setStyleProperty(_el$28, "width", _p$.h = _v$55), _v$56 !== _p$.r && setAttribute(_el$28, "aria-label", _p$.r = _v$56), _p$;
+                var _v$42 = `url(${JSON.stringify(item.thumbnail.url)})`, _v$43 = item.thumbnail.backgroundPosition, _v$44 = item.thumbnail.backgroundRepeat, _v$45 = item.thumbnail.backgroundSize, _v$46 = `${item.thumbnail.height}px`, _v$47 = `scale(${imageScale()})`, _v$48 = `${item.thumbnail.width}px`, _v$49 = `Page ${item.pageNum}`;
+                return _v$42 !== _p$.e && setStyleProperty(_el$28, "background-image", _p$.e = _v$42), _v$43 !== _p$.t && setStyleProperty(_el$28, "background-position", _p$.t = _v$43), _v$44 !== _p$.a && setStyleProperty(_el$28, "background-repeat", _p$.a = _v$44), _v$45 !== _p$.o && setStyleProperty(_el$28, "background-size", _p$.o = _v$45), _v$46 !== _p$.i && setStyleProperty(_el$28, "height", _p$.i = _v$46), _v$47 !== _p$.n && setStyleProperty(_el$28, "transform", _p$.n = _v$47), _v$48 !== _p$.s && setStyleProperty(_el$28, "width", _p$.s = _v$48), _v$49 !== _p$.h && setAttribute(_el$28, "aria-label", _p$.h = _v$49), _p$;
               }, {
                 e: void 0,
                 t: void 0,
@@ -6886,8 +6879,7 @@ Next page`,
                 i: void 0,
                 n: void 0,
                 s: void 0,
-                h: void 0,
-                r: void 0
+                h: void 0
               }), _el$28;
             }
           }), (() => {
@@ -6895,8 +6887,8 @@ Next page`,
             return _el$29.$$click = (event) => {
               event.preventDefault(), event.stopPropagation(), props.onOpenPage(item.pageUrl, item.pageNum);
             }, setAttribute(_el$29, "draggable", !1), createRenderEffect((_p$) => {
-              var _v$57 = item.pageUrl, _v$58 = `Page ${item.pageNum}`, _v$59 = props.highlighted ? "page" : void 0;
-              return _v$57 !== _p$.e && setAttribute(_el$29, "href", _p$.e = _v$57), _v$58 !== _p$.t && setAttribute(_el$29, "aria-label", _p$.t = _v$58), _v$59 !== _p$.a && setAttribute(_el$29, "aria-current", _p$.a = _v$59), _p$;
+              var _v$50 = item.pageUrl, _v$51 = `Page ${item.pageNum}`, _v$52 = props.highlighted ? "page" : void 0;
+              return _v$50 !== _p$.e && setAttribute(_el$29, "href", _p$.e = _v$50), _v$51 !== _p$.t && setAttribute(_el$29, "aria-label", _p$.t = _v$51), _v$52 !== _p$.a && setAttribute(_el$29, "aria-current", _p$.a = _v$52), _p$;
             }, {
               e: void 0,
               t: void 0,
@@ -6911,17 +6903,7 @@ Next page`,
             }
           })];
         }
-      })), createRenderEffect((_p$) => {
-        var _v$40 = !!props.horizontal, _v$41 = !props.horizontal, _v$42 = props.alignment === "center", _v$43 = props.alignment === "left", _v$44 = props.alignment === "right", _v$45 = `${props.height}px`;
-        return _v$40 !== _p$.e && _el$25.classList.toggle("items-center", _p$.e = _v$40), _v$41 !== _p$.t && _el$25.classList.toggle("items-start", _p$.t = _v$41), _v$42 !== _p$.a && _el$25.classList.toggle("justify-center", _p$.a = _v$42), _v$43 !== _p$.o && _el$25.classList.toggle("justify-start", _p$.o = _v$43), _v$44 !== _p$.i && _el$25.classList.toggle("justify-end", _p$.i = _v$44), _v$45 !== _p$.n && setStyleProperty(_el$25, "height", _p$.n = _v$45), _p$;
-      }, {
-        e: void 0,
-        t: void 0,
-        a: void 0,
-        o: void 0,
-        i: void 0,
-        n: void 0
-      }), _el$25;
+      })), createRenderEffect((_$p) => setStyleProperty(_el$25, "height", `${props.height}px`)), _el$25;
     })();
   }
   var PreviewDecodeCache = class {
@@ -8209,7 +8191,7 @@ Next page`,
             onChange: (value) => {
               setChanged(!0), setDraft("locale", value);
             }
-          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260902.1404", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => i18n_default.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => i18n_default.settings.licenses), insert(_el$28, createComponent(Icon2, {
+          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260904.1706", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => i18n_default.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => i18n_default.settings.licenses), insert(_el$28, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$30.$$click = (event) => {
@@ -8281,27 +8263,85 @@ Next page`,
   delegateEvents(["click"]);
 
   // src/components/Widgets/BackToTop.tsx
-  var _tmpl$17 = /* @__PURE__ */ template('<button type=button class="fixed safe-right-lg bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_var(--ui-hit-size-lg)_+_var(--ui-space-md))] z-ui inline-flex ui-hit-square-lg items-center justify-center rounded-full border-0 bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96">'), BACK_TO_TOP_POSITION_KEY = "ehpeek:back-to-top:position";
+  var _tmpl$17 = /* @__PURE__ */ template('<button type=button class="fixed z-ui inline-flex ui-hit-square-lg items-center justify-center rounded-full border-0 bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96">'), BACK_TO_TOP_POSITION_KEY = "ehpeek:back-to-top:position", GALLERY_COLUMNS_BACK_TO_TOP_POSITION_KEY = "ehpeek:gallery-columns-back-to-top:position";
   function clearBackToTopPosition() {
-    GM_deleteValue(BACK_TO_TOP_POSITION_KEY);
+    GM_deleteValue(BACK_TO_TOP_POSITION_KEY), GM_deleteValue(GALLERY_COLUMNS_BACK_TO_TOP_POSITION_KEY);
   }
   function BackToTop(props) {
-    let button2, drag = null, dragged = !1, [visible, setVisible] = createSignal(!1), [position, setPosition] = createSignal(null), positionStyle = () => {
+    return createComponent(MovableBackToTop, {
+      get leftHanded() {
+        return props.leftHanded;
+      },
+      positionKey: BACK_TO_TOP_POSITION_KEY
+    });
+  }
+  function GalleryColumnsBackToTop(props) {
+    return createComponent(MovableBackToTop, {
+      get leftHanded() {
+        return props.leftHanded;
+      },
+      positionKey: GALLERY_COLUMNS_BACK_TO_TOP_POSITION_KEY,
+      get scope() {
+        return props.scope;
+      }
+    });
+  }
+  function MovableBackToTop(props) {
+    let button2, drag = null, dragged = !1, scopedBounds = null, [visible, setVisible] = createSignal(!1), [position, setPosition] = createSignal(null), [boundsVersion, setBoundsVersion] = createSignal(0), bounds = () => props.scope ? scopedBounds : {
+      bottom: window.innerHeight,
+      height: window.innerHeight,
+      left: 0,
+      right: window.innerWidth,
+      width: window.innerWidth
+    }, positionStyle = () => {
+      boundsVersion();
+      let currentBounds = bounds();
+      if (!currentBounds)
+        return {
+          display: "none"
+        };
       let current = position();
-      return current ? {
-        bottom: `${current.bottom}px`,
-        right: `${current.right}px`
-      } : void 0;
+      if (!props.scope)
+        return current ? {
+          bottom: `${current.bottom}px`,
+          right: `${current.right}px`
+        } : void 0;
+      let viewportBottom = window.innerHeight - currentBounds.bottom;
+      if (current) {
+        let clamped = button2 ? clampPosition(current, button2, currentBounds) : current;
+        return {
+          bottom: `${viewportBottom + clamped.bottom}px`,
+          right: `${window.innerWidth - currentBounds.right + clamped.right}px`
+        };
+      }
+      return props.leftHanded() ? {
+        bottom: `calc(${viewportBottom}px + var(--ui-space-lg))`,
+        left: `calc(${currentBounds.left}px + var(--ui-space-lg))`,
+        right: "auto"
+      } : {
+        bottom: `calc(${viewportBottom}px + var(--ui-space-lg))`,
+        right: `calc(${window.innerWidth - currentBounds.right}px + var(--ui-space-lg))`
+      };
     };
     return onMount(() => {
       let updateVisibility = () => {
-        setVisible(window.scrollY > Math.max(320, window.innerHeight * 0.5));
+        let currentBounds = bounds();
+        setVisible(currentBounds !== null && (props.scope?.scrollTop() ?? window.scrollY) > Math.max(320, currentBounds.height * 0.5));
+      }, updateBounds = () => {
+        scopedBounds = props.scope?.bounds() ?? null, setBoundsVersion((version) => version + 1), updateVisibility();
       };
-      updateVisibility();
-      let savedPosition = GM_getValue(BACK_TO_TOP_POSITION_KEY, null);
-      savedPosition && setPosition(savedPosition), window.addEventListener("scroll", updateVisibility, {
-        passive: !0
-      }), onCleanup(() => window.removeEventListener("scroll", updateVisibility));
+      props.scope ? updateBounds() : updateVisibility();
+      let savedPosition = GM_getValue(props.positionKey, null);
+      if (savedPosition && setPosition(savedPosition), props.scope) {
+        let stopListening = props.scope.listen({
+          onBoundsChange: updateBounds,
+          onScroll: updateVisibility
+        });
+        onCleanup(stopListening);
+      } else
+        window.addEventListener("scroll", updateVisibility, {
+          passive: !0
+        }), onCleanup(() => window.removeEventListener("scroll", updateVisibility));
     }), createComponent(Show, {
       get when() {
         return visible();
@@ -8313,7 +8353,7 @@ Next page`,
             event.preventDefault(), dragged = !1;
             return;
           }
-          window.scrollTo({
+          props.scope ? props.scope.scrollToTop() : window.scrollTo({
             top: 0,
             behavior: "smooth"
           });
@@ -8322,21 +8362,26 @@ Next page`,
             return;
           button2.releasePointerCapture(event.pointerId), drag = null;
           let current = position();
-          dragged && current && GM_setValue(BACK_TO_TOP_POSITION_KEY, current);
+          dragged && current && GM_setValue(props.positionKey, current);
         }, _el$.$$pointermove = (event) => {
           if (!drag || drag.pointerId !== event.pointerId)
             return;
           let dx = event.clientX - drag.x, dy = event.clientY - drag.y;
-          dragged || (dragged = Math.hypot(dx, dy) > 4), setPosition(clampPosition({
+          dragged || (dragged = Math.hypot(dx, dy) > 4);
+          let currentBounds = bounds();
+          currentBounds && setPosition(clampPosition({
             bottom: drag.bottom - dy,
             right: drag.right - dx
-          }, button2));
+          }, button2, currentBounds));
         }, _el$.$$pointerdown = (event) => {
-          let rect = button2.getBoundingClientRect();
+          let currentBounds = bounds();
+          if (!currentBounds)
+            return;
+          let buttonRect = button2.getBoundingClientRect();
           dragged = !1, drag = {
-            bottom: window.innerHeight - rect.bottom,
+            bottom: currentBounds.bottom - buttonRect.bottom,
             pointerId: event.pointerId,
-            right: window.innerWidth - rect.right,
+            right: currentBounds.right - buttonRect.right,
             x: event.clientX,
             y: event.clientY
           }, button2.setPointerCapture(event.pointerId);
@@ -8347,7 +8392,8 @@ Next page`,
           size: "var(--ui-icon-size-lg)"
         })), createRenderEffect((_p$) => {
           var _v$ = {
-            "!right-auto safe-left-lg": props.leftHanded() && position() === null
+            "safe-right-lg bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_var(--ui-hit-size-lg)_+_var(--ui-space-md))]": !props.scope,
+            "!right-auto safe-left-lg": !props.scope && props.leftHanded() && position() === null
           }, _v$2 = positionStyle();
           return _p$.e = classList(_el$, _v$, _p$.e), _p$.t = style(_el$, _v$2, _p$.t), _p$;
         }, {
@@ -8357,10 +8403,10 @@ Next page`,
       }
     });
   }
-  function clampPosition(position, button2) {
+  function clampPosition(position, button2, bounds) {
     return {
-      bottom: Math.min(Math.max(0, position.bottom), Math.max(0, window.innerHeight - button2.offsetHeight)),
-      right: Math.min(Math.max(0, position.right), Math.max(0, window.innerWidth - button2.offsetWidth))
+      bottom: Math.min(Math.max(0, position.bottom), Math.max(0, bounds.height - button2.offsetHeight)),
+      right: Math.min(Math.max(0, position.right), Math.max(0, bounds.width - button2.offsetWidth))
     };
   }
   delegateEvents(["pointerdown", "pointermove", "pointerup", "click"]);
@@ -8415,7 +8461,7 @@ Next page`,
     return `${TAG_NAMESPACE_PREFIXES[namespace] ?? namespace}:${name.slice(separator + 1)}$`;
   }
   function GalleryInfoPanel(props) {
-    let source = untrack(() => props.source), rating = source.data.rating, hasCover = source.elems.cover !== null, [ratingValue, setRatingValue] = createSignal(rating?.value ?? 0), [ratingPreview, setRatingPreview] = createSignal(null), [ratingPickerOpen, setRatingPickerOpen] = createSignal(!1), [ratingSubmitted, setRatingSubmitted] = createSignal(rating?.rated ?? !1), [ratingCount] = createSignal(rating?.count ?? ""), [ratingValueLabel] = createSignal(rating?.label ?? ""), initialTagGroups = source.data.tagGroups.map((group) => ({
+    let panel, source = untrack(() => props.source), rating = source.data.rating, hasCover = source.elems.cover !== null, [ratingValue, setRatingValue] = createSignal(rating?.value ?? 0), [ratingPreview, setRatingPreview] = createSignal(null), [ratingPickerOpen, setRatingPickerOpen] = createSignal(!1), [ratingSubmitted, setRatingSubmitted] = createSignal(rating?.rated ?? !1), [ratingCount] = createSignal(rating?.count ?? ""), [ratingValueLabel] = createSignal(rating?.label ?? ""), initialTagGroups = source.data.tagGroups.map((group) => ({
       ...group,
       tags: group.tags.flatMap(({
         contentSourceIndex,
@@ -8427,7 +8473,37 @@ Next page`,
           contentSource
         }] : [];
       })
-    })), [tagGroups, setTagGroups] = createSignal(initialTagGroups), [selectedTag, setSelectedTag] = createSignal(null), [tagging, setTagging] = createSignal(!1), ratingPointerType = "", hasNewTag = () => source.elems.newTag !== null, displayedRating = createMemo(() => ratingPreview() ?? ratingValue()), closeRatingPicker = () => {
+    })), [tagGroups, setTagGroups] = createSignal(initialTagGroups), [selectedTag, setSelectedTag] = createSignal(null), [tagging, setTagging] = createSignal(!1), ratingPointerType = "", infoColumn = () => panel.closest(".ehpeek-touch-gallery-layout-left"), backToTopScope = {
+      bounds: () => {
+        let rect = infoColumn()?.getBoundingClientRect();
+        return rect ? {
+          bottom: rect.bottom,
+          height: rect.height,
+          left: rect.left,
+          right: rect.right,
+          width: rect.width
+        } : null;
+      },
+      listen: ({
+        onBoundsChange,
+        onScroll
+      }) => {
+        let column = infoColumn();
+        if (!column)
+          throw new Error("Gallery info column is unavailable.");
+        let resizeObserver = new ResizeObserver(onBoundsChange);
+        return resizeObserver.observe(column), column.addEventListener("scroll", onScroll, {
+          passive: !0
+        }), window.addEventListener("resize", onBoundsChange), () => {
+          resizeObserver.disconnect(), column.removeEventListener("scroll", onScroll), window.removeEventListener("resize", onBoundsChange);
+        };
+      },
+      scrollToTop: () => infoColumn()?.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      }),
+      scrollTop: () => infoColumn()?.scrollTop ?? 0
+    }, hasNewTag = () => source.elems.newTag !== null, displayedRating = createMemo(() => ratingPreview() ?? ratingValue()), closeRatingPicker = () => {
       setRatingPreview(null), setRatingPickerOpen(!1);
     }, ratingLabel = createMemo(() => {
       let preview = ratingPreview();
@@ -8462,8 +8538,8 @@ Next page`,
       }))), setSelectedTag((tag2) => tag2?.url === updatedTag.url ? updatedTag : tag2);
     };
     return (() => {
-      var _el$ = _tmpl$56(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.firstChild, _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$5.nextSibling, _el$9 = _el$8.firstChild, _el$0 = _el$4.nextSibling, _el$1 = _el$0.firstChild, _el$10 = _el$1.nextSibling, _el$11 = _el$2.nextSibling, _el$12 = _el$11.firstChild;
-      return className(_el$3, `ehpeek-touch-gallery-summary grid ui-gap-sm items-stretch ${hasCover ? "ehpeek-touch-gallery-summary-has-cover" : "grid-cols-1"}`), insert(_el$3, hasCover && (() => {
+      var _el$ = _tmpl$56(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.firstChild, _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$5.nextSibling, _el$9 = _el$8.firstChild, _el$0 = _el$4.nextSibling, _el$1 = _el$0.firstChild, _el$10 = _el$1.nextSibling, _el$11 = _el$2.nextSibling, _el$12 = _el$11.firstChild, _ref$ = panel;
+      return typeof _ref$ == "function" ? use(_ref$, _el$) : panel = _el$, className(_el$3, `ehpeek-touch-gallery-summary grid ui-gap-sm items-stretch ${hasCover ? "ehpeek-touch-gallery-summary-has-cover" : "grid-cols-1"}`), insert(_el$3, hasCover && (() => {
         var _el$21 = _tmpl$66();
         return insert(_el$21, createComponent(DomNode2, {
           get node() {
@@ -8574,6 +8650,18 @@ Next page`,
             source
           })), createRenderEffect(() => className(_el$13, tagging() ? "block" : "hidden")), _el$13;
         }
+      }), null), insert(_el$, createComponent(Show, {
+        get when() {
+          return props.columnsEnabled();
+        },
+        get children() {
+          return createComponent(GalleryColumnsBackToTop, {
+            get leftHanded() {
+              return props.leftHandedControls;
+            },
+            scope: backToTopScope
+          });
+        }
       }), null), insert(_el$, createComponent(TouchGalleryTagMenu, {
         source,
         get tag() {
@@ -8661,8 +8749,8 @@ Next page`,
         document.removeEventListener("click", onClick);
       });
     }), (() => {
-      var _el$36 = _tmpl$122(), _el$37 = _el$36.firstChild, _ref$ = root;
-      return typeof _ref$ == "function" ? use(_ref$, _el$36) : root = _el$36, _el$37.$$click = (event) => {
+      var _el$36 = _tmpl$122(), _el$37 = _el$36.firstChild, _ref$2 = root;
+      return typeof _ref$2 == "function" ? use(_ref$2, _el$36) : root = _el$36, _el$37.$$click = (event) => {
         event.stopPropagation(), setOpen((value) => !value);
       }, insert(_el$37, createComponent(Icon2, {
         name: "menu"
@@ -8963,8 +9051,8 @@ Next page`,
     return onMount(() => {
       onCleanup(props.tag.contentSource.mirrorContentTo(host));
     }), (() => {
-      var _el$69 = _tmpl$232(), _ref$2 = host;
-      return typeof _ref$2 == "function" ? use(_ref$2, _el$69) : host = _el$69, _el$69;
+      var _el$69 = _tmpl$232(), _ref$3 = host;
+      return typeof _ref$3 == "function" ? use(_ref$3, _el$69) : host = _el$69, _el$69;
     })();
   }
   function TouchGalleryFavoriteButton(props) {
@@ -14131,9 +14219,16 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
         }
       }));
     }), (page2.type === "gallery" || page2.type === "search" || page2.type === "favorites" || page2.type === "readHistory") && allowFeatureFailure("Back to top", () => {
-      createAppMount().mount(() => createComponent(BackToTop, {
-        get leftHanded() {
-          return gState.leftHandedControls;
+      createAppMount().mount(() => createComponent(Show, {
+        get when() {
+          return page2.type !== "gallery" || !gState.columnsEnabled();
+        },
+        get children() {
+          return createComponent(BackToTop, {
+            get leftHanded() {
+              return gState.leftHandedControls;
+            }
+          });
         }
       }));
     });
@@ -14143,10 +14238,15 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
     allowFeatureFailure("Touch GalleryInfo", () => {
       mutateGalleryTouchLayout(gState.settings.fitToViewport);
       let galleryInfoDom = requirePageDependency("Touch GalleryInfo", manageGalleryInfo(preview.data));
-      galleryInfoDom.handle.installGalleryInfoPanel(), galleryInfoDom.elems.mount.mount(() => createComponent(OverlayHostProvider, {
+      galleryInfoDom.handle.installGalleryInfoPanel();
+      let wideLayout = requirePageDependency("Touch Gallery layout", mutateGalleryWideLayout(galleryInfoDom, preview, gState.columnsEnabled(), gState.settings.replacePreviewWithScroll));
+      createEffect(() => wideLayout.updateEnabled(gState.columnsEnabled())), galleryInfoDom.elems.mount.mount(() => createComponent(OverlayHostProvider, {
         host: overlayHost,
         get children() {
           return createComponent(GalleryInfoPanel, {
+            get columnsEnabled() {
+              return gState.columnsEnabled;
+            },
             get leftHandedControls() {
               return gState.leftHandedControls;
             },
@@ -14164,8 +14264,6 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
           });
         }
       }));
-      let wideLayout = requirePageDependency("Touch Gallery layout", mutateGalleryWideLayout(galleryInfoDom, preview, gState.columnsEnabled(), gState.settings.replacePreviewWithScroll));
-      createEffect(() => wideLayout.updateEnabled(gState.columnsEnabled()));
     }), allowFeatureFailure("Touch Gallery comments", () => {
       manageGalleryCommentsTouch(reportReaderOpenError);
     });
