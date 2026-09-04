@@ -509,18 +509,12 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
                 }}
               >
                 <PreviewTile
-                  alignment={state.rightToLeft
-                    ? "right"
-                    : state.horizontal
-                      ? "left"
-                      : "center"}
                   decodeCache={state.decodeCache}
                   failed={state.failedIndexes().has(
                     state.previewCache.previewIndexForPage(slot.pageNum),
                   )}
                   height={height()}
                   highlighted={slot.pageNum === state.highlightedPageNum()}
-                  horizontal={state.horizontal}
                   item={slot.item}
                   maximumScale={state.layout().itemScaleLimit}
                   pageNum={slot.pageNum}
@@ -1621,12 +1615,10 @@ function ScrollPreviewPanel(props: {
 }
 
 function PreviewTile(props: {
-  alignment: "center" | "left" | "right";
   decodeCache: PreviewDecodeCache;
   failed: boolean;
   height: number;
   highlighted: boolean;
-  horizontal: boolean;
   item: GalleryPreviewItem | null;
   maximumScale: number;
   pageNum: number;
@@ -1646,14 +1638,7 @@ function PreviewTile(props: {
 
   return (
     <div
-      class="relative flex w-full min-w-0 overflow-hidden rounded-sm bg-[var(--color-background)]"
-      classList={{
-        "items-center": props.horizontal,
-        "items-start": !props.horizontal,
-        "justify-center": props.alignment === "center",
-        "justify-start": props.alignment === "left",
-        "justify-end": props.alignment === "right",
-      }}
+      class="relative flex w-full min-w-0 items-center justify-center overflow-hidden rounded-sm bg-[var(--color-background)]"
       style={{ height: `${props.height}px` }}
     >
       <Show
@@ -1693,11 +1678,6 @@ function PreviewTile(props: {
                   height={item.thumbnail.height}
                   style={{
                     height: `${item.thumbnail.height * imageScale()}px`,
-                    "object-position": props.horizontal
-                      ? props.alignment === "right"
-                        ? "right center"
-                        : "left center"
-                      : "center top",
                     width: `${item.thumbnail.width * imageScale()}px`,
                   }}
                   decoding="async"
@@ -1714,11 +1694,7 @@ function PreviewTile(props: {
                   "background-size": item.thumbnail.backgroundSize,
                   height: `${item.thumbnail.height}px`,
                   transform: `scale(${imageScale()})`,
-                  "transform-origin": props.horizontal
-                    ? props.alignment === "right"
-                      ? "right center"
-                      : "left center"
-                    : "center top",
+                  "transform-origin": "center",
                   width: `${item.thumbnail.width}px`,
                 }}
                 role="img"
