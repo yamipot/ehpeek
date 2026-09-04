@@ -485,7 +485,11 @@ function injectCommon(page: eh.PageType): void {
   ) {
     allowFeatureFailure("Back to top", () => {
       const host = createAppMount();
-      host.mount(() => <BackToTop leftHanded={gState.leftHandedControls} />);
+      host.mount(() => (
+        <Show when={page.type !== "gallery" || !gState.columnsEnabled()}>
+          <BackToTop leftHanded={gState.leftHandedControls} />
+        </Show>
+      ));
     });
   }
 }
@@ -502,9 +506,20 @@ function injectGalleryDetails(
       eh.manageGalleryInfo(preview.data),
     );
     galleryInfoDom.handle.installGalleryInfoPanel();
+    const wideLayout = requirePageDependency(
+      "Touch Gallery layout",
+      eh.mutateGalleryWideLayout(
+        galleryInfoDom,
+        preview,
+        gState.columnsEnabled(),
+        gState.settings.replacePreviewWithScroll,
+      ),
+    );
+    createEffect(() => wideLayout.updateEnabled(gState.columnsEnabled()));
     galleryInfoDom.elems.mount.mount(() => (
       <OverlayHostProvider host={overlayHost}>
         <GalleryInfoPanel
+          columnsEnabled={gState.columnsEnabled}
           leftHandedControls={gState.leftHandedControls}
           source={galleryInfoDom}
           primaryAction={(
@@ -516,16 +531,6 @@ function injectGalleryDetails(
         />
       </OverlayHostProvider>
     ));
-    const wideLayout = requirePageDependency(
-      "Touch Gallery layout",
-      eh.mutateGalleryWideLayout(
-        galleryInfoDom,
-        preview,
-        gState.columnsEnabled(),
-        gState.settings.replacePreviewWithScroll,
-      ),
-    );
-    createEffect(() => wideLayout.updateEnabled(gState.columnsEnabled()));
   });
 
   allowFeatureFailure("Touch Gallery comments", () => {

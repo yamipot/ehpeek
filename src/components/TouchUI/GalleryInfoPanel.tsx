@@ -18,6 +18,10 @@ import texts from "../../i18n";
 import { state } from "../../state";
 import { refreshMyTags } from "../Enhance/MyTags";
 import { WelcomeIcon } from "../WelcomeIcon";
+import {
+  type BackToTopScope,
+  GalleryColumnsBackToTop,
+} from "../Widgets/BackToTop";
 import { Dialog } from "../Widgets/Dialog";
 import { DomNode, DomNodes } from "../Widgets/ExternalDom";
 import { Icon } from "../Widgets/Icon";
@@ -56,10 +60,12 @@ function exactTagQuery(name: string): string {
 type GalleryPanelTagGroup = GalleryInfoTagGroup;
 
 export function GalleryInfoPanel(props: {
+  columnsEnabled: Accessor<boolean>;
   leftHandedControls: Accessor<boolean>;
   primaryAction?: JSX.Element;
   source: GalleryInfoDom;
 }) {
+  let panel!: HTMLElement;
   const source = untrack(() => props.source);
   const rating = source.data.rating;
   const hasCover = source.elems.cover !== null;
@@ -85,6 +91,39 @@ export function GalleryInfoPanel(props: {
   >(null);
   const [tagging, setTagging] = createSignal(false);
   let ratingPointerType = "";
+  const infoColumn = () =>
+    panel.closest<HTMLElement>(".ehpeek-touch-gallery-layout-left");
+  const backToTopScope: BackToTopScope = {
+    bounds: () => {
+      const rect = infoColumn()?.getBoundingClientRect();
+      return rect
+        ? {
+          bottom: rect.bottom,
+          height: rect.height,
+          left: rect.left,
+          right: rect.right,
+          width: rect.width,
+        }
+        : null;
+    },
+    listen: ({ onBoundsChange, onScroll }) => {
+      const column = infoColumn();
+      if (!column) {
+        throw new Error("Gallery info column is unavailable.");
+      }
+      const resizeObserver = new ResizeObserver(onBoundsChange);
+      resizeObserver.observe(column);
+      column.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onBoundsChange);
+      return () => {
+        resizeObserver.disconnect();
+        column.removeEventListener("scroll", onScroll);
+        window.removeEventListener("resize", onBoundsChange);
+      };
+    },
+    scrollToTop: () => infoColumn()?.scrollTo({ top: 0, behavior: "smooth" }),
+    scrollTop: () => infoColumn()?.scrollTop ?? 0,
+  };
   const hasNewTag = () => source.elems.newTag !== null;
   const displayedRating = createMemo(() => ratingPreview() ?? ratingValue());
   const closeRatingPicker = () => {
@@ -166,7 +205,10 @@ export function GalleryInfoPanel(props: {
   };
 
   return (
-    <section class="flex box-border w-full flex-col ui-mb-sm ehp-color-site-text font-sans">
+    <section
+      ref={panel}
+      class="flex box-border w-full flex-col ui-mb-sm ehp-color-site-text font-sans"
+    >
       <div class="ehpeek-touch-gallery-summary-container relative grid min-h-[clamp(130px,21vh,170px)] ui-pt-sm safe-pr-sm safe-pl-sm ehp-color-site-surface ehp-color-site-text">
         <div
           class={`ehpeek-touch-gallery-summary grid ui-gap-sm items-stretch ${hasCover ? "ehpeek-touch-gallery-summary-has-cover" : "grid-cols-1"}`}
@@ -337,6 +379,12 @@ export function GalleryInfoPanel(props: {
           </div>
         </Show>
       </div>
+      <Show when={props.columnsEnabled()}>
+        <GalleryColumnsBackToTop
+          leftHanded={props.leftHandedControls}
+          scope={backToTopScope}
+        />
+      </Show>
       <TouchGalleryTagMenu
         source={source}
         tag={selectedTag()}
