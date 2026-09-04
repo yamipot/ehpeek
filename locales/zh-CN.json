@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "description": "为触屏优化的 E-H/ExH 阅读器"
+    "description": "针对触屏优化的 E-H/ExH 阅读器。功能： 内置阅读器、可缩放画廊预览、移动端 UI 适配、手势导航、阅读历史等。"
   },
   "common": {
     "actions": {

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "description": "タッチ操作向けの E-H/ExH リーダー"
+    "description": "タッチ操作向けの多機能 E-H/ExH ビューア。内蔵リーダー、ズーム対応のギャラリープレビュー、モバイル向け UI、ジェスチャー操作、閲覧履歴など。"
   },
   "common": {
     "actions": {

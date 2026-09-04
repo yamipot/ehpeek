@@ -10,7 +10,7 @@ A userscript that turns E-H / ExH pages into a touch-optimized gallery reader. I
 
 - Touch-optimized layouts and controls for one-handed use
 - Reader with paged and continuous-scroll modes
-- Scroll preview for browsing galleries at a glance
+- Zoomable gallery previews for browsing galleries at a glance
 - Gesture navigation, reading history, pinch zoom, two-column view, etc.
 
 Each feature above can be enabled independently in settings.
