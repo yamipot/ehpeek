@@ -9,7 +9,7 @@ export type GalleryPreviewCache = {
   getPages: (pageNums: number[]) => Promise<ReaderPage[]>;
   getPreviewItems: (pageNums: number[]) => Promise<eh.GalleryPreviewItem[]>;
   load: (previewIndex: number) => Promise<eh.GalleryPreviewDom>;
-  loadImage: (page: ReaderPage) => Promise<LoadedReaderPage>;
+  loadImage: (page: ReaderPage, signal?: AbortSignal) => Promise<LoadedReaderPage>;
   loading: Accessor<boolean>;
   previewDataVersion: Accessor<number>;
   previewIndexForPage: (pageNum: number) => number;
@@ -158,7 +158,7 @@ export function createGalleryPreviewCache(
     getPages,
     getPreviewItems,
     load,
-    loadImage: eh.loadEhImagePage,
+    loadImage: (page, signal) => eh.loadEhImagePage(page, signal),
     loading,
     previewDataVersion,
     previewIndexForPage,

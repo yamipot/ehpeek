@@ -262,5 +262,5 @@ function initialPageNumber(options: ReaderOptions): number {
 }
 
 function initialMaxProgressPageNumber(options: ReaderOptions): number {
-  return options.totalPages && options.totalPages > 0 ? options.totalPages + 1 : 1;
+  return options.totalPages && options.totalPages > 0 ? options.totalPages : 1;
 }

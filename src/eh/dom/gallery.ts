@@ -481,8 +481,8 @@ export function extractImageGalleryPage(root: ParentNode = document): Extract<Pa
 }
 
 /** Fetches and extracts one original image page for Reader Provider. */
-export async function loadEhImagePage(page: ReaderPage): Promise<LoadedReaderPage> {
-  const response = await requestPage(page.url);
+export async function loadEhImagePage(page: ReaderPage, signal?: AbortSignal): Promise<LoadedReaderPage> {
+  const response = await requestPage(page.url, { signal });
   const source = DomNode.from(response.document);
   const imagePage = source.use(domClass.gallery.imagePage);
   const image = imagePage.image.one();

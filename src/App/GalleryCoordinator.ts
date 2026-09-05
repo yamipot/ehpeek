@@ -42,6 +42,7 @@ export type GalleryCoordinator = {
   openReaderFromHash: () => Promise<void>;
   progress: Accessor<ReadingProgress>;
   readerActivePageChanged: (page: ReaderPage) => void;
+  readerEndReached: () => void;
   requestClosePreview: (previewIndex: number) => void;
   requestCloseReader: () => boolean;
   selectPreviewPage: (pageUrl: string, pageNum: number) => void;
@@ -159,8 +160,9 @@ export function createGalleryCoordinator(options: {
     if (index >= 0) {
       surfaces.splice(index, 1);
     }
-    await exitFullscreen();
+    // Stop Reader work before fullscreen resize can trigger another layout or load cycle.
     activeReader.dispose();
+    await exitFullscreen();
     syncReaderExit();
   };
 
@@ -186,15 +188,18 @@ export function createGalleryCoordinator(options: {
   window.addEventListener("popstate", onPopState);
 
   const stopFullscreen = options.overlayHost.fullscreen.subscribe((active) => {
-    reader?.setFullscreenActive(active);
-    if (
+    const closeReaderAfterFullscreenExit =
       fullscreenWasActive &&
       !active &&
       !preserveSurfacesOnFullscreenExit &&
       options.exitReaderOnFullscreenExit &&
-      reader
-    ) {
+      reader !== null;
+    if (closeReaderAfterFullscreenExit) {
+      // Stop Reader immediately instead of letting the fullscreen resize run before popstate closes it.
+      reader?.dispose();
       window.history.go(-surfaces.length);
+    } else {
+      reader?.setFullscreenActive(active);
     }
     fullscreenWasActive = active;
   });
@@ -398,6 +403,9 @@ export function createGalleryCoordinator(options: {
     },
     openOriginalPage,
     readerActivePageChanged: activePageChanged,
+    readerEndReached: () => {
+      progress.update(preview.totalImages, preview.totalImages);
+    },
     progress: progress.progress as Accessor<ReadingProgress>,
     requestClosePreview: (previewIndex: number) => {
       requestClose("preview", () => syncPreviewExit(previewIndex));

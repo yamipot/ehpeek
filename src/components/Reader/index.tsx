@@ -326,7 +326,7 @@ function wireReaderCallbacks(
   function setCurrentPageNumber(pageNumber: number, scrollIntoView: boolean, scrollMotion: ScrollMotion = "instant"): void {
     pagedTargetPageNumber = null;
     const target = normalizedPageNumber(
-      clamp(Math.round(pageNumber), 1, maxProgressPageNum()),
+      clamp(Math.round(pageNumber), 1, maxReaderPageNum()),
     );
     if (target !== state.navi.currentPageNum()) {
       state.navi.setDirection(target > state.navi.currentPageNum() ? 1 : -1);
@@ -475,8 +475,12 @@ function wireReaderCallbacks(
     return page ? { pageNum, page } : null;
   }
 
-  function maxProgressPageNum(): number {
+  function maxReaderPageNum(): number {
     return totalPages ? totalPages + 1 : Number.MAX_SAFE_INTEGER;
+  }
+
+  function maxProgressPageNum(): number {
+    return totalPages ?? Number.MAX_SAFE_INTEGER;
   }
 
   function isRealPageNum(pageNum: number): boolean {
@@ -507,7 +511,7 @@ function wireReaderCallbacks(
 
   function animatePagedStep(delta: number): void {
     const base = pagedTargetPageNumber ?? state.navi.currentPageNum();
-    const target = clamp(Math.round(base + delta), 1, maxProgressPageNum());
+    const target = clamp(Math.round(base + delta), 1, maxReaderPageNum());
     if (target === base) {
       scrollToCurrentPage({ motion: "animated", overrideTarget: false });
       return;
@@ -855,10 +859,13 @@ function wireReaderCallbacks(
   }
 
   function wireImageQueue(): void {
+    const imagePageLoadController = new AbortController();
     const acquireImageLoadBudget = createImageLoadBudget(
       CONCURRENT_IMAGE_BYTE_LIMIT,
       MIN_CONCURRENT_IMAGE_LOADS,
     );
+
+    onCleanup(() => imagePageLoadController.abort());
 
     const rememberLoadedImage = (pageNum: number, loaded: LoadedReaderPage): LoadedReaderImage => {
       const image = {
@@ -930,7 +937,10 @@ function wireReaderCallbacks(
     };
 
     session.imageQueue.updateCallbacks({
-      loadTarget: (target) => Promise.resolve(loadedImages.get(target.pageNum) ?? previewCache.loadImage(target.page)),
+      loadTarget: (target) => Promise.resolve(
+        loadedImages.get(target.pageNum) ??
+        previewCache.loadImage(target.page, imagePageLoadController.signal),
+      ),
       markLoading: (target) => viewportActions.markPageLoading(target.pageNum),
       onLoaded: async (target, loaded, token) => {
         const image = rememberLoadedImage(target.pageNum, loaded);
@@ -1071,6 +1081,7 @@ function wireReaderCallbacks(
       if (state.overlay.image() !== null) {
         event.preventDefault();
       } else if (viewportActions.isHitEndPage(info)) {
+        coordinator.readerEndReached();
         requestReaderClose();
       } else {
         const zone = info.clientX / viewportActions.viewportWidth();
