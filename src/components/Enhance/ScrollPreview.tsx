@@ -991,28 +991,35 @@ function ScrollPreviewPanel(props: {
   };
   const maximumCrossCount = (): number =>
     horizontal ? Math.min(MAX_CROSS_COUNT, totalImages) : MAX_CROSS_COUNT;
-  const minimumCrossCount = (currentLayout: PreviewLayout): number => {
+  const minimumCrossCountForViewport = (
+    viewportWidth: number,
+    viewportHeight: number,
+    gap: number,
+  ): number => {
     const aspectRatio = estimatedAspectRatio;
-    const crossSize = currentLayout.horizontal
-      ? currentLayout.viewportHeight
-      : currentLayout.viewportWidth;
-    const maximumTileCrossSize = currentLayout.horizontal
+    const crossSize = horizontal ? viewportHeight : viewportWidth;
+    const maximumTileCrossSize = horizontal
       ? Math.min(
-        currentLayout.viewportHeight / 2,
-        currentLayout.viewportWidth / 2 * aspectRatio,
+        viewportHeight,
+        viewportWidth * aspectRatio,
       )
       : Math.min(
-        currentLayout.viewportWidth / 2,
-        currentLayout.viewportHeight / 2 / aspectRatio,
+        viewportWidth,
+        viewportHeight / aspectRatio,
       );
     return Math.max(
       1,
       Math.ceil(
-        (crossSize + currentLayout.gap) /
-          (maximumTileCrossSize + currentLayout.gap),
+        (crossSize + gap) / (maximumTileCrossSize + gap),
       ),
     );
   };
+  const minimumCrossCount = (currentLayout: PreviewLayout): number =>
+    minimumCrossCountForViewport(
+      currentLayout.viewportWidth,
+      currentLayout.viewportHeight,
+      currentLayout.gap,
+    );
   const resizeCrossCount = (delta: number): void => {
     flingAnimator.cancel();
     resizeAnchorPageNum = preferredLayoutAnchorPageNum();
@@ -1296,9 +1303,15 @@ function ScrollPreviewPanel(props: {
     const availableRows = embedded
       ? Math.max(1, Math.floor((height + gap) / (itemHeight + gap)))
       : Math.max(1, Math.ceil((height + gap) / (itemHeight + gap)));
-    const automaticCrossCount = horizontal
+    const fittedCrossCount = horizontal
       ? Math.min(availableRows, Math.ceil(totalImages / itemsPerRow))
       : Math.min(itemsPerRow, maximumCrossCount());
+    const automaticCrossCount = embedded
+      ? Math.max(
+        fittedCrossCount,
+        minimumCrossCountForViewport(width, height, gap),
+      )
+      : fittedCrossCount;
     const crossCount = clamp(
       crossCountOverride() ?? automaticCrossCount,
       1,
@@ -1311,12 +1324,12 @@ function ScrollPreviewPanel(props: {
     const crossCountOverridden = crossCountOverride() !== null;
     const overriddenTileWidth = Math.min(
       Math.max(1, (width - gap * (crossCount - 1)) / crossCount),
-      width / 2,
-      height / 2 / aspectRatio,
+      width,
+      height / aspectRatio,
     );
     const tileHeight = horizontal
       ? crossCountOverridden
-        ? Math.min(availableTileHeight, height / 2, width / 2 * aspectRatio)
+        ? Math.min(availableTileHeight, height, width * aspectRatio)
         : Math.min(itemHeight, availableTileHeight)
       : Math.max(
         1,
