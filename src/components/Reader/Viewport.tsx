@@ -136,6 +136,7 @@ export type PagesViewportActions = {
   startVerticalFlingFromDragVelocity: (dragVelocityY: number, onStop: () => void) => void;
   stopMotion: () => void;
   viewportWidth: () => number;
+  viewportXRatio: (clientX: number) => number;
 };
 
 export function PagesViewport(props: {
@@ -612,6 +613,7 @@ export function PagesViewport(props: {
     scrollLeft: () => scrollerApi.scrollLeft(),
     scrollTop,
     viewportWidth,
+    viewportXRatio: (clientX) => scrollerApi.viewportXRatio(clientX),
     pageOffset,
     centerPageNum(): number | null {
       for (const slot of pageSlots) {
@@ -1076,6 +1078,10 @@ function createPagesScroller(element: HTMLElement) {
     },
     viewportHeight(): number {
       return element.clientHeight;
+    },
+    viewportXRatio(clientX: number): number {
+      const bounds = element.getBoundingClientRect();
+      return (clientX - bounds.left) / Math.max(1, bounds.width);
     },
     moveToLeft(scrollLeft: number): void {
       element.scrollLeft = scrollLeft;

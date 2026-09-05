@@ -48,7 +48,7 @@ export function PositionBar(props: {
   let thumb!: HTMLDivElement;
   let dragOffset = 0;
   const axis = untrack(() => props.axis);
-  const thickness = untrack(() => props.thickness ?? "normal");
+  const thickness = () => props.thickness ?? "normal";
   const horizontal = axis === "horizontal";
   const minValue = () => props.minValue ?? 1;
   const valueRange = () => Math.max(0, props.maxValue - minValue());
@@ -169,7 +169,7 @@ export function PositionBar(props: {
           }}
         >
         <span
-          class={`block w-full ${HORIZONTAL_FILL[thickness]} rounded-t-md ${POSITION_BAR_FILL} shadow-[0_2px_10px_var(--color-shadow-control)]`}
+          class={`block w-full ${HORIZONTAL_FILL[thickness()]} rounded-t-md ${POSITION_BAR_FILL} shadow-[0_2px_10px_var(--color-shadow-control)]`}
           style={{
             transform: `scaleY(${props.pixelScale ?? 1})`,
             "transform-origin": "bottom",
@@ -183,8 +183,8 @@ export function PositionBar(props: {
     ? "ui-hit-w-sm"
     : "ui-w-xl";
   const fillSize = () => expanded()
-    ? VERTICAL_FILL[thickness].expanded
-    : VERTICAL_FILL[thickness].collapsed;
+    ? VERTICAL_FILL[thickness()].expanded
+    : VERTICAL_FILL[thickness()].collapsed;
   const renderVertical = () => (
     <div
       ref={track}

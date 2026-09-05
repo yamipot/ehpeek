@@ -4,6 +4,7 @@ import type { ScrollPreviewActions } from "../components/Enhance/ScrollPreview";
 import type { ReaderActions } from "../components/Reader";
 import * as eh from "../eh";
 import type { ReaderPage } from "../readerTypes";
+import type { TwoColumnsReaderMode } from "../state";
 import {
   type GalleryReadHistory,
 } from "../state/readHistory";
@@ -18,6 +19,7 @@ import {
   mountReaderSurface,
   openOriginalReader,
   reportReaderOpenError,
+  type ReaderCoverColumn,
   type ReaderSurface,
 } from "./Reader";
 
@@ -39,6 +41,7 @@ export type GalleryCoordinator = {
   openOriginalPage: (page: ReaderPage) => void;
   openPreviewIndex: (previewIndex: number) => void;
   openPreviewPage: (pageNum: number) => void;
+  openReaderPreviewPage: (pageNum: number) => void;
   openReaderFromHash: () => Promise<void>;
   progress: Accessor<ReadingProgress>;
   readerActivePageChanged: (page: ReaderPage) => void;
@@ -54,12 +57,15 @@ export function createGalleryCoordinator(options: {
   exitReaderOnFullscreenExit: boolean;
   includeReaderPageInUrl: boolean;
   includeUnreadHistoryEnabled: boolean;
+  onReaderPreviewModeChange: (active: boolean) => void;
   overlayHost: OverlayHost;
   previewCache: GalleryPreviewCache;
   readHistory: GalleryReadHistory | null;
   readerEnabled: boolean;
   readerFullscreenEnabled: boolean;
+  readerCoverTarget: (column: ReaderCoverColumn) => HTMLElement | null;
   replacePreviewWithScroll: boolean;
+  twoColumnsReaderMode: TwoColumnsReaderMode;
 }): GalleryCoordinator {
   const previewCache = options.previewCache;
   const preview = previewCache.current().data;
@@ -170,6 +176,7 @@ export function createGalleryCoordinator(options: {
     }
     surfaces.pop();
     previewActions?.close();
+    reader?.setVisible(true);
   };
 
   const syncReaderExit = (): void => {
@@ -205,6 +212,7 @@ export function createGalleryCoordinator(options: {
     }
     // Stop Reader work before fullscreen resize can trigger another layout or load cycle.
     activeReader.dispose();
+    options.onReaderPreviewModeChange(false);
     await exitFullscreen();
     syncReaderExit();
   };
@@ -264,6 +272,7 @@ export function createGalleryCoordinator(options: {
   const activePageChanged = (page: ReaderPage): void => {
     if (page.pageNum) {
       readerLastPage = page.pageNum;
+      previewActions?.setCurrentPage(page.pageNum);
       if (enhancedPreviewActive()) {
         gotoPreviewIndex(previewCache.previewIndexForPage(page.pageNum));
       }
@@ -313,13 +322,20 @@ export function createGalleryCoordinator(options: {
     })();
   };
 
-  const mountReader = (startPageNum: number): void => {
+  const mountReader = (
+    startPageNum: number,
+    coverColumn: ReaderCoverColumn | null,
+    coverTarget: HTMLElement | null,
+  ): void => {
     const current = previewCache.current().data;
     readerLastPage = startPageNum;
     readerInitialPreviewIndex = current.currentIndex;
     pushSurface("reader");
+    options.onReaderPreviewModeChange(coverColumn === "info");
     try {
       reader = mountReaderSurface({
+        coverColumn,
+        coverTarget,
         coordinator,
         options: {
           galleryId: gallery.galleryId,
@@ -331,6 +347,7 @@ export function createGalleryCoordinator(options: {
         previewCache,
       });
     } catch (error) {
+      options.onReaderPreviewModeChange(false);
       surfaces.pop();
       window.history.back();
       throw error;
@@ -362,8 +379,19 @@ export function createGalleryCoordinator(options: {
       throw new Error(texts.errors.imageNotFound);
     }
 
-    const fullscreenResult = requestConfiguredFullscreen &&
-        options.readerFullscreenEnabled &&
+    const requestedCoverColumn: ReaderCoverColumn | null =
+      options.twoColumnsReaderMode === "reader-preview"
+        ? "info"
+        : options.twoColumnsReaderMode === "on-preview"
+        ? "preview"
+        : null;
+    const coverTarget = requestedCoverColumn === null
+      ? null
+      : options.readerCoverTarget(requestedCoverColumn);
+    const coverColumn = coverTarget === null ? null : requestedCoverColumn;
+    const fullscreenResult = coverTarget === null &&
+      requestConfiguredFullscreen &&
+      options.readerFullscreenEnabled &&
         !document.fullscreenElement &&
         document.fullscreenEnabled &&
         typeof options.overlayHost.element.requestFullscreen === "function"
@@ -381,7 +409,7 @@ export function createGalleryCoordinator(options: {
       return;
     }
     try {
-      mountReader(startPageNum);
+      mountReader(startPageNum, coverColumn, coverTarget);
     } catch (error) {
       if (enteredFullscreen) {
         await exitFullscreen();
@@ -395,6 +423,24 @@ export function createGalleryCoordinator(options: {
       pushSurface("preview");
     }
     previewActions?.gotoPage(pageNum);
+  }
+
+  function openReaderPreviewPage(pageNum: number): void {
+    previewActions?.setCurrentPage(pageNum);
+    const coveredColumn = reader?.coveredColumn();
+    if (
+      previewActions &&
+      options.replacePreviewWithScroll &&
+      coveredColumn === "preview"
+    ) {
+      if (!previewOpen()) {
+        pushSurface("preview");
+      }
+      reader?.setVisible(false);
+      previewActions.showEmbeddedPage(pageNum);
+      return;
+    }
+    openPreviewPage(pageNum);
   }
 
   const openPreviewIndex = (previewIndex: number): void => {
@@ -418,6 +464,7 @@ export function createGalleryCoordinator(options: {
       progress.dispose();
       reader?.dispose();
       reader = null;
+      options.onReaderPreviewModeChange(false);
       readerActions = null;
       previewActions?.close();
       window.removeEventListener("popstate", onPopState);
@@ -440,6 +487,7 @@ export function createGalleryCoordinator(options: {
     },
     openPreviewIndex,
     openPreviewPage,
+    openReaderPreviewPage,
     openReaderFromHash: async () => {
       const pageNum = eh.peekPageFromHash();
       if (pageNum === null) {

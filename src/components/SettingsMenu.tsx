@@ -13,6 +13,7 @@ import texts, {
   APP_LOCALE_OPTIONS,
   type AppLocale,
 } from "../i18n";
+import type { TwoColumnsReaderMode } from "../state";
 import {
   UI_SCALE_NAMES,
   type UiScale,
@@ -23,6 +24,8 @@ import { Dialog } from "./Widgets/Dialog";
 import { Icon, type IconName } from "./Widgets/Icon";
 
 type SettingsMenuState = {
+  twoColumnsEnabled: boolean;
+  twoColumnsReaderMode: TwoColumnsReaderMode;
   locale: AppLocale;
   openGalleryInNewTab: boolean;
   readerEnabled: boolean;
@@ -63,6 +66,14 @@ const UI_SCALE_OPTIONS = UI_SCALE_NAMES.map((value) => ({
   label: String(uiScaleLevel(value)),
   value,
 }));
+const TWO_COLUMNS_READER_MODE_OPTIONS: ReadonlyArray<{
+  label: string;
+  value: TwoColumnsReaderMode;
+}> = [
+  { label: texts.settings.readerModeFullView, value: "full-view" },
+  { label: texts.settings.readerModeOnPreview, value: "on-preview" },
+  { label: texts.settings.readerModeReaderPreview, value: "reader-preview" },
+];
 const LICENSES = [
   {
     href: "https://github.com/yamipot/ehpeek/blob/master/LICENSE",
@@ -142,7 +153,7 @@ function SelectSetting<T extends string>(props: {
 }) {
   return (
     <label
-      class="flex box-border w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] cursor-pointer"
+      class="flex box-border w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
       translate={props.noTranslate ? "no" : undefined}
     >
       <span>{props.label}</span>
@@ -388,6 +399,15 @@ export function SettingsMenu(props: {
                   onChange={(value) => updateDraft("includeUnreadHistoryEnabled", value)}
                 />
                 <SelectSetting
+                  label={texts.settings.twoColumnsReaderModeLabel}
+                  options={TWO_COLUMNS_READER_MODE_OPTIONS}
+                  value={draft.twoColumnsReaderMode}
+                  onChange={(value) => {
+                    setChanged(true);
+                    setDraft("twoColumnsReaderMode", value);
+                  }}
+                />
+                <SelectSetting
                   label="Language"
                   noTranslate
                   options={APP_LOCALE_OPTIONS}
@@ -416,6 +436,12 @@ export function SettingsMenu(props: {
             </button>
             <Show when={moreOptionsOpen()}>
               <>
+                <SwitchButton
+                  checked={draft.twoColumnsEnabled}
+                  description={texts.settings.twoColumnsHelp}
+                  label={texts.settings.columnsLabel}
+                  onChange={(value) => updateDraft("twoColumnsEnabled", value)}
+                />
                 <SelectSetting
                   label={texts.settings.portraitUiScaleLabel}
                   options={UI_SCALE_OPTIONS}

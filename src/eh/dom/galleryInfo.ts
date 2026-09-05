@@ -576,6 +576,7 @@ export function mutateGalleryWideLayout(
   info: GalleryInfoDom,
   preview: GalleryPreviewDom,
   initiallyEnabled: boolean,
+  initialInfoRatio: number,
   replacesOriginalPreview: boolean,
 ) {
   const page = DomNode.from(document).use(domClass.page);
@@ -602,12 +603,17 @@ export function mutateGalleryWideLayout(
       ? [previewMount]
       : [pageBarTopHost, previewMount, thumbs, pageBarBottomHost]
   ).filter((node) => node !== null);
+  const resizeHandleMount = createManagedElement("div")
+    .replaceClasses("ehpeek-touch-gallery-layout-resizer");
   let layout: ManagedDomNode | null = null;
+  let left: ManagedDomNode | null = null;
+  let right: ManagedDomNode | null = null;
   let positions: Array<{
     marker: ManagedDomNode;
     node: ManagedDomNode;
   }> = [];
   let enabled = initiallyEnabled;
+  let infoRatio = initialInfoRatio;
 
   const update = () => {
     if (enabled && !layout) {
@@ -616,13 +622,16 @@ export function mutateGalleryWideLayout(
       if (!layout) {
         return;
       }
+      layout.styles({
+        "grid-template-columns": `${infoRatio}fr ${1 - infoRatio}fr`,
+      });
 
       window.scrollTo(0, 0);
       html.apply("galleryWideLayout");
       body.apply("galleryWideLayout");
-      const left = createManagedElement("div")
+      left = createManagedElement("div")
         .replaceClasses("ehpeek-touch-gallery-layout-left");
-      const right = createManagedElement("div")
+      right = createManagedElement("div")
         .replaceClasses("ehpeek-touch-gallery-layout-right");
       const nodes = [...leftNodes, ...rightNodes, footer]
         .filter((node) => node !== null);
@@ -633,7 +642,12 @@ export function mutateGalleryWideLayout(
         return { marker, node };
       });
       info.elems.host.before(layout);
-      layout.append(left, right, ...(footer ? [footer] : []));
+      layout.append(
+        left,
+        right,
+        resizeHandleMount,
+        ...(footer ? [footer] : []),
+      );
       left.append(...leftNodes);
       right.append(...rightNodes);
       // Moving the Gallery into columns changes its available width without a
@@ -650,6 +664,8 @@ export function mutateGalleryWideLayout(
       positions = [];
       layout.remove();
       layout = null;
+      left = null;
+      right = null;
       html.removeClasses("ehpeek-gallery-wide-layout-root");
       body.removeClasses("ehpeek-gallery-wide-layout-root");
       window.dispatchEvent(new Event("resize"));
@@ -659,9 +675,19 @@ export function mutateGalleryWideLayout(
   update();
 
   return {
+    readerCoverTarget(column: "info" | "preview"): HTMLElement | null {
+      return (column === "info" ? left : right)?.Component() ?? null;
+    },
+    resizeHandleMount,
     updateEnabled(value: boolean): void {
       enabled = value;
       update();
+    },
+    updateInfoRatio(value: number): void {
+      infoRatio = value;
+      layout?.styles({
+        "grid-template-columns": `${infoRatio}fr ${1 - infoRatio}fr`,
+      });
     },
   };
 }

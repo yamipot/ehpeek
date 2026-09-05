@@ -9,6 +9,10 @@ import {
 export type NavigationMode = "scroll" | "paged";
 export type ReadDirection = "ltr" | "rtl" | "ttb";
 export type PageLayout = "single" | "double";
+export type TwoColumnsReaderMode =
+  | "full-view"
+  | "on-preview"
+  | "reader-preview";
 export type RightTapAction = "previous" | "next";
 export type ReaderScrollSizeScale = number | "fill" | "one-to-one" | null;
 export type ReaderOrientation = "portrait" | "landscape";
@@ -31,6 +35,10 @@ export type MyTagSetOption = {
   selected: boolean;
   value: string;
 };
+
+export const GALLERY_COLUMNS_RATIO_DEFAULT = 0.5;
+export const GALLERY_COLUMNS_RATIO_MAX = 0.95;
+export const GALLERY_COLUMNS_RATIO_MIN = 0.05;
 
 type StateValue<T> = {
   defaultValue: T;
@@ -90,6 +98,15 @@ export const state = {
     ).preload(),
   },
   reader: {
+    twoColumnsMode: persisted<TwoColumnsReaderMode>(
+      "ehpeek:reader:two-columns-mode",
+      "full-view",
+      enumCodec<TwoColumnsReaderMode>([
+        "full-view",
+        "on-preview",
+        "reader-preview",
+      ]),
+    ).preload(),
     enabled: persisted("ehpeek:reader:enabled", true).preload(),
     exitOnFullscreenExit: persisted(
       "ehpeek:reader:exit-on-fullscreen-exit",
@@ -171,6 +188,30 @@ export const state = {
     fitToViewport: persisted("ehpeek:touch-ui:fit-to-viewport", true).preload(),
     portraitColumns: persisted("ehpeek:touch-ui:portrait-columns", false).preload(),
     landscapeColumns: persisted("ehpeek:touch-ui:landscape-columns", true).preload(),
+    portraitGalleryColumnsRatio: persisted(
+      "ehpeek:touch-ui:portrait-gallery-columns-ratio",
+      GALLERY_COLUMNS_RATIO_DEFAULT,
+      numberRangeCodec(GALLERY_COLUMNS_RATIO_MIN, GALLERY_COLUMNS_RATIO_MAX),
+    ).preload(),
+    landscapeGalleryColumnsRatio: persisted(
+      "ehpeek:touch-ui:landscape-gallery-columns-ratio",
+      GALLERY_COLUMNS_RATIO_DEFAULT,
+      numberRangeCodec(GALLERY_COLUMNS_RATIO_MIN, GALLERY_COLUMNS_RATIO_MAX),
+    ).preload(),
+    portraitReaderPreviewColumnsRatio: persisted<number | null>(
+      "ehpeek:touch-ui:portrait-reader-preview-columns-ratio",
+      null,
+      nullableStateCodec(
+        numberRangeCodec(GALLERY_COLUMNS_RATIO_MIN, GALLERY_COLUMNS_RATIO_MAX),
+      ),
+    ).preload(),
+    landscapeReaderPreviewColumnsRatio: persisted<number | null>(
+      "ehpeek:touch-ui:landscape-reader-preview-columns-ratio",
+      null,
+      nullableStateCodec(
+        numberRangeCodec(GALLERY_COLUMNS_RATIO_MIN, GALLERY_COLUMNS_RATIO_MAX),
+      ),
+    ).preload(),
   },
   widgets: {
     backToTopPosition: persisted<BackToTopPosition | null>(
@@ -337,6 +378,24 @@ function enumCodec<T extends string>(values: readonly T[]): LocalStateCodec<T> {
   return {
     parse: (value) => values.includes(value as T) ? value as T : undefined,
     serialize: (value) => value,
+  };
+}
+
+function numberRangeCodec(min: number, max: number): StateCodec<number> {
+  return {
+    parse: (value) =>
+      typeof value === "number" &&
+        Number.isFinite(value) &&
+        value >= min &&
+        value <= max
+        ? value
+        : undefined,
+  };
+}
+
+function nullableStateCodec<T>(codec: StateCodec<T>): StateCodec<T | null> {
+  return {
+    parse: (value) => value === null ? null : codec.parse(value),
   };
 }
 

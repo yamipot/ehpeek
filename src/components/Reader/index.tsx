@@ -90,11 +90,13 @@ export function Reader(props: ReaderProps) {
   const session = new ReaderSession(options);
   const readerState = session.state;
   const scrollFitPageNum = readerState.navi.currentPageNum();
+  let readerElement!: HTMLDivElement;
   const readerCallbacks = wireReaderCallbacks(
     session,
     options,
     previewCache,
     untrack(() => props.coordinator),
+    () => readerElement,
   );
   const coordinator = untrack(() => props.coordinator);
   coordinator.attachReader({
@@ -131,6 +133,7 @@ export function Reader(props: ReaderProps) {
 
   return (
     <div
+      ref={readerElement}
       id={VIEWER_ID}
       class="fixed inset-0 z-reader overflow-hidden ehp-color-reader font-sans textsize-sm leading-[1.4]"
       data-navigation-mode={readerState.ctrls.value().navigationMode}
@@ -183,6 +186,7 @@ export function Reader(props: ReaderProps) {
           callbacks={readerCallbacks.toolbar}
           currentPage={readerState.navi.currentPageNum()}
           expanded={readerState.scrollBar.expanded()}
+          narrow={readerState.scrollViewport.viewportWidth() < window.innerWidth}
           pixelScale={overlayHost.fullscreenPixelScale()}
           totalPages={totalPages}
           visible={readerState.scrollBar.visible()}
@@ -202,6 +206,7 @@ function wireReaderCallbacks(
   options: ReaderOptions,
   previewCache: GalleryPreviewCache,
   coordinator: GalleryCoordinator,
+  readerElement: () => HTMLElement,
 ) {
   const state = session.state;
   let viewportActions!: PagesViewportActions;
@@ -227,9 +232,11 @@ function wireReaderCallbacks(
     viewportActions.stopMotion();
   };
   let readerOrientation = currentReaderOrientation();
+  let viewportResizeObserver: ResizeObserver | null = null;
   const updateReaderViewportSize = () => {
-    state.scrollViewport.setViewportWidth(Math.max(1, window.innerWidth));
-    state.scrollViewport.setViewportHeight(Math.max(1, window.innerHeight));
+    const viewport = readerElement();
+    state.scrollViewport.setViewportWidth(Math.max(1, viewport.clientWidth));
+    state.scrollViewport.setViewportHeight(Math.max(1, viewport.clientHeight));
     const nextOrientation = currentReaderOrientation();
     if (nextOrientation !== readerOrientation) {
       readerOrientation = nextOrientation;
@@ -646,6 +653,9 @@ function wireReaderCallbacks(
     init: () => {
       document.addEventListener("keydown", onKeydown, true);
       window.addEventListener("resize", updateReaderViewportSize);
+      updateReaderViewportSize();
+      viewportResizeObserver = new ResizeObserver(updateReaderViewportSize);
+      viewportResizeObserver.observe(readerElement());
       viewportActions.focus();
       updatePageNumber();
       syncAfterPageChange({ scrollIntoView: true });
@@ -653,6 +663,8 @@ function wireReaderCallbacks(
     cleanup: () => {
       document.removeEventListener("keydown", onKeydown, true);
       window.removeEventListener("resize", updateReaderViewportSize);
+      viewportResizeObserver?.disconnect();
+      viewportResizeObserver = null;
     },
     gotoPage: (pageNum: number) => setCurrentPageNumber(pageNum, true),
     realignCurrentPage: () => {
@@ -1007,7 +1019,7 @@ function wireReaderCallbacks(
       }
     };
     toolbar.onOpenScrollPreviewClick = (): void => {
-      coordinator.openPreviewPage(state.navi.currentPageNum());
+      coordinator.openReaderPreviewPage(state.navi.currentPageNum());
     };
     toolbar.onViewportAdjustClick = scrollViewport.open;
     toolbar.onProgressPointerDown = (event: PointerEvent): void => {
@@ -1088,7 +1100,7 @@ function wireReaderCallbacks(
         coordinator.readerEndReached();
         requestReaderClose();
       } else {
-        const zone = info.clientX / viewportActions.viewportWidth();
+        const zone = viewportActions.viewportXRatio(info.clientX);
         if (zone >= 1 / 3 && zone <= 2 / 3) {
           state.toolbar.toggle();
         } else {
@@ -1106,7 +1118,7 @@ function wireReaderCallbacks(
         return;
       }
 
-      const zone = info.clientX / viewportActions.viewportWidth();
+      const zone = viewportActions.viewportXRatio(info.clientX);
       const centerTap = zone >= 1 / 3 && zone <= 2 / 3;
       if (centerTap) {
         if (
@@ -1166,7 +1178,7 @@ function wireReaderCallbacks(
       viewportActions.cancelDrag();
       if (isPreviewSwipe(info)) {
         scrollToCurrentPage({ motion: "animated" });
-        coordinator.openPreviewPage(state.navi.currentPageNum());
+        coordinator.openReaderPreviewPage(state.navi.currentPageNum());
         return;
       }
       if (!pagedMode()) {

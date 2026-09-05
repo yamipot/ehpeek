@@ -22,6 +22,8 @@ const TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE =
   "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
 const TOUCH_ICON_BUTTON_CLASS =
   "inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]";
+const TOUCH_DISABLED_ICON_BUTTON_CLASS =
+  "disabled:opacity-35 disabled:cursor-default disabled:hover:bg-transparent";
 function TouchTopBarUiMenu(props: {
   uiScale: {
     value: Accessor<UiScale>;
@@ -31,9 +33,14 @@ function TouchTopBarUiMenu(props: {
     enabled: Accessor<boolean>;
     onChange: (enabled: boolean) => void;
   };
-  columns?: {
+  columns: {
+    available: boolean;
     enabled: Accessor<boolean>;
     onChange: (enabled: boolean) => void;
+    resizeHandle?: {
+      visible: Accessor<boolean>;
+      onChange: (visible: boolean) => void;
+    };
   };
 }) {
   const [open, setOpen] = createSignal(false);
@@ -99,25 +106,49 @@ function TouchTopBarUiMenu(props: {
               <Icon name="hand" size={TOUCH_TOP_BAR_ICON_SIZE} />
             </span>
           </button>
-          <Show when={props.columns}>
-            {(columns) => (
-              <button
-                type="button"
-                class={TOUCH_ICON_BUTTON_CLASS}
-                aria-label={texts.settings.columnsLabel}
-                aria-pressed={columns().enabled()}
-                title={texts.settings.columnsLabel}
-                onClick={() => columns().onChange(!columns().enabled())}
-              >
-                <Icon
-                  name="pages"
-                  size={columns().enabled()
-                    ? TOUCH_TOP_BAR_ICON_SIZE
-                    : TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE}
-                />
-              </button>
-            )}
-          </Show>
+          <button
+            type="button"
+            class={`${TOUCH_ICON_BUTTON_CLASS} ${TOUCH_DISABLED_ICON_BUTTON_CLASS}`}
+            aria-label={texts.settings.columnsLabel}
+            aria-pressed={props.columns.available && props.columns.enabled()}
+            disabled={!props.columns.available}
+            title={texts.settings.columnsLabel}
+            onClick={() =>
+              props.columns.onChange(!props.columns.enabled())}
+          >
+            <Icon
+              name="pages"
+              size={props.columns.enabled()
+                ? TOUCH_TOP_BAR_ICON_SIZE
+                : TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE}
+            />
+          </button>
+          <button
+            type="button"
+            class={`${TOUCH_ICON_BUTTON_CLASS} ${TOUCH_DISABLED_ICON_BUTTON_CLASS}`}
+            aria-label={props.columns.resizeHandle?.visible()
+              ? texts.settings.hideColumnsResizeHandle
+              : texts.settings.showColumnsResizeHandle}
+            aria-pressed={props.columns.resizeHandle?.visible() ?? false}
+            disabled={!props.columns.available ||
+              !props.columns.enabled() ||
+              !props.columns.resizeHandle}
+            title={props.columns.resizeHandle?.visible()
+              ? texts.settings.hideColumnsResizeHandle
+              : texts.settings.showColumnsResizeHandle}
+            onClick={() => {
+              const resizeHandle = props.columns.resizeHandle;
+              if (resizeHandle) {
+                resizeHandle.onChange(!resizeHandle.visible());
+              }
+            }}
+          >
+            <span class="flex items-center justify-center ui-gap-xs">
+              <span class="block h-[var(--ui-icon-size-md)] w-2px rounded-full bg-current opacity-70" />
+              <span class="block h-[var(--ui-icon-size-md)] w-2px rounded-full bg-current opacity-70" />
+              <span class="block h-[var(--ui-icon-size-md)] w-2px rounded-full bg-current opacity-70" />
+            </span>
+          </button>
         </div>
       </Show>
     </div>
@@ -207,9 +238,14 @@ export function TouchTopBar(props: {
     enabled: Accessor<boolean>;
     onChange: (enabled: boolean) => void;
   };
-  columns?: {
+  columns: {
+    available: boolean;
     enabled: Accessor<boolean>;
     onChange: (enabled: boolean) => void;
+    resizeHandle?: {
+      visible: Accessor<boolean>;
+      onChange: (visible: boolean) => void;
+    };
   };
   source: TopBarDom;
   onSettingsMenuOpen: () => void;

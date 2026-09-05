@@ -372,13 +372,11 @@ function EmbeddedPreviewToolbar(props: {
   state: PreviewToolbarState;
 }) {
   return (
-    <div class="grid grid-cols-[minmax(0,1fr)_auto] min-h-[var(--ui-control-size-sm)] flex-none items-center ui-gap-sm ui-px-sm ui-py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-sm">
+    <div
+      class={`flex min-h-[var(--ui-control-size-sm)] flex-none flex-wrap items-center justify-between ui-gap-sm ui-px-sm ui-py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}
+    >
       <span
-        class="inline-flex min-h-[var(--ui-control-size-sm)] items-center ui-gap-xs ui-px-sm ui-rounded-sm bg-[var(--color-site-surface)] opacity-75"
-        classList={{
-          "col-start-1 justify-self-start": !props.state.leftHanded(),
-          "col-start-2 justify-self-end": props.state.leftHanded(),
-        }}
+        class="inline-flex min-h-[var(--ui-control-size-sm)] flex-none items-center ui-gap-xs ui-px-sm ui-rounded-sm bg-[var(--color-site-surface)] opacity-75"
       >
         <Show when={props.state.loading()}>
           <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
@@ -386,10 +384,10 @@ function EmbeddedPreviewToolbar(props: {
         {props.state.rangeText()}
       </span>
       <div
-        class={`flex flex-none items-center ui-gap-xs ${
+        class={`flex min-w-0 max-w-full flex-wrap items-center ui-gap-xs ${
           props.state.leftHanded()
-            ? "col-start-1 row-start-1 justify-self-start flex-row-reverse"
-            : "col-start-2 justify-self-end"
+            ? "mr-auto flex-row-reverse"
+            : "ml-auto"
         }`}
       >
         <button
@@ -574,6 +572,8 @@ export type ScrollPreviewActions = {
   close: () => void;
   gotoPreview: (previewIndex: number) => void;
   gotoPage: (pageNum: number) => void;
+  setCurrentPage: (pageNum: number) => void;
+  showEmbeddedPage: (pageNum: number) => void;
 };
 
 export type ScrollPreviewProps = {
@@ -594,6 +594,7 @@ type ScrollPreviewSession = {
   crossCountOverride: Accessor<number | null>;
   decodeCache: PreviewDecodeCache;
   embeddedCrossCountOverride: Accessor<number | null>;
+  embeddedOverlayOpen: Accessor<boolean>;
   embeddedReadDirection: Accessor<ReadDirection>;
   highlightedPageNum: Accessor<number | null>;
   open: Accessor<boolean>;
@@ -620,13 +621,16 @@ export function ScrollPreview(props: ScrollPreviewProps) {
   const [crossCountOverride, setCrossCountOverride] = createSignal<number | null>(null);
   const [embeddedCrossCountOverride, setEmbeddedCrossCountOverride] =
     createSignal<number | null>(null);
+  const [embeddedOverlayOpen, setEmbeddedOverlayOpen] = createSignal(false);
   const [targetPreviewIndex, setTargetPreviewIndex] = createSignal(
     untrack(() => previewCache.current().data.currentIndex),
   );
-  const [highlightedPageNum, setHighlightedPageNum] = createSignal<number | null>(null);
   const continuePageNum = () => coordinator.progress().hasHistory
     ? coordinator.progress().currentPage
     : null;
+  const [highlightedPageNum, setHighlightedPageNum] = createSignal<number | null>(
+    untrack(continuePageNum),
+  );
   const [targetPageNum, setTargetPageNum] = createSignal<number | null>(null);
   const openPreview = (): void => {
     if (!open()) {
@@ -637,18 +641,26 @@ export function ScrollPreview(props: ScrollPreviewProps) {
   createEffect(() => setEmbeddedReadDirection(props.embeddedDirection));
 
   coordinator.attachPreview({
-    close: () => setOpen(false),
+    close: () => {
+      setOpen(false);
+      setEmbeddedOverlayOpen(false);
+      setTargetPageNum(null);
+    },
     gotoPreview: (previewIndex) => {
-      setHighlightedPageNum(null);
       setTargetPageNum(null);
       setTargetPreviewIndex(previewIndex);
       openPreview();
     },
     gotoPage: (pageNum) => {
-      setHighlightedPageNum(pageNum);
       setTargetPageNum(pageNum);
       setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
       openPreview();
+    },
+    setCurrentPage: setHighlightedPageNum,
+    showEmbeddedPage: (pageNum) => {
+      setTargetPageNum(pageNum);
+      setTargetPreviewIndex(previewCache.previewIndexForPage(pageNum));
+      setEmbeddedOverlayOpen(true);
     },
   });
   onCleanup(() => {
@@ -660,6 +672,7 @@ export function ScrollPreview(props: ScrollPreviewProps) {
     crossCountOverride,
     decodeCache,
     embeddedCrossCountOverride,
+    embeddedOverlayOpen,
     embeddedReadDirection,
     highlightedPageNum,
     open,
@@ -696,8 +709,9 @@ function EmbeddedScrollPreview(props: {
           decodeCache={session.decodeCache}
           embedded
           fillEmbeddedContainer={source.fillEmbeddedContainer}
-          highlightedPageNum={session.continuePageNum}
+          highlightedPageNum={session.highlightedPageNum}
           leftHandedControls={source.leftHandedControls}
+          onClose={source.coordinator.requestClosePreview}
           onDirectionChange={(next, pageNum) => {
             session.setTargetPageNum(pageNum);
             session.setEmbeddedReadDirection(next);
@@ -706,11 +720,19 @@ function EmbeddedScrollPreview(props: {
           onLoadError={source.onLoadError}
           onCrossCountOverrideChange={session.setEmbeddedCrossCountOverride}
           onOpenOverlay={source.coordinator.openPreviewPage}
-          onOpenPage={source.coordinator.openGalleryPage}
+          onOpenPage={(pageUrl, pageNum) => {
+            if (session.embeddedOverlayOpen()) {
+              source.coordinator.selectPreviewPage(pageUrl, pageNum);
+            } else {
+              source.coordinator.openGalleryPage(pageUrl, pageNum);
+            }
+          }}
           pixelScale={1}
           previewCache={source.previewCache}
           readDirection={direction}
-          targetPageNum={session.targetPageNum() ?? session.continuePageNum() ?? 1}
+          targetPageNum={
+            session.targetPageNum() ?? session.highlightedPageNum() ?? 1
+          }
           targetPreviewIndex={session.targetPreviewIndex()}
         />
       )}</Show>
