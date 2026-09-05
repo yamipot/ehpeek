@@ -75,6 +75,7 @@ function settingsMenuState(defaults = false) {
     readerEnabled: read(state.reader.enabled),
     exitReaderOnFullscreenExit: read(state.reader.exitOnFullscreenExit),
     readerFullscreenEnabled: read(state.reader.fullscreen),
+    includeReaderPageInUrl: read(state.reader.includePageInUrl),
     replacePreviewWithScroll: read(state.gallery.replacePreviewWithScroll),
     enhanceThumbsGridsEnabled: read(state.gallery.enhanceThumbs),
     enhanceSearchGridsEnabled: read(state.search.enhance),
@@ -101,6 +102,7 @@ async function applySettingsMenuState(
     state.reader.enabled.setAsync(next.readerEnabled),
     state.reader.exitOnFullscreenExit.setAsync(next.exitReaderOnFullscreenExit),
     state.reader.fullscreen.setAsync(next.readerFullscreenEnabled),
+    state.reader.includePageInUrl.setAsync(next.includeReaderPageInUrl),
     state.gallery.replacePreviewWithScroll.setAsync(next.replacePreviewWithScroll),
     state.gallery.enhanceThumbs.setAsync(next.enhanceThumbsGridsEnabled),
     state.search.enhance.setAsync(next.enhanceSearchGridsEnabled),
@@ -640,6 +642,7 @@ function injectGalleryPage(
   const coordinator = createGalleryCoordinator({
     enhanceThumbsGridsEnabled: gState.settings.enhanceThumbsGridsEnabled,
     exitReaderOnFullscreenExit: gState.settings.exitReaderOnFullscreenExit,
+    includeReaderPageInUrl: gState.settings.includeReaderPageInUrl,
     includeUnreadHistoryEnabled: gState.settings.includeUnreadHistoryEnabled,
     overlayHost,
     previewCache,

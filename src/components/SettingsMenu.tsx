@@ -28,6 +28,7 @@ type SettingsMenuState = {
   readerEnabled: boolean;
   exitReaderOnFullscreenExit: boolean;
   readerFullscreenEnabled: boolean;
+  includeReaderPageInUrl: boolean;
   replacePreviewWithScroll: boolean;
   enhanceThumbsGridsEnabled: boolean;
   enhanceSearchGridsEnabled: boolean;
@@ -180,6 +181,7 @@ export function SettingsMenu(props: {
   const [activeTab, setActiveTab] = createSignal<SettingsTab>("general");
   const [helpOpen, setHelpOpen] = createSignal(false);
   const [licensesOpen, setLicensesOpen] = createSignal(false);
+  const [moreOptionsOpen, setMoreOptionsOpen] = createSignal(false);
   const [changed, setChanged] = createSignal(false);
   let menu!: HTMLDivElement;
   const close = () => {
@@ -201,6 +203,7 @@ export function SettingsMenu(props: {
       setActiveTab("general");
       setHelpOpen(false);
       setLicensesOpen(false);
+      setMoreOptionsOpen(false);
       setChanged(false);
     }
   });
@@ -358,58 +361,87 @@ export function SettingsMenu(props: {
             role="tabpanel"
             hidden={activeTab() !== "options"}
           >
-            <SwitchButton
-              checked={draft.readerFullscreenEnabled}
-              description={texts.settings.readerFullscreenHelp}
-              label={texts.settings.readerFullscreenLabel}
-              onChange={(value) => updateDraft("readerFullscreenEnabled", value)}
-            />
-            <SwitchButton
-              checked={draft.exitReaderOnFullscreenExit}
-              description={texts.settings.exitReaderOnFullscreenExitHelp}
-              label={texts.settings.exitReaderOnFullscreenExitLabel}
-              onChange={(value) => updateDraft("exitReaderOnFullscreenExit", value)}
-            />
-            <SwitchButton
-              checked={draft.openGalleryInNewTab}
-              description={texts.settings.openGalleryInNewTabHelp}
-              label={texts.settings.openGalleryInNewTabLabel}
-              onChange={(value) => updateDraft("openGalleryInNewTab", value)}
-            />
-            <SwitchButton
-              checked={draft.includeUnreadHistoryEnabled}
-              description={texts.settings.includeUnreadHistoryHelp}
-              label={texts.settings.includeUnreadHistoryLabel}
-              onChange={(value) => updateDraft("includeUnreadHistoryEnabled", value)}
-            />
-            <SelectSetting
-              label={texts.settings.portraitUiScaleLabel}
-              options={UI_SCALE_OPTIONS}
-              value={draft.portraitUiScale}
-              onChange={(value) => {
-                setChanged(true);
-                setDraft("portraitUiScale", value);
-              }}
-            />
-            <SelectSetting
-              label={texts.settings.landscapeUiScaleLabel}
-              options={UI_SCALE_OPTIONS}
-              value={draft.landscapeUiScale}
-              onChange={(value) => {
-                setChanged(true);
-                setDraft("landscapeUiScale", value);
-              }}
-            />
-            <SelectSetting
-              label="Language"
-              noTranslate
-              options={APP_LOCALE_OPTIONS}
-              value={draft.locale}
-              onChange={(value) => {
-                setChanged(true);
-                setDraft("locale", value);
-              }}
-            />
+            <Show when={!moreOptionsOpen()}>
+              <>
+                <SwitchButton
+                  checked={draft.readerFullscreenEnabled}
+                  description={texts.settings.readerFullscreenHelp}
+                  label={texts.settings.readerFullscreenLabel}
+                  onChange={(value) => updateDraft("readerFullscreenEnabled", value)}
+                />
+                <SwitchButton
+                  checked={draft.exitReaderOnFullscreenExit}
+                  description={texts.settings.exitReaderOnFullscreenExitHelp}
+                  label={texts.settings.exitReaderOnFullscreenExitLabel}
+                  onChange={(value) => updateDraft("exitReaderOnFullscreenExit", value)}
+                />
+                <SwitchButton
+                  checked={draft.openGalleryInNewTab}
+                  description={texts.settings.openGalleryInNewTabHelp}
+                  label={texts.settings.openGalleryInNewTabLabel}
+                  onChange={(value) => updateDraft("openGalleryInNewTab", value)}
+                />
+                <SwitchButton
+                  checked={draft.includeUnreadHistoryEnabled}
+                  description={texts.settings.includeUnreadHistoryHelp}
+                  label={texts.settings.includeUnreadHistoryLabel}
+                  onChange={(value) => updateDraft("includeUnreadHistoryEnabled", value)}
+                />
+                <SelectSetting
+                  label="Language"
+                  noTranslate
+                  options={APP_LOCALE_OPTIONS}
+                  value={draft.locale}
+                  onChange={(value) => {
+                    setChanged(true);
+                    setDraft("locale", value);
+                  }}
+                />
+              </>
+            </Show>
+            <button
+              type="button"
+              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
+              aria-expanded={moreOptionsOpen()}
+              onClick={() => setMoreOptionsOpen((open) => !open)}
+            >
+              <span>{texts.settings.more}</span>
+              <span
+                class="flex flex-none transition-transform duration-120"
+                classList={{ "rotate-90": moreOptionsOpen() }}
+                aria-hidden="true"
+              >
+                <Icon name="chevron-right" size="var(--ui-icon-size-sm)" />
+              </span>
+            </button>
+            <Show when={moreOptionsOpen()}>
+              <>
+                <SelectSetting
+                  label={texts.settings.portraitUiScaleLabel}
+                  options={UI_SCALE_OPTIONS}
+                  value={draft.portraitUiScale}
+                  onChange={(value) => {
+                    setChanged(true);
+                    setDraft("portraitUiScale", value);
+                  }}
+                />
+                <SelectSetting
+                  label={texts.settings.landscapeUiScaleLabel}
+                  options={UI_SCALE_OPTIONS}
+                  value={draft.landscapeUiScale}
+                  onChange={(value) => {
+                    setChanged(true);
+                    setDraft("landscapeUiScale", value);
+                  }}
+                />
+                <SwitchButton
+                  checked={draft.includeReaderPageInUrl}
+                  description={texts.settings.includeReaderPageInUrlHelp}
+                  label={texts.settings.includeReaderPageInUrlLabel}
+                  onChange={(value) => updateDraft("includeReaderPageInUrl", value)}
+                />
+              </>
+            </Show>
           </div>
           <div
             id="ehpeek-settings-panel-about"

@@ -52,6 +52,7 @@ export type GalleryCoordinator = {
 export function createGalleryCoordinator(options: {
   enhanceThumbsGridsEnabled: boolean;
   exitReaderOnFullscreenExit: boolean;
+  includeReaderPageInUrl: boolean;
   includeUnreadHistoryEnabled: boolean;
   overlayHost: OverlayHost;
   previewCache: GalleryPreviewCache;
@@ -133,6 +134,9 @@ export function createGalleryCoordinator(options: {
     progress.flush();
     eh.clearPeekLocation();
     if (readerLastPage === readerInitialPage) {
+      return;
+    }
+    if (options.replacePreviewWithScroll) {
       return;
     }
 
@@ -225,7 +229,9 @@ export function createGalleryCoordinator(options: {
       }
     }
     progress.update(page.pageNum, preview.totalImages);
-    eh.updatePeekLocation(page.pageNum, preview.pageSize, preview.maxIndex);
+    if (options.includeReaderPageInUrl) {
+      eh.updatePeekLocation(page.pageNum, preview.pageSize, preview.maxIndex);
+    }
   };
 
   const requestClose = (surface: OverlaySurface, afterClose?: () => void): void => {

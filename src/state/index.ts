@@ -96,6 +96,10 @@ export const state = {
       false,
     ).preload(),
     fullscreen: persisted("ehpeek:reader:fullscreen", false).preload(),
+    includePageInUrl: persisted(
+      "ehpeek:reader:include-page-in-url",
+      false,
+    ).preload(),
     portraitControls: readerControls("portrait"),
     landscapeControls: readerControls("landscape"),
     scrollTtbScale: persisted<ReaderScrollSizeScale>(
