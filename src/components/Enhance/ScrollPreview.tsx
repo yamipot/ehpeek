@@ -72,6 +72,23 @@ function layoutAspectRatio(aspectRatio: number): number {
   );
 }
 
+function layoutThumbnailSize(item: GalleryPreviewItem): {
+  height: number;
+  width: number;
+} {
+  const aspectRatio = layoutAspectRatio(item.aspectRatio);
+  return {
+    height: Math.max(
+      item.thumbnail.height,
+      item.thumbnail.width * aspectRatio,
+    ),
+    width: Math.max(
+      item.thumbnail.width,
+      item.thumbnail.height / aspectRatio,
+    ),
+  };
+}
+
 function medianSize(sizes: number[], estimatedSize: number): number {
   const sorted = [...sizes].sort((left, right) => left - right);
   const middle = (sorted.length - 1) / 2;
@@ -111,9 +128,10 @@ function buildGroupGeometry(options: {
         continue;
       }
       const aspectRatio = layoutAspectRatio(item.aspectRatio);
+      const thumbnailSize = layoutThumbnailSize(item);
       const thumbnailCrossSize = options.horizontal
-        ? item.thumbnail.height
-        : item.thumbnail.width;
+        ? thumbnailSize.height
+        : thumbnailSize.width;
       const itemCrossSize = thumbnailCrossSize * options.itemScaleLimit;
       itemMainSizes.push(options.horizontal
         ? itemCrossSize / aspectRatio
@@ -791,7 +809,9 @@ function ScrollPreviewPanel(props: {
     initialPreview.data.dominantAspectRatio,
   );
   const embeddedReferenceTileWidth = medianSize(
-    initialPreview.data.previewItems.map((item) => item.thumbnail.width),
+    initialPreview.data.previewItems.map((item) =>
+      layoutThumbnailSize(item).width
+    ),
     MAX_TILE_WIDTH,
   );
   const pixelScale = () => props.pixelScale;
@@ -799,9 +819,10 @@ function ScrollPreviewPanel(props: {
   const readDirection = untrack(() => props.readDirection);
   const horizontal = readDirection !== "ttb";
   const referenceThumbnailCrossSize = Math.max(
-    ...initialPreview.data.previewItems.map((item) => horizontal
-      ? item.thumbnail.height
-      : item.thumbnail.width),
+    ...initialPreview.data.previewItems.map((item) => {
+      const size = layoutThumbnailSize(item);
+      return horizontal ? size.height : size.width;
+    }),
   );
   const rightToLeft = readDirection === "rtl";
   const directionIcon = readDirection === "ttb"
