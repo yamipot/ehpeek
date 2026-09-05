@@ -150,7 +150,7 @@ function MovableBackToTop(props: {
       <button
         ref={button}
         type="button"
-        class="fixed z-ui inline-flex ui-hit-square-lg items-center justify-center rounded-full border-0 bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96"
+        class="fixed z-[800] inline-flex ui-hit-square-lg items-center justify-center rounded-full border-0 bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96"
         classList={{
           "safe-right-lg bottom-[calc(max(16px,env(safe-area-inset-bottom,0px))_+_var(--ui-hit-size-lg)_+_var(--ui-space-md))]":
             !props.scope,
