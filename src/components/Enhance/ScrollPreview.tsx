@@ -20,6 +20,7 @@ import { clamp } from "../../utils";
 import { ScrollFlingAnimator } from "../animation";
 import { createPointerGestureElement } from "../PointerGesture";
 import { Icon } from "../Widgets/Icon";
+import { LauncherButton } from "../Widgets/LauncherButton";
 import { PositionBar } from "../Widgets/PositionBar";
 import { PriorityLoadQueue } from "../Widgets/PriorityLoadQueue";
 
@@ -726,14 +727,11 @@ function ScrollPreviewLauncher(props: {
   return (
     <Show when={!source.replaceOriginalPreview}>
       <div class="flex w-full justify-center ui-my-sm">
-        <button
-          type="button"
-          class="inline-flex min-h-[var(--ui-control-size-xs)] items-center justify-center ui-gap-sm ui-px-md ui-rounded-xl border-0 bg-[var(--color-site-surface)] ehp-color-site-text font-sans textsize-sm font-700 cursor-pointer transition-[background-color,transform] duration-120 hover:bg-[var(--color-site-item-hover)] active:scale-98"
+        <LauncherButton
+          icon="grid"
+          label={texts.gallery.scrollPreview}
           onClick={() => source.coordinator.openPreviewPage(session.continuePageNum() ?? 1)}
-        >
-          <Icon name="grid" size="var(--ui-icon-size-sm)" />
-          {texts.gallery.scrollPreview}
-        </button>
+        />
       </div>
     </Show>
   );
@@ -818,11 +816,12 @@ function ScrollPreviewPanel(props: {
   const initialPixelScale = untrack(pixelScale);
   const readDirection = untrack(() => props.readDirection);
   const horizontal = readDirection !== "ttb";
-  const referenceThumbnailCrossSize = Math.max(
-    ...initialPreview.data.previewItems.map((item) => {
+  const referenceThumbnailCrossSize = medianSize(
+    initialPreview.data.previewItems.map((item) => {
       const size = layoutThumbnailSize(item);
       return horizontal ? size.height : size.width;
     }),
+    horizontal ? MAX_TILE_WIDTH * estimatedAspectRatio : MAX_TILE_WIDTH,
   );
   const rightToLeft = readDirection === "rtl";
   const directionIcon = readDirection === "ttb"

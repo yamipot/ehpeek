@@ -143,11 +143,6 @@ export function createGalleryPreviewCache(
     if (activeSelection === selectionId) {
       currentPreviewIndex = preview.data.currentIndex;
       setCurrent(preview);
-      window.history.replaceState(
-        window.history.state,
-        "",
-        preview.data.currentUrl,
-      );
     }
     return preview;
   };

@@ -192,6 +192,20 @@ export function readHistoryUrl(pageIndex = 0): string {
   return url.href;
 }
 
+export function peekPageUrl(pageNum: number, galleryUrl: string): string {
+  const url = new URL(galleryUrl, window.location.href);
+  const params = new URLSearchParams(url.hash.replace(/^#/, ""));
+  params.set("peek_page", String(pageNum));
+  url.hash = params.toString();
+  return url.href;
+}
+
+export function peekPageFromHash(hash = window.location.hash): number | null {
+  const params = new URLSearchParams(hash.replace(/^#/, ""));
+  const pageNum = Number(params.get("peek_page") || "");
+  return Number.isSafeInteger(pageNum) && pageNum > 0 ? pageNum : null;
+}
+
 export function galleryPageNumber(url: string): number | undefined {
   const page = extractPageType(url);
   return page.type === "image" ? page.pageNum : undefined;
@@ -208,13 +222,7 @@ export function previewPageIndex(url = window.location.href): number {
 
 export function previewUrlForIndex(previewIndex: number, pageUrl = window.location.href): string {
   const url = new URL(pageUrl);
-
-  if (previewIndex <= 0) {
-    url.searchParams.delete("p");
-  } else {
-    url.searchParams.set("p", String(previewIndex));
-  }
-
+  setPreviewIndex(url, previewIndex);
   url.hash = "";
   return url.href;
 }
@@ -224,56 +232,10 @@ export function previewPageIndexForGalleryPage(galleryPage: number, pageSize: nu
   return Math.min(previewIndex, maxPreviewIndex);
 }
 
-export function peekPageFromHash(hash = window.location.hash): number | null {
-  const params = new URLSearchParams(hash.replace(/^#/, ""));
-  const page = Number(params.get("peek_page") || "");
-
-  return Number.isFinite(page) && page > 0 ? page : null;
-}
-
-export function clearPeekLocation(): void {
-  const url = new URL(window.location.href);
-  const params = new URLSearchParams(url.hash.replace(/^#/, ""));
-
-  if (!params.has("peek_page")) {
-    return;
+function setPreviewIndex(url: URL, previewIndex: number): void {
+  if (previewIndex <= 0) {
+    url.searchParams.delete("p");
+  } else {
+    url.searchParams.set("p", String(previewIndex));
   }
-
-  params.delete("peek_page");
-  url.hash = params.toString();
-  window.history.replaceState(window.history.state, "", url.href);
-}
-
-export function updatePeekLocation(pageNumber: number | undefined, pageSize: number, maxPreviewIndex: number): void {
-  if (!pageNumber || pageNumber <= 0) {
-    return;
-  }
-
-  const url = new URL(window.location.href);
-  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-  const nextValue = String(pageNumber);
-  const nextPreviewIndex = previewPageIndexForGalleryPage(pageNumber, pageSize, maxPreviewIndex);
-  let changed = false;
-
-  if (nextPreviewIndex === 0) {
-    if (url.searchParams.has("p")) {
-      url.searchParams.delete("p");
-      changed = true;
-    }
-  } else if (url.searchParams.get("p") !== String(nextPreviewIndex)) {
-    url.searchParams.set("p", String(nextPreviewIndex));
-    changed = true;
-  }
-
-  if (params.get("peek_page") !== nextValue) {
-    params.set("peek_page", nextValue);
-    changed = true;
-  }
-
-  if (!changed) {
-    return;
-  }
-
-  url.hash = params.toString();
-  window.history.replaceState(window.history.state, "", url.href);
 }

@@ -79,7 +79,6 @@ export function createGalleryCoordinator(options: {
   const surfaces: OverlaySurface[] = [];
   let reader: ReaderSurface | null = null;
   let readerActions: ReaderActions | null = null;
-  let readerInitialPage = 1;
   let readerInitialPreviewIndex = preview.currentIndex;
   let readerLastPage = 1;
   let previewActions: ScrollPreviewActions | null = null;
@@ -95,6 +94,49 @@ export function createGalleryCoordinator(options: {
     options.enhanceThumbsGridsEnabled ||
     options.replacePreviewWithScroll ||
     previewOpen();
+
+  const replaceReaderLocation = (pageNumber: number): void => {
+    if (pageNumber <= 0 || !options.includeReaderPageInUrl) {
+      return;
+    }
+
+    let url = new URL(window.location.href);
+    const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+    url = new URL(eh.previewUrlForIndex(
+      previewCache.previewIndexForPage(pageNumber),
+      url.href,
+    ));
+    hashParams.set("peek_page", String(pageNumber));
+    url.hash = hashParams.toString();
+
+    if (url.href !== window.location.href) {
+      window.history.replaceState(window.history.state, "", url.href);
+    }
+  };
+
+  const replacePreviewLocation = (previewIndex: number): void => {
+    if (options.replacePreviewWithScroll) {
+      return;
+    }
+
+    const url = new URL(eh.previewUrlForIndex(previewIndex));
+
+    if (url.href !== window.location.href) {
+      window.history.replaceState(window.history.state, "", url.href);
+    }
+  };
+
+  const clearReaderLocation = (): void => {
+    if (!/(?:^#|&)peek_page(?:=|&|$)/.test(window.location.hash)) {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+    hashParams.delete("peek_page");
+    url.hash = hashParams.toString();
+    window.history.replaceState(window.history.state, "", url.href);
+  };
 
   const pushSurface = (surface: OverlaySurface): void => {
     surfaces.push(surface);
@@ -132,25 +174,22 @@ export function createGalleryCoordinator(options: {
 
   const syncReaderExit = (): void => {
     progress.flush();
-    eh.clearPeekLocation();
-    if (readerLastPage === readerInitialPage) {
-      return;
-    }
-    if (options.replacePreviewWithScroll) {
-      return;
-    }
-
+    clearReaderLocation();
     const exitIndex = previewCache.previewIndexForPage(readerLastPage);
-    const galleryUrl = eh.previewUrlForIndex(exitIndex);
     if (enhancedPreviewActive()) {
       gotoPreviewIndex(exitIndex);
-      void previewCache.select(exitIndex).catch(() => {
-        window.location.replace(galleryUrl);
-      });
-    } else if (exitIndex === readerInitialPreviewIndex) {
-      window.history.replaceState(window.history.state, "", galleryUrl);
+      if (exitIndex !== previewCache.current().data.currentIndex) {
+        void previewCache.select(exitIndex).catch(reportReaderOpenError);
+      }
+      if (surfaces.length === 0) {
+        replacePreviewLocation(exitIndex);
+      }
+      return;
+    }
+    if (exitIndex !== readerInitialPreviewIndex) {
+      window.location.replace(eh.previewUrlForIndex(exitIndex));
     } else {
-      window.location.replace(galleryUrl);
+      replacePreviewLocation(exitIndex);
     }
   };
 
@@ -206,6 +245,7 @@ export function createGalleryCoordinator(options: {
       }
       // Stop Reader immediately instead of letting the fullscreen resize run before popstate closes it.
       reader?.dispose();
+      clearReaderLocation();
       window.history.go(-surfaces.length);
     } else {
       reader?.setFullscreenActive(active);
@@ -229,8 +269,8 @@ export function createGalleryCoordinator(options: {
       }
     }
     progress.update(page.pageNum, preview.totalImages);
-    if (options.includeReaderPageInUrl) {
-      eh.updatePeekLocation(page.pageNum, preview.pageSize, preview.maxIndex);
+    if (page.pageNum) {
+      replaceReaderLocation(page.pageNum);
     }
   };
 
@@ -241,7 +281,7 @@ export function createGalleryCoordinator(options: {
     historyClosePending = true;
     afterHistoryClose = afterClose ?? null;
     if (surface === "reader") {
-      eh.clearPeekLocation();
+      clearReaderLocation();
     }
     window.history.back();
   };
@@ -275,7 +315,6 @@ export function createGalleryCoordinator(options: {
 
   const mountReader = (startPageNum: number): void => {
     const current = previewCache.current().data;
-    readerInitialPage = startPageNum;
     readerLastPage = startPageNum;
     readerInitialPreviewIndex = current.currentIndex;
     pushSurface("reader");
@@ -432,11 +471,11 @@ export function createGalleryCoordinator(options: {
   return coordinator;
 
   function syncPreviewExit(previewIndex: number): void {
-    if (previewIndex === previewCache.current().data.currentIndex) {
-      return;
-    }
     if (options.enhanceThumbsGridsEnabled || options.replacePreviewWithScroll) {
-      void previewCache.select(previewIndex).catch(reportReaderOpenError);
+      if (previewIndex !== previewCache.current().data.currentIndex) {
+        void previewCache.select(previewIndex).catch(reportReaderOpenError);
+      }
+      replacePreviewLocation(previewIndex);
     } else {
       window.location.assign(
         eh.previewUrlForIndex(previewIndex, previewCache.current().data.currentUrl),

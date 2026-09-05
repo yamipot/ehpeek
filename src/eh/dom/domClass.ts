@@ -113,6 +113,7 @@ const gallery = {
   imagePage: {
     image: image("img#img"),
     links: anchor("a[href]"),
+    navigationTop: id("i2"),
   },
   info: {
     category: id("gdc", {

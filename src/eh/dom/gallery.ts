@@ -152,6 +152,20 @@ export function manageGalleryContinueReadingButtonMount() {
   return managedHost;
 }
 
+/** Creates a stable mount beside the original image-page navigation. */
+export function manageImageReaderButtonMount() {
+  const navigation = DomNode.from(document)
+    .use(domClass.gallery)
+    .imagePage.navigationTop.one();
+  if (!navigation) {
+    return null;
+  }
+
+  const mount = createManagedElement("div");
+  navigation.inplace().after(mount);
+  return mount;
+}
+
 export type GalleryPreviewData = {
   currentIndex: number;
   currentUrl: string;

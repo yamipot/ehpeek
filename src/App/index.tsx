@@ -21,6 +21,7 @@ import {
 import { SearchHistory } from "../components/Enhance/SearchHistory";
 import { loadMyTagAppearances, refreshMyTags } from "../components/Enhance/MyTags";
 import { SettingsMenu } from "../components/SettingsMenu";
+import { LauncherButton } from "../components/Widgets/LauncherButton";
 import {
   BackToTop,
 } from "../components/Widgets/BackToTop";
@@ -680,6 +681,35 @@ function injectGalleryPage(
   }
 }
 
+function injectImagePage(): void {
+  if (!gState.settings.readerEnabled || !eh.extractImageGalleryPage()) {
+    return;
+  }
+
+  const mount = eh.manageImageReaderButtonMount();
+  if (!mount) {
+    return;
+  }
+
+  const label = `${__EHPEEK_NAME__} ${texts.settings.readerLabel}`;
+  mount.mount(() => (
+    <div class="flex w-full justify-center ui-my-sm">
+      <LauncherButton
+        icon="book-open"
+        label={label}
+        onClick={() => {
+          const page = eh.extractPageType();
+          const gallery = eh.extractImageGalleryPage();
+          if (page.type === "image" && gallery) {
+            window.location.replace(eh.peekPageUrl(page.pageNum, gallery.url));
+          }
+        }}
+        title={label}
+      />
+    </div>
+  ));
+}
+
 function injectSearchControls(
   page: Extract<eh.PageType, { type: "favorites" | "search" }>,
 ): eh.TouchResultsPageDom {
@@ -944,6 +974,9 @@ async function startApp(): Promise<void> {
       break;
     }
     case "image":
+      inject = () => {
+        allowFeatureFailure("Image page", injectImagePage);
+      };
       break;
     case "favorites":
     case "search":
