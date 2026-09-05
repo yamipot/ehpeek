@@ -234,9 +234,7 @@ export function createGalleryCoordinator(options: {
     if (!reader || topSurface() !== "reader") {
       return false;
     }
-    eh.clearPeekLocation();
-    void closeReader();
-    window.history.back();
+    requestClose("reader");
     return true;
   };
 

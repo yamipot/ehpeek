@@ -53,6 +53,7 @@
     "adjustScrollViewport": "スクロール表示領域のサイズを調整",
     "resizeScrollViewport": "スクロール表示領域をリサイズ",
     "fit": "フィット",
+    "fill": "画面いっぱい",
     "applyGlobally": "デフォルトに設定",
     "pagedMode": "ページモード",
     "singlePageMode": "単ページレイアウト",

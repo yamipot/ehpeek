@@ -53,6 +53,7 @@
     "adjustScrollViewport": "调整滚动视口大小",
     "resizeScrollViewport": "调整滚动视口",
     "fit": "适应",
+    "fill": "铺满",
     "applyGlobally": "设为默认",
     "pagedMode": "分页模式",
     "singlePageMode": "单页布局",

@@ -10,7 +10,7 @@ export type NavigationMode = "scroll" | "paged";
 export type ReadDirection = "ltr" | "rtl" | "ttb";
 export type PageLayout = "single" | "double";
 export type RightTapAction = "previous" | "next";
-export type ReaderScrollSizeScale = number | "one-to-one" | null;
+export type ReaderScrollSizeScale = number | "fill" | "one-to-one" | null;
 export type ReaderOrientation = "portrait" | "landscape";
 export type GalleryTitlePreference = "main" | "sub";
 export type SearchGridMode = "ehpeek" | "ehpeek-lite";
@@ -100,11 +100,11 @@ export const state = {
     landscapeControls: readerControls("landscape"),
     scrollTtbScale: persisted<ReaderScrollSizeScale>(
       "ehpeek:reader:scroll-ttb-scale",
-      null,
+      "fill",
     ).preload(),
     scrollHorizontalScale: persisted<ReaderScrollSizeScale>(
       "ehpeek:reader:scroll-horizontal-scale",
-      null,
+      "fill",
     ).preload(),
   },
   gallery: {

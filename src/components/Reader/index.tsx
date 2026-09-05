@@ -714,6 +714,7 @@ function wireReaderCallbacks(
           state.scrollViewport.setSizeScale(adjustmentStartSizeScale);
           state.scrollViewport.setAdjusting(false);
         },
+        onFill: () => state.scrollViewport.setSizeScale("fill"),
         onFit: () => updateImageScale(null),
         onOneToOne: () => state.scrollViewport.setSizeScale("one-to-one"),
         onScaleChange: updateImageScale,

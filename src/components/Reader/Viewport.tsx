@@ -229,12 +229,22 @@ export function PagesViewport(props: {
       : typeof sizeScale === "number"
         ? sizeScale
         : 1;
-    const referenceFrame = containFitFrame(
-      referenceAspectRatio,
-      viewportWidth(),
-      viewportHeight(),
-      scaleMultiplier,
-    );
+    const referenceFrame = sizeScale === "fill"
+      ? horizontalAxis()
+        ? {
+          height: viewportHeight(),
+          width: viewportHeight() / referenceAspectRatio,
+        }
+        : {
+          height: viewportWidth() * referenceAspectRatio,
+          width: viewportWidth(),
+        }
+      : containFitFrame(
+        referenceAspectRatio,
+        viewportWidth(),
+        viewportHeight(),
+        scaleMultiplier,
+      );
     if (horizontalAxis()) {
       slot.frameHeight = referenceFrame.height;
       slot.frameWidth = referenceFrame.height / aspectRatio;

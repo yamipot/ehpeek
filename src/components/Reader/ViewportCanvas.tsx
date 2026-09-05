@@ -9,6 +9,7 @@ export type ViewportCanvasCallbacks = {
   onApply: () => void;
   onApplyAll: () => void;
   onClose: () => void;
+  onFill: () => void;
   onFit: () => void;
   onOneToOne: () => void;
   onScaleChange: (scale: number) => void;
@@ -18,7 +19,7 @@ export function ViewportCanvas(props: {
   adjusting: boolean;
   callbacks: ViewportCanvasCallbacks;
   children: JSX.Element;
-  scaleMode: "custom" | "fit" | "one-to-one";
+  scaleMode: "custom" | "fill" | "fit" | "one-to-one";
   scalePercent: number | null;
 }) {
   const pointers = new Map<number, { x: number; y: number }>();
@@ -110,10 +111,14 @@ export function ViewportCanvas(props: {
           role="toolbar"
           aria-label={texts.reader.adjustScrollViewport}
         >
-          <div class="grid w-full grid-cols-[max-content_minmax(var(--ui-control-size-md),1fr)_var(--ui-control-size-xl)_var(--ui-control-size-xl)] viewport-toolbar-compact:grid-cols-[max-content_minmax(0,1fr)_var(--ui-control-size-lg)_var(--ui-control-size-lg)] items-center justify-center ui-gap-sm">
+          <div class="grid w-full grid-cols-[max-content_minmax(var(--ui-control-size-md),1fr)] items-center justify-center ui-gap-sm">
             <span class="flex w-full flex-col items-center justify-center text-center font-mono textsize-sm font-600 leading-[1.05]">
               <Show when={props.scaleMode !== "custom"}>
-                <span>{props.scaleMode === "fit" ? texts.reader.fit : "1:1"}</span>
+                <span>{props.scaleMode === "fit"
+                  ? texts.reader.fit
+                  : props.scaleMode === "fill"
+                    ? texts.reader.fill
+                    : "1:1"}</span>
               </Show>
               <span>{props.scalePercent === null ? "—" : `${Math.round(props.scalePercent)}%`}</span>
             </span>
@@ -127,8 +132,13 @@ export function ViewportCanvas(props: {
               value={sliderPercent()}
               onInput={(event) => props.callbacks.onScaleChange(event.currentTarget.valueAsNumber / 100)}
             />
+          </div>
+          <div class="grid w-full grid-cols-3 items-stretch justify-center ui-gap-sm">
             <button type="button" class={`${READER_BUTTON_CLASS} w-full`} onClick={() => props.callbacks.onFit()}>
               {texts.reader.fit}
+            </button>
+            <button type="button" class={`${READER_BUTTON_CLASS} w-full`} onClick={() => props.callbacks.onFill()}>
+              {texts.reader.fill}
             </button>
             <button type="button" class={`${READER_BUTTON_CLASS} w-full`} onClick={() => props.callbacks.onOneToOne()}>
               1:1

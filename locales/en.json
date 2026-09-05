@@ -53,6 +53,7 @@
     "adjustScrollViewport": "Adjust Scroll viewport size",
     "resizeScrollViewport": "Resize Scroll viewport",
     "fit": "Fit",
+    "fill": "Fill",
     "applyGlobally": "Set Default",
     "pagedMode": "Paged mode",
     "singlePageMode": "Single-page layout",

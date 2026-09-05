@@ -104,6 +104,15 @@ export class ReaderSession {
           )
         : null;
     };
+    const scrollFillScale = () => {
+      const imageSize = scrollFitImageSize();
+      if (!imageSize) {
+        return null;
+      }
+      return controls().direction === "ttb"
+        ? readerViewportWidth() / imageSize.width
+        : readerViewportHeight() / imageSize.height;
+    };
 
     this.state = {
       navi: {
@@ -140,13 +149,19 @@ export class ReaderSession {
         adjusting: scrollViewportAdjusting,
         scaleMode: () => scrollViewportSizeScale() === null
           ? "fit" as const
-          : scrollViewportSizeScale() === "one-to-one"
-            ? "one-to-one" as const
-            : "custom" as const,
+          : scrollViewportSizeScale() === "fill"
+            ? "fill" as const
+            : scrollViewportSizeScale() === "one-to-one"
+              ? "one-to-one" as const
+              : "custom" as const,
         scalePercent: () => {
           const sizeScale = scrollViewportSizeScale();
           if (sizeScale === "one-to-one") {
             return 100;
+          }
+          if (sizeScale === "fill") {
+            const fillScale = scrollFillScale();
+            return fillScale ? fillScale * 100 : null;
           }
           const fitScale = scrollFitScale();
           return fitScale
