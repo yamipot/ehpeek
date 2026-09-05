@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      gm4-polyfill:
+        specifier: 1.0.1
+        version: 1.0.1
       lucide-solid:
         specifier: ^1.26.0
         version: 1.26.0(solid-js@1.9.14)
@@ -1089,6 +1092,9 @@ packages:
   globals@17.7.0:
     resolution: {integrity: sha512-Czmyns5dUsq4seFBR/Kdydhmo8y9kC79hiSkPn0YcGtNnYWnrgt0vjrSjx9tspoDGWm2CMarffRuLjM4xUz8xg==}
     engines: {node: '>=18'}
+
+  gm4-polyfill@1.0.1:
+    resolution: {integrity: sha512-FPB4APs12G6EF6ospkOJTPlTfJaWrpKGe5tW6RordwGbdpPY0QG6SUyZv+V/SMJn39P1W2wbzjy/S9Ynq1ppvg==}
 
   gzip-size@6.0.0:
     resolution: {integrity: sha512-ax7ZYomf6jqPTQ4+XCpUGyXKHk5WweS+e05MBO4/y3WJ5RkmPXNKvX+bx1behVILVwr6JSQvZAku021CHPXG3Q==}
@@ -2650,6 +2656,8 @@ snapshots:
   globals@14.0.0: {}
 
   globals@17.7.0: {}
+
+  gm4-polyfill@1.0.1: {}
 
   gzip-size@6.0.0:
     dependencies:

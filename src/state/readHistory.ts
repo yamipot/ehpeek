@@ -1,12 +1,14 @@
-import { state } from "./index";
+import {
+  persisted,
+  state,
+  type PersistedGMStoreValue,
+} from "./index";
 import type { GalleryHistoryInfo } from "../eh/types";
-import { createSignal, type Accessor, type Setter } from "solid-js";
 
 const HISTORY_KEY_PREFIX = "ehpeek:history:";
 const HISTORY_QUEUE_KEY_PREFIX = "ehpeek:hist_q:";
 export const READ_HISTORY_LIMIT = 3_000;
 const HISTORY_COMPACT_THRESHOLD = 4_000;
-const SAVE_DELAY_MS = 10_000;
 const READ_HISTORY_ARCHIVE_TYPE = "ehpeek-read-history";
 const READ_HISTORY_ARCHIVE_VERSION = 1;
 
@@ -23,11 +25,86 @@ export type DisplayReadHistoryRecord = ReadHistoryRecord & {
   gallery: GalleryHistoryInfo;
 };
 
-export type ReadingProgress = {
-  currentPage: number;
-  hasHistory: boolean;
-  totalPages: number | null;
-};
+export class GalleryReadHistory {
+  private readonly store: PersistedGMStoreValue<ReadHistoryRecord | null>;
+
+  constructor(
+    readonly galleryId: number,
+    readonly token: string,
+  ) {
+    this.store = persisted<ReadHistoryRecord | null>(
+      historyKey(galleryId, token),
+      null,
+    );
+  }
+
+  get value(): ReadHistoryRecord | null {
+    return this.store.value;
+  }
+
+  clear(): Promise<void> {
+    return this.store.clear();
+  }
+
+  reload(): Promise<ReadHistoryRecord | null> {
+    return this.store.reload();
+  }
+
+  recordVisit(
+    totalPages: number,
+    gallery: GalleryHistoryInfo,
+  ): ReadHistoryRecord {
+    const previous = this.value;
+    return this.save(previous
+      ? {
+        ...previous,
+        gallery: mergeGalleryInfo(previous.gallery, gallery),
+        totalPages,
+        updatedAt: Date.now(),
+      }
+      : {
+        gallery,
+        galleryId: this.galleryId,
+        pageNum: -1,
+        token: this.token,
+        totalPages,
+        updatedAt: Date.now(),
+      });
+  }
+
+  save(record: ReadHistoryRecord): ReadHistoryRecord {
+    const previous = this.value;
+    const exists = previous !== null;
+    const saved = previous && previous.updatedAt > record.updatedAt
+      ? storedReadHistoryRecord({
+        ...previous,
+        gallery: mergeGalleryInfo(previous.gallery, record.gallery),
+      })
+      : storedReadHistoryRecord({
+        ...record,
+        gallery: mergeGalleryInfo(previous?.gallery, record.gallery),
+      });
+    this.store.set(saved);
+
+    if (!exists) {
+      void incrementReadHistoryEstimate().catch((error: unknown) => {
+        console.error("[ehpeek] Failed to update reading history count", error);
+      });
+    }
+    return saved;
+  }
+
+  updateGalleryInfo(gallery: GalleryHistoryInfo): ReadHistoryRecord | null {
+    const previous = this.value;
+    if (!previous) {
+      return null;
+    }
+    return this.save({
+      ...previous,
+      gallery: mergeGalleryInfo(previous.gallery, gallery),
+    });
+  }
+}
 
 type ReadHistoryArchiveGallery = GalleryHistoryInfo;
 
@@ -46,119 +123,28 @@ type ReadHistoryArchive = {
   records: ReadHistoryArchiveRecord[];
 };
 
-export class ReadingProgressSession {
-  readonly progress: Accessor<ReadingProgress>;
-  private readonly setProgress: Setter<ReadingProgress>;
-  private pending: ReadHistoryRecord | null = null;
-  private lastSaved: ReadHistoryRecord | null = null;
-  private timer: number | null = null;
-
-  constructor(
-    private readonly baseRecord: Omit<ReadHistoryRecord, "pageNum" | "updatedAt"> | null,
-    initial: ReadingProgress,
-  ) {
-    const [progress, setProgress] = createSignal(initial);
-    this.progress = progress;
-    this.setProgress = setProgress;
-    window.addEventListener("pagehide", this.flush);
-    document.addEventListener("visibilitychange", this.onVisibilityChange);
-  }
-
-  update(pageNum: number | undefined, totalPages?: number): void {
-    if (!pageNum || pageNum <= 0) {
-      return;
-    }
-
-    this.setProgress({
-      currentPage: pageNum,
-      hasHistory: this.baseRecord !== null,
-      totalPages: totalPages ?? this.progress().totalPages,
-    });
-    if (!this.baseRecord) {
-      return;
-    }
-
-    const nextRecord = {
-      ...this.baseRecord,
-      pageNum,
-      totalPages,
-      updatedAt: Date.now(),
-    };
-
-    if (this.sameProgress(nextRecord, this.lastSaved)) {
-      return;
-    }
-
-    this.pending = nextRecord;
-    this.schedule();
-  }
-
-  flush = (): void => {
-    if (this.timer !== null) {
-      window.clearTimeout(this.timer);
-      this.timer = null;
-    }
-
-    if (!this.pending) {
-      return;
-    }
-
-    if (!this.sameProgress(this.pending, this.lastSaved)) {
-      this.lastSaved = saveReadHistory(this.pending);
-    }
-
-    this.pending = null;
-  };
-
-  dispose(): void {
-    this.flush();
-    window.removeEventListener("pagehide", this.flush);
-    document.removeEventListener("visibilitychange", this.onVisibilityChange);
-  }
-
-  private schedule(): void {
-    if (this.timer !== null) {
-      return;
-    }
-
-    this.timer = window.setTimeout(this.flush, SAVE_DELAY_MS);
-  }
-
-  private onVisibilityChange = (): void => {
-    if (document.visibilityState === "hidden") {
-      this.flush();
-    }
-  };
-
-  private sameProgress(left: ReadHistoryRecord | null, right: ReadHistoryRecord | null): boolean {
-    return Boolean(
-      left &&
-        right &&
-        left.galleryId === right.galleryId &&
-        left.token === right.token &&
-        left.pageNum === right.pageNum &&
-        left.totalPages === right.totalPages,
-    );
-  }
+export async function galleryReadHistory(
+  galleryId: number,
+  token: string,
+): Promise<GalleryReadHistory> {
+  const history = new GalleryReadHistory(galleryId, token);
+  await history.reload();
+  return history;
 }
 
-export function loadReadHistory(galleryId: number, token: string): ReadHistoryRecord | null {
-  return GM_getValue<ReadHistoryRecord | null>(historyKey(galleryId, token), null);
-}
-
-export function loadDisplayReadHistoryRecords(): DisplayReadHistoryRecord[] {
-  const keys = GM_listValues();
-  clearLegacyHistoryQueue(keys);
-  return loadAllReadHistoryRecords(keys)
+export async function loadDisplayReadHistoryRecords(): Promise<DisplayReadHistoryRecord[]> {
+  const keys = await GM.listValues();
+  await clearLegacyHistoryQueue(keys);
+  return (await loadAllReadHistoryRecords(keys))
     .filter((record): record is DisplayReadHistoryRecord => record.gallery !== undefined)
     .slice(0, READ_HISTORY_LIMIT);
 }
 
-export function exportReadHistory(): string {
+export async function exportReadHistory(): Promise<string> {
   const archive: ReadHistoryArchive = {
     type: READ_HISTORY_ARCHIVE_TYPE,
     version: READ_HISTORY_ARCHIVE_VERSION,
-    records: loadAllReadHistoryRecords().map((record) => ({
+    records: (await loadAllReadHistoryRecords()).map((record) => ({
       galleryId: record.galleryId,
       gallery: mergeGalleryInfo(undefined, record.gallery),
       pageNum: record.pageNum,
@@ -170,7 +156,7 @@ export function exportReadHistory(): string {
   return JSON.stringify(archive, null, 2);
 }
 
-export function importReadHistory(source: string): number {
+export async function importReadHistory(source: string): Promise<number> {
   const archive = parseReadHistoryArchive(JSON.parse(source) as unknown);
   const imported = new Map<string, ReadHistoryRecord>();
 
@@ -190,114 +176,50 @@ export function importReadHistory(source: string): number {
     });
   }
 
-  for (const [reference, record] of imported) {
+  await Promise.all(Array.from(imported, async ([reference, record]) => {
     const key = `${HISTORY_KEY_PREFIX}${reference}`;
-    const previous = GM_getValue<ReadHistoryRecord | null>(key, null);
+    const previous = await GM.getValue<ReadHistoryRecord | null>(key, null);
     const importedIsNewer = !previous || record.updatedAt >= previous.updatedAt;
     const retained = importedIsNewer ? record : previous;
-    GM_setValue(key, storedReadHistoryRecord({
+    await GM.setValue(key, storedReadHistoryRecord({
       ...retained,
       gallery: importedIsNewer
         ? mergeGalleryInfo(previous?.gallery, record.gallery)
         : mergeGalleryInfo(record.gallery, previous.gallery),
     }));
-  }
+  }));
 
-  pruneReadHistory();
+  await pruneReadHistory();
   return Math.min(imported.size, READ_HISTORY_LIMIT);
 }
 
-export function clearReadHistory(): void {
-  for (const key of GM_listValues()) {
-    if (key.startsWith(HISTORY_KEY_PREFIX) || key.startsWith(HISTORY_QUEUE_KEY_PREFIX)) {
-      GM_deleteValue(key);
-    }
-  }
+export async function clearReadHistory(): Promise<void> {
+  const keys = await GM.listValues();
+  await Promise.all(keys
+    .filter((key) => key.startsWith(HISTORY_KEY_PREFIX) || key.startsWith(HISTORY_QUEUE_KEY_PREFIX))
+    .map((key) => GM.deleteValue(key)));
   state.gallery.readHistoryCompactEstimate.set(0);
 }
 
-export function removeReadHistory(galleryId: number, token: string): void {
-  const key = historyKey(galleryId, token);
-  const record = GM_getValue<ReadHistoryRecord | null>(key, null);
+export async function removeReadHistory(galleryId: number, token: string): Promise<void> {
+  const history = await galleryReadHistory(galleryId, token);
+  const record = history.value;
   if (!record) {
     return;
   }
 
-  GM_deleteValue(key);
+  await history.clear();
   state.gallery.readHistoryCompactEstimate.set(
-    Math.max(0, state.gallery.readHistoryCompactEstimate.reload() - 1),
+    Math.max(0, (await state.gallery.readHistoryCompactEstimate.reload()) - 1),
   );
 }
 
-export function updateReadHistoryGalleryInfo(
-  galleryId: number,
-  token: string,
-  gallery: GalleryHistoryInfo,
-): ReadHistoryRecord | null {
-  const record = loadReadHistory(galleryId, token);
-  if (!record) {
-    return null;
+async function incrementReadHistoryEstimate(): Promise<void> {
+  const estimate = (await state.gallery.readHistoryCompactEstimate.reload()) + 1;
+  state.gallery.readHistoryCompactEstimate.set(estimate);
+  if (estimate >= HISTORY_COMPACT_THRESHOLD) {
+    await pruneReadHistory();
   }
-  const updated = {
-    ...record,
-    gallery: mergeGalleryInfo(record.gallery, gallery),
-  };
-  return saveReadHistory(updated);
-}
-
-export function recordGalleryVisit(
-  galleryId: number,
-  token: string,
-  totalPages: number,
-  gallery: GalleryHistoryInfo,
-): ReadHistoryRecord {
-  const existing = loadReadHistory(galleryId, token);
-  const record = existing
-    ? {
-      ...existing,
-      gallery: mergeGalleryInfo(existing.gallery, gallery),
-      totalPages,
-      updatedAt: Date.now(),
-    }
-    : {
-      gallery,
-      galleryId,
-      pageNum: -1,
-      token,
-      totalPages,
-      updatedAt: Date.now(),
-    };
-  return saveReadHistory(record);
-}
-
-function saveReadHistory(record: ReadHistoryRecord): ReadHistoryRecord {
-  const key = historyKey(record.galleryId, record.token);
-  const previous = GM_getValue<ReadHistoryRecord | null>(key, null);
-  const exists = previous !== null;
-  if (previous && previous.updatedAt > record.updatedAt) {
-    const retained = storedReadHistoryRecord({
-      ...previous,
-      gallery: mergeGalleryInfo(previous.gallery, record.gallery),
-    });
-    GM_setValue(key, retained);
-    return retained;
-  }
-
-  const saved = storedReadHistoryRecord({
-    ...record,
-    gallery: mergeGalleryInfo(previous?.gallery, record.gallery),
-  });
-  GM_setValue(key, saved);
-
-  if (!exists) {
-    const estimate = state.gallery.readHistoryCompactEstimate.reload() + 1;
-    state.gallery.readHistoryCompactEstimate.set(estimate);
-
-    if (estimate >= HISTORY_COMPACT_THRESHOLD) {
-      pruneReadHistory();
-    }
-  }
-  return saved;
 }
 
 function mergeGalleryInfo(
@@ -445,37 +367,38 @@ function historyKey(galleryId: number, token: string): string {
   return `${HISTORY_KEY_PREFIX}${historyReference(galleryId, token)}`;
 }
 
-function loadAllReadHistoryRecords(keys = GM_listValues()): ReadHistoryRecord[] {
-  return keys
+async function loadAllReadHistoryRecords(keys?: string[]): Promise<ReadHistoryRecord[]> {
+  const storageKeys = keys ?? await GM.listValues();
+  const records = await Promise.all(storageKeys
     .filter((key) => key.startsWith(HISTORY_KEY_PREFIX))
-    .map((key) => GM_getValue<ReadHistoryRecord | null>(key, null))
+    .map((key) => GM.getValue<ReadHistoryRecord | null>(key, null)));
+  return records
     .filter((record): record is ReadHistoryRecord => record !== null)
     .sort((left, right) => right.updatedAt - left.updatedAt);
 }
 
-function clearLegacyHistoryQueue(keys: string[]): void {
+async function clearLegacyHistoryQueue(keys: string[]): Promise<void> {
   // TODO: Remove this one-time hist_q migration cleanup after existing installs have opened History.
-  for (const key of keys) {
-    if (key.startsWith(HISTORY_QUEUE_KEY_PREFIX)) {
-      GM_deleteValue(key);
-    }
-  }
+  await Promise.all(keys
+    .filter((key) => key.startsWith(HISTORY_QUEUE_KEY_PREFIX))
+    .map((key) => GM.deleteValue(key)));
 }
 
-function pruneReadHistory(): void {
-  const keys = GM_listValues();
-  const records = keys
+async function pruneReadHistory(): Promise<void> {
+  const keys = await GM.listValues();
+  const records = (await Promise.all(keys
     .filter((key) => key.startsWith(HISTORY_KEY_PREFIX))
-    .map((key) => ({ key, record: GM_getValue<ReadHistoryRecord | null>(key, null) }))
+    .map(async (key) => ({
+      key,
+      record: await GM.getValue<ReadHistoryRecord | null>(key, null),
+    }))))
     .filter((entry): entry is { key: string; record: ReadHistoryRecord } =>
       entry.record !== null,
     )
     .sort((left, right) => right.record.updatedAt - left.record.updatedAt);
   const retained = records.slice(0, READ_HISTORY_LIMIT);
 
-  for (const entry of records.slice(retained.length)) {
-    GM_deleteValue(entry.key);
-  }
+  await Promise.all(records.slice(retained.length).map((entry) => GM.deleteValue(entry.key)));
 
   state.gallery.readHistoryCompactEstimate.set(retained.length);
 }

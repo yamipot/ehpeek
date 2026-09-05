@@ -7,7 +7,7 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
   const [searchValue, setSearchValue] = createSignal(
     untrack(() => props.source.data.value),
   );
-  const [history, setHistory] = createSignal<string[]>(loadSearchHistory());
+  const [history, setHistory] = createSignal<string[]>([]);
   const [open, setOpen] = createSignal(false);
   const [activeIndex, setActiveIndex] = createSignal(-1);
   const [position, setPosition] = createSignal<{ left: number; top: number; width: number } | null>(null);
@@ -19,6 +19,9 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
   };
 
   onMount(() => {
+    void loadSearchHistory().then(setHistory).catch((error: unknown) => {
+      console.error("[ehpeek] Failed to load search history", error);
+    });
     const updatePosition = () => {
       setPosition(props.source.handle.readSearchOverlayPosition());
     };
@@ -72,7 +75,9 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
         return;
       }
 
-      setHistory(addSearchHistory(value));
+      void addSearchHistory(value).then(setHistory).catch((error: unknown) => {
+        console.error("[ehpeek] Failed to save search history", error);
+      });
     };
     const disconnect = props.source.handle.listenSearchHistoryOverlay({
       onFocus: showHistory,
@@ -119,7 +124,9 @@ export function SearchHistory(props: { source: SearchTextInputDom }) {
                 type="button"
                 class="appearance-none inline-flex ui-hit-w-lg ui-hit-min-h-lg flex-none items-center justify-center border-0 border-l ehp-color-site-border-subtle-b bg-transparent ehp-color-site-text textsize-xl font-inherit leading-1 cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-item-hover)]"
                 onClick={() => {
-                  setHistory(removeSearchHistory(item));
+                  void removeSearchHistory(item).then(setHistory).catch((error: unknown) => {
+                    console.error("[ehpeek] Failed to remove search history", error);
+                  });
                 }}
               >
                 ×

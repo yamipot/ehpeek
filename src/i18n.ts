@@ -23,12 +23,12 @@ const localeTexts = {
   ja,
 } satisfies Record<AppLocale, typeof texts>;
 
-const storedLocale = GM_getValue<unknown>(
-  APP_LOCALE_SETTING_KEY,
-  DEFAULT_APP_LOCALE,
-);
-export const appLocale: AppLocale = APP_LOCALES.includes(storedLocale as AppLocale)
-  ? storedLocale as AppLocale
-  : DEFAULT_APP_LOCALE;
+export let appLocale: AppLocale = DEFAULT_APP_LOCALE;
+let activeTexts = localeTexts[appLocale];
 
-export default localeTexts[appLocale];
+export function setAppLocale(locale: AppLocale): void {
+  appLocale = locale;
+  activeTexts = localeTexts[locale];
+}
+
+export { activeTexts as default };

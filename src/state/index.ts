@@ -14,6 +14,10 @@ export type ReaderScrollSizeScale = number | "one-to-one" | null;
 export type ReaderOrientation = "portrait" | "landscape";
 export type GalleryTitlePreference = "main" | "sub";
 export type SearchGridMode = "ehpeek" | "ehpeek-lite";
+export type BackToTopPosition = {
+  bottom: number;
+  right: number;
+};
 export type MyTagAppearance = {
   backgroundColor: string;
   color: string;
@@ -31,9 +35,32 @@ export type MyTagSetOption = {
 type StateValue<T> = {
   defaultValue: T;
   value: T;
+};
+
+export type PersistedGMStoreValue<T> = StateValue<T> & {
+  clear: () => Promise<void>;
+  preload: () => PersistedGMStoreValue<T>;
+  set: (value: T) => void;
+  setAsync: (value: T) => Promise<void>;
+  reload: () => Promise<T>;
+};
+
+type PersistedLocalStoreValue<T> = StateValue<T> & {
+  clear: () => void;
   set: (value: T) => void;
   reload: () => T;
+  stored: () => boolean;
 };
+
+type StateCodec<T> = {
+  parse: (value: unknown) => T | undefined;
+};
+
+type LocalStateCodec<T> = StateCodec<T> & {
+  serialize: (value: T) => string | null;
+};
+
+const persistedStateValues = new Set<{ reload: () => Promise<unknown> }>();
 
 const touchUiDefault = window.matchMedia("(pointer: coarse)").matches;
 const portraitUiScaleDefault: UiScale = touchUiDefault ? "large" : "small";
@@ -44,66 +71,112 @@ const landscapeUiScaleDefault: UiScale = touchUiDefault &&
 
 export const state = {
   app: {
-    locale: persistedEnum<AppLocale>(
+    locale: persisted(
       APP_LOCALE_SETTING_KEY,
       DEFAULT_APP_LOCALE,
-      APP_LOCALES,
-    ),
-    leftHandedControls: persisted("ehpeek:left-handed-controls", false),
-    openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", false),
-    portraitUiScale: persistedEnum("ehpeek:ui-scale:portrait", portraitUiScaleDefault, UI_SCALE_NAMES),
-    landscapeUiScale: persistedEnum("ehpeek:ui-scale:landscape", landscapeUiScaleDefault, UI_SCALE_NAMES),
+      enumCodec<AppLocale>(APP_LOCALES),
+    ).preload(),
+    leftHandedControls: persisted("ehpeek:left-handed-controls", false).preload(),
+    openGalleryInNewTab: persisted("ehpeek:open-gallery-in-new-tab", false).preload(),
+    portraitUiScale: persisted(
+      "ehpeek:ui-scale:portrait",
+      portraitUiScaleDefault,
+      enumCodec<UiScale>(UI_SCALE_NAMES),
+    ).preload(),
+    landscapeUiScale: persisted(
+      "ehpeek:ui-scale:landscape",
+      landscapeUiScaleDefault,
+      enumCodec<UiScale>(UI_SCALE_NAMES),
+    ).preload(),
   },
   reader: {
-    enabled: persisted("ehpeek:reader:enabled", true),
-    exitOnFullscreenExit: persisted("ehpeek:reader:exit-on-fullscreen-exit", false),
-    fullscreen: persisted("ehpeek:reader:fullscreen", false),
+    enabled: persisted("ehpeek:reader:enabled", true).preload(),
+    exitOnFullscreenExit: persisted(
+      "ehpeek:reader:exit-on-fullscreen-exit",
+      false,
+    ).preload(),
+    fullscreen: persisted("ehpeek:reader:fullscreen", false).preload(),
     portraitControls: readerControls("portrait"),
     landscapeControls: readerControls("landscape"),
-    scrollTtbScale: persisted<ReaderScrollSizeScale>("ehpeek:reader:scroll-ttb-scale", null),
-    scrollHorizontalScale: persisted<ReaderScrollSizeScale>("ehpeek:reader:scroll-horizontal-scale", null),
+    scrollTtbScale: persisted<ReaderScrollSizeScale>(
+      "ehpeek:reader:scroll-ttb-scale",
+      null,
+    ).preload(),
+    scrollHorizontalScale: persisted<ReaderScrollSizeScale>(
+      "ehpeek:reader:scroll-horizontal-scale",
+      null,
+    ).preload(),
   },
   gallery: {
-    enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", true),
-    replacePreviewWithScroll: persisted("ehpeek:scroll-preview:replace-original", false),
+    enhanceThumbs: persisted("ehpeek:enhance-thumbs:enabled", true).preload(),
+    replacePreviewWithScroll: persisted(
+      "ehpeek:scroll-preview:replace-original",
+      false,
+    ).preload(),
     embeddedScrollPreviewSingleDirection: persisted<ReadDirection>(
       "ehpeek:gallery-scroll-preview:single-direction",
       "rtl",
-    ),
+    ).preload(),
     embeddedScrollPreviewColumnsDirection: persisted<ReadDirection>(
       "ehpeek:gallery-scroll-preview:columns-direction",
       "ttb",
-    ),
+    ).preload(),
     scrollPreviewDirection: persisted<ReadDirection>(
       "ehpeek:scroll-preview:direction",
       "ttb",
+    ).preload(),
+    myTags: persisted("ehpeek:my-tags:enabled", true).preload(),
+    myTagAppearances: local(
+      "ehpeek:my-tags",
+      [],
+      jsonCodec(arrayCodec(isMyTagAppearance)),
     ),
-    myTags: persisted("ehpeek:my-tags:enabled", true),
-    myTagAppearances: localJson("ehpeek:my-tags", [], isMyTagAppearance),
-    myTagSets: localJson("ehpeek:my-tag-sets", [], isMyTagSetOption),
-    readHistory: persisted("ehpeek:read-history:enabled", true),
-    includeUnreadHistory: persisted("ehpeek:read-history:include-unread", true),
-    readHistoryCompactEstimate: persisted("ehpeek:history-count", 0),
-    titlePreference: localEnum<GalleryTitlePreference>(
+    myTagSets: local(
+      "ehpeek:my-tag-sets",
+      [],
+      jsonCodec(arrayCodec(isMyTagSetOption)),
+    ),
+    readHistory: persisted("ehpeek:read-history:enabled", true).preload(),
+    includeUnreadHistory: persisted(
+      "ehpeek:read-history:include-unread",
+      true,
+    ).preload(),
+    readHistoryCompactEstimate: persisted("ehpeek:history-count", 0).preload(),
+    titlePreference: local(
       "ehpeek:gallery-title-preference",
       "main",
-      ["main", "sub"],
+      enumCodec<GalleryTitlePreference>(["main", "sub"]),
     ),
   },
   search: {
-    enhance: persisted("ehpeek:enhance-search:enabled", true),
-    grid: localOptionalEnum<SearchGridMode>(
+    enhance: persisted("ehpeek:enhance-search:enabled", true).preload(),
+    grid: local<SearchGridMode | null>(
       "ehpeek:search-grid",
-      ["ehpeek", "ehpeek-lite"],
+      null,
+      nullableCodec(enumCodec<SearchGridMode>(["ehpeek", "ehpeek-lite"])),
     ),
-    history: persisted("ehpeek:search-history:enabled", true),
-    searchHistory: persisted<string[]>("ehpeek:search:history", []),
+    history: persisted("ehpeek:search-history:enabled", true).preload(),
+    searchHistory: persisted(
+      "ehpeek:search:history",
+      [],
+      arrayCodec((value): value is string => typeof value === "string"),
+    ).preload(),
   },
   touch: {
-    enabled: persisted("ehpeek:touch-ui:enabled", touchUiDefault),
-    fitToViewport: persisted("ehpeek:touch-ui:fit-to-viewport", true),
-    portraitColumns: persisted("ehpeek:touch-ui:portrait-columns", false),
-    landscapeColumns: persisted("ehpeek:touch-ui:landscape-columns", true),
+    enabled: persisted("ehpeek:touch-ui:enabled", touchUiDefault).preload(),
+    fitToViewport: persisted("ehpeek:touch-ui:fit-to-viewport", true).preload(),
+    portraitColumns: persisted("ehpeek:touch-ui:portrait-columns", false).preload(),
+    landscapeColumns: persisted("ehpeek:touch-ui:landscape-columns", true).preload(),
+  },
+  widgets: {
+    backToTopPosition: persisted<BackToTopPosition | null>(
+      "ehpeek:back-to-top:position",
+      null,
+    ).preload(),
+    galleryColumnsBackToTopPosition: persisted<BackToTopPosition | null>(
+      "ehpeek:gallery-columns-back-to-top:position",
+      null,
+    ).preload(),
   },
 } as const;
 
@@ -117,68 +190,74 @@ export function currentReaderControlsState() {
     : state.reader.portraitControls;
 }
 
-export function loadSearchHistory(): string[] {
-  const history = state.search.searchHistory.reload();
-  return Array.isArray(history) ? history.filter((item): item is string => typeof item === "string") : [];
+export async function loadState(): Promise<void> {
+  await Promise.all(Array.from(persistedStateValues, (item) => item.reload()));
 }
 
-export function addSearchHistory(value: string): string[] {
+export async function clearBackToTopPositions(): Promise<void> {
+  await Promise.all([
+    state.widgets.backToTopPosition.clear(),
+    state.widgets.galleryColumnsBackToTopPosition.clear(),
+  ]);
+}
+
+export async function loadSearchHistory(): Promise<string[]> {
+  return state.search.searchHistory.reload();
+}
+
+export async function addSearchHistory(value: string): Promise<string[]> {
   const normalized = value.trim();
 
   if (!normalized) {
     return loadSearchHistory();
   }
 
-  const history = [normalized, ...loadSearchHistory().filter((item) => item !== normalized)];
-  state.search.searchHistory.set(history);
+  const history = [
+    normalized,
+    ...(await loadSearchHistory()).filter((item) => item !== normalized),
+  ];
+  await state.search.searchHistory.setAsync(history);
   return history;
 }
 
-export function removeSearchHistory(value: string): string[] {
-  const history = loadSearchHistory().filter((item) => item !== value);
-  state.search.searchHistory.set(history);
+export async function removeSearchHistory(value: string): Promise<string[]> {
+  const history = (await loadSearchHistory()).filter((item) => item !== value);
+  await state.search.searchHistory.setAsync(history);
   return history;
 }
 
-function persisted<T>(key: string, defaultValue: T): StateValue<T> {
-  const item: StateValue<T> = {
-    defaultValue,
-    value: GM_getValue(key, defaultValue),
-    set(value) {
-      item.value = value;
-      GM_setValue(key, value);
-    },
-    reload() {
-      item.value = GM_getValue(key, defaultValue);
-      return item.value;
-    },
-  };
-
-  return item;
-}
-
-function persistedEnum<T extends string>(
+export function persisted<T>(
   key: string,
   defaultValue: T,
-  values: readonly T[],
-): StateValue<T> {
-  const read = () => {
-    const value = GM_getValue<unknown>(key, defaultValue);
-    if (values.includes(value as T)) {
-      return value as T;
-    }
-    GM_setValue(key, defaultValue);
-    return defaultValue;
-  };
-  const item: StateValue<T> = {
+  codec: StateCodec<T> = { parse: (value) => value as T },
+): PersistedGMStoreValue<T> {
+  const item: PersistedGMStoreValue<T> = {
     defaultValue,
-    value: read(),
-    set(value) {
-      item.value = value;
-      GM_setValue(key, value);
+    value: defaultValue,
+    async clear() {
+      item.value = defaultValue;
+      await GM.deleteValue(key);
     },
-    reload() {
-      item.value = read();
+    preload() {
+      persistedStateValues.add(item);
+      return item;
+    },
+    set(value) {
+      void item.setAsync(value).catch((error: unknown) => {
+        console.error(`[ehpeek] Failed to persist ${key}`, error);
+      });
+    },
+    async setAsync(value) {
+      item.value = value;
+      await GM.setValue(key, value);
+    },
+    async reload() {
+      const stored = await GM.getValue<unknown>(key, defaultValue);
+      const parsed = codec.parse(stored);
+      item.value = parsed ?? defaultValue;
+      if (parsed === undefined) {
+        await GM.setValue(key, defaultValue);
+      }
       return item.value;
     },
   };
@@ -187,11 +266,26 @@ function persistedEnum<T extends string>(
 
 function readerControls(orientation: ReaderOrientation) {
   return {
-    navigationMode: persisted<NavigationMode>(`ehpeek:reader:navigation-mode:${orientation}`, "scroll"),
-    scrollDirection: persisted<ReadDirection>(`ehpeek:reader:scroll-direction:${orientation}`, "ttb"),
-    pagedDirection: persisted<ReadDirection>(`ehpeek:reader:paged-direction:${orientation}`, "rtl"),
-    pageLayout: persisted<PageLayout>(`ehpeek:reader:page-layout:${orientation}`, "single"),
-    rightTapAction: persisted<RightTapAction>(`ehpeek:reader:right-tap-action:${orientation}`, "previous"),
+    navigationMode: persisted<NavigationMode>(
+      `ehpeek:reader:navigation-mode:${orientation}`,
+      "scroll",
+    ).preload(),
+    scrollDirection: persisted<ReadDirection>(
+      `ehpeek:reader:scroll-direction:${orientation}`,
+      "ttb",
+    ).preload(),
+    pagedDirection: persisted<ReadDirection>(
+      `ehpeek:reader:paged-direction:${orientation}`,
+      "rtl",
+    ).preload(),
+    pageLayout: persisted<PageLayout>(
+      `ehpeek:reader:page-layout:${orientation}`,
+      "single",
+    ).preload(),
+    rightTapAction: persisted<RightTapAction>(
+      `ehpeek:reader:right-tap-action:${orientation}`,
+      "previous",
+    ).preload(),
   } as const;
 }
 
@@ -199,75 +293,26 @@ export function normalizeReaderScrollSizeScale(scale: number): number {
   return Number.isFinite(scale) ? Math.min(100, Math.max(0.001, scale)) : 1;
 }
 
-function localOptionalEnum<T extends string>(
-  key: string,
-  values: readonly T[],
-): StateValue<T | null> {
-  const read = () => {
-    const value = window.localStorage.getItem(key);
-    return values.includes(value as T) ? value as T : null;
-  };
-  const item: StateValue<T | null> = {
-    defaultValue: null,
-    value: read(),
-    set(value) {
-      item.value = value;
-      if (value !== null) {
-        window.localStorage.setItem(key, value);
-      } else {
-        window.localStorage.removeItem(key);
-      }
-    },
-    reload() {
-      item.value = read();
-      return item.value;
-    },
-  };
-  return item;
-}
-
-function localEnum<T extends string>(
+function local<T>(
   key: string,
   defaultValue: T,
-  values: readonly T[],
-): StateValue<T> {
+  codec: LocalStateCodec<T>,
+): PersistedLocalStoreValue<T> {
   const read = () => {
-    const value = window.localStorage.getItem(key);
-    return values.includes(value as T) ? value as T : defaultValue;
+    const stored = window.localStorage.getItem(key);
+    return stored === null ? defaultValue : codec.parse(stored) ?? defaultValue;
   };
-  const item: StateValue<T> = {
+  const item: PersistedLocalStoreValue<T> = {
     defaultValue,
     value: read(),
     set(value) {
       item.value = value;
-      window.localStorage.setItem(key, value);
-    },
-    reload() {
-      item.value = read();
-      return item.value;
-    },
-  };
-  return item;
-}
-
-function localJson<T>(key: string, defaultValue: T[], valid: (value: unknown) => value is T): StateValue<T[]> & {
-  clear: () => void;
-  stored: () => boolean;
-} {
-  const read = () => {
-    try {
-      const value: unknown = JSON.parse(window.localStorage.getItem(key) ?? "null");
-      return Array.isArray(value) ? value.filter(valid) : defaultValue;
-    } catch {
-      return defaultValue;
-    }
-  };
-  const item = {
-    defaultValue,
-    value: read(),
-    set(value: T[]) {
-      item.value = value;
-      window.localStorage.setItem(key, JSON.stringify(value));
+      const stored = codec.serialize(value);
+      if (stored === null) {
+        window.localStorage.removeItem(key);
+      } else {
+        window.localStorage.setItem(key, stored);
+      }
     },
     reload() {
       item.value = read();
@@ -282,6 +327,42 @@ function localJson<T>(key: string, defaultValue: T[], valid: (value: unknown) =>
     },
   };
   return item;
+}
+
+function enumCodec<T extends string>(values: readonly T[]): LocalStateCodec<T> {
+  return {
+    parse: (value) => values.includes(value as T) ? value as T : undefined,
+    serialize: (value) => value,
+  };
+}
+
+function nullableCodec<T>(codec: LocalStateCodec<T>): LocalStateCodec<T | null> {
+  return {
+    parse: codec.parse,
+    serialize: (value) => value === null ? null : codec.serialize(value),
+  };
+}
+
+function arrayCodec<T>(valid: (value: unknown) => value is T): StateCodec<T[]> {
+  return {
+    parse: (value) => Array.isArray(value) ? value.filter(valid) : undefined,
+  };
+}
+
+function jsonCodec<T>(codec: StateCodec<T>): LocalStateCodec<T> {
+  return {
+    parse(value) {
+      if (typeof value !== "string") {
+        return undefined;
+      }
+      try {
+        return codec.parse(JSON.parse(value) as unknown);
+      } catch {
+        return undefined;
+      }
+    },
+    serialize: (value) => JSON.stringify(value) ?? null,
+  };
 }
 
 function isMyTagAppearance(value: unknown): value is MyTagAppearance {

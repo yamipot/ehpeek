@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
@@ -24,6 +25,10 @@ const version = userscriptVersion();
 const unoCss = await generateUnoCss();
 const spectrumUiSizes = readSpectrumUiSizes();
 const projectIconUrl = "https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg";
+const gm4Polyfill = readFileSync(
+  createRequire(import.meta.url).resolve("gm4-polyfill"),
+  "utf8",
+);
 
 const metadata = [
   "// ==UserScript==",
@@ -44,12 +49,19 @@ const metadata = [
   "// @match        *://*.e-hentai.org/*",
   "// @match        *://*.hath.network/*",
   "// @exclude      *://forums.e-hentai.org/*",
+  "// @grant        GM.getValue",
+  "// @grant        GM.setValue",
+  "// @grant        GM.deleteValue",
+  "// @grant        GM.listValues",
+  "// @grant        GM.registerMenuCommand",
+  "// @grant        GM.download",
   "// @grant        GM_getValue",
   "// @grant        GM_setValue",
   "// @grant        GM_deleteValue",
   "// @grant        GM_listValues",
   "// @grant        GM_registerMenuCommand",
   "// @grant        GM_download",
+  "// @inject-into  content",
   "// @run-at       document-start",
   `// @updateURL    ${installUrl}`,
   `// @downloadURL  ${installUrl}`,
@@ -60,7 +72,7 @@ const metadata = [
 mkdirSync(path.join(packageDir, "dist"), { recursive: true });
 
 await build({
-  entryPoints: [path.join(packageDir, "src/App/index.tsx")],
+  entryPoints: [path.join(packageDir, "src/index.ts")],
   bundle: true,
   format: "iife",
   target: "es2020",
@@ -80,7 +92,7 @@ await build({
   minifySyntax: !debugBuild,
   sourcemap: releaseBuild ? false : "linked",
   banner: {
-    js: metadata,
+    js: `${metadata}\n${gm4Polyfill}`,
   },
   define: {
     __EHPEEK_DEBUG__: JSON.stringify(debugBuild),

@@ -5,13 +5,13 @@ import type { ReaderActions } from "../components/Reader";
 import * as eh from "../eh";
 import type { ReaderPage } from "../readerTypes";
 import {
-  loadReadHistory,
-  ReadingProgressSession,
-  recordGalleryVisit,
-  type ReadingProgress,
-  updateReadHistoryGalleryInfo,
+  type GalleryReadHistory,
 } from "../state/readHistory";
 import texts from "../i18n";
+import {
+  ReadingProgressSession,
+  type ReadingProgress,
+} from "./ReadingProgressSession";
 import type { GalleryPreviewCache } from "./GalleryPreviewCache";
 import type { OverlayHost } from "./OverlayHost";
 import {
@@ -54,7 +54,7 @@ export function createGalleryCoordinator(options: {
   includeUnreadHistoryEnabled: boolean;
   overlayHost: OverlayHost;
   previewCache: GalleryPreviewCache;
-  readHistoryEnabled: boolean;
+  readHistory: GalleryReadHistory | null;
   readerEnabled: boolean;
   readerFullscreenEnabled: boolean;
   replacePreviewWithScroll: boolean;
@@ -70,7 +70,7 @@ export function createGalleryCoordinator(options: {
     gallery.galleryId,
     gallery.token,
     preview.totalImages,
-    options.readHistoryEnabled,
+    options.readHistory,
     options.includeUnreadHistoryEnabled,
   );
   const historySessionId = crypto.randomUUID();
@@ -371,7 +371,7 @@ export function createGalleryCoordinator(options: {
       stopFullscreen();
     },
     openFromReadButton: () => {
-      const pageNum = options.readHistoryEnabled
+      const pageNum = options.readHistory
         ? progress.progress().currentPage
         : 1;
       const firstPage = previewCache.current().data.pages[0];
@@ -432,10 +432,10 @@ function createProgressSession(
   galleryId: number,
   token: string,
   totalPages: number,
-  enabled: boolean,
+  history: GalleryReadHistory | null,
   includeUnread: boolean,
 ): ReadingProgressSession {
-  if (!enabled) {
+  if (!history) {
     return new ReadingProgressSession(null, {
       currentPage: 1,
       hasHistory: false,
@@ -443,23 +443,25 @@ function createProgressSession(
     });
   }
 
-  const existing = loadReadHistory(galleryId, token);
+  const existing = history.value;
   const galleryInfo = eh.extractGalleryHistoryInfo();
-  let record = existing;
   if (includeUnread) {
-    record = recordGalleryVisit(galleryId, token, totalPages, galleryInfo);
+    history.recordVisit(totalPages, galleryInfo);
   } else if (existing) {
-    record = updateReadHistoryGalleryInfo(galleryId, token, galleryInfo);
+    history.updateGalleryInfo(galleryInfo);
   }
   return new ReadingProgressSession({
-    gallery: galleryInfo,
-    galleryId,
-    token,
-    totalPages,
+    history,
+    record: {
+      gallery: galleryInfo,
+      galleryId,
+      token,
+      totalPages,
+    },
   }, {
-    currentPage: record?.pageNum && record.pageNum > 0 ? record.pageNum : 1,
-    hasHistory: Boolean(record && record.pageNum > 0),
-    totalPages: record?.totalPages ?? totalPages,
+    currentPage: existing?.pageNum && existing.pageNum > 0 ? existing.pageNum : 1,
+    hasHistory: Boolean(existing && existing.pageNum > 0),
+    totalPages: existing?.totalPages ?? totalPages,
   });
 }
 

@@ -1,8 +1,9 @@
 # <img src="./icon.svg" width="42" alt="ehpeek panda icon" align="absmiddle"> EhPeek
 
 [![GitHub](https://img.shields.io/badge/GitHub-EhPeek-181717?style=flat&logo=github)](https://github.com/yamipot/ehpeek)
- [![SleazyFork installs](https://img.shields.io/greasyfork/dt/588026?label=SleazyFork&color=8b0000)](https://sleazyfork.org/en/scripts/588026-ehpeek)
- [![jsDelivr downloads](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdata.jsdelivr.com%2Fv1%2Fstats%2Fpackages%2Fgh%2Fyamipot%2Fehpeek%3Fperiod%3Dall&query=%24.hits.total&label=jsDelivr&color=ff5627&logo=jsdelivr)](https://www.jsdelivr.com/package/gh/yamipot/ehpeek)
+ [![SleazyFork installs](https://img.shields.io/greasyfork/dt/588026?label=SleazyFork&color=8b0000)](https://sleazyfork.org/en/scripts/588026-ehpeek)<br>
+ [![jsDelivr Stable](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdata.jsdelivr.com%2Fv1%2Fstats%2Fpackages%2Fgh%2Fyamipot%2Fehpeek%40build-stable%3Fperiod%3Dall&query=%24.hits.total&label=jsDelivr%20Stable&color=ff5627&logo=jsdelivr)](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-stable/ehpeek.user.js)
+ [![jsDelivr Beta](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdata.jsdelivr.com%2Fv1%2Fstats%2Fpackages%2Fgh%2Fyamipot%2Fehpeek%40build-master%3Fperiod%3Dall&query=%24.hits.total&label=jsDelivr%20Beta&color=ff5627&logo=jsdelivr)](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-master/ehpeek.user.js)
 
 A userscript that turns E-H / ExH pages into a touch-optimized gallery reader. Inspired by [EhViewer-NekoInverter/EhViewer](https://github.com/EhViewer-NekoInverter/EhViewer).
 

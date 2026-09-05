@@ -7,6 +7,7 @@ import {
   type RightTapAction,
 } from "../../state";
 import texts from "../../i18n";
+import { startUserscriptDownload } from "../../userscript";
 import { stopEvent } from "../../utils";
 import { Dialog } from "../Widgets/Dialog";
 import { Icon } from "../Widgets/Icon";
@@ -555,21 +556,14 @@ export function Toolbar(props: {
 }
 
 function startImageDownload(url: string, name?: string): boolean {
-  try {
-    GM_download({
-      url,
-      ...(name ? { name } : {}),
-      onerror: (error) => {
+  return startUserscriptDownload({
+    url,
+    ...(name ? { name } : {}),
+    onerror: (error) => {
         console.error("[ehpeek]", error);
         window.alert(texts.errors.downloadFailed);
-      },
-    });
-    return true;
-  } catch (error) {
-    console.error("[ehpeek]", error);
-    window.alert(texts.errors.downloadFailed);
-    return false;
-  }
+    },
+  });
 }
 
 function createFullscreenTime(enabled: () => boolean): () => string {

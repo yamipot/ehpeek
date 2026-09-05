@@ -13,17 +13,16 @@ import {
 } from "../components/Enhance/ScrollPreview";
 import { ReadHistoryPage } from "../components/Enhance/ReadHistory";
 import {
+  galleryReadHistory,
   loadDisplayReadHistoryRecords,
-  loadReadHistory,
-  ReadingProgressSession,
-  type ReadingProgress,
+  type DisplayReadHistoryRecord,
+  type GalleryReadHistory,
 } from "../state/readHistory";
 import { SearchHistory } from "../components/Enhance/SearchHistory";
 import { loadMyTagAppearances, refreshMyTags } from "../components/Enhance/MyTags";
 import { SettingsMenu } from "../components/SettingsMenu";
 import {
   BackToTop,
-  clearBackToTopPosition,
 } from "../components/Widgets/BackToTop";
 import {
   GalleryInfoPanel,
@@ -35,7 +34,7 @@ import {
   TouchTopBar,
 } from "../components/TouchUI";
 import * as eh from "../eh";
-import { state } from "../state";
+import { clearBackToTopPositions, state } from "../state";
 import { dispatchReady } from "../state/events";
 import texts from "../i18n";
 import { registerGlobalStyle } from "../utils";
@@ -43,6 +42,7 @@ import ehDomCss from "../eh/dom/styles.css";
 import unoCss from "ehpeek:uno.css";
 import themeCss from "../theme.css";
 import { reportReaderOpenError } from "./Reader";
+import type { ReadingProgress } from "./ReadingProgressSession";
 import {
   createGalleryCoordinator,
   type GalleryCoordinator,
@@ -89,28 +89,30 @@ function settingsMenuState(defaults = false) {
   };
 }
 
-function applySettingsMenuState(
+async function applySettingsMenuState(
   next: ReturnType<typeof settingsMenuState>,
-): void {
+): Promise<void> {
   if (!next.touchUiEnabled) {
-    clearBackToTopPosition();
+    await clearBackToTopPositions();
   }
-  state.app.openGalleryInNewTab.set(next.openGalleryInNewTab);
-  state.app.locale.set(next.locale);
-  state.reader.enabled.set(next.readerEnabled);
-  state.reader.exitOnFullscreenExit.set(next.exitReaderOnFullscreenExit);
-  state.reader.fullscreen.set(next.readerFullscreenEnabled);
-  state.gallery.replacePreviewWithScroll.set(next.replacePreviewWithScroll);
-  state.gallery.enhanceThumbs.set(next.enhanceThumbsGridsEnabled);
-  state.search.enhance.set(next.enhanceSearchGridsEnabled);
-  state.gallery.myTags.set(next.myTagsEnabled);
-  state.gallery.readHistory.set(next.readHistoryEnabled);
-  state.gallery.includeUnreadHistory.set(next.includeUnreadHistoryEnabled);
-  state.search.history.set(next.searchHistoryEnabled);
-  state.touch.enabled.set(next.touchUiEnabled);
-  state.touch.fitToViewport.set(next.fitToViewport);
-  state.app.portraitUiScale.set(next.portraitUiScale);
-  state.app.landscapeUiScale.set(next.landscapeUiScale);
+  await Promise.all([
+    state.app.openGalleryInNewTab.setAsync(next.openGalleryInNewTab),
+    state.app.locale.setAsync(next.locale),
+    state.reader.enabled.setAsync(next.readerEnabled),
+    state.reader.exitOnFullscreenExit.setAsync(next.exitReaderOnFullscreenExit),
+    state.reader.fullscreen.setAsync(next.readerFullscreenEnabled),
+    state.gallery.replacePreviewWithScroll.setAsync(next.replacePreviewWithScroll),
+    state.gallery.enhanceThumbs.setAsync(next.enhanceThumbsGridsEnabled),
+    state.search.enhance.setAsync(next.enhanceSearchGridsEnabled),
+    state.gallery.myTags.setAsync(next.myTagsEnabled),
+    state.gallery.readHistory.setAsync(next.readHistoryEnabled),
+    state.gallery.includeUnreadHistory.setAsync(next.includeUnreadHistoryEnabled),
+    state.search.history.setAsync(next.searchHistoryEnabled),
+    state.touch.enabled.setAsync(next.touchUiEnabled),
+    state.touch.fitToViewport.setAsync(next.fitToViewport),
+    state.app.portraitUiScale.setAsync(next.portraitUiScale),
+    state.app.landscapeUiScale.setAsync(next.landscapeUiScale),
+  ]);
   window.location.reload();
 }
 
@@ -377,8 +379,8 @@ function TouchGalleryReadButton(props: GalleryReadButtonProps) {
 }
 
 function installSettingsMenu(): void {
-  if (typeof GM_registerMenuCommand === "function") {
-    GM_registerMenuCommand(texts.settings.openSettings, () => {
+  if (GM.registerMenuCommand) {
+    void GM.registerMenuCommand(texts.settings.openSettings, () => {
       gState.setSettingsMenuOpen(true);
     });
   }
@@ -401,7 +403,10 @@ function installSettingsMenu(): void {
             : { portraitUiScale: gState.uiScale() }),
         }}
         onApply={(next) => {
-          applySettingsMenuState(next);
+          void allowAsyncFeatureFailure(
+            "Settings update",
+            () => applySettingsMenuState(next),
+          );
         }}
         onOpenChange={gState.setSettingsMenuOpen}
       />
@@ -629,16 +634,16 @@ function injectGalleryPreview(
 
 function injectGalleryPage(
   page: Extract<eh.PageType, { type: "gallery" }>,
+  readHistory: GalleryReadHistory | null,
 ): void {
-  const preview = eh.manageGalleryPreview();
-  const previewCache = createGalleryPreviewCache(preview);
+  const previewCache = createGalleryPreviewCache(eh.manageGalleryPreview());
   const coordinator = createGalleryCoordinator({
     enhanceThumbsGridsEnabled: gState.settings.enhanceThumbsGridsEnabled,
     exitReaderOnFullscreenExit: gState.settings.exitReaderOnFullscreenExit,
     includeUnreadHistoryEnabled: gState.settings.includeUnreadHistoryEnabled,
     overlayHost,
     previewCache,
-    readHistoryEnabled: gState.settings.readHistoryEnabled,
+    readHistory,
     readerEnabled: gState.settings.readerEnabled,
     readerFullscreenEnabled: gState.settings.readerFullscreenEnabled,
     replacePreviewWithScroll: gState.settings.replacePreviewWithScroll,
@@ -749,11 +754,27 @@ function injectSearchPage(
       () => eh.manageSearchGrids(searchGridMode),
     );
   }
+  const readHistories = new Map<string, GalleryReadHistory | null>();
+  const readProgressForGallery = (galleryId: number, token: string) => {
+    const reference = `${galleryId}:${token}`;
+    const history = readHistories.get(reference);
+    if (!readHistories.has(reference)) {
+      readHistories.set(reference, null);
+      void allowAsyncFeatureFailure("Search Read History loading", async () => {
+        readHistories.set(
+          reference,
+          await galleryReadHistory(galleryId, token),
+        );
+        updateSearchReadHistoryAppearance();
+      });
+    }
+    return history?.value ?? null;
+  };
   const updateSearchReadHistoryAppearance = () => {
     if (!gState.settings.readHistoryEnabled) {
       return;
     }
-    eh.mutateSearchReadHistoryAppearance(loadReadHistory);
+    eh.mutateSearchReadHistoryAppearance(readProgressForGallery);
   };
   allowFeatureFailure("Search Read History appearance", updateSearchReadHistoryAppearance);
 
@@ -821,9 +842,9 @@ function injectSearchPage(
 
 function injectReadHistoryPage(
   page: Extract<eh.PageType, { type: "readHistory" }>,
+  records: DisplayReadHistoryRecord[],
 ): void {
   const pageSize = 25;
-  const records = loadDisplayReadHistoryRecords();
   const pageCount = Math.max(1, Math.ceil(records.length / pageSize));
   const pageIndex = Math.min(page.pageIndex, pageCount - 1);
   const items = records.map((record) => ({
@@ -865,68 +886,14 @@ function injectReadHistoryPage(
   ));
 }
 
-function injectImagePage(
-  page: Extract<eh.PageType, { type: "image" }>,
-): void {
-  if (!gState.settings.readHistoryEnabled) {
-    return;
-  }
-  const gallery = requirePageDependency(
-    "Image Gallery data",
-    eh.extractImageGalleryPage(),
-  );
-  if (gallery.galleryId !== page.galleryId) {
-    return;
-  }
-  const previous = loadReadHistory(gallery.galleryId, gallery.token);
-  const historySession = new ReadingProgressSession({
-    gallery: previous?.gallery,
-    galleryId: gallery.galleryId,
-    token: gallery.token,
-    totalPages: previous?.totalPages,
-  }, {
-    currentPage: previous?.pageNum && previous.pageNum > 0 ? previous.pageNum : 1,
-    hasHistory: Boolean(previous && previous.pageNum > 0),
-    totalPages: previous?.totalPages ?? null,
+function injectPage(page: eh.PageType, inject?: () => void): void {
+  createRoot(() => {
+    installSettingsMenu();
+    updateUiScale();
+    injectCommon(page);
+    inject?.();
   });
-  historySession.update(page.pageNum, previous?.totalPages);
-}
-
-function injectPage(page: eh.PageType): void {
-  updateUiScale();
-  injectCommon(page);
-
-  switch (page.type) {
-    case "gallery":
-      allowFeatureFailure("Gallery page", () => injectGalleryPage(page));
-      break;
-    case "favorites":
-    case "search":
-      allowFeatureFailure("Search page", () => injectSearchPage(page));
-      break;
-    case "readHistory":
-      allowFeatureFailure("Read History page", () => injectReadHistoryPage(page));
-      break;
-    case "image":
-      allowFeatureFailure("Image page", () => injectImagePage(page));
-      break;
-    case "myTags":
-      if (gState.settings.myTagsEnabled) {
-        void allowAsyncFeatureFailure("My Tags refresh", async () => {
-          await refreshMyTags(eh.extractMyTagsPageData());
-        });
-      }
-      break;
-    case "settings": {
-      const titlePreference = eh.extractGalleryTitlePreference();
-      if (titlePreference) {
-        state.gallery.titlePreference.set(titlePreference);
-      }
-      break;
-    }
-    case "other":
-      break;
-  }
+  dispatchReady();
 }
 
 eh.initializeExternalAutocompleteUi();
@@ -955,11 +922,53 @@ async function startApp(): Promise<void> {
   };
   window.addEventListener("resize", onViewportResize, { passive: true });
 
-  createRoot(() => {
-    installSettingsMenu();
-    injectPage(page);
-  });
-  dispatchReady();
+  let inject: (() => void) | undefined;
+  switch (page.type) {
+    case "gallery": {
+      const history = gState.settings.readHistoryEnabled
+        ? await galleryReadHistory(page.galleryId, page.token)
+        : null;
+      inject = () => {
+        allowFeatureFailure("Gallery page", () => injectGalleryPage(page, history));
+      };
+      break;
+    }
+    case "readHistory": {
+      const records = await loadDisplayReadHistoryRecords();
+      inject = () => {
+        allowFeatureFailure("Read History page", () => injectReadHistoryPage(page, records));
+      };
+      break;
+    }
+    case "image":
+      break;
+    case "favorites":
+    case "search":
+      inject = () => {
+        allowFeatureFailure("Search page", () => injectSearchPage(page));
+      };
+      break;
+    case "myTags":
+      inject = () => {
+        if (gState.settings.myTagsEnabled) {
+          void allowAsyncFeatureFailure("My Tags refresh", async () => {
+            await refreshMyTags(eh.extractMyTagsPageData());
+          });
+        }
+      };
+      break;
+    case "settings":
+      inject = () => {
+        const titlePreference = eh.extractGalleryTitlePreference();
+        if (titlePreference) {
+          state.gallery.titlePreference.set(titlePreference);
+        }
+      };
+      break;
+    case "other":
+      break;
+  }
+  injectPage(page, inject);
 }
 
 void startApp().catch((error) => {

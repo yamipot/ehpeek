@@ -57,11 +57,11 @@ export function ReadHistoryPage(props: {
     }
     props.source.handle.scrollReadHistoryPage(scrollToPageBar);
   };
-  const clearHistory = () => {
+  const clearHistory = async () => {
     if (!window.confirm(texts.history.clearConfirm)) {
       return;
     }
-    clearReadHistory();
+    await clearReadHistory();
     setItems([]);
     setPageIndex(0);
     setTransferStatus("");
@@ -69,8 +69,8 @@ export function ReadHistoryPage(props: {
   };
   const importHistoryFile = async (file: File): Promise<void> => {
     try {
-      const count = importReadHistory(await file.text());
-      setItems(loadDisplayReadHistoryRecords().map((record) => ({
+      const count = await importReadHistory(await file.text());
+      setItems((await loadDisplayReadHistoryRecords()).map((record) => ({
         currentPage: record.pageNum,
         galleryId: record.galleryId,
         info: record.gallery,
@@ -87,9 +87,9 @@ export function ReadHistoryPage(props: {
       setTransferStatus(texts.history.importFailed);
     }
   };
-  const exportHistoryFile = () => {
+  const exportHistoryFile = async () => {
     const url = URL.createObjectURL(new Blob(
-      [exportReadHistory()],
+      [await exportReadHistory()],
       { type: "application/json" },
     ));
     const link = document.createElement("a");
@@ -100,11 +100,11 @@ export function ReadHistoryPage(props: {
     URL.revokeObjectURL(url);
     setTransferStatus(texts.history.exported);
   };
-  const removeHistoryItem = (item: eh.ReadHistoryPageItem) => {
+  const removeHistoryItem = async (item: eh.ReadHistoryPageItem) => {
     if (!window.confirm(texts.history.removeConfirm)) {
       return;
     }
-    removeReadHistory(item.galleryId, item.token);
+    await removeReadHistory(item.galleryId, item.token);
     const nextItems = items().filter((candidate) =>
       candidate.galleryId !== item.galleryId || candidate.token !== item.token,
     );

@@ -21,6 +21,7 @@
     "unocss": "^66.7.5"
   },
   "dependencies": {
+    "gm4-polyfill": "1.0.1",
     "lucide-solid": "^1.26.0",
     "solid-js": "^1.9.14"
   }

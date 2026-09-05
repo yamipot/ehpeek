@@ -6,20 +6,15 @@ import {
   type Accessor,
   type JSX,
 } from "solid-js";
+import {
+  state,
+  type BackToTopPosition,
+} from "../../state";
 import { Icon } from "./Icon";
 
-const BACK_TO_TOP_POSITION_KEY = "ehpeek:back-to-top:position";
-const GALLERY_COLUMNS_BACK_TO_TOP_POSITION_KEY =
-  "ehpeek:gallery-columns-back-to-top:position";
-
-export function clearBackToTopPosition(): void {
-  GM_deleteValue(BACK_TO_TOP_POSITION_KEY);
-  GM_deleteValue(GALLERY_COLUMNS_BACK_TO_TOP_POSITION_KEY);
-}
-
-type ButtonPosition = {
-  bottom: number;
-  right: number;
+type PositionState = {
+  set: (value: BackToTopPosition | null) => void;
+  value: BackToTopPosition | null;
 };
 
 type BackToTopBounds = {
@@ -44,7 +39,7 @@ export function BackToTop(props: { leftHanded: Accessor<boolean> }) {
   return (
     <MovableBackToTop
       leftHanded={props.leftHanded}
-      positionKey={BACK_TO_TOP_POSITION_KEY}
+      positionState={state.widgets.backToTopPosition}
     />
   );
 }
@@ -56,7 +51,7 @@ export function GalleryColumnsBackToTop(props: {
   return (
     <MovableBackToTop
       leftHanded={props.leftHanded}
-      positionKey={GALLERY_COLUMNS_BACK_TO_TOP_POSITION_KEY}
+      positionState={state.widgets.galleryColumnsBackToTopPosition}
       scope={props.scope}
     />
   );
@@ -64,7 +59,7 @@ export function GalleryColumnsBackToTop(props: {
 
 function MovableBackToTop(props: {
   leftHanded: Accessor<boolean>;
-  positionKey: string;
+  positionState: PositionState;
   scope?: BackToTopScope;
 }) {
   let button!: HTMLButtonElement;
@@ -72,7 +67,7 @@ function MovableBackToTop(props: {
   let dragged = false;
   let scopedBounds: BackToTopBounds | null = null;
   const [visible, setVisible] = createSignal(false);
-  const [position, setPosition] = createSignal<ButtonPosition | null>(null);
+  const [position, setPosition] = createSignal<BackToTopPosition | null>(null);
   const [boundsVersion, setBoundsVersion] = createSignal(0);
   const bounds = (): BackToTopBounds | null => props.scope
     ? scopedBounds
@@ -118,6 +113,7 @@ function MovableBackToTop(props: {
   };
 
   onMount(() => {
+    setPosition(props.positionState.value);
     const updateVisibility = () => {
       const currentBounds = bounds();
       setVisible(
@@ -136,11 +132,6 @@ function MovableBackToTop(props: {
       updateBounds();
     } else {
       updateVisibility();
-    }
-    const savedPosition = GM_getValue<ButtonPosition | null>(props.positionKey, null);
-
-    if (savedPosition) {
-      setPosition(savedPosition);
     }
     if (props.scope) {
       const stopListening = props.scope.listen({
@@ -209,7 +200,7 @@ function MovableBackToTop(props: {
           drag = null;
           const current = position();
           if (dragged && current) {
-            GM_setValue(props.positionKey, current);
+            props.positionState.set(current);
           }
         }}
         onClick={(event) => {
@@ -232,10 +223,10 @@ function MovableBackToTop(props: {
 }
 
 function clampPosition(
-  position: ButtonPosition,
+  position: BackToTopPosition,
   button: HTMLButtonElement,
   bounds: BackToTopBounds,
-): ButtonPosition {
+): BackToTopPosition {
   return {
     bottom: Math.min(
       Math.max(0, position.bottom),
