@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260905.0003
+// @version      260905.0024
 // @description  A full-featured, touch-optimized E-H/ExH viewer. Features: a built-in reader, zoomable gallery previews, mobile UI adaptation, gesture navigation, reading history, and more.
 // @description:ja  タッチ操作向けの多機能 E-H/ExH ビューア。内蔵リーダー、ズーム対応のギャラリープレビュー、モバイル向け UI、ジェスチャー操作、閲覧履歴など。
 // @description:zh-CN  针对触屏优化的 E-H/ExH 阅读器。功能： 内置阅读器、可缩放画廊预览、移动端 UI 适配、手势导航、阅读历史等。
@@ -9087,7 +9087,7 @@ Next page`,
             onChange: (value) => {
               setChanged(!0), setDraft("locale", value);
             }
-          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260905.0003", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => activeTexts.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => activeTexts.settings.licenses), insert(_el$28, createComponent(Icon2, {
+          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260905.0024", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => activeTexts.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => activeTexts.settings.licenses), insert(_el$28, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$30.$$click = (event) => {
@@ -14247,11 +14247,13 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
       };
     }
     function updateControls(requestedControls) {
-      let previous = state2.ctrls.value(), persistedControls = currentReaderControlsState(), controls = requestedControls.navigationMode === previous.navigationMode ? requestedControls : {
+      let previous = state2.ctrls.value(), currentPageNum = state2.navi.currentPageNum(), persistedControls = currentReaderControlsState(), controls = requestedControls.navigationMode === previous.navigationMode ? requestedControls : {
         ...requestedControls,
         direction: requestedControls.navigationMode === "scroll" ? persistedControls.scrollDirection.value : persistedControls.pagedDirection.value
       };
-      persistedControls.navigationMode.set(controls.navigationMode), controls.navigationMode === "scroll" ? persistedControls.scrollDirection.set(controls.direction) : persistedControls.pagedDirection.set(controls.direction), persistedControls.pageLayout.set(controls.pageLayout), persistedControls.rightTapAction.set(controls.rightTapAction), state2.ctrls.update(controls), controls.navigationMode !== "scroll" && state2.scrollViewport.setAdjusting(!1), controls.navigationMode !== previous.navigationMode || controls.pageLayout !== previous.pageLayout || controls.firstPageSeparate !== previous.firstPageSeparate ? (stopViewportMotion(), viewportActions.resetPosition(), setCurrentPageNumber(state2.navi.currentPageNum(), !0)) : controls.direction !== previous.direction && (syncViewportWindow(), scrollToCurrentPage());
+      persistedControls.navigationMode.set(controls.navigationMode), controls.navigationMode === "scroll" ? persistedControls.scrollDirection.set(controls.direction) : persistedControls.pagedDirection.set(controls.direction), persistedControls.pageLayout.set(controls.pageLayout), persistedControls.rightTapAction.set(controls.rightTapAction), state2.ctrls.update(controls), controls.navigationMode !== "scroll" && state2.scrollViewport.setAdjusting(!1), controls.navigationMode !== previous.navigationMode || controls.pageLayout !== previous.pageLayout || controls.firstPageSeparate !== previous.firstPageSeparate ? (stopViewportMotion(), viewportActions.resetPosition(), session.requestAnimationFrame(() => {
+        setCurrentPageNumber(currentPageNum, !0);
+      })) : controls.direction !== previous.direction && (syncViewportWindow(), scrollToCurrentPage());
     }
     function requestReaderClose() {
       closed || (closed = coordinator.requestCloseReader());
