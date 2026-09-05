@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260905.0130
+// @version      260905.0301
 // @description  A full-featured, touch-optimized E-H/ExH viewer. Features: a built-in reader, zoomable gallery previews, mobile UI adaptation, gesture navigation, reading history, and more.
 // @description:ja  タッチ操作向けの多機能 E-H/ExH ビューア。内蔵リーダー、ズーム対応のギャラリープレビュー、モバイル向け UI、ジェスチャー操作、閲覧履歴など。
 // @description:zh-CN  针对触屏优化的 E-H/ExH 阅读器。功能： 内置阅读器、可缩放画廊预览、移动端 UI 适配、手势导航、阅读历史等。
@@ -334,6 +334,9 @@ Next page`,
           readerFullscreenHelp: "Enters fullscreen when the Reader opens",
           exitReaderOnFullscreenExitLabel: "Close Reader on Fullscreen Exit",
           exitReaderOnFullscreenExitHelp: "Closes the Reader when fullscreen is exited",
+          includeReaderPageInUrlLabel: "Include Reader Page in URL",
+          includeReaderPageInUrlHelp: "Updates the URL with the current Reader page. This may pollute browser history",
+          more: "More",
           replacePreviewWithScrollLabel: "Embed Scroll Preview",
           replacePreviewWithScrollHelp: "Replaces the original gallery preview area with Scroll Preview",
           openGalleryInNewTabLabel: "Open Gallery in New Tab",
@@ -526,6 +529,9 @@ Next page`,
           readerFullscreenHelp: "リーダーを開いたときにフルスクリーンにします",
           exitReaderOnFullscreenExitLabel: "フルスクリーン終了時にリーダーを閉じる",
           exitReaderOnFullscreenExitHelp: "フルスクリーンを終了するとリーダーを閉じます",
+          includeReaderPageInUrlLabel: "リーダーページを URL に含める",
+          includeReaderPageInUrlHelp: "現在のリーダーページで URL を更新します。ブラウザーの履歴を汚す可能性があります",
+          more: "その他",
           replacePreviewWithScrollLabel: "スクロールプレビューを埋め込む",
           replacePreviewWithScrollHelp: "元のギャラリープレビュー領域をスクロールプレビューに置き換えます",
           openGalleryInNewTabLabel: "ギャラリーを新しいタブで開く",
@@ -718,6 +724,9 @@ Next page`,
           readerFullscreenHelp: "打开阅读器时进入全屏",
           exitReaderOnFullscreenExitLabel: "退出全屏时关闭阅读器",
           exitReaderOnFullscreenExitHelp: "退出全屏后关闭阅读器",
+          includeReaderPageInUrlLabel: "在 URL 中包含阅读器页码",
+          includeReaderPageInUrlHelp: "在 URL 中更新当前阅读器页码，可能会污染浏览器历史记录",
+          more: "更多",
           replacePreviewWithScrollLabel: "嵌入滚动预览",
           replacePreviewWithScrollHelp: "使用滚动预览替换原始画廊预览区域",
           openGalleryInNewTabLabel: "在新标签页中打开画廊",
@@ -1066,6 +1075,10 @@ Next page`,
             !1
           ).preload(),
           fullscreen: persisted("ehpeek:reader:fullscreen", !1).preload(),
+          includePageInUrl: persisted(
+            "ehpeek:reader:include-page-in-url",
+            !1
+          ).preload(),
           portraitControls: readerControls("portrait"),
           landscapeControls: readerControls("landscape"),
           scrollTtbScale: persisted(
@@ -8859,13 +8872,13 @@ Next page`,
   function SettingsMenu(props) {
     let [draft, setDraft] = createStore(untrack(() => ({
       ...props.initState
-    }))), [activeTab, setActiveTab] = createSignal("general"), [helpOpen, setHelpOpen] = createSignal(!1), [licensesOpen, setLicensesOpen] = createSignal(!1), [changed, setChanged] = createSignal(!1), menu, close = () => changed() && !window.confirm(activeTexts.settings.discardChanges) ? !1 : (props.onOpenChange(!1), !0), updateDraft = (key, value) => {
+    }))), [activeTab, setActiveTab] = createSignal("general"), [helpOpen, setHelpOpen] = createSignal(!1), [licensesOpen, setLicensesOpen] = createSignal(!1), [moreOptionsOpen, setMoreOptionsOpen] = createSignal(!1), [changed, setChanged] = createSignal(!1), menu, close = () => changed() && !window.confirm(activeTexts.settings.discardChanges) ? !1 : (props.onOpenChange(!1), !0), updateDraft = (key, value) => {
       setChanged(!0), setDraft(key, value);
     };
     return createEffect(() => {
       props.open && (setDraft(untrack(() => ({
         ...props.initState
-      }))), setActiveTab("general"), setHelpOpen(!1), setLicensesOpen(!1), setChanged(!1));
+      }))), setActiveTab("general"), setHelpOpen(!1), setLicensesOpen(!1), setMoreOptionsOpen(!1), setChanged(!1));
     }), onMount(() => {
       let onPointerDown = (event) => {
         props.open && (event.target instanceof Element && menu.contains(event.target) || close() || (event.preventDefault(), event.stopImmediatePropagation()));
@@ -8881,21 +8894,21 @@ Next page`,
       },
       get children() {
         return [(() => {
-          var _el$12 = _tmpl$65(), _el$13 = _el$12.firstChild, _el$14 = _el$13.nextSibling, _el$15 = _el$14.firstChild, _el$16 = _el$15.nextSibling, _el$18 = _el$16.nextSibling, _el$19 = _el$18.nextSibling, _el$20 = _el$19.nextSibling, _el$21 = _el$20.firstChild, _el$22 = _el$21.nextSibling, _el$23 = _el$22.firstChild, _el$24 = _el$22.nextSibling, _el$25 = _el$24.firstChild, _el$26 = _el$24.nextSibling, _el$27 = _el$26.firstChild, _el$28 = _el$27.nextSibling, _el$29 = _el$14.nextSibling, _el$30 = _el$29.firstChild, _el$31 = _el$30.nextSibling, _el$32 = _el$31.nextSibling, _ref$ = menu;
+          var _el$12 = _tmpl$65(), _el$13 = _el$12.firstChild, _el$14 = _el$13.nextSibling, _el$15 = _el$14.firstChild, _el$16 = _el$15.nextSibling, _el$18 = _el$16.nextSibling, _el$19 = _el$18.nextSibling, _el$20 = _el$19.firstChild, _el$21 = _el$20.firstChild, _el$22 = _el$21.nextSibling, _el$23 = _el$19.nextSibling, _el$24 = _el$23.firstChild, _el$25 = _el$24.nextSibling, _el$26 = _el$25.firstChild, _el$27 = _el$25.nextSibling, _el$28 = _el$27.firstChild, _el$29 = _el$27.nextSibling, _el$30 = _el$29.firstChild, _el$31 = _el$30.nextSibling, _el$32 = _el$14.nextSibling, _el$33 = _el$32.firstChild, _el$34 = _el$33.nextSibling, _el$35 = _el$34.nextSibling, _ref$ = menu;
           return typeof _ref$ == "function" ? use(_ref$, _el$12) : menu = _el$12, insert(_el$13, createComponent(For, {
             each: SETTINGS_SECTIONS,
             children: ([tab, label, icon]) => (() => {
-              var _el$33 = _tmpl$74();
-              return _el$33.$$click = () => setActiveTab(tab), setAttribute(_el$33, "aria-controls", `ehpeek-settings-panel-${tab}`), setAttribute(_el$33, "title", label), insert(_el$33, createComponent(Icon2, {
+              var _el$36 = _tmpl$74();
+              return _el$36.$$click = () => setActiveTab(tab), setAttribute(_el$36, "aria-controls", `ehpeek-settings-panel-${tab}`), setAttribute(_el$36, "title", label), insert(_el$36, createComponent(Icon2, {
                 name: icon,
                 size: "var(--ui-icon-size-md)"
               })), createRenderEffect((_p$) => {
-                var _v$7 = `flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center ui-gap-sm ui-px-sm border-0 ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer ${activeTab() === tab ? "bg-[var(--color-site-item-hover)] font-700" : "bg-transparent hover:bg-[var(--color-site-item-hover)]"}`, _v$8 = activeTab() === tab;
-                return _v$7 !== _p$.e && className(_el$33, _p$.e = _v$7), _v$8 !== _p$.t && setAttribute(_el$33, "aria-selected", _p$.t = _v$8), _p$;
+                var _v$9 = `flex min-w-0 min-h-[var(--ui-control-size-md)] items-center justify-center ui-gap-sm ui-px-sm border-0 ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer ${activeTab() === tab ? "bg-[var(--color-site-item-hover)] font-700" : "bg-transparent hover:bg-[var(--color-site-item-hover)]"}`, _v$0 = activeTab() === tab;
+                return _v$9 !== _p$.e && className(_el$36, _p$.e = _v$9), _v$0 !== _p$.t && setAttribute(_el$36, "aria-selected", _p$.t = _v$0), _p$;
               }, {
                 e: void 0,
                 t: void 0
-              }), _el$33;
+              }), _el$36;
             })()
           })), insert(_el$15, () => SETTINGS_SECTIONS.find(([tab]) => tab === activeTab())?.[1]), insert(_el$16, createComponent(SwitchButton, {
             get checked() {
@@ -9011,96 +9024,124 @@ Next page`,
               return activeTexts.settings.searchHistoryLabel;
             },
             onChange: (value) => updateDraft("searchHistoryEnabled", value)
-          }), null), insert(_el$19, createComponent(SwitchButton, {
-            get checked() {
-              return draft.readerFullscreenEnabled;
+          }), null), insert(_el$19, createComponent(Show, {
+            get when() {
+              return !moreOptionsOpen();
             },
-            get description() {
-              return activeTexts.settings.readerFullscreenHelp;
-            },
-            get label() {
-              return activeTexts.settings.readerFullscreenLabel;
-            },
-            onChange: (value) => updateDraft("readerFullscreenEnabled", value)
-          }), null), insert(_el$19, createComponent(SwitchButton, {
-            get checked() {
-              return draft.exitReaderOnFullscreenExit;
-            },
-            get description() {
-              return activeTexts.settings.exitReaderOnFullscreenExitHelp;
-            },
-            get label() {
-              return activeTexts.settings.exitReaderOnFullscreenExitLabel;
-            },
-            onChange: (value) => updateDraft("exitReaderOnFullscreenExit", value)
-          }), null), insert(_el$19, createComponent(SwitchButton, {
-            get checked() {
-              return draft.openGalleryInNewTab;
-            },
-            get description() {
-              return activeTexts.settings.openGalleryInNewTabHelp;
-            },
-            get label() {
-              return activeTexts.settings.openGalleryInNewTabLabel;
-            },
-            onChange: (value) => updateDraft("openGalleryInNewTab", value)
-          }), null), insert(_el$19, createComponent(SwitchButton, {
-            get checked() {
-              return draft.includeUnreadHistoryEnabled;
-            },
-            get description() {
-              return activeTexts.settings.includeUnreadHistoryHelp;
-            },
-            get label() {
-              return activeTexts.settings.includeUnreadHistoryLabel;
-            },
-            onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
-          }), null), insert(_el$19, createComponent(SelectSetting, {
-            get label() {
-              return activeTexts.settings.portraitUiScaleLabel;
-            },
-            options: UI_SCALE_OPTIONS,
-            get value() {
-              return draft.portraitUiScale;
-            },
-            onChange: (value) => {
-              setChanged(!0), setDraft("portraitUiScale", value);
+            get children() {
+              return [createComponent(SwitchButton, {
+                get checked() {
+                  return draft.readerFullscreenEnabled;
+                },
+                get description() {
+                  return activeTexts.settings.readerFullscreenHelp;
+                },
+                get label() {
+                  return activeTexts.settings.readerFullscreenLabel;
+                },
+                onChange: (value) => updateDraft("readerFullscreenEnabled", value)
+              }), createComponent(SwitchButton, {
+                get checked() {
+                  return draft.exitReaderOnFullscreenExit;
+                },
+                get description() {
+                  return activeTexts.settings.exitReaderOnFullscreenExitHelp;
+                },
+                get label() {
+                  return activeTexts.settings.exitReaderOnFullscreenExitLabel;
+                },
+                onChange: (value) => updateDraft("exitReaderOnFullscreenExit", value)
+              }), createComponent(SwitchButton, {
+                get checked() {
+                  return draft.openGalleryInNewTab;
+                },
+                get description() {
+                  return activeTexts.settings.openGalleryInNewTabHelp;
+                },
+                get label() {
+                  return activeTexts.settings.openGalleryInNewTabLabel;
+                },
+                onChange: (value) => updateDraft("openGalleryInNewTab", value)
+              }), createComponent(SwitchButton, {
+                get checked() {
+                  return draft.includeUnreadHistoryEnabled;
+                },
+                get description() {
+                  return activeTexts.settings.includeUnreadHistoryHelp;
+                },
+                get label() {
+                  return activeTexts.settings.includeUnreadHistoryLabel;
+                },
+                onChange: (value) => updateDraft("includeUnreadHistoryEnabled", value)
+              }), createComponent(SelectSetting, {
+                label: "Language",
+                noTranslate: !0,
+                options: APP_LOCALE_OPTIONS,
+                get value() {
+                  return draft.locale;
+                },
+                onChange: (value) => {
+                  setChanged(!0), setDraft("locale", value);
+                }
+              })];
             }
-          }), null), insert(_el$19, createComponent(SelectSetting, {
-            get label() {
-              return activeTexts.settings.landscapeUiScaleLabel;
-            },
-            options: UI_SCALE_OPTIONS,
-            get value() {
-              return draft.landscapeUiScale;
-            },
-            onChange: (value) => {
-              setChanged(!0), setDraft("landscapeUiScale", value);
-            }
-          }), null), insert(_el$19, createComponent(SelectSetting, {
-            label: "Language",
-            noTranslate: !0,
-            options: APP_LOCALE_OPTIONS,
-            get value() {
-              return draft.locale;
-            },
-            onChange: (value) => {
-              setChanged(!0), setDraft("locale", value);
-            }
-          }), null), insert(_el$21, "EhPeek"), insert(_el$22, "260905.0130", null), _el$24.$$click = () => setHelpOpen(!0), insert(_el$25, () => activeTexts.help.title), _el$26.$$click = () => setLicensesOpen(!0), insert(_el$27, () => activeTexts.settings.licenses), insert(_el$28, createComponent(Icon2, {
+          }), _el$20), _el$20.$$click = () => setMoreOptionsOpen((open) => !open), insert(_el$21, () => activeTexts.settings.more), insert(_el$22, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
-          })), _el$30.$$click = (event) => {
+          })), insert(_el$19, createComponent(Show, {
+            get when() {
+              return moreOptionsOpen();
+            },
+            get children() {
+              return [createComponent(SelectSetting, {
+                get label() {
+                  return activeTexts.settings.portraitUiScaleLabel;
+                },
+                options: UI_SCALE_OPTIONS,
+                get value() {
+                  return draft.portraitUiScale;
+                },
+                onChange: (value) => {
+                  setChanged(!0), setDraft("portraitUiScale", value);
+                }
+              }), createComponent(SelectSetting, {
+                get label() {
+                  return activeTexts.settings.landscapeUiScaleLabel;
+                },
+                options: UI_SCALE_OPTIONS,
+                get value() {
+                  return draft.landscapeUiScale;
+                },
+                onChange: (value) => {
+                  setChanged(!0), setDraft("landscapeUiScale", value);
+                }
+              }), createComponent(SwitchButton, {
+                get checked() {
+                  return draft.includeReaderPageInUrl;
+                },
+                get description() {
+                  return activeTexts.settings.includeReaderPageInUrlHelp;
+                },
+                get label() {
+                  return activeTexts.settings.includeReaderPageInUrlLabel;
+                },
+                onChange: (value) => updateDraft("includeReaderPageInUrl", value)
+              })];
+            }
+          }), null), insert(_el$24, "EhPeek"), insert(_el$25, "260905.0301", null), _el$27.$$click = () => setHelpOpen(!0), insert(_el$28, () => activeTexts.help.title), _el$29.$$click = () => setLicensesOpen(!0), insert(_el$30, () => activeTexts.settings.licenses), insert(_el$31, createComponent(Icon2, {
+            name: "chevron-right",
+            size: "var(--ui-icon-size-sm)"
+          })), _el$33.$$click = (event) => {
             event.stopPropagation(), props.onApply({
               ...draft
             });
-          }, insert(_el$30, () => activeTexts.common.actions.apply), _el$31.$$click = (event) => {
+          }, insert(_el$33, () => activeTexts.common.actions.apply), _el$34.$$click = (event) => {
             event.stopPropagation(), setChanged(!0), setDraft({
               ...props.defaultState
             });
-          }, insert(_el$31, () => activeTexts.common.actions.default), _el$32.$$click = (event) => {
+          }, insert(_el$34, () => activeTexts.common.actions.default), _el$35.$$click = (event) => {
             event.stopPropagation(), close();
-          }, insert(_el$32, () => activeTexts.common.actions.close), insert(_el$12, createComponent(Show, {
+          }, insert(_el$35, () => activeTexts.common.actions.close), insert(_el$12, createComponent(Show, {
             get when() {
               return helpOpen();
             },
@@ -9113,15 +9154,17 @@ Next page`,
           }), null), createRenderEffect((_p$) => {
             var _v$ = {
               "!right-auto safe-left-sm": props.leftHandedControls()
-            }, _v$2 = activeTexts.settings.openSettings, _v$3 = activeTab() !== "general", _v$4 = activeTab() !== "enhance", _v$5 = activeTab() !== "options", _v$6 = activeTab() !== "about";
-            return _p$.e = classList(_el$12, _v$, _p$.e), _v$2 !== _p$.t && setAttribute(_el$13, "aria-label", _p$.t = _v$2), _v$3 !== _p$.a && (_el$16.hidden = _p$.a = _v$3), _v$4 !== _p$.o && (_el$18.hidden = _p$.o = _v$4), _v$5 !== _p$.i && (_el$19.hidden = _p$.i = _v$5), _v$6 !== _p$.n && (_el$20.hidden = _p$.n = _v$6), _p$;
+            }, _v$2 = activeTexts.settings.openSettings, _v$3 = activeTab() !== "general", _v$4 = activeTab() !== "enhance", _v$5 = activeTab() !== "options", _v$6 = moreOptionsOpen(), _v$7 = !!moreOptionsOpen(), _v$8 = activeTab() !== "about";
+            return _p$.e = classList(_el$12, _v$, _p$.e), _v$2 !== _p$.t && setAttribute(_el$13, "aria-label", _p$.t = _v$2), _v$3 !== _p$.a && (_el$16.hidden = _p$.a = _v$3), _v$4 !== _p$.o && (_el$18.hidden = _p$.o = _v$4), _v$5 !== _p$.i && (_el$19.hidden = _p$.i = _v$5), _v$6 !== _p$.n && setAttribute(_el$20, "aria-expanded", _p$.n = _v$6), _v$7 !== _p$.s && _el$22.classList.toggle("rotate-90", _p$.s = _v$7), _v$8 !== _p$.h && (_el$23.hidden = _p$.h = _v$8), _p$;
           }, {
             e: void 0,
             t: void 0,
             a: void 0,
             o: void 0,
             i: void 0,
-            n: void 0
+            n: void 0,
+            s: void 0,
+            h: void 0
           }), _el$12;
         })(), createComponent(Show, {
           get when() {
@@ -9142,11 +9185,11 @@ Next page`,
                 return createComponent(For, {
                   each: LICENSES,
                   children: (license) => (() => {
-                    var _el$34 = _tmpl$83(), _el$35 = _el$34.firstChild, _el$36 = _el$35.nextSibling;
-                    return insert(_el$35, () => license.name), insert(_el$36, () => license.license, null), insert(_el$36, createComponent(Icon2, {
+                    var _el$37 = _tmpl$83(), _el$38 = _el$37.firstChild, _el$39 = _el$38.nextSibling;
+                    return insert(_el$38, () => license.name), insert(_el$39, () => license.license, null), insert(_el$39, createComponent(Icon2, {
                       name: "external-link",
                       size: "var(--ui-icon-size-sm)"
-                    }), null), createRenderEffect(() => setAttribute(_el$34, "href", license.href)), _el$34;
+                    }), null), createRenderEffect(() => setAttribute(_el$37, "href", license.href)), _el$37;
                   })()
                 });
               }
@@ -9176,7 +9219,7 @@ Next page`,
       init_InteractionHelp();
       init_Dialog();
       init_Icon2();
-      _tmpl$16 = /* @__PURE__ */ template('<p class="box-border w-full m-0 ui-px-md ui-pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] [font-size:var(--ui-font-size-sm)] leading-[1.35] opacity-75">'), _tmpl$29 = /* @__PURE__ */ template('<div class="border-0 border-b ehp-color-site-border-subtle-b"><div class="flex items-stretch"><button type=button class="flex min-w-0 flex-1 min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-py-sm ui-pl-md ui-pr-sm ui-rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex flex-none items-center ui-gap-sm"><span class="[font-size:var(--ui-font-size-sm)] opacity-70"></span><span></span></span></button><button type=button class="flex flex-none w-[var(--ui-control-size-sm)] min-h-[var(--ui-control-size-lg)] items-center justify-center p-0 ui-rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit [font-size:var(--ui-font-size-md)] font-700 [-webkit-tap-highlight-color:transparent]"><span class="flex w-[var(--ui-icon-size-md)] h-[var(--ui-icon-size-md)] items-center justify-center rounded-full border border-[var(--color-site-border-subtle)] leading-none">?'), _tmpl$36 = /* @__PURE__ */ template('<label class="flex box-border w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] cursor-pointer"><span></span><select class="box-border min-h-[var(--ui-control-size-sm)] min-w-[calc(var(--ui-control-size-xl)*2)] ui-px-sm ui-rounded-xs border ehp-color-site-border bg-[var(--color-site-surface)] ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer">'), _tmpl$46 = /* @__PURE__ */ template("<option>"), _tmpl$55 = /* @__PURE__ */ template('<a class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left [font-size:var(--ui-font-size-md)] cursor-pointer">'), _tmpl$65 = /* @__PURE__ */ template('<div class="pointer-events-auto fixed safe-top-sm safe-right-sm z-overlay box-border flex w-[calc(var(--ui-control-size-xl)*6)] max-w-[calc(100vw-16px)] max-h-[calc(100dvh-16px)] flex-col overflow-hidden ui-p-md border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated ehp-color-site-text [font-size:var(--ui-font-size-md)] leading-[1.2]"><div class="grid grid-cols-4 flex-none ui-gap-xs ui-mb-sm ui-rounded-md border ehp-color-site-border overflow-hidden"role=tablist></div><div class="min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain"><h2 class="m-0 ui-px-md ui-py-sm border-0 border-b ehp-color-site-border-subtle-b [font-size:var(--ui-font-size-md)] font-700"></h2><div id=ehpeek-settings-panel-general data-ehpeek-settings-tab=general role=tabpanel></div><div id=ehpeek-settings-panel-enhance data-ehpeek-settings-tab=enhance role=tabpanel></div><div id=ehpeek-settings-panel-options data-ehpeek-settings-tab=options role=tabpanel></div><div id=ehpeek-settings-panel-about data-ehpeek-settings-tab=about role=tabpanel><div class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] font-700"></div><a class="flex w-full min-h-[var(--ui-control-size-lg)] items-center overflow-hidden text-ellipsis whitespace-nowrap ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline [font-size:var(--ui-font-size-md)] font-700 hover:bg-[var(--color-site-item-hover)]"href=https://github.com/yamipot/ehpeek target=_blank rel="noopener noreferrer">v</a><button type=button class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"><span></span></button><button type=button class="flex w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"><span></span><span class="flex flex-none"aria-hidden=true></span></button></div></div><div class="grid grid-cols-3 flex-none ui-gap-sm ui-mt-md ui-pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="block w-full min-h-[var(--ui-control-size-md)] ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center [font-size:var(--ui-font-size-md)] font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108"></button><button type=button class="block w-full min-h-[var(--ui-control-size-md)] ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center [font-size:var(--ui-font-size-md)] font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]"></button><button type=button class="block w-full min-h-[var(--ui-control-size-md)] ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center [font-size:var(--ui-font-size-md)] font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">'), _tmpl$74 = /* @__PURE__ */ template("<button type=button role=tab>"), _tmpl$83 = /* @__PURE__ */ template('<a class="flex min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md ui-py-sm border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left"target=_blank rel="noopener noreferrer"><span class="min-w-0 [font-size:var(--ui-font-size-md)] font-700"></span><span class="flex flex-none items-center ui-gap-sm [font-size:var(--ui-font-size-sm)]">'), SETTINGS_SECTIONS = [["general", activeTexts.settings.general, "book-open"], ["enhance", activeTexts.settings.enhance, "sparkles"], ["options", activeTexts.settings.options, "settings"], ["about", activeTexts.settings.about, "info"]], SETTINGS_DOT_CLASS = "block flex-none ui-w-md ui-h-md rounded-full", UI_SCALE_OPTIONS = UI_SCALE_NAMES.map((value) => ({
+      _tmpl$16 = /* @__PURE__ */ template('<p class="box-border w-full m-0 ui-px-md ui-pb-md text-left whitespace-normal [overflow-wrap:anywhere] [contain:inline-size] [font-size:var(--ui-font-size-sm)] leading-[1.35] opacity-75">'), _tmpl$29 = /* @__PURE__ */ template('<div class="border-0 border-b ehp-color-site-border-subtle-b"><div class="flex items-stretch"><button type=button class="flex min-w-0 flex-1 min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-py-sm ui-pl-md ui-pr-sm ui-rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer [-webkit-tap-highlight-color:transparent]"><span></span><span class="flex flex-none items-center ui-gap-sm"><span class="[font-size:var(--ui-font-size-sm)] opacity-70"></span><span></span></span></button><button type=button class="flex flex-none w-[var(--ui-control-size-sm)] min-h-[var(--ui-control-size-lg)] items-center justify-center p-0 ui-rounded-xs border-0 !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text cursor-pointer font-inherit [font-size:var(--ui-font-size-md)] font-700 [-webkit-tap-highlight-color:transparent]"><span class="flex w-[var(--ui-icon-size-md)] h-[var(--ui-icon-size-md)] items-center justify-center rounded-full border border-[var(--color-site-border-subtle)] leading-none">?'), _tmpl$36 = /* @__PURE__ */ template('<label class="flex box-border w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] cursor-pointer"><span></span><select class="box-border min-h-[var(--ui-control-size-sm)] min-w-[calc(var(--ui-control-size-xl)*2)] ui-px-sm ui-rounded-xs border ehp-color-site-border bg-[var(--color-site-surface)] ehp-color-site-text font-inherit [font-size:var(--ui-font-size-sm)] cursor-pointer">'), _tmpl$46 = /* @__PURE__ */ template("<option>"), _tmpl$55 = /* @__PURE__ */ template('<a class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left [font-size:var(--ui-font-size-md)] cursor-pointer">'), _tmpl$65 = /* @__PURE__ */ template('<div class="pointer-events-auto fixed safe-top-sm safe-right-sm z-overlay box-border flex w-[calc(var(--ui-control-size-xl)*6)] max-w-[calc(100vw-16px)] max-h-[calc(100dvh-16px)] flex-col overflow-hidden ui-p-md border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated ehp-color-site-text [font-size:var(--ui-font-size-md)] leading-[1.2]"><div class="grid grid-cols-4 flex-none ui-gap-xs ui-mb-sm ui-rounded-md border ehp-color-site-border overflow-hidden"role=tablist></div><div class="min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain"><h2 class="m-0 ui-px-md ui-py-sm border-0 border-b ehp-color-site-border-subtle-b [font-size:var(--ui-font-size-md)] font-700"></h2><div id=ehpeek-settings-panel-general data-ehpeek-settings-tab=general role=tabpanel></div><div id=ehpeek-settings-panel-enhance data-ehpeek-settings-tab=enhance role=tabpanel></div><div id=ehpeek-settings-panel-options data-ehpeek-settings-tab=options role=tabpanel><button type=button class="flex w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"><span></span><span class="flex flex-none transition-transform duration-120"aria-hidden=true></span></button></div><div id=ehpeek-settings-panel-about data-ehpeek-settings-tab=about role=tabpanel><div class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] font-700"></div><a class="flex w-full min-h-[var(--ui-control-size-lg)] items-center overflow-hidden text-ellipsis whitespace-nowrap ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline [font-size:var(--ui-font-size-md)] font-700 hover:bg-[var(--color-site-item-hover)]"href=https://github.com/yamipot/ehpeek target=_blank rel="noopener noreferrer">v</a><button type=button class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"><span></span></button><button type=button class="flex w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"><span></span><span class="flex flex-none"aria-hidden=true></span></button></div></div><div class="grid grid-cols-3 flex-none ui-gap-sm ui-mt-md ui-pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]"><button type=button class="block w-full min-h-[var(--ui-control-size-md)] ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center [font-size:var(--ui-font-size-md)] font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108"></button><button type=button class="block w-full min-h-[var(--ui-control-size-md)] ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center [font-size:var(--ui-font-size-md)] font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]"></button><button type=button class="block w-full min-h-[var(--ui-control-size-md)] ui-py-xs ui-px-md ui-rounded-md border cursor-pointer font-inherit text-center [font-size:var(--ui-font-size-md)] font-700 leading-[1.1] transition-[filter,transform,box-shadow] duration-120 active:scale-98 border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]">'), _tmpl$74 = /* @__PURE__ */ template("<button type=button role=tab>"), _tmpl$83 = /* @__PURE__ */ template('<a class="flex min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md ui-py-sm border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left"target=_blank rel="noopener noreferrer"><span class="min-w-0 [font-size:var(--ui-font-size-md)] font-700"></span><span class="flex flex-none items-center ui-gap-sm [font-size:var(--ui-font-size-sm)]">'), SETTINGS_SECTIONS = [["general", activeTexts.settings.general, "book-open"], ["enhance", activeTexts.settings.enhance, "sparkles"], ["options", activeTexts.settings.options, "settings"], ["about", activeTexts.settings.about, "info"]], SETTINGS_DOT_CLASS = "block flex-none ui-w-md ui-h-md rounded-full", UI_SCALE_OPTIONS = UI_SCALE_NAMES.map((value) => ({
         label: String(uiScaleLevel(value)),
         value
       })), LICENSES = [{
@@ -12242,6 +12285,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root .hover\\:ehp-col
 .-translate-x-1\\/2{--un-translate-x:-50%;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
 .-translate-y-1\\/2{--un-translate-y:-50%;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
 .\\[\\&\\[data-open\\=false\\]\\]\\:translate-y-\\[calc\\(100\\%\\+16px\\)\\][data-open=false]{--un-translate-y:calc(100% + 16px);transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
+.rotate-90{--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-rotate:90deg;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
 .active\\:scale-96:active{--un-scale-x:0.96;--un-scale-y:0.96;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
 .active\\:scale-98:active{--un-scale-x:0.98;--un-scale-y:0.98;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
 .-scale-x-100{--un-scale-x:-1;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}
@@ -12467,6 +12511,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root .hover\\:brightn
 .transition-\\[width\\,height\\]{transition-property:width,height;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
 .transition-\\[width\\,opacity\\]{transition-property:width,opacity;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
 .transition-opacity{transition-property:opacity;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
+.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}
 .duration-120{transition-duration:120ms;}
 .duration-160{transition-duration:160ms;}
 .ease-in-out{transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);}
@@ -14997,7 +15042,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
     }, closePreview = () => {
       previewOpen() && (surfaces.pop(), previewActions?.close());
     }, syncReaderExit = () => {
-      if (progress.flush(), clearPeekLocation(), readerLastPage === readerInitialPage)
+      if (progress.flush(), clearPeekLocation(), readerLastPage === readerInitialPage || options.replacePreviewWithScroll)
         return;
       let exitIndex = previewCache.previewIndexForPage(readerLastPage), galleryUrl = previewUrlForIndex(exitIndex);
       enhancedPreviewActive() ? (gotoPreviewIndex(exitIndex), previewCache.select(exitIndex).catch(() => {
@@ -15025,7 +15070,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
     }), gotoPreviewIndex = (previewIndex) => {
       previewOpen() ? previewActions?.gotoPreview(previewIndex) : thumbsActions?.gotoPreview(previewIndex);
     }, activePageChanged = (page2) => {
-      page2.pageNum && (readerLastPage = page2.pageNum, enhancedPreviewActive() && gotoPreviewIndex(previewCache.previewIndexForPage(page2.pageNum))), progress.update(page2.pageNum, preview.totalImages), updatePeekLocation(page2.pageNum, preview.pageSize, preview.maxIndex);
+      page2.pageNum && (readerLastPage = page2.pageNum, enhancedPreviewActive() && gotoPreviewIndex(previewCache.previewIndexForPage(page2.pageNum))), progress.update(page2.pageNum, preview.totalImages), options.includeReaderPageInUrl && updatePeekLocation(page2.pageNum, preview.pageSize, preview.maxIndex);
     }, requestClose = (surface, afterClose) => {
       historyClosePending || topSurface() !== surface || (historyClosePending = !0, afterHistoryClose = afterClose ?? null, surface === "reader" && clearPeekLocation(), window.history.back());
     }, requestReaderClose = () => !reader || topSurface() !== "reader" ? !1 : (requestClose("reader"), !0), toggleFullscreen = () => {
@@ -15279,6 +15324,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
       readerEnabled: read(state.reader.enabled),
       exitReaderOnFullscreenExit: read(state.reader.exitOnFullscreenExit),
       readerFullscreenEnabled: read(state.reader.fullscreen),
+      includeReaderPageInUrl: read(state.reader.includePageInUrl),
       replacePreviewWithScroll: read(state.gallery.replacePreviewWithScroll),
       enhanceThumbsGridsEnabled: read(state.gallery.enhanceThumbs),
       enhanceSearchGridsEnabled: read(state.search.enhance),
@@ -15293,7 +15339,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
     };
   }
   async function applySettingsMenuState(next) {
-    next.touchUiEnabled || await clearBackToTopPositions(), await Promise.all([state.app.openGalleryInNewTab.setAsync(next.openGalleryInNewTab), state.app.locale.setAsync(next.locale), state.reader.enabled.setAsync(next.readerEnabled), state.reader.exitOnFullscreenExit.setAsync(next.exitReaderOnFullscreenExit), state.reader.fullscreen.setAsync(next.readerFullscreenEnabled), state.gallery.replacePreviewWithScroll.setAsync(next.replacePreviewWithScroll), state.gallery.enhanceThumbs.setAsync(next.enhanceThumbsGridsEnabled), state.search.enhance.setAsync(next.enhanceSearchGridsEnabled), state.gallery.myTags.setAsync(next.myTagsEnabled), state.gallery.readHistory.setAsync(next.readHistoryEnabled), state.gallery.includeUnreadHistory.setAsync(next.includeUnreadHistoryEnabled), state.search.history.setAsync(next.searchHistoryEnabled), state.touch.enabled.setAsync(next.touchUiEnabled), state.touch.fitToViewport.setAsync(next.fitToViewport), state.app.portraitUiScale.setAsync(next.portraitUiScale), state.app.landscapeUiScale.setAsync(next.landscapeUiScale)]), window.location.reload();
+    next.touchUiEnabled || await clearBackToTopPositions(), await Promise.all([state.app.openGalleryInNewTab.setAsync(next.openGalleryInNewTab), state.app.locale.setAsync(next.locale), state.reader.enabled.setAsync(next.readerEnabled), state.reader.exitOnFullscreenExit.setAsync(next.exitReaderOnFullscreenExit), state.reader.fullscreen.setAsync(next.readerFullscreenEnabled), state.reader.includePageInUrl.setAsync(next.includeReaderPageInUrl), state.gallery.replacePreviewWithScroll.setAsync(next.replacePreviewWithScroll), state.gallery.enhanceThumbs.setAsync(next.enhanceThumbsGridsEnabled), state.search.enhance.setAsync(next.enhanceSearchGridsEnabled), state.gallery.myTags.setAsync(next.myTagsEnabled), state.gallery.readHistory.setAsync(next.readHistoryEnabled), state.gallery.includeUnreadHistory.setAsync(next.includeUnreadHistoryEnabled), state.search.history.setAsync(next.searchHistoryEnabled), state.touch.enabled.setAsync(next.touchUiEnabled), state.touch.fitToViewport.setAsync(next.fitToViewport), state.app.portraitUiScale.setAsync(next.portraitUiScale), state.app.landscapeUiScale.setAsync(next.landscapeUiScale)]), window.location.reload();
   }
   function currentUiScale() {
     return currentUiScaleSetting().value;
@@ -15596,6 +15642,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
     let previewCache = createGalleryPreviewCache(manageGalleryPreview()), coordinator = createGalleryCoordinator({
       enhanceThumbsGridsEnabled: gState.settings.enhanceThumbsGridsEnabled,
       exitReaderOnFullscreenExit: gState.settings.exitReaderOnFullscreenExit,
+      includeReaderPageInUrl: gState.settings.includeReaderPageInUrl,
       includeUnreadHistoryEnabled: gState.settings.includeUnreadHistoryEnabled,
       overlayHost,
       previewCache,
