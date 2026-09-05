@@ -253,6 +253,7 @@ function wireReaderCallbacks(
 
   function updateControls(requestedControls: ReaderControls): void {
     const previous = state.ctrls.value();
+    const currentPageNum = state.navi.currentPageNum();
     const persistedControls = currentReaderControlsState();
     const controls = requestedControls.navigationMode === previous.navigationMode
       ? requestedControls
@@ -282,7 +283,10 @@ function wireReaderCallbacks(
     ) {
       stopViewportMotion();
       viewportActions.resetPosition();
-      setCurrentPageNumber(state.navi.currentPageNum(), true);
+      // Align after PagesViewport has applied the new mode's layout.
+      session.requestAnimationFrame(() => {
+        setCurrentPageNumber(currentPageNum, true);
+      });
     } else if (controls.direction !== previous.direction) {
       syncViewportWindow();
       scrollToCurrentPage();
