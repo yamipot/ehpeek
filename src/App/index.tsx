@@ -292,6 +292,8 @@ const PRESS_MOVE_TOLERANCE_PX = 8;
 const UI_INTERACTION_SELECTOR =
   "a[href], button, input, select, textarea, label, [onclick], [role=button], [role=tab]";
 const UI_PRESSABLE_SELECTOR = "[data-ehpeek-pressable=true]";
+const isDisabledInteraction = (interaction: HTMLElement): boolean =>
+  interaction.matches(":disabled, [aria-disabled=true]");
 let pressedInteraction: HTMLElement | undefined;
 let pressedClearTimer: number | undefined;
 let pendingPress: {
@@ -310,6 +312,9 @@ const clearPressedInteraction = () => {
   pressedInteraction = undefined;
 };
 const showPressedInteraction = (interaction: HTMLElement) => {
+  if (isDisabledInteraction(interaction)) {
+    return;
+  }
   pressedInteraction = interaction;
   interaction.setAttribute("data-ehpeek-pressed", "true");
 };
@@ -327,7 +332,10 @@ document.addEventListener("pointerdown", (event) => {
   const interaction = event.target instanceof Element
     ? event.target.closest<HTMLElement>(UI_INTERACTION_SELECTOR)
     : null;
-  if (!interaction?.closest(".ehpeek-ui-root")) {
+  if (
+    !interaction?.closest(".ehpeek-ui-root") ||
+    isDisabledInteraction(interaction)
+  ) {
     return;
   }
   pendingPress = {
