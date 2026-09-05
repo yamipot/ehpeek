@@ -829,12 +829,12 @@ tr[data-ehpeek-read-history] > td:not(.glfe),
   padding: 0 !important;
 }
 
-/* Apply dynamic My Tag colors through variables instead of direct presentation writes. */
+/* Keep site vote-state foregrounds while applying dynamic My Tag colors. */
 .ehpeek-color-my-tag {
   background-color: var(--ehpeek-my-tag-background) !important;
 }
 
-.ehpeek-color-my-tag > a {
+.ehpeek-color-my-tag > a:not(.tup, .tdn) {
   color: var(--ehpeek-my-tag-color) !important;
 }
 
