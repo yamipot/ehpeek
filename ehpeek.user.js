@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260905.1657
+// @version      260905.1904
 // @description  A full-featured, touch-optimized E-H/ExH viewer. Features: a built-in reader, zoomable gallery previews, mobile UI adaptation, gesture navigation, reading history, and more.
 // @description:ja  タッチ操作向けの多機能 E-H/ExH ビューア。内蔵リーダー、ズーム対応のギャラリープレビュー、モバイル向け UI、ジェスチャー操作、閲覧履歴など。
 // @description:zh-CN  针对触屏优化的 E-H/ExH 阅读器。功能： 内置阅读器、可缩放画廊预览、移动端 UI 适配、手势导航、阅读历史等。
@@ -6029,11 +6029,11 @@ Next page`,
       }));
     }), () => gesture?.isDragging() ?? !1;
   }
-  var DEFAULT_TAP_MOVE_THRESHOLD_PX, DEFAULT_DRAG_START_THRESHOLD_PX, DEFAULT_DRAG_INTENT_RATIO, MOUSE_POINTER_ID, PointerGesture, init_PointerGesture = __esm({
+  var DEFAULT_TAP_MOVE_THRESHOLD_PX, DEFAULT_DRAG_START_THRESHOLD_PX, DEFAULT_DRAG_INTENT_RATIO, VELOCITY_SAMPLE_WINDOW_MS, MOUSE_POINTER_ID, PointerGesture, init_PointerGesture = __esm({
     "src/components/PointerGesture.tsx"() {
       "use strict";
       init_solid();
-      DEFAULT_TAP_MOVE_THRESHOLD_PX = 8, DEFAULT_DRAG_START_THRESHOLD_PX = 8, DEFAULT_DRAG_INTENT_RATIO = 1, MOUSE_POINTER_ID = -1, PointerGesture = class {
+      DEFAULT_TAP_MOVE_THRESHOLD_PX = 8, DEFAULT_DRAG_START_THRESHOLD_PX = 8, DEFAULT_DRAG_INTENT_RATIO = 1, VELOCITY_SAMPLE_WINDOW_MS = 60, MOUSE_POINTER_ID = -1, PointerGesture = class {
         constructor(target, callbacks) {
           __publicField(this, "pinchPointers", /* @__PURE__ */ new Map());
           __publicField(this, "drag", null);
@@ -6114,14 +6114,16 @@ Next page`,
             pointerType,
             startClientX: clientX,
             startClientY: clientY,
-            lastClientX: clientX,
-            lastClientY: clientY,
-            lastMoveTime: event.timeStamp,
             holdConsumed: !1,
             startTarget: event.target,
             tapCancelled: !1,
             velocityX: 0,
-            velocityY: 0
+            velocityY: 0,
+            velocitySamples: [{
+              clientX,
+              clientY,
+              timeStamp: event.timeStamp
+            }]
           };
           let captureTarget = event.target;
           canDrag && "pointerId" in event && typeof captureTarget?.setPointerCapture == "function" && (captureTarget.setPointerCapture(pointerId), this.drag.captureTarget = captureTarget), this.addPointerListeners(), this.startHold(this.drag, event);
@@ -6148,9 +6150,7 @@ Next page`,
             this.updateLastMove(drag, clientX, clientY, event);
             return;
           }
-          drag.active || this.activateDrag(drag, event);
-          let elapsed = Math.max(1, event.timeStamp - drag.lastMoveTime);
-          drag.velocityX = (clientX - drag.lastClientX) / elapsed, drag.velocityY = (clientY - drag.lastClientY) / elapsed, drag.lastClientX = clientX, drag.lastClientY = clientY, drag.lastMoveTime = event.timeStamp, this.callbacks().onMove?.({
+          drag.active || this.activateDrag(drag, event), this.updateLastMove(drag, clientX, clientY, event), this.callbacks().onMove?.({
             pointerId: drag.pointerId,
             clientX,
             clientY,
@@ -6283,8 +6283,19 @@ Next page`,
           }, event), event.preventDefault();
         }
         updateLastMove(drag, clientX, clientY, event) {
-          let elapsed = Math.max(1, event.timeStamp - drag.lastMoveTime);
-          drag.velocityX = (clientX - drag.lastClientX) / elapsed, drag.velocityY = (clientY - drag.lastClientY) / elapsed, drag.lastClientX = clientX, drag.lastClientY = clientY, drag.lastMoveTime = event.timeStamp;
+          drag.velocitySamples.push({
+            clientX,
+            clientY,
+            timeStamp: event.timeStamp
+          });
+          let cutoff = event.timeStamp - VELOCITY_SAMPLE_WINDOW_MS;
+          for (; drag.velocitySamples.length > 2 && (drag.velocitySamples[0]?.timeStamp ?? event.timeStamp) < cutoff; )
+            drag.velocitySamples.shift();
+          let first = drag.velocitySamples[0];
+          if (first) {
+            let elapsed = Math.max(1, event.timeStamp - first.timeStamp);
+            drag.velocityX = (clientX - first.clientX) / elapsed, drag.velocityY = (clientY - first.clientY) / elapsed;
+          }
         }
         suppressNextClick() {
           this.suppressClick = !0, this.target.addEventListener("click", this.onClick, !0), this.target.addEventListener("mousedown", this.onClickSuppressionPointerDown, !0), this.target.addEventListener("pointerdown", this.onClickSuppressionPointerDown, !0), this.suppressClickTimer !== null && window.clearTimeout(this.suppressClickTimer), this.suppressClickTimer = window.setTimeout(() => {
@@ -6867,11 +6878,11 @@ Next page`,
   });
 
   // src/components/animation.ts
-  var SCROLL_ANIMATION_MS, SCROLL_EASING_POWER, ANIMATION_FRAME_MIN_DELTA_MS, ANIMATION_FRAME_MAX_DELTA_MS, SCROLL_FLING_MIN_VELOCITY, SCROLL_FLING_STOP_VELOCITY, SCROLL_FLING_DECAY, ScrollAnimator, ScrollFlingAnimator, init_animation = __esm({
+  var SCROLL_ANIMATION_MS, SCROLL_EASING_POWER, ANIMATION_FRAME_MIN_DELTA_MS, ANIMATION_FRAME_MAX_DELTA_MS, SCROLL_FLING_MIN_VELOCITY, SCROLL_FLING_STOP_VELOCITY, SCROLL_FLING_DECAY, VERTICAL_SCROLL_FLING_INITIAL_VELOCITY_FACTOR, ScrollAnimator, ScrollFlingAnimator, init_animation = __esm({
     "src/components/animation.ts"() {
       "use strict";
       init_utils();
-      SCROLL_ANIMATION_MS = 180, SCROLL_EASING_POWER = 3, ANIMATION_FRAME_MIN_DELTA_MS = 1, ANIMATION_FRAME_MAX_DELTA_MS = 32, SCROLL_FLING_MIN_VELOCITY = 0.35, SCROLL_FLING_STOP_VELOCITY = 0.02, SCROLL_FLING_DECAY = 45e-4, ScrollAnimator = class {
+      SCROLL_ANIMATION_MS = 180, SCROLL_EASING_POWER = 3, ANIMATION_FRAME_MIN_DELTA_MS = 1, ANIMATION_FRAME_MAX_DELTA_MS = 32, SCROLL_FLING_MIN_VELOCITY = 0.35, SCROLL_FLING_STOP_VELOCITY = 0.02, SCROLL_FLING_DECAY = 45e-4, VERTICAL_SCROLL_FLING_INITIAL_VELOCITY_FACTOR = 1.2, ScrollAnimator = class {
         constructor(axis) {
           this.axis = axis;
           this.frame = null;
@@ -6913,7 +6924,7 @@ Next page`,
         }
         start(options) {
           this.cancel();
-          let initialVelocity = options.maxVelocity ? clamp(options.initialVelocity, -options.maxVelocity, options.maxVelocity) : options.initialVelocity;
+          let scaledInitialVelocity = options.initialVelocity * (options.axis === "y" ? VERTICAL_SCROLL_FLING_INITIAL_VELOCITY_FACTOR : 1), initialVelocity = options.maxVelocity ? clamp(scaledInitialVelocity, -options.maxVelocity, options.maxVelocity) : scaledInitialVelocity;
           if (Math.abs(initialVelocity) < SCROLL_FLING_MIN_VELOCITY)
             return;
           this.velocity = initialVelocity, this.lastFrameTime = performance.now();
@@ -9285,7 +9296,7 @@ Next page`,
                 onChange: (value) => updateDraft("includeReaderPageInUrl", value)
               })];
             }
-          }), null), insert(_el$24, "EhPeek"), insert(_el$25, "260905.1657", null), _el$27.$$click = () => setHelpOpen(!0), insert(_el$28, () => activeTexts.help.title), _el$29.$$click = () => setLicensesOpen(!0), insert(_el$30, () => activeTexts.settings.licenses), insert(_el$31, createComponent(Icon2, {
+          }), null), insert(_el$24, "EhPeek"), insert(_el$25, "260905.1904", null), _el$27.$$click = () => setHelpOpen(!0), insert(_el$28, () => activeTexts.help.title), _el$29.$$click = () => setLicensesOpen(!0), insert(_el$30, () => activeTexts.settings.licenses), insert(_el$31, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$33.$$click = (event) => {
@@ -9649,7 +9660,7 @@ Next page`,
       init_solid();
       init_state();
       init_Icon2();
-      _tmpl$18 = /* @__PURE__ */ template('<button type=button class="fixed z-ui inline-flex ui-hit-square-lg items-center justify-center rounded-full border-0 bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96">');
+      _tmpl$18 = /* @__PURE__ */ template('<button type=button class="fixed z-[800] inline-flex ui-hit-square-lg items-center justify-center rounded-full border-0 bg-[var(--color-site-elevated)] ehp-color-site-accent shadow-[0_4px_14px_var(--color-shadow-floating)] cursor-pointer [touch-action:none] active:scale-96">');
       delegateEvents(["pointerdown", "pointermove", "pointerup", "click"]);
     }
   });
@@ -12406,6 +12417,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root .hover\\:ehp-col
 .z-\\[1150\\]{z-index:1150;}
 .z-\\[1200\\]{z-index:1200;}
 .z-\\[1300\\]{z-index:1300;}
+.z-\\[800\\]{z-index:800;}
 .z-1{z-index:1;}
 .z-2{z-index:2;}
 .z-3{z-index:3;}
