@@ -362,7 +362,7 @@ function OverlayPreviewToolbar(props: {
 }
 
 const EMBEDDED_PREVIEW_ACTION_CLASS =
-  "inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer active:scale-96";
+  "inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer disabled:(opacity-40 cursor-default) active:scale-96";
 
 function EmbeddedPreviewToolbar(props: {
   currentDisabled: boolean;
@@ -1588,7 +1588,7 @@ function ScrollPreviewPanel(props: {
     <div
       classList={{
         "contents": embedded,
-        "fixed inset-0 z-[1300]": !embedded,
+        "fixed inset-0 z-[1300] [touch-action:none]": !embedded,
       }}
     >
       <section

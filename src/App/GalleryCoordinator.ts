@@ -195,6 +195,11 @@ export function createGalleryCoordinator(options: {
       options.exitReaderOnFullscreenExit &&
       reader !== null;
     if (closeReaderAfterFullscreenExit) {
+      // Release the nested Preview's scroll lock before Reader's while leaving
+      // the history stack for popstate to reconcile.
+      if (previewOpen()) {
+        previewActions?.close();
+      }
       // Stop Reader immediately instead of letting the fullscreen resize run before popstate closes it.
       reader?.dispose();
       window.history.go(-surfaces.length);
