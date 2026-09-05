@@ -33,6 +33,10 @@ type PointerPinchMove = PointerPinchStart & {
 const DEFAULT_TAP_MOVE_THRESHOLD_PX = 8;
 const DEFAULT_DRAG_START_THRESHOLD_PX = 8;
 const DEFAULT_DRAG_INTENT_RATIO = 1;
+// A reported Via issue intermittently leaves JS-driven flicks with little or no
+// inertia. Estimate velocity over a short window instead of only the final
+// pointermove; Via/WebView event coalescing or scheduling is a suspected cause.
+const VELOCITY_SAMPLE_WINDOW_MS = 60;
 const MOUSE_POINTER_ID = -1;
 
 export type PointerGestureCallbacks = {
@@ -206,14 +210,12 @@ class PointerGesture {
       pointerType,
       startClientX: clientX,
       startClientY: clientY,
-      lastClientX: clientX,
-      lastClientY: clientY,
-      lastMoveTime: event.timeStamp,
       holdConsumed: false,
       startTarget: event.target,
       tapCancelled: false,
       velocityX: 0,
       velocityY: 0,
+      velocitySamples: [{ clientX, clientY, timeStamp: event.timeStamp }],
     };
 
     const captureTarget = event.target as Element | null;
@@ -311,12 +313,7 @@ class PointerGesture {
       this.activateDrag(drag, event);
     }
 
-    const elapsed = Math.max(1, event.timeStamp - drag.lastMoveTime);
-    drag.velocityX = (clientX - drag.lastClientX) / elapsed;
-    drag.velocityY = (clientY - drag.lastClientY) / elapsed;
-    drag.lastClientX = clientX;
-    drag.lastClientY = clientY;
-    drag.lastMoveTime = event.timeStamp;
+    this.updateLastMove(drag, clientX, clientY, event);
 
     this.callbacks().onMove?.(
       {
@@ -621,12 +618,20 @@ class PointerGesture {
   }
 
   private updateLastMove(drag: GesturePointer, clientX: number, clientY: number, event: PointerEvent | MouseEvent): void {
-    const elapsed = Math.max(1, event.timeStamp - drag.lastMoveTime);
-    drag.velocityX = (clientX - drag.lastClientX) / elapsed;
-    drag.velocityY = (clientY - drag.lastClientY) / elapsed;
-    drag.lastClientX = clientX;
-    drag.lastClientY = clientY;
-    drag.lastMoveTime = event.timeStamp;
+    drag.velocitySamples.push({ clientX, clientY, timeStamp: event.timeStamp });
+    const cutoff = event.timeStamp - VELOCITY_SAMPLE_WINDOW_MS;
+    while (
+      drag.velocitySamples.length > 2 &&
+      (drag.velocitySamples[0]?.timeStamp ?? event.timeStamp) < cutoff
+    ) {
+      drag.velocitySamples.shift();
+    }
+    const first = drag.velocitySamples[0];
+    if (first) {
+      const elapsed = Math.max(1, event.timeStamp - first.timeStamp);
+      drag.velocityX = (clientX - first.clientX) / elapsed;
+      drag.velocityY = (clientY - first.clientY) / elapsed;
+    }
   }
 
   private suppressNextClick(): void {
@@ -675,13 +680,15 @@ type GesturePointer = {
   pointerType: string;
   startClientX: number;
   startClientY: number;
-  lastClientX: number;
-  lastClientY: number;
-  lastMoveTime: number;
   startTarget: EventTarget | null;
   tapCancelled: boolean;
   velocityX: number;
   velocityY: number;
+  velocitySamples: Array<{
+    clientX: number;
+    clientY: number;
+    timeStamp: number;
+  }>;
 };
 
 export function createPointerGestureElement<E extends HTMLElement>(

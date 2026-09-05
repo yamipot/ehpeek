@@ -10,6 +10,7 @@ const ANIMATION_FRAME_MAX_DELTA_MS = 32;
 const SCROLL_FLING_MIN_VELOCITY = 0.35;
 const SCROLL_FLING_STOP_VELOCITY = 0.02;
 const SCROLL_FLING_DECAY = 0.0045;
+const VERTICAL_SCROLL_FLING_INITIAL_VELOCITY_FACTOR = 1.2;
 
 export class ScrollAnimator {
   private frame: number | null = null;
@@ -91,9 +92,11 @@ export class ScrollFlingAnimator {
   }): void {
     this.cancel();
 
+    const scaledInitialVelocity = options.initialVelocity *
+      (options.axis === "y" ? VERTICAL_SCROLL_FLING_INITIAL_VELOCITY_FACTOR : 1);
     const initialVelocity = options.maxVelocity
-      ? clamp(options.initialVelocity, -options.maxVelocity, options.maxVelocity)
-      : options.initialVelocity;
+      ? clamp(scaledInitialVelocity, -options.maxVelocity, options.maxVelocity)
+      : scaledInitialVelocity;
     if (Math.abs(initialVelocity) < SCROLL_FLING_MIN_VELOCITY) {
       return;
     }
