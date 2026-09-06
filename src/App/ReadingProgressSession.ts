@@ -17,6 +17,7 @@ export class ReadingProgressSession {
   private readonly setProgress: Setter<ReadingProgress>;
   private pending: ReadHistoryRecord | null = null;
   private lastSaved: ReadHistoryRecord | null = null;
+  private saving: Promise<void> | null = null;
   private timer: number | null = null;
 
   constructor(
@@ -54,7 +55,8 @@ export class ReadingProgressSession {
       updatedAt: Date.now(),
     };
 
-    if (this.sameProgress(nextRecord, this.lastSaved)) {
+    if (!this.saving && this.sameProgress(nextRecord, this.lastSaved)) {
+      this.pending = null;
       return;
     }
 
@@ -62,27 +64,42 @@ export class ReadingProgressSession {
     this.schedule();
   }
 
-  flush = (): void => {
+  flush = (): Promise<void> => {
     if (this.timer !== null) {
       window.clearTimeout(this.timer);
       this.timer = null;
     }
 
+    if (this.saving) {
+      return this.saving.then(() => this.flush());
+    }
     if (!this.pending) {
-      return;
+      return Promise.resolve();
     }
-
-    if (!this.sameProgress(this.pending, this.lastSaved)) {
-      this.lastSaved = this.target?.history.save(this.pending) ?? null;
-    }
-
-    this.pending = null;
+    this.saving = this.savePending(this.pending).finally(() => {
+      this.saving = null;
+    });
+    return this.saving;
   };
 
   dispose(): void {
-    this.flush();
+    void this.flush();
     window.removeEventListener("pagehide", this.flush);
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
+  }
+
+  private async savePending(record: ReadHistoryRecord): Promise<void> {
+    try {
+      if (!this.sameProgress(record, this.lastSaved)) {
+        this.lastSaved = await this.target?.history.save(record) ?? null;
+      }
+      // New progress may arrive while GM storage is still writing this record.
+      if (this.pending === record) {
+        this.pending = null;
+      }
+    } catch (error) {
+      console.error("[ehpeek] Failed to save reading progress", error);
+    }
   }
 
   private schedule(): void {
@@ -95,7 +112,7 @@ export class ReadingProgressSession {
 
   private onVisibilityChange = (): void => {
     if (document.visibilityState === "hidden") {
-      this.flush();
+      void this.flush();
     }
   };
 

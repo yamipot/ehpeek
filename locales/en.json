@@ -158,7 +158,6 @@
     "columnsLabel": "Two Columns",
     "showColumnsResizeHandle": "Show column resize handle",
     "hideColumnsResizeHandle": "Hide column resize handle",
-    "twoColumnsHelp": "Enables Two Columns for the current screen orientation",
     "enhance": "Enhance",
     "enhanceSearchLabel": "Search Swipe",
     "enhanceSearchHelp": "Swipe between search result pages",

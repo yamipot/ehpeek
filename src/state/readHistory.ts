@@ -53,7 +53,7 @@ export class GalleryReadHistory {
   recordVisit(
     totalPages: number,
     gallery: GalleryHistoryInfo,
-  ): ReadHistoryRecord {
+  ): Promise<ReadHistoryRecord> {
     const previous = this.value;
     return this.save(previous
       ? {
@@ -72,7 +72,7 @@ export class GalleryReadHistory {
       });
   }
 
-  save(record: ReadHistoryRecord): ReadHistoryRecord {
+  async save(record: ReadHistoryRecord): Promise<ReadHistoryRecord> {
     const previous = this.value;
     const exists = previous !== null;
     const saved = previous && previous.updatedAt > record.updatedAt
@@ -84,7 +84,7 @@ export class GalleryReadHistory {
         ...record,
         gallery: mergeGalleryInfo(previous?.gallery, record.gallery),
       });
-    this.store.set(saved);
+    await this.store.setAsync(saved);
 
     if (!exists) {
       void incrementReadHistoryEstimate().catch((error: unknown) => {
@@ -94,7 +94,7 @@ export class GalleryReadHistory {
     return saved;
   }
 
-  updateGalleryInfo(gallery: GalleryHistoryInfo): ReadHistoryRecord | null {
+  async updateGalleryInfo(gallery: GalleryHistoryInfo): Promise<ReadHistoryRecord | null> {
     const previous = this.value;
     if (!previous) {
       return null;

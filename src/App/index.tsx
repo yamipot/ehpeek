@@ -78,7 +78,6 @@ function settingsMenuState(defaults = false) {
     defaults ? setting.defaultValue : setting.value;
 
   return {
-    twoColumnsEnabled: read(currentColumnsSetting()),
     twoColumnsReaderMode: read(state.reader.twoColumnsMode),
     openGalleryInNewTab: read(state.app.openGalleryInNewTab),
     locale: read(state.app.locale),
@@ -107,7 +106,6 @@ async function applySettingsMenuState(
     await clearBackToTopPositions();
   }
   await Promise.all([
-    currentColumnsSetting().setAsync(next.twoColumnsEnabled),
     state.reader.twoColumnsMode.setAsync(next.twoColumnsReaderMode),
     state.app.openGalleryInNewTab.setAsync(next.openGalleryInNewTab),
     state.app.locale.setAsync(next.locale),

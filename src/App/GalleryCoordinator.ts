@@ -179,8 +179,8 @@ export function createGalleryCoordinator(options: {
     reader?.setVisible(true);
   };
 
-  const syncReaderExit = (): void => {
-    progress.flush();
+  const syncReaderExit = async (): Promise<void> => {
+    await progress.flush();
     clearReaderLocation();
     const exitIndex = previewCache.previewIndexForPage(readerLastPage);
     if (enhancedPreviewActive()) {
@@ -214,7 +214,7 @@ export function createGalleryCoordinator(options: {
     activeReader.dispose();
     options.onReaderPreviewModeChange(false);
     await exitFullscreen();
-    syncReaderExit();
+    await syncReaderExit();
   };
 
   const reconcileHistory = async (event: PopStateEvent): Promise<void> => {
@@ -317,7 +317,7 @@ export function createGalleryCoordinator(options: {
       if (!await exitFullscreen()) {
         return;
       }
-      progress.flush();
+      await progress.flush();
       window.location.assign(page.url);
     })();
   };
@@ -550,9 +550,13 @@ function createProgressSession(
   const existing = history.value;
   const galleryInfo = eh.extractGalleryHistoryInfo();
   if (includeUnread) {
-    history.recordVisit(totalPages, galleryInfo);
+    void history.recordVisit(totalPages, galleryInfo).catch((error: unknown) => {
+      console.error("[ehpeek] Failed to record gallery visit", error);
+    });
   } else if (existing) {
-    history.updateGalleryInfo(galleryInfo);
+    void history.updateGalleryInfo(galleryInfo).catch((error: unknown) => {
+      console.error("[ehpeek] Failed to update gallery history info", error);
+    });
   }
   return new ReadingProgressSession({
     history,

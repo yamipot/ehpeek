@@ -24,7 +24,6 @@ import { Dialog } from "./Widgets/Dialog";
 import { Icon, type IconName } from "./Widgets/Icon";
 
 type SettingsMenuState = {
-  twoColumnsEnabled: boolean;
   twoColumnsReaderMode: TwoColumnsReaderMode;
   locale: AppLocale;
   openGalleryInNewTab: boolean;
@@ -436,12 +435,6 @@ export function SettingsMenu(props: {
             </button>
             <Show when={moreOptionsOpen()}>
               <>
-                <SwitchButton
-                  checked={draft.twoColumnsEnabled}
-                  description={texts.settings.twoColumnsHelp}
-                  label={texts.settings.columnsLabel}
-                  onChange={(value) => updateDraft("twoColumnsEnabled", value)}
-                />
                 <SelectSetting
                   label={texts.settings.portraitUiScaleLabel}
                   options={UI_SCALE_OPTIONS}
