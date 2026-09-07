@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260905.1904
+// @version      260907.1513
 // @description  A full-featured, touch-optimized E-H/ExH viewer. Features: a built-in reader, zoomable gallery previews, mobile UI adaptation, gesture navigation, reading history, and more.
 // @description:ja  タッチ操作向けの多機能 E-H/ExH ビューア。内蔵リーダー、ズーム対応のギャラリープレビュー、モバイル向け UI、ジェスチャー操作、閲覧履歴など。
 // @description:zh-CN  针对触屏优化的 E-H/ExH 阅读器。功能： 内置阅读器、可缩放画廊预览、移动端 UI 适配、手势导航、阅读历史等。
@@ -355,7 +355,6 @@ Next page`,
           columnsLabel: "Two Columns",
           showColumnsResizeHandle: "Show column resize handle",
           hideColumnsResizeHandle: "Hide column resize handle",
-          twoColumnsHelp: "Enables Two Columns for the current screen orientation",
           enhance: "Enhance",
           enhanceSearchLabel: "Search Swipe",
           enhanceSearchHelp: "Swipe between search result pages",
@@ -559,7 +558,6 @@ Next page`,
           columnsLabel: "2 列",
           showColumnsResizeHandle: "列幅調整ハンドルを表示",
           hideColumnsResizeHandle: "列幅調整ハンドルを非表示",
-          twoColumnsHelp: "現在の画面方向で 2 列表示を有効にします",
           enhance: "拡張",
           enhanceSearchLabel: "検索スワイプ",
           enhanceSearchHelp: "スワイプして検索結果ページを切り替えます",
@@ -763,7 +761,6 @@ Next page`,
           columnsLabel: "双栏",
           showColumnsResizeHandle: "显示双栏调整柄",
           hideColumnsResizeHandle: "隐藏双栏调整柄",
-          twoColumnsHelp: "为当前屏幕方向启用双栏模式",
           enhance: "增强",
           enhanceSearchLabel: "搜索滑动",
           enhanceSearchHelp: "通过滑动切换搜索结果页",
@@ -4020,7 +4017,43 @@ Next page`,
     let page2 = DomNode.from(document).use(domClass.page), source = DomNode.from(document).use(domClass.gallery), html = page2.html.inplace(), body = page2.body.inplace(), footer = page2.footer.inplace(), comments = source.comments.inplace(), commentsAnchor = source.commentsAnchor.inplace(), pageBarTopHost = source.preview.pageBarTop.one()?.parent()?.inplace() ?? null, pageBarBottomHost = source.preview.pageBarBottom.one()?.parent()?.inplace() ?? null, previewMount = preview.elems.mount, thumbs = preview.elems.thumbs;
     if (!html || !body || !comments || !previewMount || !thumbs)
       return null;
-    let leftNodes = [info.elems.host, commentsAnchor, comments].filter((node) => node !== null), rightNodes = (replacesOriginalPreview ? [previewMount] : [pageBarTopHost, previewMount, thumbs, pageBarBottomHost]).filter((node) => node !== null), resizeHandleMount = createManagedElement("div").replaceClasses("ehpeek-touch-gallery-layout-resizer"), layout = null, left = null, right = null, positions = [], enabled = initiallyEnabled, infoRatio = initialInfoRatio, update = () => {
+    let leftNodes = [info.elems.host, commentsAnchor, comments].filter((node) => node !== null), rightNodes = (replacesOriginalPreview ? [previewMount] : [pageBarTopHost, previewMount, thumbs, pageBarBottomHost]).filter((node) => node !== null), resizeHandleMount = createManagedElement("div").replaceClasses("ehpeek-touch-gallery-layout-resizer"), layout = null, left = null, right = null, positions = [], enabled = initiallyEnabled, infoRatio = initialInfoRatio, columnSubscriptions = /* @__PURE__ */ new Set(), createColumnScope = (column) => {
+      let element = () => (column === "info" ? left : right)?.Component() ?? null;
+      return {
+        column,
+        available: () => element()?.isConnected ?? !1,
+        bounds: () => {
+          let target = element();
+          if (!target?.isConnected)
+            return null;
+          let { bottom, height, left: left2, right: right2, top, width } = target.getBoundingClientRect();
+          return { bottom, height, left: left2, right: right2, top, width };
+        },
+        listen: ({ onBoundsChange, onScroll }) => {
+          let target = null, frame = null, scheduleBoundsChange = () => {
+            frame === null && (frame = window.requestAnimationFrame(() => {
+              frame = null, onBoundsChange();
+            }));
+          }, resizeObserver = new ResizeObserver(scheduleBoundsChange), syncColumn = () => {
+            let next = element();
+            next !== target && (target && onScroll && target.removeEventListener("scroll", onScroll), resizeObserver.disconnect(), target = next, target && (resizeObserver.observe(target), onScroll && target.addEventListener("scroll", onScroll, { passive: !0 })), scheduleBoundsChange());
+          }, onAncestorScroll = (event) => {
+            if (!target)
+              return;
+            let scroller = event.target;
+            (scroller === document || scroller === window || scroller instanceof Element && scroller !== target && scroller.contains(target)) && scheduleBoundsChange();
+          };
+          return syncColumn(), columnSubscriptions.add(syncColumn), window.addEventListener("resize", scheduleBoundsChange), window.addEventListener("scroll", onAncestorScroll, { capture: !0, passive: !0 }), () => {
+            columnSubscriptions.delete(syncColumn), resizeObserver.disconnect(), target && onScroll && target.removeEventListener("scroll", onScroll), window.removeEventListener("resize", scheduleBoundsChange), window.removeEventListener("scroll", onAncestorScroll, !0), frame !== null && window.cancelAnimationFrame(frame);
+          };
+        },
+        scrollToTop: () => element()?.scrollTo({ top: 0, behavior: "smooth" }),
+        scrollTop: () => element()?.scrollTop ?? 0
+      };
+    }, columnScopes = {
+      info: createColumnScope("info"),
+      preview: createColumnScope("preview")
+    }, update = () => {
       if (enabled && !layout) {
         if (layout = createAnchor("gallery-wide-layout")?.replaceClasses("ehpeek-touch-gallery-layout") ?? null, !layout)
           return;
@@ -4034,19 +4067,23 @@ Next page`,
           right,
           resizeHandleMount,
           ...footer ? [footer] : []
-        ), left.append(...leftNodes), right.append(...rightNodes), window.dispatchEvent(new Event("resize"));
+        ), left.append(...leftNodes), right.append(...rightNodes);
+        for (let syncColumn of columnSubscriptions)
+          syncColumn();
+        window.dispatchEvent(new Event("resize"));
         return;
       }
       if (!enabled && layout) {
         for (let { marker, node } of positions)
           marker.after(node), marker.remove();
-        positions = [], layout.remove(), layout = null, left = null, right = null, html.removeClasses("ehpeek-gallery-wide-layout-root"), body.removeClasses("ehpeek-gallery-wide-layout-root"), window.dispatchEvent(new Event("resize"));
+        positions = [], layout.remove(), layout = null, left = null, right = null;
+        for (let syncColumn of columnSubscriptions)
+          syncColumn();
+        html.removeClasses("ehpeek-gallery-wide-layout-root"), body.removeClasses("ehpeek-gallery-wide-layout-root"), window.dispatchEvent(new Event("resize"));
       }
     };
     return update(), {
-      readerCoverTarget(column) {
-        return (column === "info" ? left : right)?.Component() ?? null;
-      },
+      columnScope: (column) => columnScopes[column],
       resizeHandleMount,
       updateEnabled(value) {
         enabled = value, update();
@@ -8386,7 +8423,7 @@ Next page`,
             updatedAt: Date.now()
           });
         }
-        save(record) {
+        async save(record) {
           let previous = this.value, exists = previous !== null, saved = previous && previous.updatedAt > record.updatedAt ? storedReadHistoryRecord({
             ...previous,
             gallery: mergeGalleryInfo(previous.gallery, record.gallery)
@@ -8394,11 +8431,11 @@ Next page`,
             ...record,
             gallery: mergeGalleryInfo(previous?.gallery, record.gallery)
           });
-          return this.store.set(saved), exists || incrementReadHistoryEstimate().catch((error) => {
+          return await this.store.setAsync(saved), exists || incrementReadHistoryEstimate().catch((error) => {
             console.error("[ehpeek] Failed to update reading history count", error);
           }), saved;
         }
-        updateGalleryInfo(gallery2) {
+        async updateGalleryInfo(gallery2) {
           let previous = this.value;
           return previous ? this.save({
             ...previous,
@@ -9250,18 +9287,7 @@ Next page`,
               return moreOptionsOpen();
             },
             get children() {
-              return [createComponent(SwitchButton, {
-                get checked() {
-                  return draft.twoColumnsEnabled;
-                },
-                get description() {
-                  return activeTexts.settings.twoColumnsHelp;
-                },
-                get label() {
-                  return activeTexts.settings.columnsLabel;
-                },
-                onChange: (value) => updateDraft("twoColumnsEnabled", value)
-              }), createComponent(SelectSetting, {
+              return [createComponent(SelectSetting, {
                 get label() {
                   return activeTexts.settings.portraitUiScaleLabel;
                 },
@@ -9296,7 +9322,7 @@ Next page`,
                 onChange: (value) => updateDraft("includeReaderPageInUrl", value)
               })];
             }
-          }), null), insert(_el$24, "EhPeek"), insert(_el$25, "260905.1904", null), _el$27.$$click = () => setHelpOpen(!0), insert(_el$28, () => activeTexts.help.title), _el$29.$$click = () => setLicensesOpen(!0), insert(_el$30, () => activeTexts.settings.licenses), insert(_el$31, createComponent(Icon2, {
+          }), null), insert(_el$24, "EhPeek"), insert(_el$25, "260907.1513", null), _el$27.$$click = () => setHelpOpen(!0), insert(_el$28, () => activeTexts.help.title), _el$29.$$click = () => setLicensesOpen(!0), insert(_el$30, () => activeTexts.settings.licenses), insert(_el$31, createComponent(Icon2, {
             name: "chevron-right",
             size: "var(--ui-icon-size-sm)"
           })), _el$33.$$click = (event) => {
@@ -9708,7 +9734,7 @@ Next page`,
     return `${TAG_NAMESPACE_PREFIXES[namespace] ?? namespace}:${name.slice(separator + 1)}$`;
   }
   function GalleryInfoPanel(props) {
-    let panel, source = untrack(() => props.source), rating = source.data.rating, hasCover = source.elems.cover !== null, [ratingValue, setRatingValue] = createSignal(rating?.value ?? 0), [ratingPreview, setRatingPreview] = createSignal(null), [ratingPickerOpen, setRatingPickerOpen] = createSignal(!1), [ratingSubmitted, setRatingSubmitted] = createSignal(rating?.rated ?? !1), [ratingCount] = createSignal(rating?.count ?? ""), [ratingValueLabel] = createSignal(rating?.label ?? ""), initialTagGroups = source.data.tagGroups.map((group) => ({
+    let source = untrack(() => props.source), rating = source.data.rating, hasCover = source.elems.cover !== null, [ratingValue, setRatingValue] = createSignal(rating?.value ?? 0), [ratingPreview, setRatingPreview] = createSignal(null), [ratingPickerOpen, setRatingPickerOpen] = createSignal(!1), [ratingSubmitted, setRatingSubmitted] = createSignal(rating?.rated ?? !1), [ratingCount] = createSignal(rating?.count ?? ""), [ratingValueLabel] = createSignal(rating?.label ?? ""), initialTagGroups = source.data.tagGroups.map((group) => ({
       ...group,
       tags: group.tags.flatMap(({
         contentSourceIndex,
@@ -9720,37 +9746,7 @@ Next page`,
           contentSource
         }] : [];
       })
-    })), [tagGroups, setTagGroups] = createSignal(initialTagGroups), [selectedTag, setSelectedTag] = createSignal(null), [tagging, setTagging] = createSignal(!1), ratingPointerType = "", infoColumn = () => panel.closest(".ehpeek-touch-gallery-layout-left"), backToTopScope = {
-      bounds: () => {
-        let rect = infoColumn()?.getBoundingClientRect();
-        return rect ? {
-          bottom: rect.bottom,
-          height: rect.height,
-          left: rect.left,
-          right: rect.right,
-          width: rect.width
-        } : null;
-      },
-      listen: ({
-        onBoundsChange,
-        onScroll
-      }) => {
-        let column = infoColumn();
-        if (!column)
-          throw new Error("Gallery info column is unavailable.");
-        let resizeObserver = new ResizeObserver(onBoundsChange);
-        return resizeObserver.observe(column), column.addEventListener("scroll", onScroll, {
-          passive: !0
-        }), window.addEventListener("resize", onBoundsChange), () => {
-          resizeObserver.disconnect(), column.removeEventListener("scroll", onScroll), window.removeEventListener("resize", onBoundsChange);
-        };
-      },
-      scrollToTop: () => infoColumn()?.scrollTo({
-        top: 0,
-        behavior: "smooth"
-      }),
-      scrollTop: () => infoColumn()?.scrollTop ?? 0
-    }, hasNewTag = () => source.elems.newTag !== null, displayedRating = createMemo(() => ratingPreview() ?? ratingValue()), closeRatingPicker = () => {
+    })), [tagGroups, setTagGroups] = createSignal(initialTagGroups), [selectedTag, setSelectedTag] = createSignal(null), [tagging, setTagging] = createSignal(!1), ratingPointerType = "", hasNewTag = () => source.elems.newTag !== null, displayedRating = createMemo(() => ratingPreview() ?? ratingValue()), closeRatingPicker = () => {
       setRatingPreview(null), setRatingPickerOpen(!1);
     }, ratingLabel = createMemo(() => {
       let preview = ratingPreview();
@@ -9785,8 +9781,8 @@ Next page`,
       }))), setSelectedTag((tag2) => tag2?.url === updatedTag.url ? updatedTag : tag2);
     };
     return (() => {
-      var _el$ = _tmpl$56(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.firstChild, _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$5.nextSibling, _el$9 = _el$8.firstChild, _el$0 = _el$4.nextSibling, _el$1 = _el$0.firstChild, _el$10 = _el$1.nextSibling, _el$11 = _el$2.nextSibling, _el$12 = _el$11.firstChild, _ref$ = panel;
-      return typeof _ref$ == "function" ? use(_ref$, _el$) : panel = _el$, className(_el$3, `ehpeek-touch-gallery-summary grid ui-gap-sm items-stretch ${hasCover ? "ehpeek-touch-gallery-summary-has-cover" : "grid-cols-1"}`), insert(_el$3, hasCover && (() => {
+      var _el$ = _tmpl$56(), _el$2 = _el$.firstChild, _el$3 = _el$2.firstChild, _el$4 = _el$3.firstChild, _el$5 = _el$4.firstChild, _el$6 = _el$5.firstChild, _el$7 = _el$6.nextSibling, _el$8 = _el$5.nextSibling, _el$9 = _el$8.firstChild, _el$0 = _el$4.nextSibling, _el$1 = _el$0.firstChild, _el$10 = _el$1.nextSibling, _el$11 = _el$2.nextSibling, _el$12 = _el$11.firstChild;
+      return className(_el$3, `ehpeek-touch-gallery-summary grid ui-gap-sm items-stretch ${hasCover ? "ehpeek-touch-gallery-summary-has-cover" : "grid-cols-1"}`), insert(_el$3, hasCover && (() => {
         var _el$21 = _tmpl$66();
         return insert(_el$21, createComponent(DomNode2, {
           get node() {
@@ -9906,7 +9902,9 @@ Next page`,
             get leftHanded() {
               return props.leftHandedControls;
             },
-            scope: backToTopScope
+            get scope() {
+              return props.columnScope;
+            }
           });
         }
       }), null), insert(_el$, createComponent(TouchGalleryTagMenu, {
@@ -9996,8 +9994,8 @@ Next page`,
         document.removeEventListener("click", onClick);
       });
     }), (() => {
-      var _el$36 = _tmpl$122(), _el$37 = _el$36.firstChild, _ref$2 = root;
-      return typeof _ref$2 == "function" ? use(_ref$2, _el$36) : root = _el$36, _el$37.$$click = (event) => {
+      var _el$36 = _tmpl$122(), _el$37 = _el$36.firstChild, _ref$ = root;
+      return typeof _ref$ == "function" ? use(_ref$, _el$36) : root = _el$36, _el$37.$$click = (event) => {
         event.stopPropagation(), setOpen((value) => !value);
       }, insert(_el$37, createComponent(Icon2, {
         name: "menu"
@@ -10298,8 +10296,8 @@ Next page`,
     return onMount(() => {
       onCleanup(props.tag.contentSource.mirrorContentTo(host));
     }), (() => {
-      var _el$69 = _tmpl$232(), _ref$3 = host;
-      return typeof _ref$3 == "function" ? use(_ref$3, _el$69) : host = _el$69, _el$69;
+      var _el$69 = _tmpl$232(), _ref$2 = host;
+      return typeof _ref$2 == "function" ? use(_ref$2, _el$69) : host = _el$69, _el$69;
     })();
   }
   function TouchGalleryFavoriteButton(props) {
@@ -15189,7 +15187,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
   function mountReaderSurface(options) {
     let host = document.createElement("div");
     options.overlayHost.element.append(host);
-    let stopCoveringColumn = coverGalleryColumn(host, options.coverTarget, options.overlayHost), setFullscreenActive = (_active) => {
+    let stopCoveringColumn = coverGalleryColumn(host, options.cover, options.overlayHost), setFullscreenActive = (_active) => {
     }, disposed = !1, unlockPageScroll = lockPageScroll(), unlockPageThemeColor = lockPageThemeColor(READER_THEME_COLOR), disposeRoot;
     try {
       disposeRoot = render(() => {
@@ -15220,7 +15218,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
       throw options.coordinator.attachReader(null), unlockPageThemeColor(), unlockPageScroll(), stopCoveringColumn(), host.remove(), error;
     }
     return {
-      coveredColumn: () => options.coverTarget !== null && options.coverTarget.isConnected && !options.overlayHost.fullscreen.active() ? options.coverColumn : null,
+      coveredColumn: () => options.cover !== null && options.cover.available() && !options.overlayHost.fullscreen.active() ? options.cover.column : null,
       dispose: () => {
         disposed || (disposed = !0, disposeRoot(), unlockPageThemeColor(), unlockPageScroll(), stopCoveringColumn(), host.remove());
       },
@@ -15230,19 +15228,23 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
       }
     };
   }
-  function coverGalleryColumn(host, target, overlayHost2) {
-    if (!target)
+  function coverGalleryColumn(host, column, overlayHost2) {
+    if (!column)
       return () => {
       };
     host.classList.add("z-reader-panel");
     let clearBounds = () => {
       host.style.height = "", host.style.left = "", host.style.overflow = "", host.style.position = "", host.style.top = "", host.style.transform = "", host.style.width = "";
     }, updateBounds = () => {
-      if (overlayHost2.fullscreen.active() || !target.isConnected) {
+      if (overlayHost2.fullscreen.active()) {
         clearBounds();
         return;
       }
-      let bounds = target.getBoundingClientRect();
+      let bounds = column.bounds();
+      if (!bounds) {
+        clearBounds();
+        return;
+      }
       Object.assign(host.style, {
         height: `${bounds.height}px`,
         left: `${bounds.left}px`,
@@ -15252,11 +15254,11 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
         transform: "translateZ(0)",
         width: `${bounds.width}px`
       });
-    }, resizeObserver = new ResizeObserver(updateBounds);
-    resizeObserver.observe(target), window.addEventListener("resize", updateBounds), window.addEventListener("scroll", updateBounds, !0);
-    let unsubscribeFullscreen = overlayHost2.fullscreen.subscribe(updateBounds);
+    }, unsubscribeColumn = column.listen({
+      onBoundsChange: updateBounds
+    }), unsubscribeFullscreen = overlayHost2.fullscreen.subscribe(updateBounds);
     return updateBounds(), () => {
-      resizeObserver.disconnect(), window.removeEventListener("resize", updateBounds), window.removeEventListener("scroll", updateBounds, !0), unsubscribeFullscreen();
+      unsubscribeColumn(), unsubscribeFullscreen();
     };
   }
   async function openOriginalReader(pageNum, previewCache) {
@@ -15293,10 +15295,11 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
           this.target = target;
           this.pending = null;
           this.lastSaved = null;
+          this.saving = null;
           this.timer = null;
-          this.flush = () => {
-            this.timer !== null && (window.clearTimeout(this.timer), this.timer = null), this.pending && (this.sameProgress(this.pending, this.lastSaved) || (this.lastSaved = this.target?.history.save(this.pending) ?? null), this.pending = null);
-          };
+          this.flush = () => (this.timer !== null && (window.clearTimeout(this.timer), this.timer = null), this.saving ? this.saving.then(() => this.flush()) : this.pending ? (this.saving = this.savePending(this.pending).finally(() => {
+            this.saving = null;
+          }), this.saving) : Promise.resolve());
           this.onVisibilityChange = () => {
             document.visibilityState === "hidden" && this.flush();
           };
@@ -15316,10 +15319,21 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
             totalPages,
             updatedAt: Date.now()
           };
-          this.sameProgress(nextRecord, this.lastSaved) || (this.pending = nextRecord, this.schedule());
+          if (!this.saving && this.sameProgress(nextRecord, this.lastSaved)) {
+            this.pending = null;
+            return;
+          }
+          this.pending = nextRecord, this.schedule();
         }
         dispose() {
           this.flush(), window.removeEventListener("pagehide", this.flush), document.removeEventListener("visibilitychange", this.onVisibilityChange);
+        }
+        async savePending(record) {
+          try {
+            this.sameProgress(record, this.lastSaved) || (this.lastSaved = await this.target?.history.save(record) ?? null), this.pending === record && (this.pending = null);
+          } catch (error) {
+            console.error("[ehpeek] Failed to save reading progress", error);
+          }
         }
         schedule() {
           this.timer === null && (this.timer = window.setTimeout(this.flush, SAVE_DELAY_MS));
@@ -15382,8 +15396,8 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
       }
     }, closePreview = () => {
       previewOpen() && (surfaces.pop(), previewActions?.close(), reader?.setVisible(!0));
-    }, syncReaderExit = () => {
-      progress.flush(), clearReaderLocation();
+    }, syncReaderExit = async () => {
+      await progress.flush(), clearReaderLocation();
       let exitIndex = previewCache.previewIndexForPage(readerLastPage);
       if (enhancedPreviewActive()) {
         gotoPreviewIndex(exitIndex), exitIndex !== previewCache.current().data.currentIndex && previewCache.select(exitIndex).catch(reportReaderOpenError), surfaces.length === 0 && replacePreviewLocation(exitIndex);
@@ -15396,7 +15410,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
         return;
       reader = null;
       let index = surfaces.lastIndexOf("reader");
-      index >= 0 && surfaces.splice(index, 1), activeReader.dispose(), options.onReaderPreviewModeChange(!1), await exitFullscreen(), syncReaderExit();
+      index >= 0 && surfaces.splice(index, 1), activeReader.dispose(), options.onReaderPreviewModeChange(!1), await exitFullscreen(), await syncReaderExit();
     }, reconcileHistory = async (event) => {
       let marker = overlayHistoryState(event.state), depth = marker?.sessionId === historySessionId ? marker.depth : 0;
       for (; surfaces.length > depth; )
@@ -15421,14 +15435,13 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
         console.warn("[ehpeek] Fullscreen request failed", error);
       });
     }, openOriginalPage = (page2) => {
-      (async () => await exitFullscreen() && (progress.flush(), window.location.assign(page2.url)))();
-    }, mountReader = (startPageNum, coverColumn, coverTarget) => {
+      (async () => await exitFullscreen() && (await progress.flush(), window.location.assign(page2.url)))();
+    }, mountReader = (startPageNum, cover) => {
       let current = previewCache.current().data;
-      readerLastPage = startPageNum, readerInitialPreviewIndex = current.currentIndex, pushSurface("reader"), options.onReaderPreviewModeChange(coverColumn === "info");
+      readerLastPage = startPageNum, readerInitialPreviewIndex = current.currentIndex, pushSurface("reader"), options.onReaderPreviewModeChange(cover?.column === "info");
       try {
         reader = mountReaderSurface({
-          coverColumn,
-          coverTarget,
+          cover,
           coordinator,
           options: {
             galleryId: gallery2.galleryId,
@@ -15454,7 +15467,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
       let startPageNum = preferredPageNum ?? peekPageFromHash() ?? galleryPageNumber(startPageUrl);
       if (!startPageNum)
         throw new Error(activeTexts.errors.imageNotFound);
-      let requestedCoverColumn = options.twoColumnsReaderMode === "reader-preview" ? "info" : options.twoColumnsReaderMode === "on-preview" ? "preview" : null, coverTarget = requestedCoverColumn === null ? null : options.readerCoverTarget(requestedCoverColumn), coverColumn = coverTarget === null ? null : requestedCoverColumn, enteredFullscreen = await (coverTarget === null && requestConfiguredFullscreen && options.readerFullscreenEnabled && !document.fullscreenElement && document.fullscreenEnabled && typeof options.overlayHost.element.requestFullscreen == "function" ? options.overlayHost.fullscreen.enter().then(
+      let requestedCoverColumn = options.twoColumnsReaderMode === "reader-preview" ? "info" : options.twoColumnsReaderMode === "on-preview" ? "preview" : null, cover = requestedCoverColumn === null ? null : options.galleryColumn(requestedCoverColumn), enteredFullscreen = await (cover === null && requestConfiguredFullscreen && options.readerFullscreenEnabled && !document.fullscreenElement && document.fullscreenEnabled && typeof options.overlayHost.element.requestFullscreen == "function" ? options.overlayHost.fullscreen.enter().then(
         () => !0,
         (error) => (console.warn("[ehpeek] Fullscreen request failed", error), !1)
       ) : null);
@@ -15463,7 +15476,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
         return;
       }
       try {
-        mountReader(startPageNum, coverColumn, coverTarget);
+        mountReader(startPageNum, cover);
       } catch (error) {
         throw enteredFullscreen && await exitFullscreen(), error;
       }
@@ -15544,7 +15557,11 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
         totalPages
       });
     let existing = history.value, galleryInfo = extractGalleryHistoryInfo();
-    return includeUnread ? history.recordVisit(totalPages, galleryInfo) : existing && history.updateGalleryInfo(galleryInfo), new ReadingProgressSession({
+    return includeUnread ? history.recordVisit(totalPages, galleryInfo).catch((error) => {
+      console.error("[ehpeek] Failed to record gallery visit", error);
+    }) : existing && history.updateGalleryInfo(galleryInfo).catch((error) => {
+      console.error("[ehpeek] Failed to update gallery history info", error);
+    }), new ReadingProgressSession({
       history,
       record: {
         gallery: galleryInfo,
@@ -15669,7 +15686,6 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
   function settingsMenuState(defaults = !1) {
     let read = (setting) => defaults ? setting.defaultValue : setting.value;
     return {
-      twoColumnsEnabled: read(currentColumnsSetting()),
       twoColumnsReaderMode: read(state.reader.twoColumnsMode),
       openGalleryInNewTab: read(state.app.openGalleryInNewTab),
       locale: read(state.app.locale),
@@ -15691,7 +15707,7 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
     };
   }
   async function applySettingsMenuState(next) {
-    next.touchUiEnabled || await clearBackToTopPositions(), await Promise.all([currentColumnsSetting().setAsync(next.twoColumnsEnabled), state.reader.twoColumnsMode.setAsync(next.twoColumnsReaderMode), state.app.openGalleryInNewTab.setAsync(next.openGalleryInNewTab), state.app.locale.setAsync(next.locale), state.reader.enabled.setAsync(next.readerEnabled), state.reader.exitOnFullscreenExit.setAsync(next.exitReaderOnFullscreenExit), state.reader.fullscreen.setAsync(next.readerFullscreenEnabled), state.reader.includePageInUrl.setAsync(next.includeReaderPageInUrl), state.gallery.replacePreviewWithScroll.setAsync(next.replacePreviewWithScroll), state.gallery.enhanceThumbs.setAsync(next.enhanceThumbsGridsEnabled), state.search.enhance.setAsync(next.enhanceSearchGridsEnabled), state.gallery.myTags.setAsync(next.myTagsEnabled), state.gallery.readHistory.setAsync(next.readHistoryEnabled), state.gallery.includeUnreadHistory.setAsync(next.includeUnreadHistoryEnabled), state.search.history.setAsync(next.searchHistoryEnabled), state.touch.enabled.setAsync(next.touchUiEnabled), state.touch.fitToViewport.setAsync(next.fitToViewport), state.app.portraitUiScale.setAsync(next.portraitUiScale), state.app.landscapeUiScale.setAsync(next.landscapeUiScale)]), window.location.reload();
+    next.touchUiEnabled || await clearBackToTopPositions(), await Promise.all([state.reader.twoColumnsMode.setAsync(next.twoColumnsReaderMode), state.app.openGalleryInNewTab.setAsync(next.openGalleryInNewTab), state.app.locale.setAsync(next.locale), state.reader.enabled.setAsync(next.readerEnabled), state.reader.exitOnFullscreenExit.setAsync(next.exitReaderOnFullscreenExit), state.reader.fullscreen.setAsync(next.readerFullscreenEnabled), state.reader.includePageInUrl.setAsync(next.includeReaderPageInUrl), state.gallery.replacePreviewWithScroll.setAsync(next.replacePreviewWithScroll), state.gallery.enhanceThumbs.setAsync(next.enhanceThumbsGridsEnabled), state.search.enhance.setAsync(next.enhanceSearchGridsEnabled), state.gallery.myTags.setAsync(next.myTagsEnabled), state.gallery.readHistory.setAsync(next.readHistoryEnabled), state.gallery.includeUnreadHistory.setAsync(next.includeUnreadHistoryEnabled), state.search.history.setAsync(next.searchHistoryEnabled), state.touch.enabled.setAsync(next.touchUiEnabled), state.touch.fitToViewport.setAsync(next.fitToViewport), state.app.portraitUiScale.setAsync(next.portraitUiScale), state.app.landscapeUiScale.setAsync(next.landscapeUiScale)]), window.location.reload();
   }
   function currentUiScale() {
     return currentUiScaleSetting().value;
@@ -15954,13 +15970,16 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
         },
         onInput: updateGalleryColumnsRatio,
         onCommit: persistGalleryColumnsRatio
-      })), galleryInfoDom.elems.mount.mount(() => createComponent(OverlayHostProvider, {
+      }));
+      let infoColumnScope = galleryWideLayout.columnScope("info");
+      galleryInfoDom.elems.mount.mount(() => createComponent(OverlayHostProvider, {
         host: overlayHost,
         get children() {
           return createComponent(GalleryInfoPanel, {
             get columnsEnabled() {
               return gState.columnsEnabled;
             },
+            columnScope: infoColumnScope,
             get leftHandedControls() {
               return gState.leftHandedControls;
             },
@@ -16057,7 +16076,10 @@ html:has(#ehpeek-ui-state.ehpeek-pointer-mouse)
       readerEnabled: gState.settings.readerEnabled,
       readerFullscreenEnabled: gState.settings.readerFullscreenEnabled,
       twoColumnsReaderMode: gState.settings.twoColumnsReaderMode,
-      readerCoverTarget: (column) => gState.columnsEnabled() ? galleryWideLayout?.readerCoverTarget(column) ?? null : null,
+      galleryColumn: (column) => {
+        let scope = galleryWideLayout?.columnScope(column);
+        return gState.columnsEnabled() && scope?.available() ? scope : null;
+      },
       replacePreviewWithScroll: gState.settings.replacePreviewWithScroll
     });
     gState.settings.myTagsEnabled && allowFeatureFailure("Gallery My Tags appearance", () => {
