@@ -647,10 +647,12 @@ function injectGalleryDetails(
         onCommit={persistGalleryColumnsRatio}
       />
     ));
+    const infoColumnScope = galleryWideLayout.columnScope("info");
     galleryInfoDom.elems.mount.mount(() => (
       <OverlayHostProvider host={overlayHost}>
         <GalleryInfoPanel
           columnsEnabled={gState.columnsEnabled}
+          columnScope={infoColumnScope}
           leftHandedControls={gState.leftHandedControls}
           source={galleryInfoDom}
           primaryAction={(
@@ -777,10 +779,10 @@ function injectGalleryPage(
     readerEnabled: gState.settings.readerEnabled,
     readerFullscreenEnabled: gState.settings.readerFullscreenEnabled,
     twoColumnsReaderMode: gState.settings.twoColumnsReaderMode,
-    readerCoverTarget: (column) =>
-      gState.columnsEnabled()
-        ? galleryWideLayout?.readerCoverTarget(column) ?? null
-        : null,
+    galleryColumn: (column) => {
+      const scope = galleryWideLayout?.columnScope(column);
+      return gState.columnsEnabled() && scope?.available() ? scope : null;
+    },
     replacePreviewWithScroll: gState.settings.replacePreviewWithScroll,
   });
 

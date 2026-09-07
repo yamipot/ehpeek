@@ -571,6 +571,27 @@ export function mutateGalleryTouchLayout(fitToViewport: boolean): void {
   }
 }
 
+export type GalleryColumn = "info" | "preview";
+
+export type GalleryColumnScope = {
+  column: GalleryColumn;
+  available: () => boolean;
+  bounds: () => {
+    bottom: number;
+    height: number;
+    left: number;
+    right: number;
+    top: number;
+    width: number;
+  } | null;
+  listen: (callbacks: {
+    onBoundsChange: () => void;
+    onScroll?: () => void;
+  }) => () => void;
+  scrollToTop: () => void;
+  scrollTop: () => number;
+};
+
 /** Groups GalleryInfo, Comments, and Preview into independent responsive columns. */
 export function mutateGalleryWideLayout(
   info: GalleryInfoDom,
@@ -614,6 +635,91 @@ export function mutateGalleryWideLayout(
   }> = [];
   let enabled = initiallyEnabled;
   let infoRatio = initialInfoRatio;
+  const columnSubscriptions = new Set<() => void>();
+
+  const createColumnScope = (column: GalleryColumn): GalleryColumnScope => {
+    const element = () => (column === "info" ? left : right)?.Component() ?? null;
+    return {
+      column,
+      available: () => element()?.isConnected ?? false,
+      bounds: () => {
+        const target = element();
+        if (!target?.isConnected) {
+          return null;
+        }
+        const { bottom, height, left, right, top, width } = target.getBoundingClientRect();
+        return { bottom, height, left, right, top, width };
+      },
+      listen: ({ onBoundsChange, onScroll }) => {
+        let target: HTMLElement | null = null;
+        let frame: number | null = null;
+        const scheduleBoundsChange = () => {
+          if (frame !== null) {
+            return;
+          }
+          frame = window.requestAnimationFrame(() => {
+            frame = null;
+            onBoundsChange();
+          });
+        };
+        const resizeObserver = new ResizeObserver(scheduleBoundsChange);
+        const syncColumn = () => {
+          const next = element();
+          if (next === target) {
+            return;
+          }
+          if (target && onScroll) {
+            target.removeEventListener("scroll", onScroll);
+          }
+          resizeObserver.disconnect();
+          target = next;
+          if (target) {
+            resizeObserver.observe(target);
+            if (onScroll) {
+              target.addEventListener("scroll", onScroll, { passive: true });
+            }
+          }
+          scheduleBoundsChange();
+        };
+        const onAncestorScroll = (event: Event) => {
+          if (!target) {
+            return;
+          }
+          const scroller = event.target;
+          // Scrolling inside a column does not move the column's viewport bounds.
+          if (
+            scroller === document ||
+            scroller === window ||
+            (scroller instanceof Element && scroller !== target && scroller.contains(target))
+          ) {
+            scheduleBoundsChange();
+          }
+        };
+        syncColumn();
+        columnSubscriptions.add(syncColumn);
+        window.addEventListener("resize", scheduleBoundsChange);
+        window.addEventListener("scroll", onAncestorScroll, { capture: true, passive: true });
+        return () => {
+          columnSubscriptions.delete(syncColumn);
+          resizeObserver.disconnect();
+          if (target && onScroll) {
+            target.removeEventListener("scroll", onScroll);
+          }
+          window.removeEventListener("resize", scheduleBoundsChange);
+          window.removeEventListener("scroll", onAncestorScroll, true);
+          if (frame !== null) {
+            window.cancelAnimationFrame(frame);
+          }
+        };
+      },
+      scrollToTop: () => element()?.scrollTo({ top: 0, behavior: "smooth" }),
+      scrollTop: () => element()?.scrollTop ?? 0,
+    };
+  };
+  const columnScopes = {
+    info: createColumnScope("info"),
+    preview: createColumnScope("preview"),
+  };
 
   const update = () => {
     if (enabled && !layout) {
@@ -650,6 +756,9 @@ export function mutateGalleryWideLayout(
       );
       left.append(...leftNodes);
       right.append(...rightNodes);
+      for (const syncColumn of columnSubscriptions) {
+        syncColumn();
+      }
       // Moving the Gallery into columns changes its available width without a
       // viewport resize, so notify page scripts that size their original DOM.
       window.dispatchEvent(new Event("resize"));
@@ -666,6 +775,9 @@ export function mutateGalleryWideLayout(
       layout = null;
       left = null;
       right = null;
+      for (const syncColumn of columnSubscriptions) {
+        syncColumn();
+      }
       html.removeClasses("ehpeek-gallery-wide-layout-root");
       body.removeClasses("ehpeek-gallery-wide-layout-root");
       window.dispatchEvent(new Event("resize"));
@@ -675,9 +787,7 @@ export function mutateGalleryWideLayout(
   update();
 
   return {
-    readerCoverTarget(column: "info" | "preview"): HTMLElement | null {
-      return (column === "info" ? left : right)?.Component() ?? null;
-    },
+    columnScope: (column: GalleryColumn): GalleryColumnScope => columnScopes[column],
     resizeHandleMount,
     updateEnabled(value: boolean): void {
       enabled = value;

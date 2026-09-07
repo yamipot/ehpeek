@@ -5,6 +5,7 @@ import {
   type ReaderOptions,
 } from "../components/Reader";
 import texts from "../i18n";
+import type { GalleryColumn, GalleryColumnScope } from "../eh";
 import type { GalleryPreviewCache } from "./GalleryPreviewCache";
 import type { GalleryCoordinator } from "./GalleryCoordinator";
 import {
@@ -16,17 +17,14 @@ import { lockPageScroll, lockPageThemeColor } from "./viewport";
 const READER_THEME_COLOR = "#070707";
 
 export type ReaderSurface = {
-  coveredColumn: () => ReaderCoverColumn | null;
+  coveredColumn: () => GalleryColumn | null;
   dispose: () => void;
   setFullscreenActive: (active: boolean) => void;
   setVisible: (visible: boolean) => void;
 };
 
-export type ReaderCoverColumn = "info" | "preview";
-
 export function mountReaderSurface(options: {
-  coverColumn: ReaderCoverColumn | null;
-  coverTarget: HTMLElement | null;
+  cover: GalleryColumnScope | null;
   coordinator: GalleryCoordinator;
   options: ReaderOptions;
   overlayHost: OverlayHost;
@@ -36,7 +34,7 @@ export function mountReaderSurface(options: {
   options.overlayHost.element.append(host);
   const stopCoveringColumn = coverGalleryColumn(
     host,
-    options.coverTarget,
+    options.cover,
     options.overlayHost,
   );
   let setFullscreenActive = (_active: boolean): void => undefined;
@@ -75,10 +73,10 @@ export function mountReaderSurface(options: {
 
   return {
     coveredColumn: () =>
-      options.coverTarget !== null &&
-        options.coverTarget.isConnected &&
+      options.cover !== null &&
+        options.cover.available() &&
         !options.overlayHost.fullscreen.active()
-        ? options.coverColumn
+        ? options.cover.column
         : null,
     dispose: () => {
       if (disposed) {
@@ -100,10 +98,10 @@ export function mountReaderSurface(options: {
 
 function coverGalleryColumn(
   host: HTMLElement,
-  target: HTMLElement | null,
+  column: GalleryColumnScope | null,
   overlayHost: OverlayHost,
 ): () => void {
-  if (!target) {
+  if (!column) {
     return () => undefined;
   }
 
@@ -118,11 +116,15 @@ function coverGalleryColumn(
     host.style.width = "";
   };
   const updateBounds = () => {
-    if (overlayHost.fullscreen.active() || !target.isConnected) {
+    if (overlayHost.fullscreen.active()) {
       clearBounds();
       return;
     }
-    const bounds = target.getBoundingClientRect();
+    const bounds = column.bounds();
+    if (!bounds) {
+      clearBounds();
+      return;
+    }
     Object.assign(host.style, {
       height: `${bounds.height}px`,
       left: `${bounds.left}px`,
@@ -133,17 +135,12 @@ function coverGalleryColumn(
       width: `${bounds.width}px`,
     });
   };
-  const resizeObserver = new ResizeObserver(updateBounds);
-  resizeObserver.observe(target);
-  window.addEventListener("resize", updateBounds);
-  window.addEventListener("scroll", updateBounds, true);
+  const unsubscribeColumn = column.listen({ onBoundsChange: updateBounds });
   const unsubscribeFullscreen = overlayHost.fullscreen.subscribe(updateBounds);
   updateBounds();
 
   return () => {
-    resizeObserver.disconnect();
-    window.removeEventListener("resize", updateBounds);
-    window.removeEventListener("scroll", updateBounds, true);
+    unsubscribeColumn();
     unsubscribeFullscreen();
   };
 }

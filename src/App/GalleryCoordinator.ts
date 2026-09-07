@@ -19,7 +19,6 @@ import {
   mountReaderSurface,
   openOriginalReader,
   reportReaderOpenError,
-  type ReaderCoverColumn,
   type ReaderSurface,
 } from "./Reader";
 
@@ -63,7 +62,7 @@ export function createGalleryCoordinator(options: {
   readHistory: GalleryReadHistory | null;
   readerEnabled: boolean;
   readerFullscreenEnabled: boolean;
-  readerCoverTarget: (column: ReaderCoverColumn) => HTMLElement | null;
+  galleryColumn: (column: eh.GalleryColumn) => eh.GalleryColumnScope | null;
   replacePreviewWithScroll: boolean;
   twoColumnsReaderMode: TwoColumnsReaderMode;
 }): GalleryCoordinator {
@@ -324,18 +323,16 @@ export function createGalleryCoordinator(options: {
 
   const mountReader = (
     startPageNum: number,
-    coverColumn: ReaderCoverColumn | null,
-    coverTarget: HTMLElement | null,
+    cover: eh.GalleryColumnScope | null,
   ): void => {
     const current = previewCache.current().data;
     readerLastPage = startPageNum;
     readerInitialPreviewIndex = current.currentIndex;
     pushSurface("reader");
-    options.onReaderPreviewModeChange(coverColumn === "info");
+    options.onReaderPreviewModeChange(cover?.column === "info");
     try {
       reader = mountReaderSurface({
-        coverColumn,
-        coverTarget,
+        cover,
         coordinator,
         options: {
           galleryId: gallery.galleryId,
@@ -379,17 +376,16 @@ export function createGalleryCoordinator(options: {
       throw new Error(texts.errors.imageNotFound);
     }
 
-    const requestedCoverColumn: ReaderCoverColumn | null =
+    const requestedCoverColumn: eh.GalleryColumn | null =
       options.twoColumnsReaderMode === "reader-preview"
         ? "info"
         : options.twoColumnsReaderMode === "on-preview"
         ? "preview"
         : null;
-    const coverTarget = requestedCoverColumn === null
+    const cover = requestedCoverColumn === null
       ? null
-      : options.readerCoverTarget(requestedCoverColumn);
-    const coverColumn = coverTarget === null ? null : requestedCoverColumn;
-    const fullscreenResult = coverTarget === null &&
+      : options.galleryColumn(requestedCoverColumn);
+    const fullscreenResult = cover === null &&
       requestConfiguredFullscreen &&
       options.readerFullscreenEnabled &&
         !document.fullscreenElement &&
@@ -409,7 +405,7 @@ export function createGalleryCoordinator(options: {
       return;
     }
     try {
-      mountReader(startPageNum, coverColumn, coverTarget);
+      mountReader(startPageNum, cover);
     } catch (error) {
       if (enteredFullscreen) {
         await exitFullscreen();
