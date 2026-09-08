@@ -2,7 +2,7 @@ import type {
   OrientationSettings,
   ReaderSettings,
   SettingCallbacks,
-} from "@ehpeek/reader/settings";
+} from "@ehpeek/reader/interfaces";
 import { state } from "../state";
 
 type ControlsStore = typeof state.reader.portraitControls;

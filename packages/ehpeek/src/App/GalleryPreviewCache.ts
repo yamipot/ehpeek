@@ -1,6 +1,6 @@
 import { createSignal, type Accessor } from "solid-js";
 import * as eh from "../eh";
-import type { LoadedReaderPage, ReaderPage } from "@ehpeek/reader/readerTypes";
+import type { LoadedReaderPage, ReaderPage } from "@ehpeek/reader/interfaces";
 
 const PREVIEW_CACHE_LIMIT = 10;
 

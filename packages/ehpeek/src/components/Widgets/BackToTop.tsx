@@ -10,7 +10,7 @@ import {
   state,
   type BackToTopPosition,
 } from "../../state";
-import { Icon } from "@ehpeek/reader/components/Widgets/Icon";
+import { Icon } from "@ehpeek/reader/kit/Widgets";
 
 type PositionState = {
   set: (value: BackToTopPosition | null) => void;

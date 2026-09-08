@@ -1,5 +1,6 @@
 import en from "../locales/en.json";
-import { readerLocales, type ReaderTexts } from "@ehpeek/reader/i18n";
+import { readerLocales } from "@ehpeek/reader/kit/i18n";
+import type { ReaderTexts } from "@ehpeek/reader/interfaces";
 import ja from "../locales/ja.json";
 import zhCn from "../locales/zh-CN.json";
 

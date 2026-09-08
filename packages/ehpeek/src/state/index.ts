@@ -9,8 +9,8 @@ import {
 import type {
   NavigationMode, ReadDirection, PageLayout, RightTapAction,
   ReaderScrollSizeScale, ReaderOrientation,
-} from "@ehpeek/reader/settings";
-export type { ReadDirection } from "@ehpeek/reader/settings";
+} from "@ehpeek/reader/interfaces";
+export type { ReadDirection } from "@ehpeek/reader/interfaces";
 export type TwoColumnsReaderMode =
   | "full-view"
   | "on-preview"

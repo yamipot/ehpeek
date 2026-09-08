@@ -19,11 +19,11 @@ async function loadModule(name) {
 }
 
 const { ReadProgressSyncer, createReadProgressPublisher } =
-  await loadModule("ReadProgressSyncer");
-const { createReaderSettings } = await loadModule("settings");
-const { createPreviewCache } = await loadModule("PreviewCache");
-const { SurfaceStack } = await loadModule("SurfaceStack");
-const { lockPageScroll } = await loadModule("App/viewport");
+  await loadModule("features/ReadProgressSyncer");
+const { createReaderSettings } = await loadModule("features/ReaderSettings");
+const { createPreviewCache } = await loadModule("features/PreviewCache");
+const { SurfaceStack } = await loadModule("features/SurfaceStack");
+const { lockPageScroll } = await loadModule("features/Viewport");
 
 test("progress sync is directional and disconnects", () => {
   const reader = createReadProgressPublisher();

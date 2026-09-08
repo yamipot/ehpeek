@@ -2,21 +2,24 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { build } from "esbuild";
 import { solidPlugin } from "esbuild-plugin-solid";
-import { generateCss, variantGroupBabelPlugin } from "../build-support.mjs";
-import { createUiUnoConfig } from "../uno.config.mjs";
+import { generateCss, readerUnoConfig } from "../../ehpeek/uno.config.mjs";
 
 const result = await build({
   stdin: {
     contents: `
       import { renderToString } from "solid-js/web";
-      import { Button, IconButton, IconLink } from "./src/components/Widgets/Button";
-      import { Popover } from "./src/components/Widgets/Popover";
-      export { widgetClass } from "./src/components/Widgets/classes";
-      export { listenForOutsidePress } from "./src/components/Widgets/outsidePress";
+      import { Button, IconButton, IconLink } from "./src/kit/Widgets/Button";
+      import { Popover } from "./src/kit/Widgets/Popover";
+      import { PositionBar } from "./src/kit/Widgets/PositionBar";
+      import { ProgressBar } from "./src/kit/Widgets/ProgressBar";
+      export { widgetClass } from "./src/kit/helpers";
+      export { listenForOutsidePress } from "./src/kit/helpers";
       export const renderButton = props => renderToString(() => Button(props));
       export const renderIconButton = props => renderToString(() => IconButton(props));
       export const renderIconLink = props => renderToString(() => IconLink(props));
       export const renderPopover = props => renderToString(() => Popover(props));
+      export const renderPositionBar = props => renderToString(() => PositionBar(props));
+      export const renderProgressBar = props => renderToString(() => ProgressBar(props));
     `,
     resolveDir: new URL("../", import.meta.url).pathname,
   },
@@ -24,10 +27,23 @@ const result = await build({
   write: false,
   platform: "node",
   format: "esm",
+  loader: { ".css": "text" },
   plugins: [
+    {
+      name: "render-without-document-styles",
+      setup(build) {
+        build.onResolve({ filter: /^\.\.\/\.\.\/styles$/ }, () => ({
+          path: "styles",
+          namespace: "test-styles",
+        }));
+        build.onLoad({ filter: /.*/, namespace: "test-styles" }, () => ({
+          contents: "",
+          loader: "js",
+        }));
+      },
+    },
     solidPlugin({
       solid: { generate: "ssr" },
-      babel: { plugins: [variantGroupBabelPlugin] },
     }),
   ],
 });
@@ -44,6 +60,7 @@ test("buttons preserve native attributes, content and a non-submit default", () 
     children: "Current image",
   });
   assert.match(html, /<button\b/);
+  assert.doesNotMatch(html, /data-reader-ui/);
   assert.match(html, /type="button"/);
   assert.match(html, / disabled(?:[\s=>])/);
   assert.match(html, /aria-label="Download"/);
@@ -51,7 +68,7 @@ test("buttons preserve native attributes, content and a non-submit default", () 
   assert.match(html, /Current image/);
   assert.doesNotMatch(html, /variant=|disabled:\(/);
   assert.match(widgets.renderButton({ type: "submit" }), /type="submit"/);
-  assert.match(widgets.renderButton({ variant: "option" }), /flex-col/);
+  assert.match(widgets.renderButton({ variant: "option" }), /ehpeek-button--option/);
 });
 
 test("icon actions share sizing without turning links into buttons", () => {
@@ -70,11 +87,12 @@ test("icon actions share sizing without turning links into buttons", () => {
   assert.match(button, /aria-expanded="true"/);
   assert.match(button, / disabled(?:[\s=>])/);
   assert.match(link, /<a\b/);
+  assert.doesNotMatch(link, /data-reader-ui/);
   assert.match(link, /href="\/settings"/);
   assert.match(link, /target="_blank"/);
   assert.doesNotMatch(link, /<button|variant=|size="xl"/);
-  assert.match(button, /--ui-control-size-xl/);
-  assert.match(link, /--ui-control-size-xl/);
+  assert.match(button, /ehpeek-icon-action--xl/);
+  assert.match(link, /ehpeek-icon-action--xl/);
 });
 
 test("popover keeps caller placement, class toggles and contents", () => {
@@ -88,6 +106,7 @@ test("popover keeps caller placement, class toggles and contents", () => {
   assert.match(html, /absolute left-0/);
   assert.match(html, /right-0/);
   assert.match(html, /role="menu"/);
+  assert.doesNotMatch(html, /data-reader-ui/);
   assert.match(html, /Navigation/);
   assert.doesNotMatch(html, /onOutsidePress|outsideEvent/);
 });
@@ -167,19 +186,59 @@ test("class changes preserve active toggles, including left-handed positioning",
   );
 });
 
-test("shared widget hover styles can use the host pointer scope", async () => {
-  const pointer = 'html[data-test-pointer="mouse"] .ehpeek-ui-root';
+test("remaining reader utilities keep independent hover and scoped preflights", async () => {
   const css = await generateCss(
-    [new URL("../src/components/Widgets", import.meta.url).pathname],
-    createUiUnoConfig(pointer),
+    [new URL("../src", import.meta.url).pathname],
+    readerUnoConfig,
   );
   const hoverRules = css.split("\n").filter((line) => line.includes(":hover"));
+  assert.ok(hoverRules.length > 0);
   assert.ok(
-    hoverRules.some((line) => line.includes("--color-icon-button-hover")),
+    hoverRules.every(
+      (line) =>
+        line.startsWith('html[data-reader-pointer="mouse"] ') &&
+        line.includes("[data-reader-ui]"),
+    ),
   );
-  assert.ok(
-    hoverRules.every((line) => line.startsWith(pointer)),
-    "widget hover rules must use the host pointer scope",
-  );
-  assert.doesNotMatch(css, /data-reader-pointer/);
+  assert.doesNotMatch(css, /ehpeek-ui-state|--un-|@keyframes spin/);
+  assert.match(css, /\[data-reader-ui\]::before/);
+  assert.match(css, /animation:ehpeek-reader-spin/);
+});
+
+test("position bar exposes visual state without changing its logical progress", () => {
+  const props = { ariaLabel: "Page", currentValue: 3, maxValue: 9, onInput() {} };
+  const vertical = widgets.renderPositionBar({
+    ...props, axis: "vertical", expanded: true, thickness: "narrow",
+    trackVisible: false, visible: false, position: "fixed",
+  });
+  assert.match(vertical, /data-axis="vertical"/);
+  assert.match(vertical, /data-expanded="true"/);
+  assert.match(vertical, /data-thickness="narrow"/);
+  assert.match(vertical, /data-position="fixed"/);
+  assert.match(vertical, /data-visible="false"/);
+  assert.match(vertical, /data-track-visible="false"/);
+  assert.match(vertical, /data-draggable="true"/);
+  assert.match(vertical, /aria-valuenow="3"/);
+  assert.match(vertical, /top:25%/);
+  const horizontal = widgets.renderPositionBar({
+    ...props, axis: "horizontal", reversed: true,
+  });
+  assert.match(horizontal, /data-axis="horizontal"/);
+  assert.match(horizontal, /data-thickness="normal"/);
+  assert.match(horizontal, /left:75%/);
+  assert.match(horizontal, /aria-valuenow="3"/);
+  const disabled = widgets.renderPositionBar({ ...props, axis: "vertical", maxValue: 1 });
+  assert.match(disabled, /data-draggable="false"/);
+});
+
+test("progress input preserves native range and caller layout attributes", () => {
+  const html = widgets.renderProgressBar({
+    min: 1, max: 12, step: 1, value: 3, direction: "rtl", class: "custom-progress",
+  });
+  assert.match(html, /type="range"/);
+  assert.match(html, /ehpeek-progress-bar custom-progress/);
+  assert.match(html, /min="1"/);
+  assert.match(html, /max="12"/);
+  assert.match(html, /step="1"/);
+  assert.match(html, /dir="rtl"/);
 });

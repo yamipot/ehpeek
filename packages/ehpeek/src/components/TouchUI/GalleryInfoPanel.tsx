@@ -20,10 +20,8 @@ import { state } from "../../state";
 import { refreshMyTags } from "../Enhance/MyTags";
 import { WelcomeIcon } from "../WelcomeIcon";
 import { GalleryColumnsBackToTop } from "../Widgets/BackToTop";
-import { Popover } from "@ehpeek/reader/components/Widgets/Popover";
-import { Dialog } from "@ehpeek/reader/components/Widgets/Dialog";
+import { Dialog, Icon, Popover } from "@ehpeek/reader/kit/Widgets";
 import { DomNode, DomNodes } from "../Widgets/ExternalDom";
-import { Icon } from "@ehpeek/reader/components/Widgets/Icon";
 
 const RATING_STAR_INDEXES = [0, 1, 2, 3, 4];
 const RATING_ACTION_BUTTON_CLASS =

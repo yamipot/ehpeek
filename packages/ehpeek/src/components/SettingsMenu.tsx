@@ -19,10 +19,7 @@ import {
   type UiScale,
   uiScaleLevel,
 } from "../ui";
-import { InteractionHelp } from "@ehpeek/reader/components/InteractionHelp";
-import { Popover } from "@ehpeek/reader/components/Widgets/Popover";
-import { Dialog } from "@ehpeek/reader/components/Widgets/Dialog";
-import { Icon, type IconName } from "@ehpeek/reader/components/Widgets/Icon";
+import { Dialog, Icon, InteractionHelp, Popover, type IconName } from "@ehpeek/reader/kit/Widgets";
 
 type SettingsMenuState = {
   twoColumnsReaderMode: TwoColumnsReaderMode;

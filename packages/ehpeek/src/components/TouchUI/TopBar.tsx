@@ -11,9 +11,7 @@ import {
   uiScaleLevel,
 } from "../../ui";
 import texts from "../../i18n";
-import { IconButton, IconLink } from "@ehpeek/reader/components/Widgets/Button";
-import { Popover } from "@ehpeek/reader/components/Widgets/Popover";
-import { Icon } from "@ehpeek/reader/components/Widgets/Icon";
+import { Icon, IconButton, IconLink, Popover } from "@ehpeek/reader/kit/Widgets";
 
 const TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)";
 const TOUCH_TOP_BAR_PROJECT_ICON_SIZE =

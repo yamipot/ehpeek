@@ -6,128 +6,20 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/ReadingView.d.ts",
+      "default": "./dist/ReadingView.js"
     },
-    "./App/OverlayHost": {
-      "types": "./dist/App/OverlayHost.d.ts",
-      "default": "./dist/App/OverlayHost.js"
+    "./interfaces": {
+      "types": "./dist/kit/interfaces.d.ts",
+      "default": "./dist/kit/interfaces.js"
     },
-    "./App/viewport": {
-      "types": "./dist/App/viewport.d.ts",
-      "default": "./dist/App/viewport.js"
+    "./kit/Widgets": {
+      "types": "./dist/kit/Widgets/index.d.ts",
+      "default": "./dist/kit/Widgets/index.js"
     },
-    "./readerTypes": {
-      "types": "./dist/readerTypes.d.ts",
-      "default": "./dist/readerTypes.js"
-    },
-    "./components/animation": {
-      "types": "./dist/components/animation.d.ts",
-      "default": "./dist/components/animation.js"
-    },
-    "./components/PointerGesture": {
-      "types": "./dist/components/PointerGesture.d.ts",
-      "default": "./dist/components/PointerGesture.js"
-    },
-    "./components/Widgets/Icon": {
-      "types": "./dist/components/Widgets/Icon.d.ts",
-      "default": "./dist/components/Widgets/Icon.js"
-    },
-    "./components/Widgets/LauncherButton": {
-      "types": "./dist/components/Widgets/LauncherButton.d.ts",
-      "default": "./dist/components/Widgets/LauncherButton.js"
-    },
-    "./components/Widgets/PositionBar": {
-      "types": "./dist/components/Widgets/PositionBar.d.ts",
-      "default": "./dist/components/Widgets/PositionBar.js"
-    },
-    "./components/Widgets/PriorityLoadQueue": {
-      "types": "./dist/components/Widgets/PriorityLoadQueue.d.ts",
-      "default": "./dist/components/Widgets/PriorityLoadQueue.js"
-    },
-    "./components/Widgets/SwipeIndicator": {
-      "types": "./dist/components/Widgets/SwipeIndicator.d.ts",
-      "default": "./dist/components/Widgets/SwipeIndicator.js"
-    },
-    "./components/Widgets/Dialog": {
-      "types": "./dist/components/Widgets/Dialog.d.ts",
-      "default": "./dist/components/Widgets/Dialog.js"
-    },
-    "./components/Widgets/ProgressBar": {
-      "types": "./dist/components/Widgets/ProgressBar.d.ts",
-      "default": "./dist/components/Widgets/ProgressBar.js"
-    },
-    "./components/ScrollPreview": {
-      "types": "./dist/components/ScrollPreview/index.d.ts",
-      "default": "./dist/components/ScrollPreview/index.js"
-    },
-    "./components/InteractionHelp": {
-      "types": "./dist/components/InteractionHelp.d.ts",
-      "default": "./dist/components/InteractionHelp.js"
-    },
-    "./components/Reader/Toolbar": {
-      "types": "./dist/components/Reader/Toolbar.d.ts",
-      "default": "./dist/components/Reader/Toolbar.js"
-    },
-    "./components/Reader/ScrollBar": {
-      "types": "./dist/components/Reader/ScrollBar.d.ts",
-      "default": "./dist/components/Reader/ScrollBar.js"
-    },
-    "./components/Reader/ViewportCanvas": {
-      "types": "./dist/components/Reader/ViewportCanvas.d.ts",
-      "default": "./dist/components/Reader/ViewportCanvas.js"
-    },
-    "./components/Reader/session": {
-      "types": "./dist/components/Reader/session.d.ts",
-      "default": "./dist/components/Reader/session.js"
-    },
-    "./components/Reader": {
-      "types": "./dist/components/Reader/index.d.ts",
-      "default": "./dist/components/Reader/index.js"
-    },
-    "./components/Reader/ZoomOverlay": {
-      "types": "./dist/components/Reader/ZoomOverlay.d.ts",
-      "default": "./dist/components/Reader/ZoomOverlay.js"
-    },
-    "./components/Reader/Viewport": {
-      "types": "./dist/components/Reader/Viewport.d.ts",
-      "default": "./dist/components/Reader/Viewport.js"
-    },
-    "./utils": {
-      "types": "./dist/utils.d.ts",
-      "default": "./dist/utils.js"
-    },
-    "./settings": {
-      "types": "./dist/settings.d.ts",
-      "default": "./dist/settings.js"
-    },
-    "./ui": {
-      "types": "./dist/ui.d.ts",
-      "default": "./dist/ui.js"
-    },
-    "./i18n": {
-      "types": "./dist/i18n.d.ts",
-      "default": "./dist/i18n.js"
-    },
-    "./ContentSource": {
-      "types": "./dist/ContentSource.d.ts",
-      "default": "./dist/ContentSource.js"
-    },
-    "./ReadProgressSyncer": {
-      "types": "./dist/ReadProgressSyncer.d.ts",
-      "default": "./dist/ReadProgressSyncer.js"
-    },
-    "./createReader": {
-      "types": "./dist/createReader.d.ts",
-      "default": "./dist/createReader.js"
-    },
-    "./components/Widgets/Button": {
-      "types": "./dist/components/Widgets/Button.d.ts",
-      "default": "./dist/components/Widgets/Button.js"
-    },
-    "./components/Widgets/Popover": {
-      "types": "./dist/components/Widgets/Popover.d.ts",
-      "default": "./dist/components/Widgets/Popover.js"
+    "./kit/*": {
+      "types": "./dist/kit/*.d.ts",
+      "default": "./dist/kit/*.js"
     }
   },
   "peerDependencies": {
@@ -137,11 +29,11 @@
     "lucide-solid": "^1.26.0"
   },
   "scripts": {
-    "build": "node build.mjs && tsc -p tsconfig.build.json",
-    "check": "tsc -p tsconfig.json",
+    "build": "node build.mjs && tsc -p tsconfig.json",
+    "check": "tsc --noEmit && pnpm check:consumer",
     "build:example": "node example.mjs",
     "example": "pnpm build && node example.mjs --serve",
-    "check:consumer": "tsc --noEmit --strict --target ES2020 --module ESNext --moduleResolution Bundler tests/consumer.ts"
+    "check:consumer": "tsc --noEmit --strict --noUncheckedIndexedAccess --target ES2020 --module ESNext --moduleResolution Bundler --jsx preserve --jsxImportSource solid-js tests/consumer.tsx examples/basic/main.tsx"
   },
   "files": [
     "dist"

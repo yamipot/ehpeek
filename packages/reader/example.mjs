@@ -14,7 +14,6 @@ const ctx = await context({
   entryPoints: [path.join(source, "main.tsx")],
   outfile: path.join(output, "main.js"),
   bundle: true,
-  tsconfigRaw: { compilerOptions: {} },
   format: "esm",
   target: "es2020",
   plugins: [solidPlugin()],

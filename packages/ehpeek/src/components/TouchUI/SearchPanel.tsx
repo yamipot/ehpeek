@@ -2,7 +2,7 @@ import { createEffect, createSignal, untrack, type JSX } from "solid-js";
 import type { SearchPanelDom } from "../../eh";
 import texts from "../../i18n";
 import { DomNode } from "../Widgets/ExternalDom";
-import { Icon } from "@ehpeek/reader/components/Widgets/Icon";
+import { Icon } from "@ehpeek/reader/kit/Widgets";
 
 const TOUCH_SEARCH_OPTION_CLASS =
   "appearance-none inline-flex ui-hit-min-h-sm items-center ui-px-md border-0 ui-rounded-sm bg-transparent ehp-color-site-accent text-left textsize-md font-700 font-inherit leading-[1.2] no-underline cursor-pointer [touch-action:manipulation] active:bg-[var(--color-site-accent-hover)]";

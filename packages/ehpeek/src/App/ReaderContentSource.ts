@@ -1,4 +1,4 @@
-import type { ContentSource } from "@ehpeek/reader/ContentSource";
+import type { ContentSource } from "@ehpeek/reader/interfaces";
 import type { GalleryPreviewCache } from "./GalleryPreviewCache";
 
 export function createReaderContentSource(

@@ -1,10 +1,7 @@
 import { createSignal } from "solid-js";
 import { render } from "solid-js/web";
-import {
-  ReadingView,
-  type ContentSource,
-  type ReaderInstance,
-} from "@ehpeek/reader";
+import { ReadingView } from "@ehpeek/reader";
+import type { ContentSource, ReaderInstance } from "@ehpeek/reader/interfaces";
 
 const pages = Array.from({ length: 30 }, (_, index) => {
   const pageNum = index + 1;
@@ -51,25 +48,23 @@ const source: ContentSource = {
 };
 
 function Example() {
-  let reader!: ReaderInstance;
+  const [reader, setReader] = createSignal<ReaderInstance | null>(null);
   const [progress, setProgress] = createSignal(1);
   const [setting, setSetting] = createSignal("No setting changes");
   return (
     <main class="reader-example">
       <header>
         <h1>Reader + Preview</h1>
-        <button onClick={() => void reader.open(progress())}>
+        <button disabled={!reader()} onClick={() => void reader()?.open(progress())}>
           Open Reader
         </button>
-        <button onClick={() => reader.openPreview()}>Open Preview</button>
+        <button disabled={!reader()} onClick={() => reader()?.openPreview()}>Open Preview</button>
       </header>
       <div class="preview">
         <ReadingView
           embeddedPreview
           fillPreviewContainer={() => true}
-          instanceRef={(instance) => {
-            reader = instance;
-          }}
+          instanceRef={setReader}
           options={{
             source,
             onProgress: (page) => setProgress(page.pageNum ?? 1),

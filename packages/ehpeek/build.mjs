@@ -5,8 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import { solidPlugin } from "esbuild-plugin-solid";
-import { generateCss, variantGroupBabelPlugin } from "../reader/build-support.mjs";
-import unoConfig from "./uno.config.mjs";
+import unoConfig, { generateCss, variantGroupBabelPlugin } from "./uno.config.mjs";
 
 const packageDir = path.dirname(fileURLToPath(import.meta.url));
 const repositoryDir = path.resolve(packageDir, "../..");
@@ -23,10 +22,8 @@ const releaseBranch = process.env.EHPEEK_RELEASE_BRANCH || "master";
 const debugBuild = process.env.EHPEEK_DEBUG === "true";
 const installUrl = userscriptInstallUrl();
 const version = userscriptVersion();
-// Shared widgets mounted in the original page use the site's pointer selector.
 const unoCss = await generateCss([
   path.join(packageDir, "src"),
-  path.join(packageDir, "../reader/src/components/Widgets"),
 ], unoConfig);
 const projectIconUrl = "https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg";
 const gm4Polyfill = readFileSync(
@@ -77,7 +74,6 @@ mkdirSync(path.dirname(outfile), { recursive: true });
 
 await build({
   entryPoints: [path.join(packageDir, "src/index.ts")],
-  tsconfigRaw: { compilerOptions: {} },
   bundle: true,
   format: "iife",
   target: "es2020",

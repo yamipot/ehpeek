@@ -5,6 +5,7 @@ import {
   Show,
 } from "solid-js";
 import { EnhanceSearchGrids } from "../components/Enhance/EnhanceSearchGrids";
+import { ReadingView } from "@ehpeek/reader";
 import {
   ThumbsGrids,
 } from "../components/Enhance/EnhanceThumbsGrids";
@@ -18,7 +19,7 @@ import {
 import { SearchHistory } from "../components/Enhance/SearchHistory";
 import { loadMyTagAppearances, refreshMyTags } from "../components/Enhance/MyTags";
 import { SettingsMenu } from "../components/SettingsMenu";
-import { LauncherButton } from "@ehpeek/reader/components/Widgets/LauncherButton";
+import { createOverlayHost, LauncherButton, OverlayHostProvider } from "@ehpeek/reader/kit/Widgets";
 import { GalleryColumnsResizeHandle } from "../components/Widgets/GalleryColumnsResizeHandle";
 import {
   BackToTop,
@@ -42,7 +43,7 @@ import {
 } from "../state";
 import { dispatchReady } from "../state/events";
 import texts from "../i18n";
-import { registerGlobalStyle } from "@ehpeek/reader/utils";
+import { registerGlobalStyle } from "@ehpeek/reader/kit/helpers";
 import ehDomCss from "../eh/dom/styles.css";
 import unoCss from "ehpeek:uno.css";
 import themeCss from "../theme.css";
@@ -57,11 +58,7 @@ import {
   type GalleryPreviewCache,
 } from "./GalleryPreviewCache";
 import { createAppMount } from "./host";
-import {
-  createOverlayHost,
-  OverlayHostProvider,
-  type OverlayHost,
-} from "@ehpeek/reader/App/OverlayHost";
+import type { OverlayHost } from "@ehpeek/reader/interfaces";
 import {
   applyUiScale,
   configureUi,
@@ -722,12 +719,14 @@ function injectGalleryPreview(
               !gState.settings.touchUiEnabled,
           }}
         >
-          <coordinator.reader.Preview
-            embedded={gState.settings.replacePreviewWithScroll}
+          <ReadingView
+            options={coordinator.readerOptions}
+            instanceRef={coordinator.attachReader}
+            embeddedPreview={gState.settings.replacePreviewWithScroll}
             embeddedDirection={gState.columnsEnabled()
               ? state.gallery.embeddedScrollPreviewColumnsDirection.value
               : state.gallery.embeddedScrollPreviewSingleDirection.value}
-            fillContainer={gState.columnsEnabled}
+            fillPreviewContainer={gState.columnsEnabled}
             leftHandedControls={gState.leftHandedControls()}
           />
           {gState.settings.enhanceThumbsGridsEnabled &&

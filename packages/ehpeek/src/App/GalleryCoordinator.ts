@@ -1,5 +1,5 @@
 import type { Accessor } from "solid-js";
-import { createReader, type ReaderInstance } from "@ehpeek/reader";
+import type { OverlayHost, ReaderInstance, ReadingViewOptions } from "@ehpeek/reader/interfaces";
 import type { ThumbsGridsActions } from "../components/Enhance/EnhanceThumbsGrids";
 import * as eh from "../eh";
 import type { ReadDirection, TwoColumnsReaderMode } from "../state";
@@ -11,16 +11,15 @@ import {
   type ReadingProgress,
 } from "./ReadingProgressSession";
 import type { GalleryPreviewCache } from "./GalleryPreviewCache";
-import type { OverlayHost } from "@ehpeek/reader/App/OverlayHost";
 import { openOriginalReader, reportReaderOpenError } from "./Reader";
 import { createReaderContentSource } from "./ReaderContentSource";
 import { readerSettings, readerSettingCallbacks } from "./ReaderSettings";
 import { createOverlayHistory } from "./OverlayHistory";
 
 export type GalleryCoordinator = {
-  reader: ReaderInstance;
+  readerOptions: ReadingViewOptions;
+  attachReader: (instance: ReaderInstance | null) => void;
   attachThumbs: (actions: ThumbsGridsActions) => void;
-  dispose: () => void;
   openFromReadButton: () => void;
   openGalleryPage: (pageUrl: string, preferredPageNum?: number) => void;
   openReaderFromHash: () => Promise<void>;
@@ -58,10 +57,15 @@ export function createGalleryCoordinator(options: {
   let readerLastPage = 1;
   let coveredInfo = false;
   let thumbs: ThumbsGridsActions | null = null;
+  let reader: ReaderInstance | null = null;
+  const mountedReader = (): ReaderInstance => {
+    if (!reader) throw new Error("Gallery reader is not mounted.");
+    return reader;
+  };
   const enhancedPreviewActive = () =>
     options.enhanceThumbsGridsEnabled ||
     options.replacePreviewWithScroll ||
-    reader.presentation.previewOpen;
+    reader?.activeView === "preview";
 
   const replaceReaderLocation = (pageNumber: number): void => {
     if (pageNumber <= 0 || !options.includeReaderPageInUrl) return;
@@ -93,7 +97,7 @@ export function createGalleryCoordinator(options: {
     window.history.replaceState(window.history.state, "", url.href);
   };
 
-  const reader = createReader({
+  const readerOptions: ReadingViewOptions = {
     source: createReaderContentSource(
       previewCache,
       gallery.galleryId,
@@ -103,7 +107,7 @@ export function createGalleryCoordinator(options: {
     onSettingChange: readerSettingCallbacks(options.onEmbeddedDirectionChange),
     host: options.overlayHost,
     history: createOverlayHistory((count) => {
-      if (count > 1 || reader.presentation.stack.top === "reader") clearReaderLocation();
+      if (count > 1 || reader?.activeView === "reader") clearReaderLocation();
     }),
     initialProgress: progress.progress().hasHistory
       ? progress.progress().currentPage
@@ -159,7 +163,7 @@ export function createGalleryCoordinator(options: {
         if (exitIndex !== previewCache.current().data.currentIndex) {
           void previewCache.select(exitIndex).catch(reportReaderOpenError);
         }
-        if (reader.presentation.stack.depth === 0)
+        if (reader?.activeView === null)
           replacePreviewLocation(exitIndex);
       } else if (exitIndex !== readerInitialPreviewIndex) {
         window.location.replace(eh.previewUrlForIndex(exitIndex));
@@ -201,31 +205,31 @@ export function createGalleryCoordinator(options: {
           .catch(reportReaderOpenError);
       },
     },
-  });
+  };
   return {
-    reader,
+    readerOptions,
+    attachReader: (instance) => {
+      reader = instance;
+      if (!instance) progress.dispose();
+    },
     attachThumbs: (actions) => {
       thumbs = actions;
     },
-    dispose: () => {
-      void reader.dispose().catch(reportReaderOpenError);
-      progress.dispose();
-    },
     openFromReadButton: () => {
-      void reader
+      void mountedReader()
         .open(options.readHistory ? progress.progress().currentPage : 1, true)
         .catch(reportReaderOpenError);
     },
     openGalleryPage: (url, preferredPageNum) => {
       const pageNum =
         preferredPageNum ?? eh.peekPageFromHash() ?? eh.galleryPageNumber(url);
-      if (pageNum) void reader.open(pageNum, true).catch(reportReaderOpenError);
+      if (pageNum) void mountedReader().open(pageNum, true).catch(reportReaderOpenError);
       else reportReaderOpenError(new Error(texts.errors.imageNotFound));
     },
     openReaderFromHash: async () => {
       const pageNum = eh.peekPageFromHash();
       if (pageNum !== null)
-        await reader.open(pageNum).catch(reportReaderOpenError);
+        await mountedReader().open(pageNum).catch(reportReaderOpenError);
     },
     progress: progress.progress as Accessor<ReadingProgress>,
   };

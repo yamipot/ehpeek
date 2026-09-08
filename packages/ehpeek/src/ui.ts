@@ -1,5 +1,5 @@
-import { applyUiScale as applyRootUiScale, uiScaleDeclarations, uiScaleFactor, UI_SCALE_NAMES, type UiScale } from "@ehpeek/reader/ui";
-export { UI_SCALE_NAMES, type UiScale, type UiSizeScale } from "@ehpeek/reader/ui";
+import { applyUiScale as applyRootUiScale, uiScaleDeclarations, uiScaleFactor, UI_SCALE_NAMES, type UiScale } from "@ehpeek/reader/kit/ui";
+export { UI_SCALE_NAMES, type UiScale, type UiSizeScale } from "@ehpeek/reader/kit/ui";
 
 export type UiPointer = "mouse" | "touch";
 export type UiSite = "e-hentai" | "exhentai";

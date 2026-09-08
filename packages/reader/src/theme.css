@@ -1,5 +1,6 @@
 .ehpeek-ui-root,
 .ehpeek-ui-theme {
+  --ehpeek-ui-font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --color-site-page: #34353b;
   --color-site-surface: #4f535b;
   --color-site-elevated: #3f4249;

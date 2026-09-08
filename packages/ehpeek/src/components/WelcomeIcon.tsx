@@ -1,5 +1,5 @@
 import texts from "../i18n";
-import { Icon } from "@ehpeek/reader/components/Widgets/Icon";
+import { Icon } from "@ehpeek/reader/kit/Widgets";
 
 export function WelcomeIcon(props: {
   embedded?: boolean;

@@ -1,4 +1,4 @@
-import type { SurfaceHistory, ReadingSurface } from "@ehpeek/reader";
+import type { SurfaceHistory, ReadingSurface } from "@ehpeek/reader/interfaces";
 
 export function createOverlayHistory(onBeforeBack: (count: number) => void): SurfaceHistory {
   const sessionId = crypto.randomUUID();
