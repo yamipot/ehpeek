@@ -5,17 +5,17 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "node_modules/**"],
+    ignores: ["**/dist/**", "**/node_modules/**"],
   },
   {
-    files: ["*.{js,mjs}"],
+    files: ["**/*.{js,mjs}"],
     ...eslint.configs.recommended,
     languageOptions: {
       globals: globals.node,
     },
   },
   {
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["packages/**/*.{ts,tsx}"],
     extends: [
       eslint.configs.recommended,
       ...tseslint.configs.recommended,

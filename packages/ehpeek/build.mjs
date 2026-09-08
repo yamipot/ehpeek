@@ -9,7 +9,8 @@ import { createGenerator, expandVariantGroup } from "unocss";
 import unoConfig from "./uno.config.mjs";
 
 const packageDir = path.dirname(fileURLToPath(import.meta.url));
-const outfile = path.join(packageDir, "dist/ehpeek.user.js");
+const repositoryDir = path.resolve(packageDir, "../..");
+const outfile = path.join(repositoryDir, "dist/ehpeek.user.js");
 const appName = "EhPeek";
 const defaultLocale = "en";
 const localeTexts = readLocaleTexts();
@@ -69,7 +70,7 @@ const metadata = [
   "",
 ].join("\n");
 
-mkdirSync(path.join(packageDir, "dist"), { recursive: true });
+mkdirSync(path.dirname(outfile), { recursive: true });
 
 await build({
   entryPoints: [path.join(packageDir, "src/index.ts")],

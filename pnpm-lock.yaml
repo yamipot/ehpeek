@@ -7,16 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      gm4-polyfill:
-        specifier: 1.0.1
-        version: 1.0.1
-      lucide-solid:
-        specifier: ^1.26.0
-        version: 1.26.0(solid-js@1.9.14)
-      solid-js:
-        specifier: ^1.9.14
-        version: 1.9.14
     devDependencies:
       '@adobe/spectrum-tokens':
         specifier: 14.15.0
@@ -48,6 +38,24 @@ importers:
       unocss:
         specifier: ^66.7.5
         version: 66.7.5(vite@8.1.4(esbuild@0.28.1)(jiti@2.7.0))
+
+  packages/ehpeek:
+    dependencies:
+      gm4-polyfill:
+        specifier: 1.0.1
+        version: 1.0.1
+      lucide-solid:
+        specifier: ^1.26.0
+        version: 1.26.0(solid-js@1.9.14)
+      solid-js:
+        specifier: ^1.9.14
+        version: 1.9.14
+
+  packages/reader:
+    dependencies:
+      solid-js:
+        specifier: ^1.9.14
+        version: 1.9.14
 
 packages:
 
@@ -1009,6 +1017,7 @@ packages:
   eslint@9.39.5:
     resolution: {integrity: sha512-DgZS62aPLXKlnxILS/AYCoRvHaZeXceIzlXPkkGGzJWSow1aEk0lbTlxUSlyjC8jcaKxAdOnTDz+o1JFSBsyjw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
