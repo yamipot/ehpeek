@@ -4,8 +4,8 @@ import type {
   PageLayout,
   ReaderScrollSizeScale,
   ReadDirection,
-} from "../../state";
-import texts from "../../i18n";
+} from "../../settings";
+import { useReaderTexts, type ReaderTexts } from "../../i18n";
 import { clamp, normalizedAspectRatio, positiveNumber } from "../../utils";
 import { ScrollAnimator, ScrollFlingAnimator, type ScrollMotion } from "../animation";
 import { createPointerGestureElement, type PointerGestureCallbacks } from "../PointerGesture";
@@ -152,6 +152,7 @@ export function PagesViewport(props: {
   window: PagesViewportWindowOptions;
   zoomActive: boolean;
 }) {
+  const texts = useReaderTexts();
   const [slots, setSlots] = createSignal<PageSlot[]>([]);
   const [revision, setRevision] = createSignal(0);
   const [renderedScrollSizeScale, setRenderedScrollSizeScale] = createSignal(
@@ -554,7 +555,7 @@ export function PagesViewport(props: {
         pendingSlot.height = slotImage.height;
         refreshSlot(pendingSlot);
       }
-      await loadImage(image);
+      await loadImage(image, texts.errors.imageLoadFailed);
       const slot = slotFor(pageNum);
 
       if (!slot || slot.token !== token || !slot.elements) {
@@ -841,6 +842,7 @@ function PageSlotView(props: {
   visualIndex: number;
   onReloadPage: (pageNum: number) => void;
 }) {
+  const texts = useReaderTexts();
   let node!: HTMLElement;
   let frame!: HTMLElement;
   const content = createMemo<SlotContent>(() => {
@@ -903,7 +905,7 @@ function PageSlotView(props: {
         <Show
           when={image()}
           keyed
-          fallback={<PageSlotPlaceholder content={content()} text={slotPlaceholderText(content())} onReloadPage={props.onReloadPage} />}
+          fallback={<PageSlotPlaceholder content={content()} text={slotPlaceholderText(content(), texts)} onReloadPage={props.onReloadPage} />}
         >
           {(currentImage) => currentImage}
         </Show>
@@ -962,6 +964,7 @@ function PageSlotPlaceholder(props: {
   text: string;
   onReloadPage: (pageNum: number) => void;
 }) {
+  const texts = useReaderTexts();
   const stop = (event: Event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -1035,14 +1038,14 @@ function pageImageDom(pageNum: number, slotImage: ViewportImage): HTMLImageEleme
   return image;
 }
 
-async function loadImage(image: HTMLImageElement): Promise<void> {
+async function loadImage(image: HTMLImageElement, errorMessage: string): Promise<void> {
   if (image.complete && image.naturalWidth > 0) {
     return;
   }
 
   await new Promise<void>((resolve, reject) => {
     image.addEventListener("load", () => resolve(), { once: true });
-    image.addEventListener("error", () => reject(new Error(texts.errors.imageLoadFailed)), { once: true });
+    image.addEventListener("error", () => reject(new Error(errorMessage)), { once: true });
   });
 
   try {
@@ -1199,7 +1202,7 @@ function createPagesScroller(element: HTMLElement) {
   };
 }
 
-function slotPlaceholderText(content: SlotContent): string {
+function slotPlaceholderText(content: SlotContent, texts: ReaderTexts): string {
   if (content.state === "error") {
     return texts.common.status.failed;
   }

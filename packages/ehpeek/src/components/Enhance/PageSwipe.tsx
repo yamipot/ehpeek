@@ -1,6 +1,6 @@
 import { createSignal, type Accessor } from "solid-js";
-import { createPointerGestureElement, type PointerDragEnd } from "../PointerGesture";
-import { SwipeIndicator, type SwipeIndicatorState } from "../Widgets/SwipeIndicator";
+import { createPointerGestureElement, type PointerDragEnd } from "@ehpeek/reader/components/PointerGesture";
+import { SwipeIndicator, type SwipeIndicatorState } from "@ehpeek/reader/components/Widgets/SwipeIndicator";
 
 const SWIPE_MIN_DISTANCE = 96;
 const SWIPE_INTENT_DISTANCE = 28;

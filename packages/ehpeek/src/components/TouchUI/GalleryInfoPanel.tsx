@@ -20,9 +20,9 @@ import { state } from "../../state";
 import { refreshMyTags } from "../Enhance/MyTags";
 import { WelcomeIcon } from "../WelcomeIcon";
 import { GalleryColumnsBackToTop } from "../Widgets/BackToTop";
-import { Dialog } from "../Widgets/Dialog";
+import { Dialog } from "@ehpeek/reader/components/Widgets/Dialog";
 import { DomNode, DomNodes } from "../Widgets/ExternalDom";
-import { Icon } from "../Widgets/Icon";
+import { Icon } from "@ehpeek/reader/components/Widgets/Icon";
 
 const RATING_STAR_INDEXES = [0, 1, 2, 3, 4];
 const RATING_ACTION_BUTTON_CLASS =

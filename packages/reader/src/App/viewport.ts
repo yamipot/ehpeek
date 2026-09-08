@@ -9,40 +9,67 @@ type FullscreenSnapshot = {
 
 export type FullscreenController = ReturnType<typeof createFullscreenController>;
 
-/** Keeps mobile browser chrome aligned with an active full-viewport surface. */
+const themeLocks: Array<{ color: string }> = [];
+let themeMeta: HTMLMetaElement | null = null;
+let restoreTheme: (() => void) | null = null;
+
+/** Overlapping surfaces restore the original theme only after the last owner releases it. */
 export function lockPageThemeColor(color: string): () => void {
-  const existing = document.querySelector<HTMLMetaElement>(
-    'meta[name="theme-color"]',
-  );
-  const meta = existing ?? document.createElement("meta");
-  const previousContent = existing?.getAttribute("content") ?? null;
-  if (!existing) {
-    meta.name = "theme-color";
-    document.head.append(meta);
+  if (themeLocks.length === 0) {
+    const existing = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const meta = existing ?? document.createElement("meta");
+    const previous = existing?.getAttribute("content") ?? null;
+    if (!existing) { meta.name = "theme-color"; document.head.append(meta); }
+    themeMeta = meta;
+    restoreTheme = () => {
+      if (!existing) meta.remove();
+      else if (previous === null) meta.removeAttribute("content");
+      else meta.content = previous;
+    };
   }
-  meta.content = color;
+  const entry = { color };
+  themeLocks.push(entry);
+  themeMeta!.content = color;
   return () => {
-    if (!existing) {
-      meta.remove();
-    } else if (previousContent === null) {
-      meta.removeAttribute("content");
-    } else {
-      meta.content = previousContent;
+    const index = themeLocks.indexOf(entry);
+    if (index < 0) return;
+    themeLocks.splice(index, 1);
+    const active = themeLocks[themeLocks.length - 1];
+    if (active) themeMeta!.content = active.color;
+    else {
+      restoreTheme?.();
+      themeMeta = null;
+      restoreTheme = null;
     }
   };
 }
 
-/** Locks original-page scrolling while the Reader overlay owns the viewport. */
+let scrollLockCount = 0;
+let restoreScroll: (() => void) | null = null;
+
+/** Multiple surfaces share the document lock and may close in any order. */
 export function lockPageScroll(): () => void {
-  const documentElement = document.documentElement;
-  const body = document.body;
-  const documentOverflow = documentElement.style.overflow;
-  const bodyOverflow = body.style.overflow;
-  documentElement.style.overflow = "hidden";
-  body.style.overflow = "hidden";
+  if (scrollLockCount++ === 0) {
+    const roots = [document.documentElement, document.body];
+    const previous = roots.map(root => ({
+      value: root.style.getPropertyValue("overflow"),
+      priority: root.style.getPropertyPriority("overflow"),
+    }));
+    for (const root of roots) root.style.setProperty("overflow", "hidden", "important");
+    restoreScroll = () => roots.forEach((root, index) => {
+      const style = previous[index]!;
+      if (style.value) root.style.setProperty("overflow", style.value, style.priority);
+      else root.style.removeProperty("overflow");
+    });
+  }
+  let released = false;
   return () => {
-    documentElement.style.overflow = documentOverflow;
-    body.style.overflow = bodyOverflow;
+    if (released) return;
+    released = true;
+    if (--scrollLockCount === 0) {
+      restoreScroll?.();
+      restoreScroll = null;
+    }
   };
 }
 
@@ -121,6 +148,7 @@ export function createFullscreenController(
     }
     onScaleChange(1);
     const captured = snapshot;
+    snapshot = null;
     if (!captured) {
       return Promise.resolve();
     }

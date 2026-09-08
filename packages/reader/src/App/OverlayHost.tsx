@@ -8,6 +8,8 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { applyUiScale, markUiRoot, type UiScale } from "../ui";
+import { ReaderTextsProvider, readerLocales, type ReaderTexts } from "../i18n";
+import "../styles";
 import {
   createFullscreenController,
   type FullscreenController,
@@ -17,35 +19,43 @@ export type OverlayHost = {
   element: HTMLDivElement;
   fullscreen: FullscreenController;
   fullscreenPixelScale: Accessor<number>;
+  uiScale: Accessor<UiScale>;
   setUiScale: (scale: UiScale) => void;
+  texts: ReaderTexts;
 };
 
 export function createOverlayHost(
   parent: HTMLElement,
-  initialUiScale: UiScale,
+  initialUiScale: UiScale = "small",
+  texts: ReaderTexts = readerLocales.en,
 ): OverlayHost {
   const element = document.createElement("div");
   element.dataset.ehpeekOverlayHost = "true";
   parent.append(element);
   markUiRoot(element);
+  element.addEventListener("pointerover", event => {
+    element.dataset.readerPointer = event.pointerType === "mouse" ? "mouse" : "touch";
+  });
 
-  let uiScale = initialUiScale;
+  const [uiScale, setScale] = createSignal(initialUiScale);
   let fullscreenScale = 1;
   const [fullscreenPixelScale, setFullscreenPixelScale] = createSignal(1);
-  const applyScale = () => applyUiScale(uiScale, element, fullscreenScale);
+  const applyScale = () => applyUiScale(uiScale(), element, fullscreenScale);
   const fullscreen = createFullscreenController(element, (factor) => {
     fullscreenScale = factor;
     setFullscreenPixelScale(factor);
     applyScale();
   });
-  applyScale();
+  untrack(applyScale);
 
   return {
     element,
+    texts,
     fullscreen,
     fullscreenPixelScale,
+    uiScale,
     setUiScale: (scale) => {
-      uiScale = scale;
+      setScale(scale);
       applyScale();
     },
   };
@@ -60,7 +70,7 @@ export function OverlayHostProvider(props: {
   const host = untrack(() => props.host);
   return (
     <OverlayHostContext.Provider value={host}>
-      {props.children}
+      <ReaderTextsProvider texts={host.texts}>{props.children}</ReaderTextsProvider>
     </OverlayHostContext.Provider>
   );
 }

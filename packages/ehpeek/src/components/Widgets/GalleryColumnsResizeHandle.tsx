@@ -4,8 +4,8 @@ import {
   GALLERY_COLUMNS_RATIO_MAX,
   GALLERY_COLUMNS_RATIO_MIN,
 } from "../../state";
-import { clamp } from "../../utils";
-import { Icon } from "./Icon";
+import { clamp } from "@ehpeek/reader/utils";
+import { Icon } from "@ehpeek/reader/components/Widgets/Icon";
 
 const KEYBOARD_STEP = 0.05;
 const HANDLE_ACTION_CLASS =

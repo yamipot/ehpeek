@@ -1,13 +1,12 @@
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import {
-  state,
   type NavigationMode,
   type PageLayout,
   type ReadDirection,
   type RightTapAction,
-} from "../../state";
-import texts from "../../i18n";
-import { startUserscriptDownload } from "../../userscript";
+} from "../../settings";
+import { useReaderTexts, type ReaderTexts } from "../../i18n";
+import type { ReaderCustomization } from "../../customization";
 import { stopEvent } from "../../utils";
 import { Dialog } from "../Widgets/Dialog";
 import { Icon } from "../Widgets/Icon";
@@ -76,13 +75,17 @@ export type ToolbarCallbacks = {
 
 export function Toolbar(props: {
   callbacks: ToolbarCallbacks;
+  customization?: ReaderCustomization;
+  leftHandedControls: boolean;
   controls: ReaderControls;
   downloadInfos: ReaderDownloadInfo[];
   fullscreenActive: boolean;
   open: boolean;
   progress: PageProgress;
 }) {
-  const leftHandedControls = state.app.leftHandedControls.value;
+  const texts = useReaderTexts();
+  const leftHandedControls = () => props.leftHandedControls;
+  const startImageDownload = (url: string, name: string) => props.customization?.download?.(url, name) ?? false;
   const [downloadDialogPageNum, setDownloadDialogPageNum] = createSignal<number | null>(null);
   const [helpOpen, setHelpOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
@@ -170,8 +173,7 @@ export function Toolbar(props: {
       <div
         class={
           "fixed z-2 flex justify-end transition-[opacity,transform] duration-160 ease-in-out " +
-          (leftHandedControls
-            ? "safe-left-md "
+          (leftHandedControls() ? "safe-left-md "
             : "safe-right-md ") +
           "bottom-[calc(var(--ui-control-size-lg)*2+var(--ui-font-size-lg)*2.4+env(safe-area-inset-bottom,0px))] " +
           "[&[data-open=false]]:(opacity-0 translate-y-[calc(100%+16px)] pointer-events-none)"
@@ -216,8 +218,7 @@ export function Toolbar(props: {
         class={
           "ehpeek-reader-toolbar fixed z-3 flex justify-end pointer-events-none " +
           "top-[calc(10px+env(safe-area-inset-top,0px))] " +
-          (leftHandedControls
-            ? "safe-left-sm "
+          (leftHandedControls() ? "safe-left-sm "
             : "safe-right-sm ")
         }
         style={{ top: fullscreenToolbarTop() }}
@@ -225,11 +226,12 @@ export function Toolbar(props: {
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div class={`flex flex-col ${leftHandedControls ? "items-start" : "items-end"} ui-gap-md pointer-events-auto${props.open ? "" : " !hidden"}`}>
-          <div class={`flex flex-row ui-gap-md${leftHandedControls ? " flex-row-reverse" : ""}`}>
+        <div class={`flex flex-col ${leftHandedControls() ? "items-start" : "items-end"} ui-gap-md pointer-events-auto${props.open ? "" : " !hidden"}`}>
+          <div class={`flex flex-row ui-gap-md${leftHandedControls() ? " flex-row-reverse" : ""}`}>
           <button
             type="button"
             class={READER_TOOLBAR_BUTTON_CLASS}
+            disabled={!props.customization?.onOpenOriginalPage}
             onClick={() => props.callbacks.onOpenOriginalPageClick()}
           >
             <Icon name="external-link" size={READER_ICON_SIZE} />
@@ -264,7 +266,7 @@ export function Toolbar(props: {
           </button>
           </div>
           <Show when={moreOpen()}>
-            <div class={`flex w-[calc(var(--ui-control-size-lg)*4+var(--ui-space-md)*4)] flex-row flex-wrap ui-gap-md${leftHandedControls ? " flex-row-reverse" : ""}`}>
+            <div class={`flex w-[calc(var(--ui-control-size-lg)*4+var(--ui-space-md)*4)] flex-row flex-wrap ui-gap-md${leftHandedControls() ? " flex-row-reverse" : ""}`}>
               <button
                 type="button"
                 class={READER_TOOLBAR_BUTTON_CLASS}
@@ -387,17 +389,16 @@ export function Toolbar(props: {
         class={
           "ehpeek-reader-page-number fixed z-3 pointer-events-none " +
           "top-[calc(10px+env(safe-area-inset-top,0px))] " +
-          (leftHandedControls
-            ? "safe-right-sm left-auto "
+          (leftHandedControls() ? "safe-right-sm left-auto "
             : "safe-left-sm right-auto ") +
           "min-w-0 max-w-[calc(100vw-20px)] " +
           "ui-py-xs ui-px-md ui-rounded-md bg-[var(--color-badge)] ehp-color-text " +
           "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap " +
-          (leftHandedControls ? "text-right" : "text-left")
+          (leftHandedControls() ? "text-right" : "text-left")
         }
         hidden={props.controls.navigationMode === "scroll" && !props.open && !props.fullscreenActive}
       >
-        {pageNumberText(
+        {pageNumberText(texts,
           props.progress.pageNum,
           props.progress.totalPages,
           props.controls.navigationMode,
@@ -411,8 +412,7 @@ export function Toolbar(props: {
           class={
             "ehpeek-reader-fullscreen-status fixed z-3 flex items-center ui-gap-sm pointer-events-none " +
             "top-[calc(10px+env(safe-area-inset-top,0px))] " +
-            (leftHandedControls
-              ? "safe-right-sm "
+            (leftHandedControls() ? "safe-right-sm "
               : "safe-left-sm ") +
             "ui-py-xs ui-px-md ui-rounded-md bg-[var(--color-badge)] ehp-color-text " +
             "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap"
@@ -470,6 +470,7 @@ export function Toolbar(props: {
                   <button
                     type="button"
                     class={DOWNLOAD_OPTION_CLASS}
+                    disabled={!props.customization?.download}
                     onClick={() => {
                       if (startImageDownload(downloadInfo.currentImageUrl, downloadInfo.currentFileName)) {
                         setDownloadDialogPageNum(null);
@@ -486,7 +487,7 @@ export function Toolbar(props: {
                   <button
                     type="button"
                     class={DOWNLOAD_OPTION_CLASS}
-                    disabled={!downloadInfo.originalImageUrl}
+                    disabled={!downloadInfo.originalImageUrl || !props.customization?.download}
                     onClick={() => {
                       if (downloadInfo.originalImageUrl) {
                         if (startImageDownload(
@@ -513,7 +514,7 @@ export function Toolbar(props: {
                 {texts.reader.downloadHelpLabel}
               </summary>
               <p class="m-0 ui-mt-sm leading-[1.4]">
-                {texts.reader.downloadHelp}
+                {props.customization?.downloadHelp?.()}
               </p>
               <div class="ui-mt-md flex flex-wrap items-center ui-gap-x-md ui-gap-y-sm">
                 <span class="font-700">{texts.reader.openImage}:</span>
@@ -555,17 +556,6 @@ export function Toolbar(props: {
   );
 }
 
-function startImageDownload(url: string, name?: string): boolean {
-  return startUserscriptDownload({
-    url,
-    ...(name ? { name } : {}),
-    onerror: (error) => {
-        console.error("[ehpeek]", error);
-        window.alert(texts.errors.downloadFailed);
-    },
-  });
-}
-
 function createFullscreenTime(enabled: () => boolean): () => string {
   const [time, setTime] = createSignal(TIME_FORMATTER.format(new Date()));
 
@@ -600,6 +590,7 @@ function progressFillPercent(progress: PageProgress): number {
 }
 
 function pageNumberText(
+  texts: ReaderTexts,
   pageNum: number,
   totalPages: number | undefined,
   navigationMode: NavigationMode,

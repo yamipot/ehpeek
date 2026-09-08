@@ -1,54 +1,30 @@
 import type { Accessor } from "solid-js";
+import { createReader, type ReaderInstance } from "@ehpeek/reader";
 import type { ThumbsGridsActions } from "../components/Enhance/EnhanceThumbsGrids";
-import type { ScrollPreviewActions } from "../components/Enhance/ScrollPreview";
-import type { ReaderActions } from "../components/Reader";
 import * as eh from "../eh";
-import type { ReaderPage } from "../readerTypes";
-import type { TwoColumnsReaderMode } from "../state";
-import {
-  type GalleryReadHistory,
-} from "../state/readHistory";
+import type { ReadDirection, TwoColumnsReaderMode } from "../state";
+import type { GalleryReadHistory } from "../state/readHistory";
 import texts from "../i18n";
+import { startUserscriptDownload } from "../userscript";
 import {
   ReadingProgressSession,
   type ReadingProgress,
 } from "./ReadingProgressSession";
 import type { GalleryPreviewCache } from "./GalleryPreviewCache";
-import type { OverlayHost } from "./OverlayHost";
-import {
-  mountReaderSurface,
-  openOriginalReader,
-  reportReaderOpenError,
-  type ReaderSurface,
-} from "./Reader";
-
-type OverlaySurface = "preview" | "reader";
-
-type OverlayHistoryState = {
-  depth: number;
-  sessionId: string;
-  surface: OverlaySurface;
-};
+import type { OverlayHost } from "@ehpeek/reader/App/OverlayHost";
+import { openOriginalReader, reportReaderOpenError } from "./Reader";
+import { createReaderContentSource } from "./ReaderContentSource";
+import { readerSettings, readerSettingCallbacks } from "./ReaderSettings";
+import { createOverlayHistory } from "./OverlayHistory";
 
 export type GalleryCoordinator = {
-  attachPreview: (actions: ScrollPreviewActions) => void;
-  attachReader: (actions: ReaderActions | null) => void;
+  reader: ReaderInstance;
   attachThumbs: (actions: ThumbsGridsActions) => void;
   dispose: () => void;
   openFromReadButton: () => void;
   openGalleryPage: (pageUrl: string, preferredPageNum?: number) => void;
-  openOriginalPage: (page: ReaderPage) => void;
-  openPreviewIndex: (previewIndex: number) => void;
-  openPreviewPage: (pageNum: number) => void;
-  openReaderPreviewPage: (pageNum: number) => void;
   openReaderFromHash: () => Promise<void>;
   progress: Accessor<ReadingProgress>;
-  readerActivePageChanged: (page: ReaderPage) => void;
-  readerEndReached: () => void;
-  requestClosePreview: (previewIndex: number) => void;
-  requestCloseReader: () => boolean;
-  selectPreviewPage: (pageUrl: string, pageNum: number) => void;
-  toggleReaderFullscreen: () => void;
 };
 
 export function createGalleryCoordinator(options: {
@@ -57,6 +33,7 @@ export function createGalleryCoordinator(options: {
   includeReaderPageInUrl: boolean;
   includeUnreadHistoryEnabled: boolean;
   onReaderPreviewModeChange: (active: boolean) => void;
+  onEmbeddedDirectionChange: (direction: ReadDirection) => void;
   overlayHost: OverlayHost;
   previewCache: GalleryPreviewCache;
   readHistory: GalleryReadHistory | null;
@@ -69,10 +46,7 @@ export function createGalleryCoordinator(options: {
   const previewCache = options.previewCache;
   const preview = previewCache.current().data;
   const gallery = eh.galleryIdentityFromUrl(preview.currentUrl);
-  if (!gallery) {
-    throw new Error("Cannot identify Gallery for Reader.");
-  }
-
+  if (!gallery) throw new Error("Cannot identify Gallery for Reader.");
   const progress = createProgressSession(
     gallery.galleryId,
     gallery.token,
@@ -80,62 +54,38 @@ export function createGalleryCoordinator(options: {
     options.readHistory,
     options.includeUnreadHistoryEnabled,
   );
-  const historySessionId = crypto.randomUUID();
-  const surfaces: OverlaySurface[] = [];
-  let reader: ReaderSurface | null = null;
-  let readerActions: ReaderActions | null = null;
   let readerInitialPreviewIndex = preview.currentIndex;
   let readerLastPage = 1;
-  let previewActions: ScrollPreviewActions | null = null;
-  let thumbsActions: ThumbsGridsActions | null = null;
-  let afterHistoryClose: (() => void) | null = null;
-  let historyClosePending = false;
-  let preserveSurfacesOnFullscreenExit = false;
-  let fullscreenWasActive = options.overlayHost.fullscreen.active();
-
-  const topSurface = (): OverlaySurface | undefined => surfaces[surfaces.length - 1];
-  const previewOpen = (): boolean => topSurface() === "preview";
-  const enhancedPreviewActive = (): boolean =>
+  let coveredInfo = false;
+  let thumbs: ThumbsGridsActions | null = null;
+  const enhancedPreviewActive = () =>
     options.enhanceThumbsGridsEnabled ||
     options.replacePreviewWithScroll ||
-    previewOpen();
+    reader.presentation.previewOpen;
 
   const replaceReaderLocation = (pageNumber: number): void => {
-    if (pageNumber <= 0 || !options.includeReaderPageInUrl) {
-      return;
-    }
-
+    if (pageNumber <= 0 || !options.includeReaderPageInUrl) return;
     let url = new URL(window.location.href);
     const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
-    url = new URL(eh.previewUrlForIndex(
-      previewCache.previewIndexForPage(pageNumber),
-      url.href,
-    ));
+    url = new URL(
+      eh.previewUrlForIndex(
+        previewCache.previewIndexForPage(pageNumber),
+        url.href,
+      ),
+    );
     hashParams.set("peek_page", String(pageNumber));
     url.hash = hashParams.toString();
-
-    if (url.href !== window.location.href) {
+    if (url.href !== window.location.href)
       window.history.replaceState(window.history.state, "", url.href);
-    }
   };
-
   const replacePreviewLocation = (previewIndex: number): void => {
-    if (options.replacePreviewWithScroll) {
-      return;
-    }
-
+    if (options.replacePreviewWithScroll) return;
     const url = new URL(eh.previewUrlForIndex(previewIndex));
-
-    if (url.href !== window.location.href) {
+    if (url.href !== window.location.href)
       window.history.replaceState(window.history.state, "", url.href);
-    }
   };
-
   const clearReaderLocation = (): void => {
-    if (!/(?:^#|&)peek_page(?:=|&|$)/.test(window.location.hash)) {
-      return;
-    }
-
+    if (!/(?:^#|&)peek_page(?:=|&|$)/.test(window.location.hash)) return;
     const url = new URL(window.location.href);
     const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
     hashParams.delete("peek_page");
@@ -143,389 +93,142 @@ export function createGalleryCoordinator(options: {
     window.history.replaceState(window.history.state, "", url.href);
   };
 
-  const pushSurface = (surface: OverlaySurface): void => {
-    surfaces.push(surface);
-    const currentState = window.history.state;
-    window.history.pushState({
-      ...(currentState !== null && typeof currentState === "object" ? currentState : {}),
-      ehpeekOverlay: {
-        depth: surfaces.length,
-        sessionId: historySessionId,
-        surface,
-      } satisfies OverlayHistoryState,
-    }, "", window.location.href);
-  };
-
-  const exitFullscreen = async (): Promise<boolean> => {
-    preserveSurfacesOnFullscreenExit = true;
-    try {
-      await options.overlayHost.fullscreen.exit();
-      return true;
-    } catch (error) {
-      console.warn("[ehpeek] Failed to exit fullscreen", error);
-      return false;
-    } finally {
-      preserveSurfacesOnFullscreenExit = false;
-    }
-  };
-
-  const closePreview = (): void => {
-    if (!previewOpen()) {
-      return;
-    }
-    surfaces.pop();
-    previewActions?.close();
-    reader?.setVisible(true);
-  };
-
-  const syncReaderExit = async (): Promise<void> => {
-    await progress.flush();
-    clearReaderLocation();
-    const exitIndex = previewCache.previewIndexForPage(readerLastPage);
-    if (enhancedPreviewActive()) {
-      gotoPreviewIndex(exitIndex);
-      if (exitIndex !== previewCache.current().data.currentIndex) {
-        void previewCache.select(exitIndex).catch(reportReaderOpenError);
-      }
-      if (surfaces.length === 0) {
-        replacePreviewLocation(exitIndex);
-      }
-      return;
-    }
-    if (exitIndex !== readerInitialPreviewIndex) {
-      window.location.replace(eh.previewUrlForIndex(exitIndex));
-    } else {
-      replacePreviewLocation(exitIndex);
-    }
-  };
-
-  const closeReader = async (): Promise<void> => {
-    const activeReader = reader;
-    if (!activeReader) {
-      return;
-    }
-    reader = null;
-    const index = surfaces.lastIndexOf("reader");
-    if (index >= 0) {
-      surfaces.splice(index, 1);
-    }
-    // Stop Reader work before fullscreen resize can trigger another layout or load cycle.
-    activeReader.dispose();
-    options.onReaderPreviewModeChange(false);
-    await exitFullscreen();
-    await syncReaderExit();
-  };
-
-  const reconcileHistory = async (event: PopStateEvent): Promise<void> => {
-    const marker = overlayHistoryState(event.state);
-    const depth = marker?.sessionId === historySessionId ? marker.depth : 0;
-    while (surfaces.length > depth) {
-      if (topSurface() === "preview") {
-        closePreview();
-      } else {
-        await closeReader();
-      }
-    }
-    const afterClose = afterHistoryClose;
-    afterHistoryClose = null;
-    historyClosePending = false;
-    afterClose?.();
-  };
-
-  const onPopState = (event: PopStateEvent): void => {
-    void reconcileHistory(event);
-  };
-  window.addEventListener("popstate", onPopState);
-
-  const stopFullscreen = options.overlayHost.fullscreen.subscribe((active) => {
-    const closeReaderAfterFullscreenExit =
-      fullscreenWasActive &&
-      !active &&
-      !preserveSurfacesOnFullscreenExit &&
-      options.exitReaderOnFullscreenExit &&
-      reader !== null;
-    if (closeReaderAfterFullscreenExit) {
-      // Release the nested Preview's scroll lock before Reader's while leaving
-      // the history stack for popstate to reconcile.
-      if (previewOpen()) {
-        previewActions?.close();
-      }
-      // Stop Reader immediately instead of letting the fullscreen resize run before popstate closes it.
-      reader?.dispose();
-      clearReaderLocation();
-      window.history.go(-surfaces.length);
-    } else {
-      reader?.setFullscreenActive(active);
-    }
-    fullscreenWasActive = active;
-  });
-
-  const gotoPreviewIndex = (previewIndex: number): void => {
-    if (previewOpen()) {
-      previewActions?.gotoPreview(previewIndex);
-    } else {
-      thumbsActions?.gotoPreview(previewIndex);
-    }
-  };
-
-  const activePageChanged = (page: ReaderPage): void => {
-    if (page.pageNum) {
-      readerLastPage = page.pageNum;
-      previewActions?.setCurrentPage(page.pageNum);
-      if (enhancedPreviewActive()) {
-        gotoPreviewIndex(previewCache.previewIndexForPage(page.pageNum));
-      }
-    }
-    progress.update(page.pageNum, preview.totalImages);
-    if (page.pageNum) {
-      replaceReaderLocation(page.pageNum);
-    }
-  };
-
-  const requestClose = (surface: OverlaySurface, afterClose?: () => void): void => {
-    if (historyClosePending || topSurface() !== surface) {
-      return;
-    }
-    historyClosePending = true;
-    afterHistoryClose = afterClose ?? null;
-    if (surface === "reader") {
-      clearReaderLocation();
-    }
-    window.history.back();
-  };
-
-  const requestReaderClose = (): boolean => {
-    if (!reader || topSurface() !== "reader") {
-      return false;
-    }
-    requestClose("reader");
-    return true;
-  };
-
-  const toggleFullscreen = (): void => {
-    const request = options.overlayHost.fullscreen.active()
-      ? exitFullscreen().then(() => undefined)
-      : options.overlayHost.fullscreen.enter();
-    void request.catch((error: unknown) => {
-      console.warn("[ehpeek] Fullscreen request failed", error);
-    });
-  };
-
-  const openOriginalPage = (page: ReaderPage): void => {
-    void (async () => {
-      if (!await exitFullscreen()) {
-        return;
-      }
-      await progress.flush();
-      window.location.assign(page.url);
-    })();
-  };
-
-  const mountReader = (
-    startPageNum: number,
-    cover: eh.GalleryColumnScope | null,
-  ): void => {
-    const current = previewCache.current().data;
-    readerLastPage = startPageNum;
-    readerInitialPreviewIndex = current.currentIndex;
-    pushSurface("reader");
-    options.onReaderPreviewModeChange(cover?.column === "info");
-    try {
-      reader = mountReaderSurface({
-        cover,
-        coordinator,
-        options: {
-          galleryId: gallery.galleryId,
-          galleryToken: gallery.token,
-          initialPageNum: startPageNum,
-          totalPages: current.totalImages,
-        },
-        overlayHost: options.overlayHost,
-        previewCache,
-      });
-    } catch (error) {
-      options.onReaderPreviewModeChange(false);
-      surfaces.pop();
-      window.history.back();
-      throw error;
-    }
-  };
-
-  const openReader = async (
-    startPageUrl: string,
-    preferredPageNum?: number,
-    requestConfiguredFullscreen = false,
-  ): Promise<void> => {
-    if (!options.readerEnabled) {
-      if (preferredPageNum !== undefined) {
-        await openOriginalReader(preferredPageNum, previewCache);
-      }
-      return;
-    }
-    if (reader) {
-      if (preferredPageNum !== undefined) {
-        readerActions?.gotoPage(preferredPageNum);
-      }
-      return;
-    }
-
-    const startPageNum = preferredPageNum ??
-      eh.peekPageFromHash() ??
-      eh.galleryPageNumber(startPageUrl);
-    if (!startPageNum) {
-      throw new Error(texts.errors.imageNotFound);
-    }
-
-    const requestedCoverColumn: eh.GalleryColumn | null =
-      options.twoColumnsReaderMode === "reader-preview"
-        ? "info"
-        : options.twoColumnsReaderMode === "on-preview"
-        ? "preview"
-        : null;
-    const cover = requestedCoverColumn === null
-      ? null
-      : options.galleryColumn(requestedCoverColumn);
-    const fullscreenResult = cover === null &&
-      requestConfiguredFullscreen &&
-      options.readerFullscreenEnabled &&
-        !document.fullscreenElement &&
-        document.fullscreenEnabled &&
-        typeof options.overlayHost.element.requestFullscreen === "function"
-      ? options.overlayHost.fullscreen.enter().then(
-        () => true,
-        (error: unknown) => {
-          console.warn("[ehpeek] Fullscreen request failed", error);
+  const reader = createReader({
+    source: createReaderContentSource(
+      previewCache,
+      gallery.galleryId,
+      gallery.token,
+    ),
+    settings: readerSettings(),
+    onSettingChange: readerSettingCallbacks(options.onEmbeddedDirectionChange),
+    host: options.overlayHost,
+    history: createOverlayHistory((count) => {
+      if (count > 1 || reader.presentation.stack.top === "reader") clearReaderLocation();
+    }),
+    initialProgress: progress.progress().hasHistory
+      ? progress.progress().currentPage
+      : null,
+    fullscreenOnOpen: options.readerFullscreenEnabled,
+    exitOnFullscreenExit: options.exitReaderOnFullscreenExit,
+    beforeOpen: options.readerEnabled
+      ? undefined
+      : async (pageNum) => {
+          await openOriginalReader(pageNum, previewCache);
           return false;
         },
-      )
-      : null;
-    const enteredFullscreen = await fullscreenResult;
-    if (enteredFullscreen && !options.overlayHost.fullscreen.active()) {
-      await options.overlayHost.fullscreen.restore();
-      return;
-    }
-    try {
-      mountReader(startPageNum, cover);
-    } catch (error) {
-      if (enteredFullscreen) {
-        await exitFullscreen();
-      }
-      throw error;
-    }
-  };
-
-  function openPreviewPage(pageNum: number): void {
-    if (!previewOpen()) {
-      pushSurface("preview");
-    }
-    previewActions?.gotoPage(pageNum);
-  }
-
-  function openReaderPreviewPage(pageNum: number): void {
-    previewActions?.setCurrentPage(pageNum);
-    const coveredColumn = reader?.coveredColumn();
-    if (
-      previewActions &&
-      options.replacePreviewWithScroll &&
-      coveredColumn === "preview"
-    ) {
-      if (!previewOpen()) {
-        pushSurface("preview");
-      }
-      reader?.setVisible(false);
-      previewActions.showEmbeddedPage(pageNum);
-      return;
-    }
-    openPreviewPage(pageNum);
-  }
-
-  const openPreviewIndex = (previewIndex: number): void => {
-    if (!previewOpen()) {
-      pushSurface("preview");
-    }
-    previewActions?.gotoPreview(previewIndex);
-  };
-
-  const coordinator: GalleryCoordinator = {
-    attachPreview: (actions: ScrollPreviewActions) => {
-      previewActions = actions;
+    placement: () => {
+      const column =
+        options.twoColumnsReaderMode === "reader-preview"
+          ? "info"
+          : options.twoColumnsReaderMode === "on-preview"
+            ? "preview"
+            : null;
+      const container = column === null ? null : options.galleryColumn(column);
+      coveredInfo = column === "info" && container !== null;
+      return container
+        ? {
+            container,
+            coversPreview:
+              column === "preview" && options.replacePreviewWithScroll,
+          }
+        : null;
     },
-    attachReader: (actions: ReaderActions | null) => {
-      readerActions = actions;
+    onError: reportReaderOpenError,
+    onReaderOpen: (pageNum) => {
+      readerLastPage = pageNum;
+      readerInitialPreviewIndex = previewCache.current().data.currentIndex;
     },
-    attachThumbs: (actions: ThumbsGridsActions) => {
-      thumbsActions = actions;
+    onReaderMount: (mounted) =>
+      options.onReaderPreviewModeChange(mounted && coveredInfo),
+    onProgress: (page) => {
+      if (page.pageNum) {
+        readerLastPage = page.pageNum;
+        if (enhancedPreviewActive())
+          thumbs?.gotoPreview(previewCache.previewIndexForPage(page.pageNum));
+        replaceReaderLocation(page.pageNum);
+      }
+      progress.update(page.pageNum, preview.totalImages);
+    },
+    onEnd: () => progress.update(preview.totalImages, preview.totalImages),
+    onReaderClosed: async () => {
+      await progress.flush();
+      clearReaderLocation();
+      const exitIndex = previewCache.previewIndexForPage(readerLastPage);
+      if (enhancedPreviewActive()) {
+        thumbs?.gotoPreview(exitIndex);
+        if (exitIndex !== previewCache.current().data.currentIndex) {
+          void previewCache.select(exitIndex).catch(reportReaderOpenError);
+        }
+        if (reader.presentation.stack.depth === 0)
+          replacePreviewLocation(exitIndex);
+      } else if (exitIndex !== readerInitialPreviewIndex) {
+        window.location.replace(eh.previewUrlForIndex(exitIndex));
+      } else {
+        replacePreviewLocation(exitIndex);
+      }
+    },
+    onPreviewClosed: (pageNum) => {
+      const index = previewCache.previewIndexForPage(pageNum);
+      if (
+        options.enhanceThumbsGridsEnabled ||
+        options.replacePreviewWithScroll
+      ) {
+        if (index !== previewCache.current().data.currentIndex) {
+          void previewCache.select(index).catch(reportReaderOpenError);
+        }
+        replacePreviewLocation(index);
+      } else {
+        window.location.assign(
+          eh.previewUrlForIndex(index, previewCache.current().data.currentUrl),
+        );
+      }
+    },
+    customization: {
+      download: (url, name) =>
+        startUserscriptDownload({
+          url,
+          name,
+          onerror: (error) => {
+            console.error("[ehpeek]", error);
+            window.alert(texts.errors.downloadFailed);
+          },
+        }),
+      downloadHelp: () => texts.reader.downloadHelp,
+      onOpenOriginalPage: (url) => {
+        void progress
+          .flush()
+          .then(() => window.location.assign(url))
+          .catch(reportReaderOpenError);
+      },
+    },
+  });
+  return {
+    reader,
+    attachThumbs: (actions) => {
+      thumbs = actions;
     },
     dispose: () => {
+      void reader.dispose().catch(reportReaderOpenError);
       progress.dispose();
-      reader?.dispose();
-      reader = null;
-      options.onReaderPreviewModeChange(false);
-      readerActions = null;
-      previewActions?.close();
-      window.removeEventListener("popstate", onPopState);
-      stopFullscreen();
     },
     openFromReadButton: () => {
-      const pageNum = options.readHistory
-        ? progress.progress().currentPage
-        : 1;
-      const firstPage = previewCache.current().data.pages[0];
-      if (firstPage) {
-        void openReader(firstPage.url, pageNum, true).catch(reportReaderOpenError);
-      }
+      void reader
+        .open(options.readHistory ? progress.progress().currentPage : 1, true)
+        .catch(reportReaderOpenError);
     },
-    openGalleryPage: (
-      pageUrl: string,
-      preferredPageNum?: number,
-    ) => {
-      void openReader(pageUrl, preferredPageNum, true).catch(reportReaderOpenError);
+    openGalleryPage: (url, preferredPageNum) => {
+      const pageNum =
+        preferredPageNum ?? eh.peekPageFromHash() ?? eh.galleryPageNumber(url);
+      if (pageNum) void reader.open(pageNum, true).catch(reportReaderOpenError);
+      else reportReaderOpenError(new Error(texts.errors.imageNotFound));
     },
-    openPreviewIndex,
-    openPreviewPage,
-    openReaderPreviewPage,
     openReaderFromHash: async () => {
       const pageNum = eh.peekPageFromHash();
-      if (pageNum === null) {
-        return;
-      }
-      const current = previewCache.current().data;
-      const page = current.pages.find((item) => item.pageNum === pageNum) ?? current.pages[0];
-      if (page) {
-        await openReader(page.url, pageNum).catch(reportReaderOpenError);
-      }
-    },
-    openOriginalPage,
-    readerActivePageChanged: activePageChanged,
-    readerEndReached: () => {
-      progress.update(preview.totalImages, preview.totalImages);
+      if (pageNum !== null)
+        await reader.open(pageNum).catch(reportReaderOpenError);
     },
     progress: progress.progress as Accessor<ReadingProgress>,
-    requestClosePreview: (previewIndex: number) => {
-      requestClose("preview", () => syncPreviewExit(previewIndex));
-    },
-    requestCloseReader: requestReaderClose,
-    selectPreviewPage: (pageUrl: string, pageNum: number) => {
-      requestClose("preview", () => {
-        void openReader(pageUrl, pageNum, true).catch(reportReaderOpenError);
-      });
-    },
-    toggleReaderFullscreen: toggleFullscreen,
   };
-  return coordinator;
-
-  function syncPreviewExit(previewIndex: number): void {
-    if (options.enhanceThumbsGridsEnabled || options.replacePreviewWithScroll) {
-      if (previewIndex !== previewCache.current().data.currentIndex) {
-        void previewCache.select(previewIndex).catch(reportReaderOpenError);
-      }
-      replacePreviewLocation(previewIndex);
-    } else {
-      window.location.assign(
-        eh.previewUrlForIndex(previewIndex, previewCache.current().data.currentUrl),
-      );
-    }
-  }
 }
 
 function createProgressSession(
@@ -546,41 +249,31 @@ function createProgressSession(
   const existing = history.value;
   const galleryInfo = eh.extractGalleryHistoryInfo();
   if (includeUnread) {
-    void history.recordVisit(totalPages, galleryInfo).catch((error: unknown) => {
-      console.error("[ehpeek] Failed to record gallery visit", error);
-    });
+    void history
+      .recordVisit(totalPages, galleryInfo)
+      .catch((error: unknown) => {
+        console.error("[ehpeek] Failed to record gallery visit", error);
+      });
   } else if (existing) {
     void history.updateGalleryInfo(galleryInfo).catch((error: unknown) => {
       console.error("[ehpeek] Failed to update gallery history info", error);
     });
   }
-  return new ReadingProgressSession({
-    history,
-    record: {
-      gallery: galleryInfo,
-      galleryId,
-      token,
-      totalPages,
+  return new ReadingProgressSession(
+    {
+      history,
+      record: {
+        gallery: galleryInfo,
+        galleryId,
+        token,
+        totalPages,
+      },
     },
-  }, {
-    currentPage: existing?.pageNum && existing.pageNum > 0 ? existing.pageNum : 1,
-    hasHistory: Boolean(existing && existing.pageNum > 0),
-    totalPages: existing?.totalPages ?? totalPages,
-  });
-}
-
-function overlayHistoryState(value: unknown): OverlayHistoryState | null {
-  if (value === null || typeof value !== "object") {
-    return null;
-  }
-  const marker = (value as { ehpeekOverlay?: unknown }).ehpeekOverlay;
-  if (
-    marker === null ||
-    typeof marker !== "object" ||
-    typeof (marker as { depth?: unknown }).depth !== "number" ||
-    typeof (marker as { sessionId?: unknown }).sessionId !== "string"
-  ) {
-    return null;
-  }
-  return marker as OverlayHistoryState;
+    {
+      currentPage:
+        existing?.pageNum && existing.pageNum > 0 ? existing.pageNum : 1,
+      hasHistory: Boolean(existing && existing.pageNum > 0),
+      totalPages: existing?.totalPages ?? totalPages,
+    },
+  );
 }

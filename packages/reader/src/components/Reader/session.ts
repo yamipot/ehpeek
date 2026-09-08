@@ -1,10 +1,6 @@
 import { createSignal } from "solid-js";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
-import {
-  currentReaderControlsState,
-  state as appState,
-  type ReaderScrollSizeScale,
-} from "../../state";
+import type { ReaderSettingsState, ReaderScrollSizeScale } from "../../settings";
 import { clamp } from "../../utils";
 import type { ReaderControls, ReaderDownloadInfo } from "./Toolbar";
 import {
@@ -25,8 +21,6 @@ export type ReaderLoadTarget = {
 
 export type ReaderOptions = {
   decodedImageCacheLimit?: number;
-  galleryId: number;
-  galleryToken: string;
   initialPageNum: number;
   totalPages?: number;
   renderWindowSize?: number;
@@ -41,20 +35,20 @@ export class ReaderSession {
   private readonly timers = new Set<number>();
   private disposed = false;
 
-  constructor(options: ReaderOptions) {
+  constructor(options: ReaderOptions, settings: ReaderSettingsState) {
     this.imageQueue = new PriorityLoadQueue(
       options.concurrentLoads,
     );
-    const readerControls = currentReaderControlsState();
-    const navigationMode = readerControls.navigationMode.value;
+    const readerControls = settings.controls();
+    const navigationMode = readerControls.navigationMode;
     const initialControls: ReaderControls = {
       navigationMode,
       direction: navigationMode === "scroll"
-        ? readerControls.scrollDirection.value
-        : readerControls.pagedDirection.value,
+        ? readerControls.scrollDirection
+        : readerControls.pagedDirection,
       firstPageSeparate: false,
-      pageLayout: readerControls.pageLayout.value,
-      rightTapAction: readerControls.rightTapAction.value,
+      pageLayout: readerControls.pageLayout,
+      rightTapAction: readerControls.rightTapAction,
     };
     const [controls, setControls] = createSignal(initialControls);
     const initialPageNum = initialControls.navigationMode === "paged" &&
@@ -75,10 +69,10 @@ export class ReaderSession {
     const [scrollBarExpanded, setScrollBarExpanded] = createSignal(false);
     const [scrollViewportAdjusting, setScrollViewportAdjusting] = createSignal(false);
     const [scrollViewportTtbScale, setScrollViewportTtbScale] = createSignal<ReaderScrollSizeScale>(
-      appState.reader.scrollTtbScale.value,
+      settings.value().scrollTtbScale,
     );
     const [scrollViewportHorizontalScale, setScrollViewportHorizontalScale] = createSignal<ReaderScrollSizeScale>(
-      appState.reader.scrollHorizontalScale.value,
+      settings.value().scrollHorizontalScale,
     );
     const [scrollFitImageSize, setScrollFitImageSize] = createSignal<ScrollFitImageSize | null>(null);
     const [readerViewportWidth, setReaderViewportWidth] = createSignal(Math.max(1, window.innerWidth));

@@ -8,18 +8,6 @@ declare module "ehpeek:uno.css" {
   export default css;
 }
 
-declare module "ehpeek:spectrum-ui-sizes" {
-  type UiSizeScale = import("./ui").UiSizeScale;
-
-  const sizes: {
-    control: UiSizeScale;
-    font: UiSizeScale;
-    icon: UiSizeScale;
-    space: UiSizeScale;
-    radius: UiSizeScale;
-  };
-  export default sizes;
-}
 
 declare const __EHPEEK_DEBUG__: boolean;
 declare const __EHPEEK_NAME__: string;

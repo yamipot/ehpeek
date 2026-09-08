@@ -1,6 +1,7 @@
 import { type JSX, onCleanup, onMount } from "solid-js";
 import { OverlayPortal } from "../../App/OverlayHost";
-import texts from "../../i18n";
+import { lockPageScroll } from "../../App/viewport";
+import { useReaderTexts } from "../../i18n";
 import { Icon } from "./Icon";
 
 const DIALOG_WIDTHS = {
@@ -18,14 +19,9 @@ export function Dialog(props: {
   variant: "reader" | "site";
   width: keyof typeof DIALOG_WIDTHS;
 }) {
+  const texts = useReaderTexts();
   onMount(() => {
-    const scrollRoots = [document.documentElement, document.body];
-    const overflowStyles = props.lockPageScroll
-      ? scrollRoots.map((root) => ({
-          priority: root.style.getPropertyPriority("overflow"),
-          value: root.style.getPropertyValue("overflow"),
-        }))
-      : [];
+    const unlockScroll = props.lockPageScroll ? lockPageScroll() : () => {};
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") {
         return;
@@ -34,24 +30,11 @@ export function Dialog(props: {
       event.stopImmediatePropagation();
       props.onClose();
     };
-    if (props.lockPageScroll) {
-      for (const root of scrollRoots) {
-        root.style.setProperty("overflow", "hidden", "important");
-      }
-    }
+
     window.addEventListener("keydown", closeOnEscape, true);
     onCleanup(() => {
       window.removeEventListener("keydown", closeOnEscape, true);
-      if (props.lockPageScroll) {
-        scrollRoots.forEach((root, index) => {
-          const previous = overflowStyles[index];
-          if (previous?.value) {
-            root.style.setProperty("overflow", previous.value, previous.priority);
-          } else {
-            root.style.removeProperty("overflow");
-          }
-        });
-      }
+      unlockScroll();
     });
   });
 

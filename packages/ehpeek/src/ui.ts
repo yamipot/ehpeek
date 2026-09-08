@@ -1,4 +1,5 @@
-import spectrumUiSizes from "ehpeek:spectrum-ui-sizes";
+import { applyUiScale as applyRootUiScale, uiScaleDeclarations, uiScaleFactor, UI_SCALE_NAMES, type UiScale } from "@ehpeek/reader/ui";
+export { UI_SCALE_NAMES, type UiScale, type UiSizeScale } from "@ehpeek/reader/ui";
 
 export type UiPointer = "mouse" | "touch";
 export type UiSite = "e-hentai" | "exhentai";
@@ -7,20 +8,6 @@ const UI_ROOT_CLASS = "ehpeek-ui-root";
 const UI_STATE_STYLE_ID = "ehpeek-ui-state";
 const UI_SCALE_SELECTOR =
   ".ehpeek-ui-root, body.ehpeek-touch-gallery-page, .ehpeek-external-autocomplete";
-
-const UI_SCALE_FACTORS = {
-  xsmall: 0.8,
-  small: 1,
-  medium: 1.25,
-  large: 1.5,
-  xlarge: 1.8,
-} as const;
-
-export type UiScale = keyof typeof UI_SCALE_FACTORS;
-export type UiSizeScale = Record<"xs" | "sm" | "md" | "lg" | "xl", string>;
-export const UI_SCALE_NAMES = Object.freeze(
-  Object.keys(UI_SCALE_FACTORS) as UiScale[],
-);
 
 let uiState: { pointer: UiPointer; site: UiSite } | undefined;
 
@@ -59,15 +46,13 @@ export function applyUiScale(
   root?: HTMLElement,
   pixelFactor = 1,
 ): void {
-  const factor = UI_SCALE_FACTORS[scale] * pixelFactor;
+  const factor = uiScaleFactor(scale) * pixelFactor;
 
   if (!root) {
     applyGlobalUiScale(factor);
     return;
   }
-  for (const [property, value] of uiScaleDeclarations(factor)) {
-    root.style.setProperty(property, value);
-  }
+  applyRootUiScale(scale, root, pixelFactor);
 }
 
 function applyGlobalUiScale(factor: number): void {
@@ -101,48 +86,4 @@ function requireUiState(): { pointer: UiPointer; site: UiSite } {
     throw new Error("UI must be configured before it is initialized.");
   }
   return uiState;
-}
-
-function uiScaleDeclarations(factor: number): Array<readonly [string, string]> {
-  return [
-    ...sizeScaleDeclarations("--ui-control-size", spectrumUiSizes.control, factor),
-    ...hitSizeScaleDeclarations(spectrumUiSizes.control, factor),
-    ...sizeScaleDeclarations("--ui-font-size", spectrumUiSizes.font, factor),
-    ...sizeScaleDeclarations("--ui-icon-size", spectrumUiSizes.icon, factor),
-    ...sizeScaleDeclarations("--ui-space", spectrumUiSizes.space, factor),
-    ...sizeScaleDeclarations("--ui-radius", spectrumUiSizes.radius, factor),
-  ];
-}
-
-function sizeScaleDeclarations(
-  prefix: string,
-  values: UiSizeScale,
-  factor: number,
-): Array<readonly [string, string]> {
-  return Object.entries(values).map(([name, value]) => [
-    `${prefix}-${name}`,
-    `${scaledPixelValue(value, factor)}px`,
-  ] as const);
-}
-
-function hitSizeScaleDeclarations(
-  values: UiSizeScale,
-  factor: number,
-): Array<readonly [string, string]> {
-  return Object.entries(values).map(([name, value]) => [
-    `--ui-hit-size-${name}`,
-    `${Math.max(32, scaledPixelValue(value, factor))}px`,
-  ] as const);
-}
-
-function scaledPixelValue(value: string, factor: number): number {
-  return Math.round(pixelValue(value) * factor * 1000) / 1000;
-}
-
-function pixelValue(value: string): number {
-  const pixels = /^([\d.]+)px$/.exec(value)?.[1];
-  if (pixels === undefined) {
-    throw new Error(`Expected a pixel UI size, received: ${value}`);
-  }
-  return Number(pixels);
 }

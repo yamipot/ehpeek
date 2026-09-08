@@ -13,7 +13,7 @@ import {
   uiScaleLevel,
 } from "../../ui";
 import texts from "../../i18n";
-import { Icon } from "../Widgets/Icon";
+import { Icon } from "@ehpeek/reader/components/Widgets/Icon";
 
 const TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)";
 const TOUCH_TOP_BAR_PROJECT_ICON_SIZE =

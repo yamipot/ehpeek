@@ -1,0 +1,41 @@
+.ehpeek-ui-root {
+  --color-site-page: #34353b;
+  --color-site-surface: #4f535b;
+  --color-site-elevated: #3f4249;
+  --color-site-text: #f1f1f1;
+  --color-site-accent: #f0b35a;
+  --color-site-border: #8d7454;
+  --color-background: var(--color-site-page);
+  --color-surface: var(--color-site-surface);
+  --color-elevated: var(--color-site-elevated);
+  --color-text: var(--color-site-text);
+  --color-accent: var(--color-site-accent);
+  --color-danger: #ffb2a7;
+  --color-state-on: #4ec46a;
+  --color-state-off: #8c8f96;
+  --color-shadow: #000000;
+
+
+  --color-muted: color-mix(in srgb, var(--color-text) 72%, transparent);
+  --color-border: var(--color-site-border);
+  --color-track: color-mix(in srgb, var(--color-text) 34%, var(--color-background));
+  --color-danger-soft: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  --color-danger-border: color-mix(in srgb, var(--color-danger) 64%, transparent);
+  --color-control: color-mix(in srgb, var(--color-elevated) 88%, transparent);
+  --color-badge: color-mix(in srgb, var(--color-background) 34%, transparent);
+  --color-shadow-panel: color-mix(in srgb, var(--color-shadow) 32%, transparent);
+  --color-shadow-elevated: color-mix(in srgb, var(--color-shadow) 38%, transparent);
+  --color-shadow-control: color-mix(in srgb, var(--color-shadow) 40%, transparent);
+  --color-shadow-floating: color-mix(in srgb, var(--color-shadow) 42%, transparent);
+
+  --color-site-accent-hover: color-mix(in srgb, var(--color-site-accent) 12%, transparent);
+  --color-site-border-subtle: color-mix(in srgb, var(--color-site-border) 16%, transparent);
+  --color-site-item-hover: color-mix(in srgb, var(--color-site-text) 8%, transparent);
+  --color-loading: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-site-elevated) 80%, var(--color-site-surface)) 92%,
+    transparent
+  );
+  --color-site-swipe-background: color-mix(in srgb, var(--color-site-elevated) 94%, transparent);
+  --color-site-swipe-border: color-mix(in srgb, var(--color-site-border) 38%, transparent);
+}

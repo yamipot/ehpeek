@@ -1,4 +1,5 @@
-import texts from "../locales/en.json";
+import en from "../locales/en.json";
+import { readerLocales, type ReaderTexts } from "@ehpeek/reader/i18n";
 import ja from "../locales/ja.json";
 import zhCn from "../locales/zh-CN.json";
 
@@ -17,11 +18,22 @@ export const APP_LOCALE_OPTIONS: ReadonlyArray<{
 export const APP_LOCALE_SETTING_KEY = "ehpeek:language";
 export const DEFAULT_APP_LOCALE: AppLocale = "en";
 
+function combineTexts(reader: ReaderTexts, client: typeof en) {
+  return {
+    ...reader,
+    ...client,
+    reader: { ...reader.reader, ...client.reader },
+    gallery: { ...reader.gallery, ...client.gallery },
+    errors: { ...reader.errors, ...client.errors },
+    help: { ...reader.help, sections: [...reader.help.sections, ...client.help.sections] },
+  };
+}
+
 const localeTexts = {
-  en: texts,
-  "zh-CN": zhCn,
-  ja,
-} satisfies Record<AppLocale, typeof texts>;
+  en: combineTexts(readerLocales.en, en),
+  "zh-CN": combineTexts(readerLocales["zh-CN"], zhCn),
+  ja: combineTexts(readerLocales.ja, ja),
+};
 
 export let appLocale: AppLocale = DEFAULT_APP_LOCALE;
 let activeTexts = localeTexts[appLocale];

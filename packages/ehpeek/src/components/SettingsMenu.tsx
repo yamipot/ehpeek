@@ -19,9 +19,9 @@ import {
   type UiScale,
   uiScaleLevel,
 } from "../ui";
-import { InteractionHelp } from "./InteractionHelp";
-import { Dialog } from "./Widgets/Dialog";
-import { Icon, type IconName } from "./Widgets/Icon";
+import { InteractionHelp } from "@ehpeek/reader/components/InteractionHelp";
+import { Dialog } from "@ehpeek/reader/components/Widgets/Dialog";
+import { Icon, type IconName } from "@ehpeek/reader/components/Widgets/Icon";
 
 type SettingsMenuState = {
   twoColumnsReaderMode: TwoColumnsReaderMode;

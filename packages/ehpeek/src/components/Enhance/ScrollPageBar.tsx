@@ -1,6 +1,6 @@
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
-import { clamp } from "../../utils";
-import { createPointerGestureElement } from "../PointerGesture";
+import { clamp } from "@ehpeek/reader/utils";
+import { createPointerGestureElement } from "@ehpeek/reader/components/PointerGesture";
 
 const DRAG_PIXEL_STEP = 18;
 const PAGE_BAR_CELL_CLASS = "!ui-hit-w-sm !ui-hit-h-sm !p-0 ui-rounded-sm cursor-pointer text-center align-middle select-none";

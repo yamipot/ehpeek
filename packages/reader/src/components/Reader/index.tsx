@@ -1,15 +1,16 @@
 import { createEffect, onCleanup, onMount, Show, untrack } from "solid-js";
-import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
-import type { GalleryCoordinator } from "../../App/GalleryCoordinator";
+import { createReadProgressPublisher, type ReadProgressPort } from "../../ReadProgressSyncer";
+import type { ContentSource } from "../../ContentSource";
+import type { ReaderSettingsState } from "../../settings";
+import type { ReaderCustomization } from "../../customization";
+
 import { useOverlayHost } from "../../App/OverlayHost";
-import texts from "../../i18n";
+import { useReaderTexts } from "../../i18n";
 import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
 import {
-  currentReaderControlsState,
   currentReaderOrientation,
   normalizeReaderScrollSizeScale,
-  state as appState,
-} from "../../state";
+} from "../../settings";
 import {
   clamp,
   normalizedAspectRatio,
@@ -69,38 +70,67 @@ export type { ReaderOptions } from "./session";
 
 type LoadedReaderImage = ZoomOverlayImage & {
   originalImageUrl: string | null;
+  fileName?: string;
+  originalFileName?: string;
+  byteSize?: number | null;
+  displayWhileLoading?: boolean;
 };
 
 export type ReaderActions = {
+  progress: ReadProgressPort;
   gotoPage: (pageNum: number) => void;
 };
 
-type ReaderProps = {
-  coordinator: GalleryCoordinator;
+export type ReaderCallbacks = {
+  onClose: () => boolean;
+  onProgress: (page: ReaderPage) => void;
+  onEnd: () => void;
+  onOpenPreview: (pageNum: number) => void;
+  onToggleFullscreen: () => void;
+};
+export type ReaderProps = {
+  callbacks: ReaderCallbacks;
+  actionsRef: (actions: ReaderActions | null) => void;
+  settings: ReaderSettingsState;
+  customization?: ReaderCustomization;
   fullscreenActive: boolean;
   options: ReaderOptions;
-  previewCache: GalleryPreviewCache;
+  source: ContentSource;
 };
 
 export function Reader(props: ReaderProps) {
   const overlayHost = useOverlayHost();
   const options = untrack(() => props.options);
   const totalPages = options.totalPages ?? 0;
-  const previewCache = untrack(() => props.previewCache);
-  const session = new ReaderSession(options);
+  const source = untrack(() => props.source);
+  const session = new ReaderSession(options, untrack(() => props.settings));
   const readerState = session.state;
   const scrollFitPageNum = readerState.navi.currentPageNum();
   let readerElement!: HTMLDivElement;
+  const publisher = createReadProgressPublisher();
+  const clientCallbacks = untrack(() => props.callbacks);
   const readerCallbacks = wireReaderCallbacks(
     session,
     options,
-    previewCache,
-    untrack(() => props.coordinator),
+    source,
+    {
+      ...clientCallbacks,
+      onProgress: page => {
+        if (page.pageNum) publisher.publish(page.pageNum);
+        clientCallbacks.onProgress(page);
+      },
+    },
+    untrack(() => props.settings),
+    untrack(() => props.customization) ?? {},
     () => readerElement,
   );
-  const coordinator = untrack(() => props.coordinator);
-  coordinator.attachReader({
+  untrack(() => props.actionsRef)({
     gotoPage: readerCallbacks.gotoPage,
+    progress: {
+      current: readerState.navi.currentPageNum,
+      subscribe: publisher.subscribe,
+      setProgress: readerCallbacks.syncProgress,
+    },
   });
   let previousFullscreenActive = untrack(() => props.fullscreenActive);
   const viewportPageLayout = () =>
@@ -125,7 +155,7 @@ export function Reader(props: ReaderProps) {
     readerCallbacks.init();
 
     onCleanup(() => {
-      coordinator.attachReader(null);
+      props.actionsRef(null);
       readerCallbacks.cleanup();
       session.dispose();
     });
@@ -144,6 +174,8 @@ export function Reader(props: ReaderProps) {
         <header class="contents">
           <Toolbar
             callbacks={readerCallbacks.toolbar}
+            customization={props.customization}
+            leftHandedControls={props.settings.value().leftHandedControls}
             controls={readerState.ctrls.value()}
             downloadInfos={readerState.navi.downloadInfos()}
             fullscreenActive={props.fullscreenActive}
@@ -204,21 +236,26 @@ export function Reader(props: ReaderProps) {
 function wireReaderCallbacks(
   session: ReaderSession,
   options: ReaderOptions,
-  previewCache: GalleryPreviewCache,
-  coordinator: GalleryCoordinator,
+  source: ContentSource,
+  callbacks: ReaderCallbacks,
+  settings: ReaderSettingsState,
+  customization: ReaderCustomization,
   readerElement: () => HTMLElement,
 ) {
+  const texts = useReaderTexts();
   const state = session.state;
   let viewportActions!: PagesViewportActions;
   let zoomOverlay!: ZoomOverlayActions;
   const totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : undefined;
   const renderWindowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE;
   const preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE;
+  const loadController = new AbortController();
   const pages = new Map<number, ReaderPage>();
   const loadedImages = new Map<number, LoadedReaderImage>();
   let pagedTargetPageNumber: number | null = null;
   let syncToken = 0;
   let closed = false;
+  let lastReportedPageNum: number | null = null;
   let loadDirection: -1 | 1 = 1;
   let loadDirectionEdgePageNum = state.navi.currentPageNum();
   const scrollFitPageNum = state.navi.currentPageNum();
@@ -245,39 +282,40 @@ function wireReaderCallbacks(
   };
 
   function configuredReaderControls(): ReaderControls {
-    const controls = currentReaderControlsState();
-    const navigationMode = controls.navigationMode.value;
+    const controls = settings.controls();
+    const navigationMode = controls.navigationMode;
     return {
       navigationMode,
       direction: navigationMode === "scroll"
-        ? controls.scrollDirection.value
-        : controls.pagedDirection.value,
+        ? controls.scrollDirection
+        : controls.pagedDirection,
       firstPageSeparate: state.ctrls.value().firstPageSeparate,
-      pageLayout: controls.pageLayout.value,
-      rightTapAction: controls.rightTapAction.value,
+      pageLayout: controls.pageLayout,
+      rightTapAction: controls.rightTapAction,
     };
   }
 
   function updateControls(requestedControls: ReaderControls): void {
     const previous = state.ctrls.value();
     const currentPageNum = state.navi.currentPageNum();
-    const persistedControls = currentReaderControlsState();
+    const persistedControls = settings.controls();
     const controls = requestedControls.navigationMode === previous.navigationMode
       ? requestedControls
       : {
           ...requestedControls,
           direction: requestedControls.navigationMode === "scroll"
-            ? persistedControls.scrollDirection.value
-            : persistedControls.pagedDirection.value,
+            ? persistedControls.scrollDirection
+            : persistedControls.pagedDirection,
         };
-    persistedControls.navigationMode.set(controls.navigationMode);
-    if (controls.navigationMode === "scroll") {
-      persistedControls.scrollDirection.set(controls.direction);
-    } else {
-      persistedControls.pagedDirection.set(controls.direction);
-    }
-    persistedControls.pageLayout.set(controls.pageLayout);
-    persistedControls.rightTapAction.set(controls.rightTapAction);
+    settings.updateControls({
+      ...persistedControls,
+      navigationMode: controls.navigationMode,
+      ...(controls.navigationMode === "scroll"
+        ? { scrollDirection: controls.direction }
+        : { pagedDirection: controls.direction }),
+      pageLayout: controls.pageLayout,
+      rightTapAction: controls.rightTapAction,
+    });
     state.ctrls.update(controls);
     if (controls.navigationMode !== "scroll") {
       state.scrollViewport.setAdjusting(false);
@@ -304,7 +342,7 @@ function wireReaderCallbacks(
     if (closed) {
       return;
     }
-    closed = coordinator.requestCloseReader();
+    closed = callbacks.onClose();
   }
 
   function imageAtPoint(point: { clientX: number; clientY: number }): ZoomOverlayImage | null {
@@ -376,20 +414,15 @@ function wireReaderCallbacks(
   }
 
   async function loadMissingPages(pageNums: number[], token: number): Promise<void> {
-    const pageGroups = new Map<number, number[]>();
-    for (const pageNum of pageNums) {
-      const previewIndex = previewCache.previewIndexForPage(pageNum);
-      pageGroups.set(previewIndex, [...(pageGroups.get(previewIndex) ?? []), pageNum]);
-    }
-
-    await Promise.all(Array.from(pageGroups.values(), async (groupPageNums) => {
+    await Promise.all(pageNums.map(async (pageNum) => {
+      const groupPageNums = [pageNum];
       const loadingTokens = new Map(groupPageNums.flatMap((pageNum) => {
         const loadingToken = viewportActions.markPageLoading(pageNum);
         return loadingToken === null ? [] : [[pageNum, loadingToken] as const];
       }));
       let incoming: ReaderPage[];
       try {
-        incoming = await previewCache.getPages(groupPageNums);
+        incoming = await source.getPages(groupPageNums, loadController.signal);
       }
       catch (error) {
         console.error("[ehpeek]", error);
@@ -567,24 +600,13 @@ function wireReaderCallbacks(
       }
       loadedImages.delete(downloadPageNum);
       loadedImages.set(downloadPageNum, image);
-      const currentFileName = imageDownloadFileName(
-        options.galleryId,
-        options.galleryToken,
-        downloadPageNum,
-        image.imageUrl,
-      );
+      const currentFileName = image.fileName ?? `page-${downloadPageNum}.${imageFileExtension(image.imageUrl) || "webp"}`;
       return [{
         currentFileName,
         currentImageUrl: image.imageUrl,
         imageHeight: viewportActions.pageImageHeight(downloadPageNum) ?? image.height,
         imageWidth: viewportActions.pageImageWidth(downloadPageNum) ?? image.width,
-        originalFileName: imageDownloadFileName(
-          options.galleryId,
-          options.galleryToken,
-          downloadPageNum,
-          image.originalImageUrl ?? "",
-          image.imageUrl,
-        ),
+        originalFileName: image.originalFileName ?? currentFileName,
         originalImageUrl: image.originalImageUrl,
         pageNum: downloadPageNum,
       }];
@@ -594,8 +616,9 @@ function wireReaderCallbacks(
 
   function notifyActivePageChange(): void {
     const page = pages.get(state.navi.currentPageNum());
-    if (page) {
-      coordinator.readerActivePageChanged(page);
+    if (page && page.pageNum !== lastReportedPageNum) {
+      lastReportedPageNum = page.pageNum ?? null;
+      callbacks.onProgress(page);
     }
   }
 
@@ -661,12 +684,20 @@ function wireReaderCallbacks(
       syncAfterPageChange({ scrollIntoView: true });
     },
     cleanup: () => {
+      closed = true;
+      loadController.abort();
       document.removeEventListener("keydown", onKeydown, true);
       window.removeEventListener("resize", updateReaderViewportSize);
       viewportResizeObserver?.disconnect();
       viewportResizeObserver = null;
     },
     gotoPage: (pageNum: number) => setCurrentPageNumber(pageNum, true),
+    syncProgress: (pageNum: number) => {
+      lastReportedPageNum = normalizedPageNumber(
+        clamp(Math.round(pageNum), 1, maxReaderPageNum()),
+      );
+      setCurrentPageNumber(pageNum, true);
+    },
     realignCurrentPage: () => {
       scrollToCurrentPage();
     },
@@ -724,10 +755,10 @@ function wireReaderCallbacks(
       callbacks: {
         onApply: () => state.scrollViewport.setAdjusting(false),
         onApplyAll: () => {
-          const persistedScale = state.ctrls.value().direction === "ttb"
-            ? appState.reader.scrollTtbScale
-            : appState.reader.scrollHorizontalScale;
-          persistedScale.set(state.scrollViewport.sizeScale());
+          settings.set(
+            state.ctrls.value().direction === "ttb" ? "scrollTtbScale" : "scrollHorizontalScale",
+            state.scrollViewport.sizeScale(),
+          );
           state.scrollViewport.setAdjusting(false);
         },
         onClose: () => {
@@ -885,6 +916,7 @@ function wireReaderCallbacks(
 
     const rememberLoadedImage = (pageNum: number, loaded: LoadedReaderPage): LoadedReaderImage => {
       const image = {
+        ...loaded,
         pageNum,
         imageUrl: loaded.imageUrl,
         originalImageUrl: loaded.originalImageUrl ?? null,
@@ -917,9 +949,10 @@ function wireReaderCallbacks(
       let installed = false;
       try {
         installed = await viewportActions.loadPageImage(target.pageNum, token, {
-          displayWhileLoading: shouldDisplayImageWhileLoading(
-            imageUrl,
-            loaded.originalImageUrl,
+          displayWhileLoading: loaded.displayWhileLoading ?? (
+            imageFileExtension(imageUrl) === "gif" ||
+            imageFileExtension(loaded.originalImageUrl ?? "") === "gif" ||
+            (loaded.byteSize ?? 0) > PROGRESSIVE_IMAGE_SIZE_THRESHOLD
           ),
           imageUrl,
           highPriority: target.pageNum === state.navi.currentPageNum() || (
@@ -955,7 +988,7 @@ function wireReaderCallbacks(
     session.imageQueue.updateCallbacks({
       loadTarget: (target) => Promise.resolve(
         loadedImages.get(target.pageNum) ??
-        previewCache.loadImage(target.page, imagePageLoadController.signal),
+        source.loadImage(target.page, imagePageLoadController.signal),
       ),
       markLoading: (target) => viewportActions.markPageLoading(target.pageNum),
       onLoaded: async (target, loaded, token) => {
@@ -964,7 +997,7 @@ function wireReaderCallbacks(
           return;
         }
         const releaseBudget = await acquireImageLoadBudget(
-          imageFileByteSize(image.imageUrl) ?? CONCURRENT_IMAGE_BYTE_LIMIT,
+          image.byteSize ?? CONCURRENT_IMAGE_BYTE_LIMIT,
         );
         try {
           if (!pageWindowNumbers(state.navi.currentPageNum(), renderWindowSize).includes(target.pageNum)) {
@@ -1011,15 +1044,15 @@ function wireReaderCallbacks(
 
     toolbar.onCloseClick = requestReaderClose;
     toolbar.onControlsChange = updateControls;
-    toolbar.onFullscreenClick = coordinator.toggleReaderFullscreen;
+    toolbar.onFullscreenClick = callbacks.onToggleFullscreen;
     toolbar.onOpenOriginalPageClick = (): void => {
       const page = pages.get(state.navi.currentPageNum());
       if (page && isRealPageNum(state.navi.currentPageNum())) {
-        coordinator.openOriginalPage(page);
+        customization.onOpenOriginalPage?.(page.url, page.pageNum ?? state.navi.currentPageNum());
       }
     };
     toolbar.onOpenScrollPreviewClick = (): void => {
-      coordinator.openReaderPreviewPage(state.navi.currentPageNum());
+      callbacks.onOpenPreview(state.navi.currentPageNum());
     };
     toolbar.onViewportAdjustClick = scrollViewport.open;
     toolbar.onProgressPointerDown = (event: PointerEvent): void => {
@@ -1097,7 +1130,7 @@ function wireReaderCallbacks(
       if (state.overlay.image() !== null) {
         event.preventDefault();
       } else if (viewportActions.isHitEndPage(info)) {
-        coordinator.readerEndReached();
+        callbacks.onEnd();
         requestReaderClose();
       } else {
         const zone = viewportActions.viewportXRatio(info.clientX);
@@ -1178,7 +1211,7 @@ function wireReaderCallbacks(
       viewportActions.cancelDrag();
       if (isPreviewSwipe(info)) {
         scrollToCurrentPage({ motion: "animated" });
-        coordinator.openReaderPreviewPage(state.navi.currentPageNum());
+        callbacks.onOpenPreview(state.navi.currentPageNum());
         return;
       }
       if (!pagedMode()) {
@@ -1286,19 +1319,6 @@ function wheelDeltaPixels(delta: number, mode: number): number {
   return delta;
 }
 
-function imageDownloadFileName(
-  galleryId: number,
-  galleryToken: string,
-  pageNum: number,
-  imageUrl: string,
-  fallbackImageUrl = "",
-): string {
-  const extension = imageFileExtension(imageUrl) ||
-    imageFileExtension(fallbackImageUrl) ||
-    "webp";
-  return `${galleryId}-${galleryToken}-p${pageNum}.${extension}`;
-}
-
 function imageFileExtension(imageUrl: string): string {
   try {
     const fileName = decodeURIComponent(new URL(imageUrl).pathname.split("/").pop() ?? "");
@@ -1311,33 +1331,6 @@ function imageFileExtension(imageUrl: string): string {
     return "";
   }
   return "";
-}
-
-function shouldDisplayImageWhileLoading(
-  imageUrl: string,
-  originalImageUrl?: string | null,
-): boolean {
-  if (
-    imageFileExtension(imageUrl) === "gif" ||
-    (originalImageUrl && imageFileExtension(originalImageUrl) === "gif")
-  ) {
-    return true;
-  }
-
-  const byteSize = imageFileByteSize(imageUrl);
-  return byteSize !== null && byteSize > PROGRESSIVE_IMAGE_SIZE_THRESHOLD;
-}
-
-function imageFileByteSize(imageUrl: string): number | null {
-  try {
-    const hathImageKey = new URL(imageUrl).pathname
-      .split("/")
-      .find((part) => /^[a-f0-9]{40}-\d+-\d+-\d+-[a-z0-9]+$/i.test(part));
-    const byteSize = Number(hathImageKey?.split("-")[1]);
-    return Number.isSafeInteger(byteSize) && byteSize > 0 ? byteSize : null;
-  } catch {
-    return null;
-  }
 }
 
 function createImageLoadBudget(maxBytes: number, minConcurrentLoads: number) {

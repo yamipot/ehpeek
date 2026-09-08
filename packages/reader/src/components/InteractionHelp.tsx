@@ -1,11 +1,12 @@
 import { For } from "solid-js";
-import texts from "../i18n";
+import { useReaderTexts } from "../i18n";
 import { Dialog } from "./Widgets/Dialog";
 
 export function InteractionHelp(props: {
   onClose: () => void;
   variant: "reader" | "site";
 }) {
+  const texts = useReaderTexts();
   return (
     <Dialog
       bodyClass="ui-p-xl"

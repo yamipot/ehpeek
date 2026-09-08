@@ -8,9 +8,9 @@ import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
 import type { GalleryCoordinator } from "../../App/GalleryCoordinator";
 import * as eh from "../../eh";
 import texts from "../../i18n";
-import { createPointerGestureElement, type PointerDragEnd } from "../PointerGesture";
+import { createPointerGestureElement, type PointerDragEnd } from "@ehpeek/reader/components/PointerGesture";
 import { LoadingOverlay } from "../Widgets/Loading";
-import { SwipeIndicator, type SwipeIndicatorState } from "../Widgets/SwipeIndicator";
+import { SwipeIndicator, type SwipeIndicatorState } from "@ehpeek/reader/components/Widgets/SwipeIndicator";
 import { GalleryPageDescription, ScrollPageBar } from "./ScrollPageBar";
 
 const SWIPE_MIN_DISTANCE = 96;

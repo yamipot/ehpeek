@@ -1,0 +1,81 @@
+{
+  "common": {
+    "actions": {
+      "apply": "Apply",
+      "close": "Close",
+      "confirm": "Confirm",
+      "current": "Current",
+      "default": "Default",
+      "submit": "Submit",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out"
+    },
+    "status": {
+      "failed": "Failed",
+      "loading": "Loading..."
+    }
+  },
+  "reader": {
+    "readingOptions": "Reading options",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "adjustScrollViewport": "Adjust Scroll viewport size",
+    "resizeScrollViewport": "Resize Scroll viewport",
+    "fit": "Fit",
+    "fill": "Fill",
+    "applyGlobally": "Set Default",
+    "pagedMode": "Paged mode",
+    "singlePageMode": "Single-page layout",
+    "doublePageMode": "Double-page layout",
+    "pairFirstAndSecondPages": "Pair 1+2",
+    "pairSecondAndThirdPages": "Pair 2+3",
+    "scrollMode": "Scroll mode",
+    "rightTapPrevious": "Right side action:\nPrevious page",
+    "rightTapNext": "Right side action:\nNext page",
+    "directionRtl": "Reading direction:\n Right to left",
+    "directionLtr": "Reading direction:\n Left to right",
+    "directionTtb": "Reading direction:\n Top to bottom",
+    "download": "Download",
+    "downloadHelpLabel": "Can't download?",
+    "openImage": "Open image",
+    "displayedImageShort": "Displayed",
+    "originalImageShort": "Original",
+    "downloadDisplayedImage": "Displayed image",
+    "downloadOriginalImage": "Original image",
+    "originalImageSource": "Original image source",
+    "originalImageUnavailable": "Original image unavailable",
+    "startReading": "Read",
+    "continueReading": "Continue",
+    "endPage": "End",
+    "end": "End of gallery. Tap to exit.",
+    "reloadPage": "Reload page"
+  },
+  "help": {
+    "title": "Help",
+    "sections": [
+      {
+        "title": "Reader",
+        "items": [
+          "**Tap** the center to show or hide the toolbar.",
+          "**Swipe or scroll** in the reading direction; tap either side or use the **Arrow keys** to turn pages.",
+          "In **Paged mode**, pull down or swipe sideways across the reading direction to open Scroll Preview.",
+          "**Pinch** to zoom. With a mouse, **press and hold** an image or use **Ctrl/⌘ + wheel** to zoom; while zoomed, press and hold, double-click, or double-tap to exit."
+        ]
+      }
+    ]
+  },
+  "gallery": {
+    "scrollPreview": "Scroll Preview",
+    "confirmScrollPreviewDirection": "Change Scroll Preview direction?",
+    "openScrollPreview": "Open full-screen Scroll Preview",
+    "scrollPreviewDirectionTtb": "Scroll Preview: top to bottom",
+    "scrollPreviewDirectionLtr": "Scroll Preview: left to right",
+    "scrollPreviewDirectionRtl": "Scroll Preview: right to left"
+  },
+  "errors": {
+    "imageNotFound": "Image not found",
+    "loadFailed": "Load failed",
+    "imageLoadFailed": "Image load failed",
+    "downloadFailed": "Download failed"
+  }
+}

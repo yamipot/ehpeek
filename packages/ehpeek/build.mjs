@@ -1,11 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import { solidPlugin } from "esbuild-plugin-solid";
-import { createGenerator, expandVariantGroup } from "unocss";
+import { generateCss, variantGroupBabelPlugin } from "../reader/build-support.mjs";
 import unoConfig from "./uno.config.mjs";
 
 const packageDir = path.dirname(fileURLToPath(import.meta.url));
@@ -23,8 +23,7 @@ const releaseBranch = process.env.EHPEEK_RELEASE_BRANCH || "master";
 const debugBuild = process.env.EHPEEK_DEBUG === "true";
 const installUrl = userscriptInstallUrl();
 const version = userscriptVersion();
-const unoCss = await generateUnoCss();
-const spectrumUiSizes = readSpectrumUiSizes();
+const unoCss = await generateCss(path.join(packageDir, "src"), unoConfig);
 const projectIconUrl = "https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg";
 const gm4Polyfill = readFileSync(
   createRequire(import.meta.url).resolve("gm4-polyfill"),
@@ -74,6 +73,7 @@ mkdirSync(path.dirname(outfile), { recursive: true });
 
 await build({
   entryPoints: [path.join(packageDir, "src/index.ts")],
+  tsconfigRaw: { compilerOptions: {} },
   bundle: true,
   format: "iife",
   target: "es2020",
@@ -88,7 +88,6 @@ await build({
       },
     }),
     unoCssPlugin(unoCss),
-    spectrumUiSizePlugin(spectrumUiSizes),
   ],
   minifySyntax: !debugBuild,
   sourcemap: releaseBuild ? false : "linked",
@@ -195,36 +194,6 @@ function devTimeStamp() {
   return `${parts.year}${parts.month}${parts.day}.${parts.hour}${parts.minute}`;
 }
 
-async function generateUnoCss() {
-  const generator = await createGenerator(unoConfig);
-  const content = readSourceFiles(path.join(packageDir, "src"))
-    .map((file) => readFileSync(file, "utf-8"))
-    .join("\n");
-  const result = await generator.generate(expandVariantGroup(content), { preflights: true });
-
-  return result.css;
-}
-
-function readSourceFiles(dir) {
-  const output = [];
-
-  for (const entry of readdirSync(dir)) {
-    const file = path.join(dir, entry);
-    const stat = statSync(file);
-
-    if (stat.isDirectory()) {
-      output.push(...readSourceFiles(file));
-      continue;
-    }
-
-    if (/\.(css|ts|tsx)$/.test(file)) {
-      output.push(file);
-    }
-  }
-
-  return output;
-}
-
 function unoCssPlugin(css) {
   return {
     name: "ehpeek-uno-css",
@@ -237,93 +206,6 @@ function unoCssPlugin(css) {
         contents: css,
         loader: "text",
       }));
-    },
-  };
-}
-
-function readSpectrumUiSizes() {
-  // Only selected upstream values enter the userscript; the token package remains a build dependency.
-  const layout = readSpectrumTokenFile("layout.json");
-  const typography = readSpectrumTokenFile("typography.json");
-  const resolveDesktop = (tokens, keys) => Object.fromEntries(
-    Object.entries(keys).map(([name, key]) => [
-      name,
-      tokens[key].sets.desktop.value,
-    ]),
-  );
-
-  return {
-    control: resolveDesktop(layout, {
-      xs: "component-height-75",
-      sm: "component-height-100",
-      md: "component-height-200",
-      lg: "component-height-300",
-      xl: "component-height-400",
-    }),
-    font: resolveDesktop(typography, {
-      xs: "font-size-25",
-      sm: "font-size-100",
-      md: "font-size-200",
-      lg: "font-size-400",
-      xl: "font-size-700",
-    }),
-    icon: resolveDesktop(layout, {
-      xs: "workflow-icon-size-50",
-      sm: "workflow-icon-size-75",
-      md: "workflow-icon-size-100",
-      lg: "workflow-icon-size-200",
-      xl: "workflow-icon-size-300",
-    }),
-    space: { xs: "4px", sm: "8px", md: "12px", lg: "16px", xl: "24px" },
-    radius: { xs: "3px", sm: "4px", md: "6px", lg: "8px", xl: "10px" },
-  };
-}
-
-function readSpectrumTokenFile(fileName) {
-  const file = fileURLToPath(
-    import.meta.resolve(`@adobe/spectrum-tokens/src/${fileName}`),
-  );
-  return JSON.parse(readFileSync(file, "utf-8"));
-}
-
-function spectrumUiSizePlugin(sizes) {
-  return {
-    name: "ehpeek-spectrum-ui-sizes",
-    setup(build) {
-      build.onResolve({ filter: /^ehpeek:spectrum-ui-sizes$/ }, (args) => ({
-        namespace: "ehpeek-spectrum-ui-sizes",
-        path: args.path,
-      }));
-      build.onLoad(
-        { filter: /.*/, namespace: "ehpeek-spectrum-ui-sizes" },
-        () => ({
-          contents: JSON.stringify(sizes),
-          loader: "json",
-        }),
-      );
-    },
-  };
-}
-
-function variantGroupBabelPlugin() {
-  const expandStringLiteral = (path) => {
-    path.node.value = expandVariantGroup(path.node.value);
-  };
-  const expandTemplateElement = (path) => {
-    path.node.value.raw = expandVariantGroup(path.node.value.raw);
-    if (path.node.value.cooked !== undefined) {
-      path.node.value.cooked = expandVariantGroup(path.node.value.cooked);
-    }
-  };
-
-  return {
-    visitor: {
-      Program(path) {
-        path.traverse({
-          StringLiteral: expandStringLiteral,
-          TemplateElement: expandTemplateElement,
-        });
-      },
     },
   };
 }

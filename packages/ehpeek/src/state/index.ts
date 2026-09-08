@@ -6,16 +6,15 @@ import {
   type AppLocale,
 } from "../i18n";
 
-export type NavigationMode = "scroll" | "paged";
-export type ReadDirection = "ltr" | "rtl" | "ttb";
-export type PageLayout = "single" | "double";
+import type {
+  NavigationMode, ReadDirection, PageLayout, RightTapAction,
+  ReaderScrollSizeScale, ReaderOrientation,
+} from "@ehpeek/reader/settings";
+export type { ReadDirection } from "@ehpeek/reader/settings";
 export type TwoColumnsReaderMode =
   | "full-view"
   | "on-preview"
   | "reader-preview";
-export type RightTapAction = "previous" | "next";
-export type ReaderScrollSizeScale = number | "fill" | "one-to-one" | null;
-export type ReaderOrientation = "portrait" | "landscape";
 export type GalleryTitlePreference = "main" | "sub";
 export type SearchGridMode = "ehpeek" | "ehpeek-lite";
 export type BackToTopPosition = {
@@ -225,16 +224,6 @@ export const state = {
   },
 } as const;
 
-export function currentReaderOrientation(): ReaderOrientation {
-  return window.matchMedia("(orientation: landscape)").matches ? "landscape" : "portrait";
-}
-
-export function currentReaderControlsState() {
-  return currentReaderOrientation() === "landscape"
-    ? state.reader.landscapeControls
-    : state.reader.portraitControls;
-}
-
 export async function loadState(): Promise<void> {
   await Promise.all(Array.from(persistedStateValues, (item) => item.reload()));
 }
@@ -332,10 +321,6 @@ function readerControls(orientation: ReaderOrientation) {
       "previous",
     ).preload(),
   } as const;
-}
-
-export function normalizeReaderScrollSizeScale(scale: number): number {
-  return Number.isFinite(scale) ? Math.min(100, Math.max(0.001, scale)) : 1;
 }
 
 function local<T>(

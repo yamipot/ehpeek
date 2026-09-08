@@ -1,5 +1,5 @@
 import { createEffect, Show, type JSX } from "solid-js";
-import texts from "../../i18n";
+import { useReaderTexts } from "../../i18n";
 import { READER_BUTTON_CLASS } from "./Toolbar";
 
 const MIN_SCALE_PERCENT = 10;
@@ -22,6 +22,7 @@ export function ViewportCanvas(props: {
   scaleMode: "custom" | "fill" | "fit" | "one-to-one";
   scalePercent: number | null;
 }) {
+  const texts = useReaderTexts();
   const pointers = new Map<number, { x: number; y: number }>();
   let pinchStart: { distance: number; scale: number } | null = null;
   let interactionLayer!: HTMLDivElement;

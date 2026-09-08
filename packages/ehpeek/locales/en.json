@@ -2,34 +2,8 @@
   "metadata": {
     "description": "A full-featured, touch-optimized E-H/ExH viewer. Features: a built-in reader, zoomable gallery previews, mobile UI adaptation, gesture navigation, reading history, and more."
   },
-  "common": {
-    "actions": {
-      "apply": "Apply",
-      "close": "Close",
-      "confirm": "Confirm",
-      "current": "Current",
-      "default": "Default",
-      "submit": "Submit",
-      "zoomIn": "Zoom in",
-      "zoomOut": "Zoom out"
-    },
-    "status": {
-      "failed": "Failed",
-      "loading": "Loading..."
-    }
-  },
   "help": {
-    "title": "Help",
     "sections": [
-      {
-        "title": "Reader",
-        "items": [
-          "**Tap** the center to show or hide the toolbar.",
-          "**Swipe or scroll** in the reading direction; tap either side or use the **Arrow keys** to turn pages.",
-          "In **Paged mode**, pull down or swipe sideways across the reading direction to open Scroll Preview.",
-          "**Pinch** to zoom. With a mouse, **press and hold** an image or use **Ctrl/⌘ + wheel** to zoom; while zoomed, press and hold, double-click, or double-tap to exit."
-        ]
-      },
       {
         "title": "Browse",
         "items": [
@@ -47,40 +21,8 @@
     ]
   },
   "reader": {
-    "readingOptions": "Reading options",
-    "fullscreen": "Fullscreen",
-    "exitFullscreen": "Exit fullscreen",
-    "adjustScrollViewport": "Adjust Scroll viewport size",
-    "resizeScrollViewport": "Resize Scroll viewport",
-    "fit": "Fit",
-    "fill": "Fill",
-    "applyGlobally": "Set Default",
-    "pagedMode": "Paged mode",
-    "singlePageMode": "Single-page layout",
-    "doublePageMode": "Double-page layout",
-    "pairFirstAndSecondPages": "Pair 1+2",
-    "pairSecondAndThirdPages": "Pair 2+3",
-    "scrollMode": "Scroll mode",
-    "rightTapPrevious": "Right side action:\nPrevious page",
-    "rightTapNext": "Right side action:\nNext page",
-    "directionRtl": "Reading direction:\n Right to left",
-    "directionLtr": "Reading direction:\n Left to right",
-    "directionTtb": "Reading direction:\n Top to bottom",
-    "download": "Download",
-    "downloadHelpLabel": "Can't download?",
     "downloadHelp": "You may enable the browser download API in your userscript manager. For example, enable \"Use browser download API\" in Violentmonkey.",
-    "openImage": "Open image",
-    "displayedImageShort": "Displayed",
-    "originalImageShort": "Original",
-    "downloadDisplayedImage": "Displayed image",
-    "downloadOriginalImage": "Original image",
-    "originalImageSource": "Original source provided by E-Hentai",
-    "originalImageUnavailable": "Original image unavailable",
-    "startReading": "Read",
-    "continueReading": "Continue",
-    "endPage": "End",
-    "end": "End of gallery. Tap to exit.",
-    "reloadPage": "Reload page"
+    "originalImageSource": "Original source provided by E-Hentai"
   },
   "history": {
     "actions": {
@@ -105,14 +47,8 @@
     "rate": "Rate gallery",
     "rateWithStars": "Rate gallery: {rating} stars",
     "tagging": "Tagging",
-    "scrollPreview": "Scroll Preview",
     "resizeColumns": "Resize gallery columns",
     "resetColumns": "Reset gallery columns",
-    "confirmScrollPreviewDirection": "Change Scroll Preview direction?",
-    "openScrollPreview": "Open full-screen Scroll Preview",
-    "scrollPreviewDirectionTtb": "Scroll Preview: top to bottom",
-    "scrollPreviewDirectionLtr": "Scroll Preview: left to right",
-    "scrollPreviewDirectionRtl": "Scroll Preview: right to left",
     "favoriteTag": "Add My Tag",
     "copyOriginalTag": "Copy Original Tag",
     "editFavoriteNote": "Edit Note",
@@ -183,10 +119,6 @@
     "fileSearch": "File Search"
   },
   "errors": {
-    "imageNotFound": "Image not found",
-    "downloadFailed": "Download failed",
-    "loadFailed": "Load failed",
-    "imageLoadFailed": "Image load failed",
     "searchPageContentNotFound": "Cannot find search page content"
   }
 }

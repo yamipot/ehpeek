@@ -4,9 +4,11 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter ehpeek build",
+    "build": "pnpm --filter @ehpeek/reader build && pnpm --filter ehpeek build && pnpm --filter @ehpeek/reader build:example",
     "check": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "example": "pnpm --filter @ehpeek/reader example",
+    "test": "pnpm --filter @ehpeek/reader build && pnpm --filter @ehpeek/reader check:consumer && node --test packages/reader/tests/*.test.mjs"
   },
   "devDependencies": {
     "@adobe/spectrum-tokens": "14.15.0",

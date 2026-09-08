@@ -8,9 +8,6 @@ import { EnhanceSearchGrids } from "../components/Enhance/EnhanceSearchGrids";
 import {
   ThumbsGrids,
 } from "../components/Enhance/EnhanceThumbsGrids";
-import {
-  ScrollPreview,
-} from "../components/Enhance/ScrollPreview";
 import { ReadHistoryPage } from "../components/Enhance/ReadHistory";
 import {
   galleryReadHistory,
@@ -21,7 +18,7 @@ import {
 import { SearchHistory } from "../components/Enhance/SearchHistory";
 import { loadMyTagAppearances, refreshMyTags } from "../components/Enhance/MyTags";
 import { SettingsMenu } from "../components/SettingsMenu";
-import { LauncherButton } from "../components/Widgets/LauncherButton";
+import { LauncherButton } from "@ehpeek/reader/components/Widgets/LauncherButton";
 import { GalleryColumnsResizeHandle } from "../components/Widgets/GalleryColumnsResizeHandle";
 import {
   BackToTop,
@@ -45,7 +42,7 @@ import {
 } from "../state";
 import { dispatchReady } from "../state/events";
 import texts from "../i18n";
-import { registerGlobalStyle } from "../utils";
+import { registerGlobalStyle } from "@ehpeek/reader/utils";
 import ehDomCss from "../eh/dom/styles.css";
 import unoCss from "ehpeek:uno.css";
 import themeCss from "../theme.css";
@@ -64,7 +61,7 @@ import {
   createOverlayHost,
   OverlayHostProvider,
   type OverlayHost,
-} from "./OverlayHost";
+} from "@ehpeek/reader/App/OverlayHost";
 import {
   applyUiScale,
   configureUi,
@@ -725,27 +722,13 @@ function injectGalleryPreview(
               !gState.settings.touchUiEnabled,
           }}
         >
-          <ScrollPreview
-            coordinator={coordinator}
+          <coordinator.reader.Preview
+            embedded={gState.settings.replacePreviewWithScroll}
             embeddedDirection={gState.columnsEnabled()
               ? state.gallery.embeddedScrollPreviewColumnsDirection.value
               : state.gallery.embeddedScrollPreviewSingleDirection.value}
-            fillEmbeddedContainer={gState.columnsEnabled}
-            leftHandedControls={gState.leftHandedControls}
-            onLoadError={reportReaderOpenError}
-            onEmbeddedDirectionChange={(direction) => {
-              if (gState.columnsEnabled()) {
-                state.gallery.embeddedScrollPreviewColumnsDirection.set(direction);
-              } else {
-                state.gallery.embeddedScrollPreviewSingleDirection.set(direction);
-              }
-            }}
-            onReadDirectionChange={(direction) => {
-              state.gallery.scrollPreviewDirection.set(direction);
-            }}
-            previewCache={previewCache}
-            readDirection={state.gallery.scrollPreviewDirection.value}
-            replaceOriginalPreview={gState.settings.replacePreviewWithScroll}
+            fillContainer={gState.columnsEnabled}
+            leftHandedControls={gState.leftHandedControls()}
           />
           {gState.settings.enhanceThumbsGridsEnabled &&
           !gState.settings.replacePreviewWithScroll ? (
@@ -773,6 +756,12 @@ function injectGalleryPage(
     includeReaderPageInUrl: gState.settings.includeReaderPageInUrl,
     includeUnreadHistoryEnabled: gState.settings.includeUnreadHistoryEnabled,
     onReaderPreviewModeChange: gState.setReaderPreviewModeActive,
+    onEmbeddedDirectionChange: direction => {
+      const setting = gState.columnsEnabled()
+        ? state.gallery.embeddedScrollPreviewColumnsDirection
+        : state.gallery.embeddedScrollPreviewSingleDirection;
+      setting.set(direction);
+    },
     overlayHost,
     previewCache,
     readHistory,
@@ -1080,7 +1069,7 @@ async function startApp(): Promise<void> {
     });
   }
 
-  overlayHost = createOverlayHost(document.body, currentUiScale());
+  overlayHost = createOverlayHost(document.body, currentUiScale(), texts);
   const page = eh.extractPageType();
   const onViewportResize = () => {
     updateUiScale();

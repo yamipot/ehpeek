@@ -1,7 +1,7 @@
 import { requestPage } from "../request";
-import type { LoadedReaderPage, ReaderPage } from "../../readerTypes";
+import type { LoadedReaderPage, ReaderPage } from "@ehpeek/reader/readerTypes";
 import texts from "../../i18n";
-import { normalizeUrl } from "../../utils";
+import { normalizeUrl } from "@ehpeek/reader/utils";
 import type { ImagePageInfo } from "../types";
 import type { MyTagAppearance, MyTagSetOption } from "../../state";
 import {
