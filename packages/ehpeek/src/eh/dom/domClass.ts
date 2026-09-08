@@ -42,6 +42,7 @@ const page = {
   }),
   body: tag("body", {
     apply: {
+      uiTheme: "ehpeek-ui-theme",
       galleryTouchLayout: "ehpeek-touch-gallery-page",
       galleryWideLayout: "ehpeek-gallery-wide-layout-root",
       hidePreviewPageBars: "ehpeek-hide-original-preview-page-bars",

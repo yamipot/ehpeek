@@ -2,6 +2,7 @@ import { type JSX, onCleanup, onMount } from "solid-js";
 import { OverlayPortal } from "../../App/OverlayHost";
 import { lockPageScroll } from "../../App/viewport";
 import { useReaderTexts } from "../../i18n";
+import { IconButton } from "./Button";
 import { Icon } from "./Icon";
 
 const DIALOG_WIDTHS = {
@@ -16,6 +17,7 @@ export function Dialog(props: {
   lockPageScroll?: boolean;
   onClose: () => void;
   title: JSX.Element;
+  // Variants style the shell; its palette is inherited from the OverlayHost.
   variant: "reader" | "site";
   width: keyof typeof DIALOG_WIDTHS;
 }) {
@@ -38,12 +40,11 @@ export function Dialog(props: {
     });
   });
 
-  const reader = () => props.variant === "reader";
-
   return (
     <OverlayPortal>
       <div
         class="fixed inset-0 z-dialog box-border flex items-center justify-center overflow-hidden ui-p-lg bg-black/65 pointer-events-auto font-sans"
+        data-ui-dialog={props.variant}
         role="dialog"
         aria-modal="true"
         aria-label={props.label}
@@ -57,31 +58,20 @@ export function Dialog(props: {
         onWheel={(event: WheelEvent) => event.stopPropagation()}
       >
         <div
-          class={`box-border flex w-full ${DIALOG_WIDTHS[props.width]} max-h-[min(calc(var(--ui-control-size-xl)*12.75),calc(100dvh_-_var(--ui-space-lg)_-_var(--ui-space-lg)))] flex-col overflow-hidden ui-rounded-lg border shadow-xl ${
-            reader()
-              ? "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)]"
-              : "ehp-color-site-border ehp-color-site-elevated ehp-color-site-text"
-          }`}
+          class={`box-border flex w-full ${DIALOG_WIDTHS[props.width]} max-h-[min(calc(var(--ui-control-size-xl)*12.75),calc(100dvh_-_var(--ui-space-lg)_-_var(--ui-space-lg)))] flex-col overflow-hidden ui-rounded-lg border border-[var(--color-dialog-border)] bg-[var(--color-dialog-background)] text-[var(--color-dialog-text)] shadow-xl`}
         >
-          <div class={`flex box-border min-h-[var(--ui-control-size-lg)] flex-none items-center justify-between ui-gap-md ui-py-sm ui-pl-lg ui-pr-sm border-0 border-b ${
-            reader()
-              ? "border-[var(--color-border)]"
-              : "ehp-color-site-border-subtle-b"
-          }`}>
+          <div class="flex box-border min-h-[var(--ui-control-size-lg)] flex-none items-center justify-between ui-gap-md ui-py-sm ui-pl-lg ui-pr-sm border-0 border-b border-b-[var(--color-dialog-divider)]">
             <h2 class="m-0 textsize-lg font-700">{props.title}</h2>
-            <button
-              type="button"
-              class={`inline-flex w-[var(--ui-control-size-md)] h-[var(--ui-control-size-md)] flex-none items-center justify-center p-0 ui-rounded-md border-0 bg-transparent cursor-pointer ${
-                reader()
-                  ? "text-[var(--color-text)] hover:bg-[var(--color-badge)]"
-                  : "ehp-color-site-text hover:bg-[var(--color-site-item-hover)]"
-              }`}
+            <IconButton
+              variant="ghost"
+              size="md"
+              class="flex-none"
               aria-label={texts.common.actions.close}
               title={texts.common.actions.close}
               onClick={() => props.onClose()}
             >
               <Icon name="close" size="var(--ui-icon-size-md)" />
-            </button>
+            </IconButton>
           </div>
           <div class={`min-h-0 overflow-y-auto overscroll-contain ui-pb-lg [&>:last-child]:!border-b-0 ${props.bodyClass ?? ""}`}>
             {props.children}

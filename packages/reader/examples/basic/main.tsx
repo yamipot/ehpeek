@@ -55,7 +55,7 @@ function Example() {
   const [progress, setProgress] = createSignal(1);
   const [setting, setSetting] = createSignal("No setting changes");
   return (
-    <main>
+    <main class="reader-example">
       <header>
         <h1>Reader + Preview</h1>
         <button onClick={() => void reader.open(progress())}>

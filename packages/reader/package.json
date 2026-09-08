@@ -120,6 +120,14 @@
     "./createReader": {
       "types": "./dist/createReader.d.ts",
       "default": "./dist/createReader.js"
+    },
+    "./components/Widgets/Button": {
+      "types": "./dist/components/Widgets/Button.d.ts",
+      "default": "./dist/components/Widgets/Button.js"
+    },
+    "./components/Widgets/Popover": {
+      "types": "./dist/components/Widgets/Popover.d.ts",
+      "default": "./dist/components/Widgets/Popover.js"
     }
   },
   "peerDependencies": {

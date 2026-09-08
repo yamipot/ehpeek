@@ -566,6 +566,7 @@ export function mutateGalleryTouchLayout(fitToViewport: boolean): void {
 
   html.apply("galleryTouchLayout");
   body.apply("galleryTouchLayout");
+  body.apply("uiTheme");
   if (fitToViewport) {
     html.apply("fitToViewport");
   }

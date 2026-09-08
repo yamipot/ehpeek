@@ -1,24 +1,3 @@
-#ehpeek-reader {
-  --color-reader-background: #070707;
-  --color-reader-surface: #151515;
-  --color-reader-elevated: #232323;
-  --color-reader-text: #f3f3f3;
-  --color-reader-accent: #4da3ff;
-  --color-reader-border: color-mix(in srgb, var(--color-reader-text) 18%, transparent);
-  --color-reader-muted: color-mix(in srgb, var(--color-reader-text) 72%, transparent);
-  --color-reader-scrollbar: color-mix(in srgb, var(--color-reader-text) 56%, transparent);
-  --color-background: var(--color-reader-background);
-  --color-surface: var(--color-reader-surface);
-  --color-elevated: var(--color-reader-elevated);
-  --color-text: var(--color-reader-text);
-  --color-accent: var(--color-reader-accent);
-  --color-border: color-mix(in srgb, var(--color-text) 18%, transparent);
-  --color-muted: color-mix(in srgb, var(--color-text) 72%, transparent);
-  --color-track: color-mix(in srgb, var(--color-text) 34%, var(--color-background));
-  --color-control: color-mix(in srgb, var(--color-elevated) 88%, transparent);
-  --color-badge: color-mix(in srgb, var(--color-background) 34%, transparent);
-}
-
 #ehpeek-reader,
 #ehpeek-reader * {
   box-sizing: border-box;

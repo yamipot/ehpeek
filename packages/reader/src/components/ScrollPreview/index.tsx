@@ -22,6 +22,7 @@ import { useReaderTexts } from "../../i18n";
 import { clamp } from "../../utils";
 import { ScrollFlingAnimator } from "../animation";
 import { createPointerGestureElement } from "../PointerGesture";
+import { IconButton } from "../Widgets/Button";
 import { Icon } from "../Widgets/Icon";
 import { LauncherButton } from "../Widgets/LauncherButton";
 import { PositionBar } from "../Widgets/PositionBar";
@@ -36,12 +37,6 @@ const OVERSCAN_ROWS = 4;
 const SCROLL_PIXEL_EPSILON = 1;
 const PREVIEW_CONCURRENT_LOADS = 2;
 const PREVIEW_LOAD_RADIUS = 2;
-const OVERLAY_PREVIEW_ACTION_CLASS = [
-  "inline-flex h-[var(--ui-control-size-md)] items-center justify-center py-0 ui-rounded-md border-0 bg-transparent text-[var(--color-site-text)] cursor-pointer font-sans textsize-sm font-700 leading-1",
-  "opacity-90 hover:(opacity-100 bg-[var(--color-site-page)]) focus-visible:opacity-100 disabled:(opacity-40 cursor-default) transition-[opacity,background-color] duration-160",
-].join(" ");
-const OVERLAY_PREVIEW_ICON_ACTION_CLASS =
-  `${OVERLAY_PREVIEW_ACTION_CLASS} w-[var(--ui-control-size-md)] px-0`;
 const DECODE_CACHE_BYTES = 64 * 1024 * 1024;
 const DECODE_CACHE_ITEMS = 160;
 const NEXT_SCROLL_PREVIEW_DIRECTION: Record<ReadDirection, ReadDirection> = {
@@ -313,61 +308,58 @@ function OverlayPreviewToolbar(props: {
         {props.state.rangeText()}
       </span>
       <div class={`flex flex-none ui-gap-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
-        <button
-          type="button"
-          class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
+        <IconButton
+          variant="subtle"
+          size="md"
           aria-label={props.state.directionLabel}
           title={props.state.directionLabel}
           onClick={() => props.state.onDirectionChange()}
         >
           <Icon name={props.state.directionIcon} size="var(--ui-icon-size-md)" />
-        </button>
-        <button
-          type="button"
-          class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
+        </IconButton>
+        <IconButton
+          variant="subtle"
+          size="md"
           aria-label={texts.common.actions.zoomOut}
           title={texts.common.actions.zoomOut}
           disabled={props.state.zoomOutDisabled()}
           onClick={() => props.state.onZoomOut()}
         >
           <Icon name="zoom-out" size="var(--ui-icon-size-md)" />
-        </button>
-        <button
-          type="button"
-          class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
+        </IconButton>
+        <IconButton
+          variant="subtle"
+          size="md"
           aria-label={texts.common.actions.zoomIn}
           title={texts.common.actions.zoomIn}
           disabled={props.state.zoomInDisabled()}
           onClick={() => props.state.onZoomIn()}
         >
           <Icon name="zoom-in" size="var(--ui-icon-size-md)" />
-        </button>
-        <button
-          type="button"
-          class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
+        </IconButton>
+        <IconButton
+          variant="subtle"
+          size="md"
           aria-label={texts.common.actions.current}
           title={texts.common.actions.current}
           disabled={props.currentDisabled}
           onClick={() => props.onCurrent()}
         >
           <Icon name="locate" size="var(--ui-icon-size-md)" />
-        </button>
-        <button
-          type="button"
-          class={OVERLAY_PREVIEW_ICON_ACTION_CLASS}
+        </IconButton>
+        <IconButton
+          variant="subtle"
+          size="md"
           aria-label={texts.common.actions.close}
           title={texts.common.actions.close}
           onClick={() => props.onClose()}
         >
           <Icon name="close" size="var(--ui-icon-size-md)" />
-        </button>
+        </IconButton>
       </div>
     </div>
   );
 }
-
-const EMBEDDED_PREVIEW_ACTION_CLASS =
-  "inline-flex w-[var(--ui-control-size-sm)] h-[var(--ui-control-size-sm)] items-center justify-center p-0 ui-rounded-sm border-0 bg-[var(--color-site-surface)] ehp-color-site-text cursor-pointer disabled:(opacity-40 cursor-default) enabled:active:scale-96";
 
 function EmbeddedPreviewToolbar(props: {
   currentDisabled: boolean;
@@ -395,54 +387,54 @@ function EmbeddedPreviewToolbar(props: {
             : "ml-auto"
         }`}
       >
-        <button
-          type="button"
-          class={EMBEDDED_PREVIEW_ACTION_CLASS}
+        <IconButton
+          variant="surface"
+          size="sm"
           aria-label={props.state.directionLabel}
           title={props.state.directionLabel}
           onClick={() => props.state.onDirectionChange()}
         >
           <Icon name={props.state.directionIcon} size="var(--ui-icon-size-md)" />
-        </button>
-        <button
-          type="button"
-          class={EMBEDDED_PREVIEW_ACTION_CLASS}
+        </IconButton>
+        <IconButton
+          variant="surface"
+          size="sm"
           aria-label={texts.common.actions.zoomOut}
           title={texts.common.actions.zoomOut}
           disabled={props.state.zoomOutDisabled()}
           onClick={() => props.state.onZoomOut()}
         >
           <Icon name="zoom-out" size="var(--ui-icon-size-md)" />
-        </button>
-        <button
-          type="button"
-          class={EMBEDDED_PREVIEW_ACTION_CLASS}
+        </IconButton>
+        <IconButton
+          variant="surface"
+          size="sm"
           aria-label={texts.common.actions.zoomIn}
           title={texts.common.actions.zoomIn}
           disabled={props.state.zoomInDisabled()}
           onClick={() => props.state.onZoomIn()}
         >
           <Icon name="zoom-in" size="var(--ui-icon-size-md)" />
-        </button>
-        <button
-          type="button"
-          class={EMBEDDED_PREVIEW_ACTION_CLASS}
+        </IconButton>
+        <IconButton
+          variant="surface"
+          size="sm"
           aria-label={texts.common.actions.current}
           title={texts.common.actions.current}
           disabled={props.currentDisabled}
           onClick={() => props.onCurrent()}
         >
           <Icon name="locate" size="var(--ui-icon-size-md)" />
-        </button>
-        <button
-          type="button"
-          class={EMBEDDED_PREVIEW_ACTION_CLASS}
+        </IconButton>
+        <IconButton
+          variant="surface"
+          size="sm"
           aria-label={texts.gallery.openScrollPreview}
           title={texts.gallery.openScrollPreview}
           onClick={() => props.onOpenOverlay()}
         >
           <Icon name="fullscreen" size="var(--ui-icon-size-md)" />
-        </button>
+        </IconButton>
       </div>
     </div>
   );

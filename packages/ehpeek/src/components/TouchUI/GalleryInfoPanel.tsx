@@ -20,6 +20,7 @@ import { state } from "../../state";
 import { refreshMyTags } from "../Enhance/MyTags";
 import { WelcomeIcon } from "../WelcomeIcon";
 import { GalleryColumnsBackToTop } from "../Widgets/BackToTop";
+import { Popover } from "@ehpeek/reader/components/Widgets/Popover";
 import { Dialog } from "@ehpeek/reader/components/Widgets/Dialog";
 import { DomNode, DomNodes } from "../Widgets/ExternalDom";
 import { Icon } from "@ehpeek/reader/components/Widgets/Icon";
@@ -439,22 +440,6 @@ function TouchGalleryActionsMenu(props: {
   const [open, setOpen] = createSignal(false);
   let root!: HTMLDivElement;
 
-  onMount(() => {
-    const onClick = (event: MouseEvent) => {
-      if (event.target instanceof Element && root.contains(event.target)) {
-        return;
-      }
-
-      setOpen(false);
-    };
-
-    document.addEventListener("click", onClick);
-
-    onCleanup(() => {
-      document.removeEventListener("click", onClick);
-    });
-  });
-
   return (
     <div
       ref={root}
@@ -473,9 +458,13 @@ function TouchGalleryActionsMenu(props: {
         <Icon name="menu" />
       </button>
       <Show when={open()}>
-        <div class="absolute top-[calc(var(--ui-control-size-md)+var(--ui-space-sm))] right-0 z-overlay flex w-[min(78vw,calc(var(--ui-control-size-xl)*4))] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated">
+        <Popover
+          contains={target => root.contains(target)}
+          onOutsidePress={() => setOpen(false)}
+          class="absolute top-[calc(var(--ui-control-size-md)+var(--ui-space-sm))] right-0 flex w-[min(78vw,calc(var(--ui-control-size-xl)*4))] flex-col"
+        >
           <DomNodes nodes={props.items} />
-        </div>
+        </Popover>
       </Show>
     </div>
   );

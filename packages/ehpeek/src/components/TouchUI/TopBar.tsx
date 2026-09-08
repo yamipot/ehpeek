@@ -1,7 +1,5 @@
 import {
   createSignal,
-  onCleanup,
-  onMount,
   Show,
   For,
   type Accessor,
@@ -13,6 +11,8 @@ import {
   uiScaleLevel,
 } from "../../ui";
 import texts from "../../i18n";
+import { IconButton, IconLink } from "@ehpeek/reader/components/Widgets/Button";
+import { Popover } from "@ehpeek/reader/components/Widgets/Popover";
 import { Icon } from "@ehpeek/reader/components/Widgets/Icon";
 
 const TOUCH_TOP_BAR_ICON_SIZE = "var(--ehpeek-touch-top-bar-icon-size)";
@@ -20,10 +20,8 @@ const TOUCH_TOP_BAR_PROJECT_ICON_SIZE =
   "var(--ehpeek-touch-top-bar-project-icon-size)";
 const TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE =
   "calc(var(--ehpeek-touch-top-bar-icon-size) * 1.1)";
-const TOUCH_ICON_BUTTON_CLASS =
-  "inline-flex w-[var(--ui-control-size-xl)] h-[var(--ui-control-size-xl)] items-center justify-center ui-rounded-md border-0 bg-transparent ehp-color-site-text no-underline cursor-pointer hover:bg-[var(--color-site-item-hover)] [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]";
-const TOUCH_DISABLED_ICON_BUTTON_CLASS =
-  "disabled:opacity-35 disabled:cursor-default disabled:hover:bg-transparent";
+const TOUCH_ICON_ACTION_CLASS =
+  "no-underline [touch-action:manipulation] [--ehpeek-touch-top-bar-icon-size:var(--ui-control-size-xs)]";
 function TouchTopBarUiMenu(props: {
   uiScale: {
     value: Accessor<UiScale>;
@@ -46,24 +44,12 @@ function TouchTopBarUiMenu(props: {
   const [open, setOpen] = createSignal(false);
   let root!: HTMLDivElement;
 
-  onMount(() => {
-    const onClick = (event: MouseEvent) => {
-      if (!(event.target instanceof Element && root.contains(event.target))) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("click", onClick);
-    onCleanup(() => {
-      document.removeEventListener("click", onClick);
-    });
-  });
-
   return (
     <div ref={root} class="relative">
-      <button
-        type="button"
-        class={TOUCH_ICON_BUTTON_CLASS}
+      <IconButton
+        variant="ghost"
+        size="xl"
+        class={TOUCH_ICON_ACTION_CLASS}
         aria-label={texts.settings.uiControlsLabel}
         aria-haspopup="menu"
         aria-expanded={open()}
@@ -74,28 +60,32 @@ function TouchTopBarUiMenu(props: {
         }}
       >
         <Icon name="palette" size={TOUCH_TOP_BAR_ICON_SIZE} strokeWidth={1.75} />
-      </button>
+      </IconButton>
       <Show when={open()}>
-        <div
-          class="absolute top-[calc(100%+var(--ui-space-xs))] left-0 z-overlay flex ui-gap-xs ui-p-xs overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated"
+        <Popover
+          contains={target => root.contains(target)}
+          onOutsidePress={() => setOpen(false)}
+          class="absolute top-[calc(100%+var(--ui-space-xs))] left-0 flex ui-gap-xs ui-p-xs"
           classList={{
             "!left-auto right-0 flex-row-reverse": props.leftHandedControls.enabled(),
           }}
           role="menu"
         >
-          <button
-            type="button"
-            class={TOUCH_ICON_BUTTON_CLASS}
+          <IconButton
+            variant="ghost"
+            size="xl"
+            class={TOUCH_ICON_ACTION_CLASS}
             aria-label={`${texts.settings.uiScaleLabel}: ${uiScaleLevel(props.uiScale.value())}`}
             title={`${texts.settings.uiScaleLabel}: ${uiScaleLevel(props.uiScale.value())}`}
             onClick={() =>
           props.uiScale.onChange(nextUiScale(props.uiScale.value()))}
           >
             <Icon name="viewport" size={TOUCH_TOP_BAR_ICON_SIZE} />
-          </button>
-          <button
-            type="button"
-            class={TOUCH_ICON_BUTTON_CLASS}
+          </IconButton>
+          <IconButton
+            variant="ghost"
+            size="xl"
+            class={TOUCH_ICON_ACTION_CLASS}
             aria-label={texts.settings.leftHandedControlsLabel}
             aria-pressed={props.leftHandedControls.enabled()}
             title={texts.settings.leftHandedControlsLabel}
@@ -105,10 +95,11 @@ function TouchTopBarUiMenu(props: {
             <span classList={{ "-scale-x-100": props.leftHandedControls.enabled() }}>
               <Icon name="hand" size={TOUCH_TOP_BAR_ICON_SIZE} />
             </span>
-          </button>
-          <button
-            type="button"
-            class={`${TOUCH_ICON_BUTTON_CLASS} ${TOUCH_DISABLED_ICON_BUTTON_CLASS}`}
+          </IconButton>
+          <IconButton
+            variant="ghost"
+            size="xl"
+            class={TOUCH_ICON_ACTION_CLASS}
             aria-label={texts.settings.columnsLabel}
             aria-pressed={props.columns.available && props.columns.enabled()}
             disabled={!props.columns.available}
@@ -122,10 +113,11 @@ function TouchTopBarUiMenu(props: {
                 ? TOUCH_TOP_BAR_ICON_SIZE
                 : TOUCH_TOP_BAR_SINGLE_COLUMN_ICON_SIZE}
             />
-          </button>
-          <button
-            type="button"
-            class={`${TOUCH_ICON_BUTTON_CLASS} ${TOUCH_DISABLED_ICON_BUTTON_CLASS}`}
+          </IconButton>
+          <IconButton
+            variant="ghost"
+            size="xl"
+            class={TOUCH_ICON_ACTION_CLASS}
             aria-label={props.columns.resizeHandle?.visible()
               ? texts.settings.hideColumnsResizeHandle
               : texts.settings.showColumnsResizeHandle}
@@ -148,8 +140,8 @@ function TouchTopBarUiMenu(props: {
               <span class="block h-[var(--ui-icon-size-md)] w-2px rounded-full bg-current opacity-70" />
               <span class="block h-[var(--ui-icon-size-md)] w-2px rounded-full bg-current opacity-70" />
             </span>
-          </button>
-        </div>
+          </IconButton>
+        </Popover>
       </Show>
     </div>
   );
@@ -173,27 +165,12 @@ function TouchTopBarMenu(props: {
     });
   };
 
-  onMount(() => {
-    const onClick = (event: MouseEvent) => {
-      if (event.target instanceof Element && root.contains(event.target)) {
-        return;
-      }
-
-      setOpen(false);
-    };
-
-    document.addEventListener("click", onClick);
-
-    onCleanup(() => {
-      document.removeEventListener("click", onClick);
-    });
-  });
-
   return (
     <div ref={root} class="relative">
-      <button
-        type="button"
-        class={TOUCH_ICON_BUTTON_CLASS}
+      <IconButton
+        variant="ghost"
+        size="xl"
+        class={TOUCH_ICON_ACTION_CLASS}
         aria-haspopup="menu"
         aria-expanded={open()}
         onClick={(event: MouseEvent) => {
@@ -202,10 +179,12 @@ function TouchTopBarMenu(props: {
         }}
       >
         <Icon name="menu" size={TOUCH_TOP_BAR_ICON_SIZE} />
-      </button>
+      </IconButton>
       <Show when={open()}>
-        <div
-          class="absolute top-[calc(100%+var(--ui-space-xs))] right-0 z-overlay flex w-max min-w-[calc(var(--ui-control-size-xl)*2.25)] max-w-[calc(100vw-var(--ui-space-md))] flex-col overflow-hidden border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated"
+        <Popover
+          contains={target => root.contains(target)}
+          onOutsidePress={() => setOpen(false)}
+          class="absolute top-[calc(100%+var(--ui-space-xs))] right-0 flex w-max min-w-[calc(var(--ui-control-size-xl)*2.25)] max-w-[calc(100vw-var(--ui-space-md))] flex-col"
           classList={{ "!right-auto left-0": props.leftHanded() }}
         >
           <For each={navItems()}>{(item) => (
@@ -222,7 +201,7 @@ function TouchTopBarMenu(props: {
               {item.label}
             </a>
           )}</For>
-        </div>
+        </Popover>
       </Show>
     </div>
   );
@@ -259,12 +238,14 @@ export function TouchTopBar(props: {
         class="flex items-center ui-gap-xs"
         classList={{ "flex-row-reverse": props.leftHandedControls.enabled() }}
       >
-        <a
-          class={`${TOUCH_ICON_BUTTON_CLASS} [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]`}
+        <IconLink
+          variant="ghost"
+          size="xl"
+          class={`${TOUCH_ICON_ACTION_CLASS} [--ehpeek-touch-top-bar-project-icon-size:var(--ui-control-size-sm)]`}
           href={props.source.data.homeHref}
         >
           <Icon name="panda-peek" size={TOUCH_TOP_BAR_PROJECT_ICON_SIZE} strokeWidth={1.8} />
-        </a>
+        </IconLink>
         <TouchTopBarUiMenu
           leftHandedControls={props.leftHandedControls}
           uiScale={props.uiScale}
@@ -275,38 +256,45 @@ export function TouchTopBar(props: {
         class="flex items-center ui-gap-xs"
         classList={{ "flex-row-reverse": props.leftHandedControls.enabled() }}
       >
-        <a
-          class={TOUCH_ICON_BUTTON_CLASS}
+        <IconLink
+          variant="ghost"
+          size="xl"
+          class={TOUCH_ICON_ACTION_CLASS}
           href={props.source.data.homeHref}
         >
           <Icon name="search" size={TOUCH_TOP_BAR_ICON_SIZE} />
-        </a>
-        <a
-          class={TOUCH_ICON_BUTTON_CLASS}
+        </IconLink>
+        <IconLink
+          variant="ghost"
+          size="xl"
+          class={TOUCH_ICON_ACTION_CLASS}
           href={props.source.data.favoritesHref}
         >
           <Icon name="heart" size={TOUCH_TOP_BAR_ICON_SIZE} />
-        </a>
+        </IconLink>
         <Show when={props.historyHref}>
           {(historyHref) => (
-            <a
-              class={TOUCH_ICON_BUTTON_CLASS}
+            <IconLink
+              variant="ghost"
+              size="xl"
+              class={TOUCH_ICON_ACTION_CLASS}
               href={historyHref()}
             >
               <Icon name="history" size={TOUCH_TOP_BAR_ICON_SIZE} />
-            </a>
+            </IconLink>
           )}
         </Show>
-        <button
-          type="button"
-          class={TOUCH_ICON_BUTTON_CLASS}
+        <IconButton
+          variant="ghost"
+          size="xl"
+          class={TOUCH_ICON_ACTION_CLASS}
           onClick={(event: MouseEvent) => {
             event.stopPropagation();
             props.onSettingsMenuOpen();
           }}
         >
           <Icon name="settings" size={TOUCH_TOP_BAR_ICON_SIZE} />
-        </button>
+        </IconButton>
         <TouchTopBarMenu
           leftHanded={props.leftHandedControls.enabled}
           source={props.source}

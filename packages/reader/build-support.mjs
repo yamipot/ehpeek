@@ -4,9 +4,9 @@ import { fileURLToPath } from "node:url";
 import { createGenerator, expandVariantGroup } from "unocss";
 import unoConfig from "./uno.config.mjs";
 
-export async function generateCss(sourceDir, config = unoConfig) {
+export async function generateCss(sourceDirs, config = unoConfig) {
   const generator = await createGenerator(config);
-  const content = readSourceFiles(sourceDir).map(file => readFileSync(file, "utf8")).join("\n");
+  const content = sourceDirs.flatMap(readSourceFiles).map(file => readFileSync(file, "utf8")).join("\n");
   return (await generator.generate(expandVariantGroup(content), { preflights: true })).css;
 }
 

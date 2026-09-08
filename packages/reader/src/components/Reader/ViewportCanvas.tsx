@@ -1,6 +1,6 @@
 import { createEffect, Show, type JSX } from "solid-js";
 import { useReaderTexts } from "../../i18n";
-import { READER_BUTTON_CLASS } from "./Toolbar";
+import { Button } from "../Widgets/Button";
 
 const MIN_SCALE_PERCENT = 10;
 const MAX_SCALE_PERCENT = 500;
@@ -135,26 +135,26 @@ export function ViewportCanvas(props: {
             />
           </div>
           <div class="grid w-full grid-cols-3 items-stretch justify-center ui-gap-sm">
-            <button type="button" class={`${READER_BUTTON_CLASS} w-full`} onClick={() => props.callbacks.onFit()}>
+            <Button class="w-full" onClick={() => props.callbacks.onFit()}>
               {texts.reader.fit}
-            </button>
-            <button type="button" class={`${READER_BUTTON_CLASS} w-full`} onClick={() => props.callbacks.onFill()}>
+            </Button>
+            <Button class="w-full" onClick={() => props.callbacks.onFill()}>
               {texts.reader.fill}
-            </button>
-            <button type="button" class={`${READER_BUTTON_CLASS} w-full`} onClick={() => props.callbacks.onOneToOne()}>
+            </Button>
+            <Button class="w-full" onClick={() => props.callbacks.onOneToOne()}>
               1:1
-            </button>
+            </Button>
           </div>
           <div class="grid w-full max-w-full grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] items-stretch justify-center ui-gap-sm">
-            <button type="button" class={`${READER_BUTTON_CLASS} w-full whitespace-normal leading-[1.1]`} onClick={() => props.callbacks.onApplyAll()}>
+            <Button class="w-full whitespace-normal leading-[1.1]" onClick={() => props.callbacks.onApplyAll()}>
               {texts.reader.applyGlobally}
-            </button>
-            <button type="button" class={`${READER_BUTTON_CLASS} w-full`} onClick={() => props.callbacks.onApply()}>
+            </Button>
+            <Button class="w-full" onClick={() => props.callbacks.onApply()}>
               {texts.common.actions.apply}
-            </button>
-            <button type="button" class={`${READER_BUTTON_CLASS} w-full`} onClick={() => props.callbacks.onClose()}>
+            </Button>
+            <Button class="w-full" onClick={() => props.callbacks.onClose()}>
               {texts.common.actions.close}
-            </button>
+            </Button>
           </div>
         </div>
       </Show>

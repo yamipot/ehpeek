@@ -11,7 +11,7 @@ import {
 } from "./build-support.mjs";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
-const css = await generateCss(path.join(dir, "src"));
+const css = await generateCss([path.join(dir, "src")]);
 const sizes = readSpectrumUiSizes();
 const entries = readSourceFiles(path.join(dir, "src")).filter(
   (file) => /\.tsx?$/.test(file) && !file.endsWith(".d.ts"),

@@ -4,28 +4,28 @@ body {
   color: #f1f1f1;
   font-family: system-ui, sans-serif;
 }
-main {
+.reader-example {
   max-width: 1000px;
   margin: auto;
   padding: 20px;
 }
-header {
+.reader-example > header {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 16px;
 }
-button {
+.reader-example > header > button {
   font: inherit;
   padding: 8px 16px;
   cursor: pointer;
 }
-.preview {
+.reader-example > .preview {
   height: 65vh;
   --scroll-preview-height: 100%;
 }
-output {
+.reader-example > output {
   display: block;
   margin-top: 16px;
 }

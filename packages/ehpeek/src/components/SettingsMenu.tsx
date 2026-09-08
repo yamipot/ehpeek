@@ -20,6 +20,7 @@ import {
   uiScaleLevel,
 } from "../ui";
 import { InteractionHelp } from "@ehpeek/reader/components/InteractionHelp";
+import { Popover } from "@ehpeek/reader/components/Widgets/Popover";
 import { Dialog } from "@ehpeek/reader/components/Widgets/Dialog";
 import { Icon, type IconName } from "@ehpeek/reader/components/Widgets/Icon";
 
@@ -193,7 +194,6 @@ export function SettingsMenu(props: {
   const [licensesOpen, setLicensesOpen] = createSignal(false);
   const [moreOptionsOpen, setMoreOptionsOpen] = createSignal(false);
   const [changed, setChanged] = createSignal(false);
-  let menu!: HTMLDivElement;
   const close = () => {
     if (changed() && !window.confirm(texts.settings.discardChanges)) {
       return false;
@@ -219,20 +219,6 @@ export function SettingsMenu(props: {
   });
 
   onMount(() => {
-    const onPointerDown = (event: PointerEvent) => {
-      if (!props.open) {
-        return;
-      }
-
-      if (event.target instanceof Element && menu.contains(event.target)) {
-        return;
-      }
-
-      if (!close()) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-      }
-    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (!props.open) {
         return;
@@ -246,20 +232,24 @@ export function SettingsMenu(props: {
       }
     };
 
-    document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
 
     onCleanup(() => {
-      document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     });
   });
 
   return (
     <Show when={props.open}>
-      <div
-        ref={menu}
-        class="pointer-events-auto fixed safe-top-sm safe-right-sm z-overlay box-border flex w-[calc(var(--ui-control-size-xl)*6)] max-w-[calc(100vw-16px)] max-h-[calc(100dvh-16px)] flex-col overflow-hidden ui-p-md border ehp-color-site-border ui-rounded-sm ehp-color-site-elevated ehp-color-site-text [font-size:var(--ui-font-size-md)] leading-[1.2]"
+      <Popover
+        outsideEvent="pointerdown"
+        onOutsidePress={event => {
+          if (!close()) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }}
+        class="pointer-events-auto fixed safe-top-sm safe-right-sm box-border flex w-[calc(var(--ui-control-size-xl)*6)] max-w-[calc(100vw-16px)] max-h-[calc(100dvh-16px)] flex-col ui-p-md ehp-color-site-text [font-size:var(--ui-font-size-md)] leading-[1.2]"
         classList={{
           "!right-auto safe-left-sm": props.leftHandedControls(),
         }}
@@ -534,7 +524,7 @@ export function SettingsMenu(props: {
         <Show when={helpOpen()}>
           <InteractionHelp variant="site" onClose={() => setHelpOpen(false)} />
         </Show>
-      </div>
+      </Popover>
       <Show when={licensesOpen()}>
         <Dialog
           label={texts.settings.licenses}

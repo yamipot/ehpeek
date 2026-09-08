@@ -23,7 +23,11 @@ const releaseBranch = process.env.EHPEEK_RELEASE_BRANCH || "master";
 const debugBuild = process.env.EHPEEK_DEBUG === "true";
 const installUrl = userscriptInstallUrl();
 const version = userscriptVersion();
-const unoCss = await generateCss(path.join(packageDir, "src"), unoConfig);
+// Shared widgets mounted in the original page use the site's pointer selector.
+const unoCss = await generateCss([
+  path.join(packageDir, "src"),
+  path.join(packageDir, "../reader/src/components/Widgets"),
+], unoConfig);
 const projectIconUrl = "https://raw.githubusercontent.com/yamipot/ehpeek/master/icon.svg";
 const gm4Polyfill = readFileSync(
   createRequire(import.meta.url).resolve("gm4-polyfill"),

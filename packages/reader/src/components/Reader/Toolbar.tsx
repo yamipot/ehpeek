@@ -8,6 +8,7 @@ import {
 import { useReaderTexts, type ReaderTexts } from "../../i18n";
 import type { ReaderCustomization } from "../../customization";
 import { stopEvent } from "../../utils";
+import { Button } from "../Widgets/Button";
 import { Dialog } from "../Widgets/Dialog";
 import { Icon } from "../Widgets/Icon";
 import { ProgressBar } from "../Widgets/ProgressBar";
@@ -28,28 +29,13 @@ export type PageProgress = {
   keepInputValue?: boolean;
 };
 
-export const READER_BUTTON_CLASS = [
-  "inline-flex ui-hit-min-w-md ui-hit-h-md items-center justify-center ui-px-md py-0 ui-rounded-md",
-  "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-md font-700 leading-1 disabled:(opacity-40 cursor-default)",
-].join(" ");
-const READER_TOOLBAR_BUTTON_CLASS =
-  `${READER_BUTTON_CLASS} !w-[var(--ui-control-size-lg)] !min-w-0 !ui-px-sm flex-none`;
-export const READER_FLOATING_ACTION_CLASS = [
-  READER_BUTTON_CLASS,
-  "!min-w-[var(--ui-control-size-lg)] !h-[var(--ui-control-size-lg)] opacity-85 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-160",
-].join(" ");
-const READER_FLOATING_ICON_ACTION_CLASS = `${READER_FLOATING_ACTION_CLASS} !w-[calc(var(--ui-control-size-lg)*2)] px-0`;
+const READER_TOOLBAR_BUTTON_CLASS = "!w-[var(--ui-control-size-lg)] !min-w-0 !ui-px-sm flex-none";
+const READER_FLOATING_ICON_ACTION_CLASS = "!min-w-[var(--ui-control-size-lg)] !h-[var(--ui-control-size-lg)] opacity-85 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-160 !w-[calc(var(--ui-control-size-lg)*2)] px-0";
 const READER_ICON_SIZE = "var(--ui-icon-size-md)";
 const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
   hour: "2-digit",
   minute: "2-digit",
 });
-
-const DOWNLOAD_OPTION_CLASS = [
-  "flex w-full ui-hit-min-h-lg flex-col items-start justify-center ui-gap-xs ui-px-lg ui-py-md ui-rounded-md",
-  "border border-[var(--color-border)] bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer text-left",
-  "hover:bg-[var(--color-badge)] disabled:(opacity-40 cursor-default)",
-].join(" ");
 
 export type ReaderDownloadInfo = {
   currentFileName: string;
@@ -151,23 +137,6 @@ export function Toolbar(props: {
     }
   });
 
-  createEffect(() => {
-    if (downloadDialogPageNum() === null) {
-      return;
-    }
-
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      setDownloadDialogPageNum(null);
-    };
-    window.addEventListener("keydown", closeOnEscape, true);
-    onCleanup(() => window.removeEventListener("keydown", closeOnEscape, true));
-  });
-
   return (
     <div class="contents">
       <div
@@ -184,26 +153,23 @@ export function Toolbar(props: {
         onWheel={stopEvent}
       >
         <div class="flex flex-col ui-gap-sm">
-          <button
-            type="button"
+          <Button
             class={READER_FLOATING_ICON_ACTION_CLASS}
             aria-label={texts.gallery.scrollPreview}
             title={texts.gallery.scrollPreview}
             onClick={() => props.callbacks.onOpenScrollPreviewClick()}
           >
             <Icon name="grid" size={READER_ICON_SIZE} />
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             class={READER_FLOATING_ICON_ACTION_CLASS}
             aria-label={props.fullscreenActive ? texts.reader.exitFullscreen : texts.reader.fullscreen}
             title={props.fullscreenActive ? texts.reader.exitFullscreen : texts.reader.fullscreen}
             onClick={() => props.callbacks.onFullscreenClick()}
           >
             <Icon name={props.fullscreenActive ? "fullscreen-exit" : "fullscreen"} size={READER_ICON_SIZE} />
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             class={READER_FLOATING_ICON_ACTION_CLASS}
             disabled={props.downloadInfos.length === 0}
             aria-label={texts.reader.download}
@@ -211,7 +177,7 @@ export function Toolbar(props: {
             onClick={() => setDownloadDialogPageNum(props.progress.pageNum)}
           >
             <Icon name="download" size={READER_ICON_SIZE} />
-          </button>
+          </Button>
         </div>
       </div>
       <div
@@ -228,16 +194,14 @@ export function Toolbar(props: {
       >
         <div class={`flex flex-col ${leftHandedControls() ? "items-start" : "items-end"} ui-gap-md pointer-events-auto${props.open ? "" : " !hidden"}`}>
           <div class={`flex flex-row ui-gap-md${leftHandedControls() ? " flex-row-reverse" : ""}`}>
-          <button
-            type="button"
+          <Button
             class={READER_TOOLBAR_BUTTON_CLASS}
             disabled={!props.customization?.onOpenOriginalPage}
             onClick={() => props.callbacks.onOpenOriginalPageClick()}
           >
             <Icon name="external-link" size={READER_ICON_SIZE} />
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             class={READER_TOOLBAR_BUTTON_CLASS}
             aria-label={texts.reader.readingOptions}
             title={texts.reader.readingOptions}
@@ -245,30 +209,27 @@ export function Toolbar(props: {
             onClick={() => setMoreOpen((open) => !open)}
           >
             <Icon name="book-open" size={READER_ICON_SIZE} />
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             class={READER_TOOLBAR_BUTTON_CLASS}
             aria-label={texts.help.title}
             title={texts.help.title}
             onClick={() => setHelpOpen(true)}
           >
             ?
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             class={READER_TOOLBAR_BUTTON_CLASS}
             aria-label={texts.common.actions.close}
             title={texts.common.actions.close}
             onClick={() => props.callbacks.onCloseClick()}
           >
             <Icon name="close" size={READER_ICON_SIZE} />
-          </button>
+          </Button>
           </div>
           <Show when={moreOpen()}>
             <div class={`flex w-[calc(var(--ui-control-size-lg)*4+var(--ui-space-md)*4)] flex-row flex-wrap ui-gap-md${leftHandedControls() ? " flex-row-reverse" : ""}`}>
-              <button
-                type="button"
+              <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-label={props.controls.navigationMode === "scroll" ? texts.reader.scrollMode : texts.reader.pagedMode}
                 title={props.controls.navigationMode === "scroll" ? texts.reader.scrollMode : texts.reader.pagedMode}
@@ -282,9 +243,8 @@ export function Toolbar(props: {
                   name={props.controls.navigationMode === "paged" ? "page" : "scroll-continuous"}
                   size={READER_ICON_SIZE}
                 />
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-label={props.controls.direction === "rtl"
                   ? texts.reader.directionRtl
@@ -315,9 +275,8 @@ export function Toolbar(props: {
                       : "arrow-down"}
                   size={READER_ICON_SIZE}
                 />
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-label={props.controls.pageLayout === "double" ? texts.reader.doublePageMode : texts.reader.singlePageMode}
                 disabled={props.controls.navigationMode !== "paged"}
@@ -328,9 +287,8 @@ export function Toolbar(props: {
                 }}
               >
                 {props.controls.pageLayout === "double" ? "2P" : "1P"}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-pressed={props.controls.firstPageSeparate}
                 aria-label={props.controls.firstPageSeparate
@@ -357,9 +315,8 @@ export function Toolbar(props: {
                 }}
               >
                 {props.controls.firstPageSeparate ? "2+3" : "1+2"}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-label={props.controls.rightTapAction === "previous" ? texts.reader.rightTapPrevious : texts.reader.rightTapNext}
                 onClick={() => {
@@ -369,9 +326,8 @@ export function Toolbar(props: {
                 }}
               >
                 {props.controls.rightTapAction === "previous" ? "R-" : "R+"}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-label={texts.reader.adjustScrollViewport}
                 title={texts.reader.adjustScrollViewport}
@@ -379,7 +335,7 @@ export function Toolbar(props: {
                 onClick={() => props.callbacks.onViewportAdjustClick()}
               >
                 <Icon name="viewport" size={READER_ICON_SIZE} />
-              </button>
+              </Button>
             </div>
           </Show>
         </div>
@@ -467,9 +423,8 @@ export function Toolbar(props: {
             <For each={props.downloadInfos}>
               {(downloadInfo) => (
                 <div class="grid ui-gap-md">
-                  <button
-                    type="button"
-                    class={DOWNLOAD_OPTION_CLASS}
+                  <Button
+                    variant="option"
                     disabled={!props.customization?.download}
                     onClick={() => {
                       if (startImageDownload(downloadInfo.currentImageUrl, downloadInfo.currentFileName)) {
@@ -483,10 +438,9 @@ export function Toolbar(props: {
                     <span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75">
                       {downloadInfo.currentFileName}
                     </span>
-                  </button>
-                  <button
-                    type="button"
-                    class={DOWNLOAD_OPTION_CLASS}
+                  </Button>
+                  <Button
+                    variant="option"
                     disabled={!downloadInfo.originalImageUrl || !props.customization?.download}
                     onClick={() => {
                       if (downloadInfo.originalImageUrl) {
@@ -505,7 +459,7 @@ export function Toolbar(props: {
                     <span class="textsize-sm opacity-75">
                       {downloadInfo.originalImageUrl ? texts.reader.originalImageSource : texts.reader.originalImageUnavailable}
                     </span>
-                  </button>
+                  </Button>
                 </div>
               )}
             </For>
