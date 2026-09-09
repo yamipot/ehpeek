@@ -1,3 +1,4 @@
+import { persisted, local, enumCodec, numberRangeCodec, nullableStateCodec, nullableCodec, arrayCodec, jsonCodec } from "./storage";
 import { UI_SCALE_NAMES, type UiScale } from "../ui";
 import {
   APP_LOCALES,
@@ -38,36 +39,6 @@ export type MyTagSetOption = {
 export const GALLERY_COLUMNS_RATIO_DEFAULT = 0.5;
 export const GALLERY_COLUMNS_RATIO_MAX = 0.95;
 export const GALLERY_COLUMNS_RATIO_MIN = 0.05;
-
-type StateValue<T> = {
-  defaultValue: T;
-  value: T;
-};
-
-export type PersistedGMStoreValue<T> = StateValue<T> & {
-  clear: () => Promise<void>;
-  preload: () => PersistedGMStoreValue<T>;
-  set: (value: T) => void;
-  setAsync: (value: T) => Promise<void>;
-  reload: () => Promise<T>;
-};
-
-type PersistedLocalStoreValue<T> = StateValue<T> & {
-  clear: () => void;
-  set: (value: T) => void;
-  reload: () => T;
-  stored: () => boolean;
-};
-
-type StateCodec<T> = {
-  parse: (value: unknown) => T | undefined;
-};
-
-type LocalStateCodec<T> = StateCodec<T> & {
-  serialize: (value: T) => string | null;
-};
-
-const persistedStateValues = new Set<{ reload: () => Promise<unknown> }>();
 
 const touchUiDefault = window.matchMedia("(pointer: coarse)").matches;
 const portraitUiScaleDefault: UiScale = touchUiDefault ? "large" : "small";
@@ -224,9 +195,7 @@ export const state = {
   },
 } as const;
 
-export async function loadState(): Promise<void> {
-  await Promise.all(Array.from(persistedStateValues, (item) => item.reload()));
-}
+export { loadPersistedState as loadState } from "./storage";
 
 export async function clearBackToTopPositions(): Promise<void> {
   await Promise.all([
@@ -260,44 +229,6 @@ export async function removeSearchHistory(value: string): Promise<string[]> {
   return history;
 }
 
-export function persisted<T>(
-  key: string,
-  defaultValue: T,
-  codec: StateCodec<T> = { parse: (value) => value as T },
-): PersistedGMStoreValue<T> {
-  const item: PersistedGMStoreValue<T> = {
-    defaultValue,
-    value: defaultValue,
-    async clear() {
-      item.value = defaultValue;
-      await GM.deleteValue(key);
-    },
-    preload() {
-      persistedStateValues.add(item);
-      return item;
-    },
-    set(value) {
-      void item.setAsync(value).catch((error: unknown) => {
-        console.error(`[ehpeek] Failed to persist ${key}`, error);
-      });
-    },
-    async setAsync(value) {
-      item.value = value;
-      await GM.setValue(key, value);
-    },
-    async reload() {
-      const stored = await GM.getValue<unknown>(key, defaultValue);
-      const parsed = codec.parse(stored);
-      item.value = parsed ?? defaultValue;
-      if (parsed === undefined) {
-        await GM.setValue(key, defaultValue);
-      }
-      return item.value;
-    },
-  };
-  return item;
-}
-
 function readerControls(orientation: ReaderOrientation) {
   return {
     navigationMode: persisted<NavigationMode>(
@@ -321,96 +252,6 @@ function readerControls(orientation: ReaderOrientation) {
       "previous",
     ).preload(),
   } as const;
-}
-
-function local<T>(
-  key: string,
-  defaultValue: T,
-  codec: LocalStateCodec<T>,
-): PersistedLocalStoreValue<T> {
-  const read = () => {
-    const stored = window.localStorage.getItem(key);
-    return stored === null ? defaultValue : codec.parse(stored) ?? defaultValue;
-  };
-  const item: PersistedLocalStoreValue<T> = {
-    defaultValue,
-    value: read(),
-    set(value) {
-      item.value = value;
-      const stored = codec.serialize(value);
-      if (stored === null) {
-        window.localStorage.removeItem(key);
-      } else {
-        window.localStorage.setItem(key, stored);
-      }
-    },
-    reload() {
-      item.value = read();
-      return item.value;
-    },
-    clear() {
-      item.value = defaultValue;
-      window.localStorage.removeItem(key);
-    },
-    stored() {
-      return window.localStorage.getItem(key) !== null;
-    },
-  };
-  return item;
-}
-
-function enumCodec<T extends string>(values: readonly T[]): LocalStateCodec<T> {
-  return {
-    parse: (value) => values.includes(value as T) ? value as T : undefined,
-    serialize: (value) => value,
-  };
-}
-
-function numberRangeCodec(min: number, max: number): StateCodec<number> {
-  return {
-    parse: (value) =>
-      typeof value === "number" &&
-        Number.isFinite(value) &&
-        value >= min &&
-        value <= max
-        ? value
-        : undefined,
-  };
-}
-
-function nullableStateCodec<T>(codec: StateCodec<T>): StateCodec<T | null> {
-  return {
-    parse: (value) => value === null ? null : codec.parse(value),
-  };
-}
-
-function nullableCodec<T>(codec: LocalStateCodec<T>): LocalStateCodec<T | null> {
-  return {
-    parse: codec.parse,
-    serialize: (value) => value === null ? null : codec.serialize(value),
-  };
-}
-
-function arrayCodec<T>(valid: (value: unknown) => value is T): StateCodec<T[]> {
-  return {
-    parse: (value) => Array.isArray(value) ? value.filter(valid) : undefined,
-  };
-}
-
-function jsonCodec<T>(codec: StateCodec<T>): LocalStateCodec<T> {
-  return {
-    parse(value) {
-      if (typeof value !== "string") {
-        return undefined;
-      }
-      try {
-        return codec.parse(JSON.parse(value) as unknown);
-      } catch {
-        return undefined;
-      }
-    },
-    serialize: (value) => JSON.stringify(value) ?? null,
-  };
 }
 
 function isMyTagAppearance(value: unknown): value is MyTagAppearance {

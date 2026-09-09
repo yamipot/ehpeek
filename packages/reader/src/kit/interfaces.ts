@@ -122,8 +122,11 @@ export type ReaderSettingsState = {
 
 export type ReadingViewOptions = {
   source: ContentSource;
+  /** Initial preferences; use instance.settings for later changes. */
   settings?: Partial<ReaderSettings>;
+  /** Reports changed values, including programmatic and prop-driven updates. */
   onSettingChange?: SettingCallbacks;
+  /** Injected hosts remain caller-owned; otherwise ReadingView creates and removes its host. */
   host?: OverlayHost;
   texts?: ReaderTexts;
   uiScale?: UiScale;
@@ -138,8 +141,10 @@ export type ReadingViewOptions = {
   onError?: (error: unknown) => void;
   onEnd?: () => void;
   onReaderOpen?: (pageNum: number, embedded: boolean) => void;
+  /** Reports whether Reader is being mounted; open() separately waits for child mount completion. */
   onReaderMount?: (mounted: boolean) => void;
   onReaderClosed?: () => Promise<void> | void;
+  /** A return from Preview, not page selection or dismissal of the whole reader. */
   onPreviewClosed?: (pageNum: number) => void;
 };
 export type ReaderInstance = {
@@ -158,6 +163,7 @@ export type ReadingViewProps = {
   options: ReadingViewOptions;
   embeddedPreview?: boolean;
   fillPreviewContainer?: Accessor<boolean>;
+  /** Changes write into instance settings; these props do not continuously enforce a controlled value. */
   embeddedDirection?: ReadDirection;
   leftHandedControls?: boolean;
   /** Navigation/settings access; Solid owns lifetime and clears the ref on unmount. */

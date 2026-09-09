@@ -141,6 +141,163 @@ function parseGalleryPostedAt(value: string | undefined): number | undefined {
   );
 }
 
+// Detached reads do not retain the installed GalleryInfo mount or its selection state.
+const readCategory = (
+  node: DomNode<HTMLElement> | null,
+): GalleryCategoryAppearance => {
+  const style = node?.computedStyle();
+  return {
+    "background-color": style?.backgroundColor ?? "",
+    "background-image": style?.backgroundImage ?? "",
+    "border-color": style?.borderColor ?? "",
+    color: style?.color ?? "",
+  };
+};
+
+const readCategoryUrl = (
+  node: DomNode<HTMLElement> | null,
+): string | null => {
+  const categoryClass = node
+    ?.attribute("class")
+    ?.split(/\s+/)
+    .find((className): className is keyof typeof GALLERY_CATEGORY_FLAGS =>
+      className in GALLERY_CATEGORY_FLAGS);
+  if (!categoryClass) {
+    return null;
+  }
+  const url = new URL("/", window.location.href);
+  url.searchParams.set(
+    "f_cats",
+    String(1023 - GALLERY_CATEGORY_FLAGS[categoryClass]),
+  );
+  return url.href;
+};
+
+const readCoverUrl = (
+  cover: DomNode<HTMLElement> | null,
+  source: DomNode<HTMLImageElement> | null,
+) => {
+  const direct = source?.attribute("src") ?? "";
+  if (direct) {
+    return direct;
+  }
+  for (const node of cover ? [cover, ...cover.all(domClass.common.descendants)] : []) {
+    const match = node
+      .computedStyle()
+      .backgroundImage.match(/url\(["']?(.+?)["']?\)/);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+  return "";
+};
+
+const readFavorite = (
+  element: DomNode<HTMLElement> | null,
+  scripts: string[],
+): GalleryFavoriteInfo => {
+  const displayed =
+    element?.one(domClass.gallery.info.favorite.link)?.text() ||
+    element?.one(domClass.gallery.info.favorite.titled)?.attribute("title")?.trim() ||
+    "";
+  const slot = displayed.match(/(?:^|\D)([0-9])(?:\D|$)/)?.[1];
+  const favorited = slot !== undefined || /^favorited$/i.test(displayed);
+  const script =
+    scripts.find(
+      (item) => item.includes("popbase") && item.includes("addfav"),
+    ) ?? "";
+  const match = script.match(
+    /popbase\s*=\s*base_url\s*\+\s*"gallerypopups\.php\?gid=(\d+)&t=([^"]+)&act="/,
+  );
+  return {
+    actionUrl: match
+      ? `/gallerypopups.php?gid=${match[1]}&t=${match[2]}&act=addfav`
+      : "",
+    color: slot === undefined ? null : `var(--color-site-favorite-${slot})`,
+    favorited,
+    label: favorited ? displayed : texts.gallery.notFavorited,
+  };
+};
+
+const readRating = (
+  count: DomNode<HTMLElement> | null,
+  image: DomNode<HTMLElement> | null,
+  labelNode: DomNode<HTMLElement> | null,
+  scripts: string[],
+): GalleryRatingInfo | null => {
+  const label = labelNode?.text() ?? "";
+  const match = (
+    scripts.find((item) => item.includes("display_rating")) ?? ""
+  ).match(/\bdisplay_rating\s*=\s*(-?\d+(?:\.\d+)?)/);
+  const scriptValue = Number(match?.[1]);
+  const value = match && Number.isFinite(scriptValue) ? scriptValue : null;
+  return label && value !== null
+    ? {
+      count: count?.text() ?? "",
+      label,
+      rated: image?.matches(domClass.gallery.info.rating.rated) ?? false,
+      value,
+    }
+    : null;
+};
+
+const readTag = (tag: DomNode<HTMLAnchorElement>) => {
+  const label = tag.text() ||
+    tag.attribute(externalDom.tagLabelAttribute)?.trim() ||
+    tag.attribute("title")?.trim() || "";
+  const href = tag.attribute("href") ?? "";
+  const name = galleryTagNameFromUrl(href);
+  if (!label || !name || !href) {
+    return null;
+  }
+  const container = tag.closest(domClass.gallery.tagContainer) ?? tag;
+  const tagStyle = tag.computedStyle();
+  const containerStyle = container.computedStyle();
+  const myTagId = tag.attribute("data-ehpeek-my-tag-id");
+  const myTagSet = tag.attribute("data-ehpeek-my-tag-set");
+  return {
+    data: {
+      appearance: {
+        backgroundColor: containerStyle.backgroundColor,
+        borderColor: containerStyle.borderColor,
+        color: tagStyle.color,
+      },
+      label,
+      myTag: myTagId && myTagSet ? { id: myTagId, tagSet: myTagSet } : null,
+      name,
+      url: href,
+    },
+    source: tag,
+  };
+};
+
+const favoriteColor = (value: string): string | null => {
+  const slot = value.match(/^(?:fav)?([0-9])$/i)?.[1]
+    ?? value.match(/^favorites?\s+([0-9])$/i)?.[1];
+  return slot === undefined ? null : `var(--color-site-favorite-${slot})`;
+};
+
+const readFavoriteDialog = (
+  doc: Document,
+  favorited: boolean,
+) => {
+  const dialog = DomNode.from(doc).use(domClass.gallery.favoriteDialog);
+  const options: GalleryFavoriteOption[] = dialog.options.all().map((favoriteInput) => {
+    const row = favoriteInput.closest(domClass.gallery.favoriteDialog.optionRow);
+    const value = favoriteInput.inputValue();
+    return {
+      color: favoriteColor(value),
+      label: row?.text().replace(/\s+/g, " ") || value,
+      selected: favorited && favoriteInput.checked(),
+      value,
+    };
+  });
+  return {
+    note: dialog.note.one()?.inputValue() ?? "",
+    options,
+  };
+};
+
 /** Manages E-H's gallery header for GalleryInfoPanel. */
 export function manageGalleryInfo(
   preview: GalleryPreviewData | null,
@@ -182,104 +339,7 @@ export function manageGalleryInfo(
     };
   };
 
-  const readCategory = (
-    node: DomNode<HTMLElement> | null,
-  ): GalleryCategoryAppearance => {
-    const style = node?.computedStyle();
-    return {
-      "background-color": style?.backgroundColor ?? "",
-      "background-image": style?.backgroundImage ?? "",
-      "border-color": style?.borderColor ?? "",
-      color: style?.color ?? "",
-    };
-  };
 
-  const readCategoryUrl = (
-    node: DomNode<HTMLElement> | null,
-  ): string | null => {
-    const categoryClass = node
-      ?.attribute("class")
-      ?.split(/\s+/)
-      .find((className): className is keyof typeof GALLERY_CATEGORY_FLAGS =>
-        className in GALLERY_CATEGORY_FLAGS);
-    if (!categoryClass) {
-      return null;
-    }
-    const url = new URL("/", window.location.href);
-    url.searchParams.set(
-      "f_cats",
-      String(1023 - GALLERY_CATEGORY_FLAGS[categoryClass]),
-    );
-    return url.href;
-  };
-
-  const readCoverUrl = (
-    cover: DomNode<HTMLElement> | null,
-    source: DomNode<HTMLImageElement> | null,
-  ) => {
-    const direct = source?.attribute("src") ?? "";
-    if (direct) {
-      return direct;
-    }
-    for (const node of cover ? [cover, ...cover.all(domClass.common.descendants)] : []) {
-      const match = node
-        .computedStyle()
-        .backgroundImage.match(/url\(["']?(.+?)["']?\)/);
-      if (match?.[1]) {
-        return match[1];
-      }
-    }
-    return "";
-  };
-
-  const readFavorite = (
-    element: DomNode<HTMLElement> | null,
-    scripts: string[],
-  ): GalleryFavoriteInfo => {
-    const displayed =
-      element?.one(domClass.gallery.info.favorite.link)?.text() ||
-      element?.one(domClass.gallery.info.favorite.titled)?.attribute("title")?.trim() ||
-      "";
-    const slot = displayed.match(/(?:^|\D)([0-9])(?:\D|$)/)?.[1];
-    const favorited = slot !== undefined || /^favorited$/i.test(displayed);
-    const script =
-      scripts.find(
-        (item) => item.includes("popbase") && item.includes("addfav"),
-      ) ?? "";
-    const match = script.match(
-      /popbase\s*=\s*base_url\s*\+\s*"gallerypopups\.php\?gid=(\d+)&t=([^"]+)&act="/,
-    );
-    return {
-      actionUrl: match
-        ? `/gallerypopups.php?gid=${match[1]}&t=${match[2]}&act=addfav`
-        : "",
-      color: slot === undefined ? null : `var(--color-site-favorite-${slot})`,
-      favorited,
-      label: favorited ? displayed : texts.gallery.notFavorited,
-    };
-  };
-
-  const readRating = (
-    count: DomNode<HTMLElement> | null,
-    image: DomNode<HTMLElement> | null,
-    labelNode: DomNode<HTMLElement> | null,
-    scripts: string[],
-  ): GalleryRatingInfo | null => {
-    const label = labelNode?.text() ?? "";
-    const match = (
-      scripts.find((item) => item.includes("display_rating")) ?? ""
-    ).match(/\bdisplay_rating\s*=\s*(-?\d+(?:\.\d+)?)/);
-    const scriptValue = Number(match?.[1]);
-    const value = match && Number.isFinite(scriptValue) ? scriptValue : null;
-    return label && value !== null
-      ? {
-          count: count?.text() ?? "",
-          label,
-          rated: image?.matches(domClass.gallery.info.rating.rated) ?? false,
-          value,
-        }
-      : null;
-  };
 
   const readActions = () =>
     gallery.actions.items
@@ -292,36 +352,6 @@ export function manageGalleryInfo(
         );
       })
       .slice(0, 6);
-
-  const readTag = (tag: DomNode<HTMLAnchorElement>) => {
-    const label = tag.text() ||
-      tag.attribute(externalDom.tagLabelAttribute)?.trim() ||
-      tag.attribute("title")?.trim() || "";
-    const href = tag.attribute("href") ?? "";
-    const name = galleryTagNameFromUrl(href);
-    if (!label || !name || !href) {
-      return null;
-    }
-    const container = tag.closest(domClass.gallery.tagContainer) ?? tag;
-    const tagStyle = tag.computedStyle();
-    const containerStyle = container.computedStyle();
-    const myTagId = tag.attribute("data-ehpeek-my-tag-id");
-    const myTagSet = tag.attribute("data-ehpeek-my-tag-set");
-    return {
-      data: {
-        appearance: {
-          backgroundColor: containerStyle.backgroundColor,
-          borderColor: containerStyle.borderColor,
-          color: tagStyle.color,
-        },
-        label,
-        myTag: myTagId && myTagSet ? { id: myTagId, tagSet: myTagSet } : null,
-        name,
-        url: href,
-      },
-      source: tag,
-    };
-  };
 
   const readTagGroups = () => {
     const rows = gallery.tags.rows.all();
@@ -337,33 +367,6 @@ export function manageGalleryInfo(
       namespace: "tag",
       tags: gallery.tags.links.all().map(readTag).filter((tag) => tag !== null).slice(0, 60),
     }].filter((group) => group.tags.length > 0);
-  };
-
-  const favoriteColor = (value: string): string | null => {
-    const slot = value.match(/^(?:fav)?([0-9])$/i)?.[1]
-      ?? value.match(/^favorites?\s+([0-9])$/i)?.[1];
-    return slot === undefined ? null : `var(--color-site-favorite-${slot})`;
-  };
-
-  const readFavoriteDialog = (
-    doc: Document,
-    favorited: boolean,
-  ) => {
-    const dialog = DomNode.from(doc).use(domClass.gallery.favoriteDialog);
-    const options: GalleryFavoriteOption[] = dialog.options.all().map((favoriteInput) => {
-      const row = favoriteInput.closest(domClass.gallery.favoriteDialog.optionRow);
-      const value = favoriteInput.inputValue();
-      return {
-        color: favoriteColor(value),
-        label: row?.text().replace(/\s+/g, " ") || value,
-        selected: favorited && favoriteInput.checked(),
-        value,
-      };
-    });
-    return {
-      note: dialog.note.one()?.inputValue() ?? "",
-      options,
-    };
   };
 
   const manageTagGroups = (): GalleryInfoTagGroup[] => readTagGroups().map((group) => ({
@@ -638,88 +641,9 @@ export function mutateGalleryWideLayout(
   let infoRatio = initialInfoRatio;
   const columnSubscriptions = new Set<() => void>();
 
-  const createColumnScope = (column: GalleryColumn): GalleryColumnScope => {
-    const element = () => (column === "info" ? left : right)?.Component() ?? null;
-    return {
-      column,
-      available: () => element()?.isConnected ?? false,
-      bounds: () => {
-        const target = element();
-        if (!target?.isConnected) {
-          return null;
-        }
-        const { bottom, height, left, right, top, width } = target.getBoundingClientRect();
-        return { bottom, height, left, right, top, width };
-      },
-      listen: ({ onBoundsChange, onScroll }) => {
-        let target: HTMLElement | null = null;
-        let frame: number | null = null;
-        const scheduleBoundsChange = () => {
-          if (frame !== null) {
-            return;
-          }
-          frame = window.requestAnimationFrame(() => {
-            frame = null;
-            onBoundsChange();
-          });
-        };
-        const resizeObserver = new ResizeObserver(scheduleBoundsChange);
-        const syncColumn = () => {
-          const next = element();
-          if (next === target) {
-            return;
-          }
-          if (target && onScroll) {
-            target.removeEventListener("scroll", onScroll);
-          }
-          resizeObserver.disconnect();
-          target = next;
-          if (target) {
-            resizeObserver.observe(target);
-            if (onScroll) {
-              target.addEventListener("scroll", onScroll, { passive: true });
-            }
-          }
-          scheduleBoundsChange();
-        };
-        const onAncestorScroll = (event: Event) => {
-          if (!target) {
-            return;
-          }
-          const scroller = event.target;
-          // Scrolling inside a column does not move the column's viewport bounds.
-          if (
-            scroller === document ||
-            scroller === window ||
-            (scroller instanceof Element && scroller !== target && scroller.contains(target))
-          ) {
-            scheduleBoundsChange();
-          }
-        };
-        syncColumn();
-        columnSubscriptions.add(syncColumn);
-        window.addEventListener("resize", scheduleBoundsChange);
-        window.addEventListener("scroll", onAncestorScroll, { capture: true, passive: true });
-        return () => {
-          columnSubscriptions.delete(syncColumn);
-          resizeObserver.disconnect();
-          if (target && onScroll) {
-            target.removeEventListener("scroll", onScroll);
-          }
-          window.removeEventListener("resize", scheduleBoundsChange);
-          window.removeEventListener("scroll", onAncestorScroll, true);
-          if (frame !== null) {
-            window.cancelAnimationFrame(frame);
-          }
-        };
-      },
-      scrollToTop: () => element()?.scrollTo({ top: 0, behavior: "smooth" }),
-      scrollTop: () => element()?.scrollTop ?? 0,
-    };
-  };
   const columnScopes = {
-    info: createColumnScope("info"),
-    preview: createColumnScope("preview"),
+    info: createColumnScope("info", () => left?.Component() ?? null, columnSubscriptions),
+    preview: createColumnScope("preview", () => right?.Component() ?? null, columnSubscriptions),
   };
 
   const update = () => {
@@ -897,4 +821,89 @@ export function manageGalleryCommentsTouch(onLoadError: (error: unknown) => void
       }
     });
   }
+}
+
+// Column observers follow the current column node; moving/restoring original nodes
+// is owned by mutateGalleryWideLayout and only triggers subscription rebinding.
+function createColumnScope(
+  column: GalleryColumn,
+  element: () => HTMLElement | null,
+  columnSubscriptions: Set<() => void>,
+): GalleryColumnScope {
+    return {
+      column,
+      available: () => element()?.isConnected ?? false,
+      bounds: () => {
+        const target = element();
+        if (!target?.isConnected) {
+          return null;
+        }
+        const { bottom, height, left, right, top, width } = target.getBoundingClientRect();
+        return { bottom, height, left, right, top, width };
+      },
+      listen: ({ onBoundsChange, onScroll }) => {
+        let target: HTMLElement | null = null;
+        let frame: number | null = null;
+        const scheduleBoundsChange = () => {
+          if (frame !== null) {
+            return;
+          }
+          frame = window.requestAnimationFrame(() => {
+            frame = null;
+            onBoundsChange();
+          });
+        };
+        const resizeObserver = new ResizeObserver(scheduleBoundsChange);
+        const syncColumn = () => {
+          const next = element();
+          if (next === target) {
+            return;
+          }
+          if (target && onScroll) {
+            target.removeEventListener("scroll", onScroll);
+          }
+          resizeObserver.disconnect();
+          target = next;
+          if (target) {
+            resizeObserver.observe(target);
+            if (onScroll) {
+              target.addEventListener("scroll", onScroll, { passive: true });
+            }
+          }
+          scheduleBoundsChange();
+        };
+        const onAncestorScroll = (event: Event) => {
+          if (!target) {
+            return;
+          }
+          const scroller = event.target;
+          // Scrolling inside a column does not move the column's viewport bounds.
+          if (
+            scroller === document ||
+            scroller === window ||
+            (scroller instanceof Element && scroller !== target && scroller.contains(target))
+          ) {
+            scheduleBoundsChange();
+          }
+        };
+        syncColumn();
+        columnSubscriptions.add(syncColumn);
+        window.addEventListener("resize", scheduleBoundsChange);
+        window.addEventListener("scroll", onAncestorScroll, { capture: true, passive: true });
+        return () => {
+          columnSubscriptions.delete(syncColumn);
+          resizeObserver.disconnect();
+          if (target && onScroll) {
+            target.removeEventListener("scroll", onScroll);
+          }
+          window.removeEventListener("resize", scheduleBoundsChange);
+          window.removeEventListener("scroll", onAncestorScroll, true);
+          if (frame !== null) {
+            window.cancelAnimationFrame(frame);
+          }
+        };
+      },
+      scrollToTop: () => element()?.scrollTo({ top: 0, behavior: "smooth" }),
+      scrollTop: () => element()?.scrollTop ?? 0,
+    };
 }

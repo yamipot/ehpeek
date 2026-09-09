@@ -1,5 +1,5 @@
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
-import type { NavigationMode, PageLayout, ReadDirection, ReaderCustomization, RightTapAction } from "../kit/interfaces";
+import type { NavigationMode, PageLayout, ReadDirection, ReaderCustomization } from "../kit/interfaces";
 import { useReaderTexts, type ReaderTexts } from "../kit/i18n";
 import { stopEvent } from "../kit/helpers";
 import { Button } from "../kit/Widgets/Button";
@@ -8,13 +8,7 @@ import { Icon } from "../kit/Widgets/Icon";
 import { ProgressBar } from "../kit/Widgets/ProgressBar";
 import { InteractionHelp } from "../kit/Widgets/InteractionHelp";
 
-export type ReaderControls = {
-  navigationMode: NavigationMode;
-  direction: ReadDirection;
-  firstPageSeparate: boolean;
-  pageLayout: PageLayout;
-  rightTapAction: RightTapAction;
-};
+import type { ReaderControls } from "./session";
 
 export type PageProgress = {
   pageNum: number;
@@ -66,8 +60,6 @@ export function Toolbar(props: {
 }) {
   const texts = useReaderTexts();
   const leftHandedControls = () => props.leftHandedControls;
-  const startImageDownload = (url: string, name: string) => props.customization?.download?.(url, name) ?? false;
-  const [downloadDialogPageNum, setDownloadDialogPageNum] = createSignal<number | null>(null);
   const [helpOpen, setHelpOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
   const [controlChange, setControlChange] = createSignal<string | null>(null);
@@ -125,13 +117,6 @@ export function Toolbar(props: {
     }
   });
 
-  createEffect(() => {
-    const pageNum = downloadDialogPageNum();
-    if (pageNum !== null && pageNum !== props.progress.pageNum) {
-      setDownloadDialogPageNum(null);
-    }
-  });
-
   return (
     <div class="ehpeek-reader-tools" data-left-handed={leftHandedControls()}>
       <div
@@ -158,15 +143,12 @@ export function Toolbar(props: {
           >
             <Icon name={props.fullscreenActive ? "fullscreen-exit" : "fullscreen"} size={READER_ICON_SIZE} />
           </Button>
-          <Button
-            class={READER_FLOATING_ICON_ACTION_CLASS}
-            disabled={props.downloadInfos.length === 0}
-            aria-label={texts.reader.download}
-            title={texts.reader.download}
-            onClick={() => setDownloadDialogPageNum(props.progress.pageNum)}
-          >
-            <Icon name="download" size={READER_ICON_SIZE} />
-          </Button>
+          <ReaderDownload
+            disabled={props.disabled}
+            downloadInfos={props.downloadInfos}
+            pageNum={props.progress.pageNum}
+            customization={props.customization}
+          />
         </div>
       </div>
       <div
@@ -181,38 +163,38 @@ export function Toolbar(props: {
           hidden={!props.open}
         >
           <div class="ehpeek-reader-toolbar-row">
-          <Button
-            class={READER_TOOLBAR_BUTTON_CLASS}
-            disabled={!props.customization?.onOpenOriginalPage}
-            onClick={() => props.callbacks.onOpenOriginalPageClick()}
-          >
-            <Icon name="external-link" size={READER_ICON_SIZE} />
-          </Button>
-          <Button
-            class={READER_TOOLBAR_BUTTON_CLASS}
-            aria-label={texts.reader.readingOptions}
-            title={texts.reader.readingOptions}
-            aria-expanded={moreOpen()}
-            onClick={() => setMoreOpen((open) => !open)}
-          >
-            <Icon name="book-open" size={READER_ICON_SIZE} />
-          </Button>
-          <Button
-            class={READER_TOOLBAR_BUTTON_CLASS}
-            aria-label={texts.help.title}
-            title={texts.help.title}
-            onClick={() => setHelpOpen(true)}
-          >
-            ?
-          </Button>
-          <Button
-            class={READER_TOOLBAR_BUTTON_CLASS}
-            aria-label={texts.common.actions.close}
-            title={texts.common.actions.close}
-            onClick={() => props.callbacks.onCloseClick()}
-          >
-            <Icon name="close" size={READER_ICON_SIZE} />
-          </Button>
+            <Button
+              class={READER_TOOLBAR_BUTTON_CLASS}
+              disabled={!props.customization?.onOpenOriginalPage}
+              onClick={() => props.callbacks.onOpenOriginalPageClick()}
+            >
+              <Icon name="external-link" size={READER_ICON_SIZE} />
+            </Button>
+            <Button
+              class={READER_TOOLBAR_BUTTON_CLASS}
+              aria-label={texts.reader.readingOptions}
+              title={texts.reader.readingOptions}
+              aria-expanded={moreOpen()}
+              onClick={() => setMoreOpen((open) => !open)}
+            >
+              <Icon name="book-open" size={READER_ICON_SIZE} />
+            </Button>
+            <Button
+              class={READER_TOOLBAR_BUTTON_CLASS}
+              aria-label={texts.help.title}
+              title={texts.help.title}
+              onClick={() => setHelpOpen(true)}
+            >
+              ?
+            </Button>
+            <Button
+              class={READER_TOOLBAR_BUTTON_CLASS}
+              aria-label={texts.common.actions.close}
+              title={texts.common.actions.close}
+              onClick={() => props.callbacks.onCloseClick()}
+            >
+              <Icon name="close" size={READER_ICON_SIZE} />
+            </Button>
           </div>
           <Show when={moreOpen()}>
             <div class="ehpeek-reader-toolbar-more">
@@ -377,6 +359,40 @@ export function Toolbar(props: {
           onCommit={props.callbacks.onProgressCommit}
         />
       </div>
+      <Show when={!props.disabled && helpOpen()}>
+        <InteractionHelp variant="reader" onClose={() => setHelpOpen(false)} />
+      </Show>
+    </div>
+  );
+}
+
+function ReaderDownload(props: {
+  disabled?: boolean;
+  downloadInfos: ReaderDownloadInfo[];
+  pageNum: number;
+  customization?: ReaderCustomization;
+}) {
+  const texts = useReaderTexts();
+  const startImageDownload = (url: string, name: string) => props.customization?.download?.(url, name) ?? false;
+  const [downloadDialogPageNum, setDownloadDialogPageNum] = createSignal<number | null>(null);
+  createEffect(() => {
+    const pageNum = downloadDialogPageNum();
+    if (pageNum !== null && pageNum !== props.pageNum) {
+      setDownloadDialogPageNum(null);
+    }
+  });
+
+  return (
+    <>
+      <Button
+        class={READER_FLOATING_ICON_ACTION_CLASS}
+        disabled={props.downloadInfos.length === 0}
+        aria-label={texts.reader.download}
+        title={texts.reader.download}
+        onClick={() => setDownloadDialogPageNum(props.pageNum)}
+      >
+        <Icon name="download" size={READER_ICON_SIZE} />
+      </Button>
       <Show when={!props.disabled && downloadDialogPageNum() !== null && props.downloadInfos.length > 0}>
         <Dialog
           bodyClass="ehpeek-reader-download-body"
@@ -470,10 +486,7 @@ export function Toolbar(props: {
           </div>
         </Dialog>
       </Show>
-      <Show when={!props.disabled && helpOpen()}>
-        <InteractionHelp variant="reader" onClose={() => setHelpOpen(false)} />
-      </Show>
-    </div>
+    </>
   );
 }
 

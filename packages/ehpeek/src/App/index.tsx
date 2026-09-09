@@ -17,7 +17,7 @@ import {
   type GalleryReadHistory,
 } from "../state/readHistory";
 import { SearchHistory } from "../components/Enhance/SearchHistory";
-import { loadMyTagAppearances, refreshMyTags } from "../components/Enhance/MyTags";
+import { loadMyTagAppearances, refreshMyTags } from "../state/myTags";
 import { SettingsMenu } from "../components/SettingsMenu";
 import { createOverlayHost, LauncherButton, OverlayHostProvider } from "@ehpeek/reader/kit/Widgets";
 import { GalleryColumnsResizeHandle } from "../components/Widgets/GalleryColumnsResizeHandle";
@@ -34,20 +34,14 @@ import {
   TouchTopBar,
 } from "../components/TouchUI";
 import * as eh from "../eh";
-import {
-  clearBackToTopPositions,
-  GALLERY_COLUMNS_RATIO_DEFAULT,
-  GALLERY_COLUMNS_RATIO_MAX,
-  GALLERY_COLUMNS_RATIO_MIN,
-  state,
-} from "../state";
+import { state } from "../state";
 import { dispatchReady } from "../state/events";
 import texts from "../i18n";
 import { registerGlobalStyle } from "@ehpeek/reader/kit/helpers";
 import ehDomCss from "../eh/dom/styles.css";
 import unoCss from "ehpeek:uno.css";
 import themeCss from "../theme.css";
-import { reportReaderOpenError } from "./Reader";
+import { reportUiError } from "../ui";
 import type { ReadingProgress } from "./ReadingProgressSession";
 import {
   createGalleryCoordinator,
@@ -67,95 +61,27 @@ import {
   type UiScale,
 } from "../ui";
 
-function settingsMenuState(defaults = false) {
-  const read = <T,>(setting: { defaultValue: T; value: T }): T =>
-    defaults ? setting.defaultValue : setting.value;
+import { settingsMenuState, applySettingsMenuState } from "./Settings";
+import { createGalleryColumns } from "./GalleryColumns";
 
-  return {
-    twoColumnsReaderMode: read(state.reader.twoColumnsMode),
-    openGalleryInNewTab: read(state.app.openGalleryInNewTab),
-    locale: read(state.app.locale),
-    readerEnabled: read(state.reader.enabled),
-    exitReaderOnFullscreenExit: read(state.reader.exitOnFullscreenExit),
-    readerFullscreenEnabled: read(state.reader.fullscreen),
-    includeReaderPageInUrl: read(state.reader.includePageInUrl),
-    replacePreviewWithScroll: read(state.gallery.replacePreviewWithScroll),
-    enhanceThumbsGridsEnabled: read(state.gallery.enhanceThumbs),
-    enhanceSearchGridsEnabled: read(state.search.enhance),
-    myTagsEnabled: read(state.gallery.myTags),
-    readHistoryEnabled: read(state.gallery.readHistory),
-    includeUnreadHistoryEnabled: read(state.gallery.includeUnreadHistory),
-    searchHistoryEnabled: read(state.search.history),
-    touchUiEnabled: read(state.touch.enabled),
-    fitToViewport: read(state.touch.fitToViewport),
-    portraitUiScale: read(state.app.portraitUiScale),
-    landscapeUiScale: read(state.app.landscapeUiScale),
-  };
-}
-
-async function applySettingsMenuState(
-  next: ReturnType<typeof settingsMenuState>,
-): Promise<void> {
-  if (!next.touchUiEnabled) {
-    await clearBackToTopPositions();
-  }
-  await Promise.all([
-    state.reader.twoColumnsMode.setAsync(next.twoColumnsReaderMode),
-    state.app.openGalleryInNewTab.setAsync(next.openGalleryInNewTab),
-    state.app.locale.setAsync(next.locale),
-    state.reader.enabled.setAsync(next.readerEnabled),
-    state.reader.exitOnFullscreenExit.setAsync(next.exitReaderOnFullscreenExit),
-    state.reader.fullscreen.setAsync(next.readerFullscreenEnabled),
-    state.reader.includePageInUrl.setAsync(next.includeReaderPageInUrl),
-    state.gallery.replacePreviewWithScroll.setAsync(next.replacePreviewWithScroll),
-    state.gallery.enhanceThumbs.setAsync(next.enhanceThumbsGridsEnabled),
-    state.search.enhance.setAsync(next.enhanceSearchGridsEnabled),
-    state.gallery.myTags.setAsync(next.myTagsEnabled),
-    state.gallery.readHistory.setAsync(next.readHistoryEnabled),
-    state.gallery.includeUnreadHistory.setAsync(next.includeUnreadHistoryEnabled),
-    state.search.history.setAsync(next.searchHistoryEnabled),
-    state.touch.enabled.setAsync(next.touchUiEnabled),
-    state.touch.fitToViewport.setAsync(next.fitToViewport),
-    state.app.portraitUiScale.setAsync(next.portraitUiScale),
-    state.app.landscapeUiScale.setAsync(next.landscapeUiScale),
-  ]);
-  window.location.reload();
-}
-
+// Page-wide UI preferences; column state has its own owner.
 const gState = (() => {
   const settings = settingsMenuState();
-  const [columnsEnabled, setColumnsEnabled] = createSignal(currentColumnsEnabled());
-  const [galleryColumnsRatio, setGalleryColumnsRatio] =
-    createSignal(currentGalleryColumnsRatio());
-  const [readerPreviewColumnsRatio, setReaderPreviewColumnsRatio] =
-    createSignal(currentReaderPreviewColumnsRatio());
-  const [readerPreviewModeActive, setReaderPreviewModeActive] = createSignal(false);
-  const [galleryColumnsResizeHandleVisible, setGalleryColumnsResizeHandleVisible] =
-    createSignal(false);
   const [leftHandedControls, setLeftHandedControls] =
     createSignal(state.app.leftHandedControls.value);
   const [settingsMenuOpen, setSettingsMenuOpen] = createSignal(false);
   const [uiScale, setUiScale] = createSignal(currentUiScale());
   return {
-    columnsEnabled,
-    galleryColumnsRatio,
-    galleryColumnsResizeHandleVisible,
     leftHandedControls,
-    readerPreviewColumnsRatio,
-    readerPreviewModeActive,
     setLeftHandedControls,
     settings,
     settingsMenuOpen,
     setUiScale,
-    setColumnsEnabled,
-    setGalleryColumnsRatio,
-    setGalleryColumnsResizeHandleVisible,
-    setReaderPreviewColumnsRatio,
-    setReaderPreviewModeActive,
     setSettingsMenuOpen,
     uiScale,
   };
 })();
+const columns = createGalleryColumns(gState.settings.touchUiEnabled);
 
 function currentUiScale(): UiScale {
   return currentUiScaleSetting().value;
@@ -167,42 +93,6 @@ function currentUiScaleSetting() {
     : state.app.portraitUiScale;
 }
 
-function currentColumnsEnabled(): boolean {
-  return currentColumnsSetting().value;
-}
-
-function currentColumnsSetting() {
-  return window.matchMedia("(orientation: landscape)").matches
-    ? state.touch.landscapeColumns
-    : state.touch.portraitColumns;
-}
-
-function currentGalleryColumnsRatio(): number {
-  return currentGalleryColumnsRatioSetting().value;
-}
-
-function currentGalleryColumnsRatioSetting() {
-  return window.matchMedia("(orientation: landscape)").matches
-    ? state.touch.landscapeGalleryColumnsRatio
-    : state.touch.portraitGalleryColumnsRatio;
-}
-
-function currentReaderPreviewColumnsRatio(): number | null {
-  return currentReaderPreviewColumnsRatioSetting().value;
-}
-
-function currentReaderPreviewColumnsRatioSetting() {
-  return window.matchMedia("(orientation: landscape)").matches
-    ? state.touch.landscapeReaderPreviewColumnsRatio
-    : state.touch.portraitReaderPreviewColumnsRatio;
-}
-
-function activeGalleryColumnsRatio(): number {
-  return gState.readerPreviewModeActive()
-    ? gState.readerPreviewColumnsRatio() ?? gState.galleryColumnsRatio()
-    : gState.galleryColumnsRatio();
-}
-
 let overlayHost: OverlayHost;
 
 function updateUiScale(): void {
@@ -210,55 +100,6 @@ function updateUiScale(): void {
   gState.setUiScale(scale);
   applyUiScale(scale);
   overlayHost?.setUiScale(scale);
-}
-
-function updateColumnsLayout(): void {
-  if (!gState.settings.touchUiEnabled) {
-    return;
-  }
-  gState.setColumnsEnabled(currentColumnsEnabled());
-  gState.setGalleryColumnsRatio(currentGalleryColumnsRatio());
-  gState.setReaderPreviewColumnsRatio(currentReaderPreviewColumnsRatio());
-}
-
-function setCurrentColumnsEnabled(enabled: boolean): void {
-  void currentColumnsSetting().setAsync(enabled)
-    .then(() => window.location.reload())
-    .catch(reportReaderOpenError);
-}
-
-function updateGalleryColumnsRatio(ratio: number): void {
-  const normalized = Math.min(
-    GALLERY_COLUMNS_RATIO_MAX,
-    Math.max(GALLERY_COLUMNS_RATIO_MIN, ratio),
-  );
-  if (gState.readerPreviewModeActive()) {
-    gState.setReaderPreviewColumnsRatio(normalized);
-  } else {
-    gState.setGalleryColumnsRatio(normalized);
-  }
-}
-
-function persistGalleryColumnsRatio(ratio: number): void {
-  if (gState.readerPreviewModeActive()) {
-    currentReaderPreviewColumnsRatioSetting().set(ratio);
-  } else {
-    currentGalleryColumnsRatioSetting().set(ratio);
-  }
-}
-
-function resetGalleryColumnsRatio(): void {
-  if (gState.readerPreviewModeActive()) {
-    gState.setReaderPreviewColumnsRatio(null);
-    currentReaderPreviewColumnsRatioSetting().set(null);
-    return;
-  }
-  updateGalleryColumnsRatio(GALLERY_COLUMNS_RATIO_DEFAULT);
-  persistGalleryColumnsRatio(GALLERY_COLUMNS_RATIO_DEFAULT);
-}
-
-function setGalleryColumnsResizeHandleVisible(visible: boolean): void {
-  gState.setGalleryColumnsResizeHandleVisible(visible);
 }
 
 function setCurrentUiScale(scale: UiScale): void {
@@ -471,6 +312,7 @@ function TouchGalleryReadButton(props: GalleryReadButtonProps) {
   );
 }
 
+// Settings entry and shared page chrome.
 function installSettingsMenu(): void {
   if (GM.registerMenuCommand) {
     void GM.registerMenuCommand(texts.settings.openSettings, () => {
@@ -565,13 +407,13 @@ function injectCommon(page: eh.PageType): void {
         }}
         columns={{
           available: columnsAvailable,
-          enabled: gState.columnsEnabled,
-          onChange: setCurrentColumnsEnabled,
+          enabled: columns.enabled,
+          onChange: columns.setEnabled,
           ...(page.type === "gallery"
             ? {
               resizeHandle: {
-                visible: gState.galleryColumnsResizeHandleVisible,
-                onChange: setGalleryColumnsResizeHandleVisible,
+                visible: columns.resizeHandleVisible,
+                onChange: columns.showResizeHandle,
               },
             }
             : {}),
@@ -593,7 +435,7 @@ function injectCommon(page: eh.PageType): void {
     allowFeatureFailure("Back to top", () => {
       const host = createAppMount();
       host.mount(() => (
-        <Show when={page.type !== "gallery" || !gState.columnsEnabled()}>
+        <Show when={page.type !== "gallery" || !columns.enabled()}>
           <BackToTop leftHanded={gState.leftHandedControls} />
         </Show>
       ));
@@ -601,6 +443,7 @@ function injectCommon(page: eh.PageType): void {
   }
 }
 
+// Gallery installation connects source DOM, column layout and the complete reader.
 function injectGalleryDetails(
   previewCache: GalleryPreviewCache,
   coordinator: GalleryCoordinator,
@@ -619,33 +462,31 @@ function injectGalleryDetails(
       eh.mutateGalleryWideLayout(
         galleryInfoDom,
         preview,
-        gState.columnsEnabled(),
-        activeGalleryColumnsRatio(),
+        columns.enabled(),
+        columns.ratio(),
         gState.settings.replacePreviewWithScroll,
       ),
     );
-    createEffect(() => galleryWideLayout?.updateEnabled(gState.columnsEnabled()));
+    createEffect(() => galleryWideLayout?.updateEnabled(columns.enabled()));
     createEffect(() =>
-      galleryWideLayout?.updateInfoRatio(activeGalleryColumnsRatio())
+      galleryWideLayout?.updateInfoRatio(columns.ratio())
     );
     galleryWideLayout.resizeHandleMount.mount(() => (
       <GalleryColumnsResizeHandle
-        onClose={() => setGalleryColumnsResizeHandleVisible(false)}
-        onReset={resetGalleryColumnsRatio}
-        ratio={activeGalleryColumnsRatio()}
-        resetDisabled={gState.readerPreviewModeActive()
-          ? gState.readerPreviewColumnsRatio() === null
-          : gState.galleryColumnsRatio() === GALLERY_COLUMNS_RATIO_DEFAULT}
-        visible={gState.galleryColumnsResizeHandleVisible()}
-        onInput={updateGalleryColumnsRatio}
-        onCommit={persistGalleryColumnsRatio}
+        onClose={() => columns.showResizeHandle(false)}
+        onReset={columns.resetRatio}
+        ratio={columns.ratio()}
+        resetDisabled={columns.resetDisabled()}
+        visible={columns.resizeHandleVisible()}
+        onInput={columns.updateRatio}
+        onCommit={columns.commitRatio}
       />
     ));
     const infoColumnScope = galleryWideLayout.columnScope("info");
     galleryInfoDom.elems.mount.mount(() => (
       <OverlayHostProvider host={overlayHost}>
         <GalleryInfoPanel
-          columnsEnabled={gState.columnsEnabled}
+          columnsEnabled={columns.enabled}
           columnScope={infoColumnScope}
           leftHandedControls={gState.leftHandedControls}
           source={galleryInfoDom}
@@ -661,7 +502,7 @@ function injectGalleryDetails(
   });
 
   allowFeatureFailure("Touch Gallery comments", () => {
-    eh.manageGalleryCommentsTouch(reportReaderOpenError);
+    eh.manageGalleryCommentsTouch(reportUiError);
   });
   return galleryWideLayout;
 }
@@ -709,11 +550,11 @@ function injectGalleryPreview(
             "relative h-full w-full [--scroll-preview-height:100%]":
               gState.settings.replacePreviewWithScroll &&
               gState.settings.touchUiEnabled &&
-              gState.columnsEnabled(),
+              columns.enabled(),
             "relative [--scroll-preview-height:100svh] w-[calc(100%-(var(--touch-gallery-gutter)*2))] mx-auto":
               gState.settings.replacePreviewWithScroll &&
               gState.settings.touchUiEnabled &&
-              !gState.columnsEnabled(),
+              !columns.enabled(),
             "relative [--scroll-preview-height:100svh] w-[calc(100%-32px)] mx-auto":
               gState.settings.replacePreviewWithScroll &&
               !gState.settings.touchUiEnabled,
@@ -723,17 +564,17 @@ function injectGalleryPreview(
             options={coordinator.readerOptions}
             instanceRef={coordinator.attachReader}
             embeddedPreview={gState.settings.replacePreviewWithScroll}
-            embeddedDirection={gState.columnsEnabled()
+            embeddedDirection={columns.enabled()
               ? state.gallery.embeddedScrollPreviewColumnsDirection.value
               : state.gallery.embeddedScrollPreviewSingleDirection.value}
-            fillPreviewContainer={gState.columnsEnabled}
+            fillPreviewContainer={columns.enabled}
             leftHandedControls={gState.leftHandedControls()}
           />
           {gState.settings.enhanceThumbsGridsEnabled &&
           !gState.settings.replacePreviewWithScroll ? (
             <ThumbsGrids
-              coordinator={coordinator}
-              onLoadError={reportReaderOpenError}
+              actionsRef={coordinator.attachThumbs}
+              onLoadError={reportUiError}
               previewCache={previewCache}
             />
           ) : null}
@@ -754,9 +595,9 @@ function injectGalleryPage(
     exitReaderOnFullscreenExit: gState.settings.exitReaderOnFullscreenExit,
     includeReaderPageInUrl: gState.settings.includeReaderPageInUrl,
     includeUnreadHistoryEnabled: gState.settings.includeUnreadHistoryEnabled,
-    onReaderPreviewModeChange: gState.setReaderPreviewModeActive,
+    onReaderPreviewModeChange: columns.setReaderPreviewActive,
     onEmbeddedDirectionChange: direction => {
-      const setting = gState.columnsEnabled()
+      const setting = columns.enabled()
         ? state.gallery.embeddedScrollPreviewColumnsDirection
         : state.gallery.embeddedScrollPreviewSingleDirection;
       setting.set(direction);
@@ -769,7 +610,7 @@ function injectGalleryPage(
     twoColumnsReaderMode: gState.settings.twoColumnsReaderMode,
     galleryColumn: (column) => {
       const scope = galleryWideLayout?.columnScope(column);
-      return gState.columnsEnabled() && scope?.available() ? scope : null;
+      return columns.enabled() && scope?.available() ? scope : null;
     },
     replacePreviewWithScroll: gState.settings.replacePreviewWithScroll,
   });
@@ -802,6 +643,7 @@ function injectGalleryPage(
   }
 }
 
+// Image-page entry keeps reader intent in the client URL adapter.
 function injectImagePage(): void {
   if (!gState.settings.readerEnabled || !eh.extractImageGalleryPage()) {
     return;
@@ -831,6 +673,7 @@ function injectImagePage(): void {
   ));
 }
 
+// Search and favorites share source-page enhancement, not Reader state.
 function injectSearchControls(
   page: Extract<eh.PageType, { type: "favorites" | "search" }>,
 ): eh.TouchResultsPageDom {
@@ -982,7 +825,7 @@ function injectSearchPage(
   if (gState.settings.touchUiEnabled) {
     const touchResultsDom = injectSearchControls(page);
     createEffect(() => {
-      resultsDom().handle.updateResultColumns(gState.columnsEnabled());
+      resultsDom().handle.updateResultColumns(columns.enabled());
     });
     mountSearchPagination((source) => {
       updateSearchPage(source);
@@ -994,6 +837,7 @@ function injectSearchPage(
 
 }
 
+// History presentation uses the persisted client records.
 function injectReadHistoryPage(
   page: Extract<eh.PageType, { type: "readHistory" }>,
   records: DisplayReadHistoryRecord[],
@@ -1024,7 +868,7 @@ function injectReadHistoryPage(
   }
   if (gState.settings.touchUiEnabled) {
     createEffect(() => {
-      historyDom.handle.updateResultColumns(gState.columnsEnabled());
+      historyDom.handle.updateResultColumns(columns.enabled());
     });
     allowFeatureFailure("Touch Read History layout", () => {
       eh.manageTouchResultsPage(page, true);
@@ -1040,6 +884,7 @@ function injectReadHistoryPage(
   ));
 }
 
+// Page roots and global listeners live until document navigation.
 function injectPage(page: eh.PageType, inject?: () => void): void {
   createRoot(() => {
     installSettingsMenu();
@@ -1072,7 +917,7 @@ async function startApp(): Promise<void> {
   const page = eh.extractPageType();
   const onViewportResize = () => {
     updateUiScale();
-    updateColumnsLayout();
+    columns.refreshOrientation();
   };
   window.addEventListener("resize", onViewportResize, { passive: true });
 

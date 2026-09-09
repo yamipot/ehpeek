@@ -1,6 +1,7 @@
 import {
   type Accessor,
   createMemo,
+  createEffect,
   createSignal,
   For,
   type JSX,
@@ -17,7 +18,7 @@ import type {
 import { sharedApply, type GalleryInfoDom, type GalleryInfoTagGroup } from "../../eh";
 import texts from "../../i18n";
 import { state } from "../../state";
-import { refreshMyTags } from "../Enhance/MyTags";
+import { refreshMyTags } from "../../state/myTags";
 import { WelcomeIcon } from "../WelcomeIcon";
 import { GalleryColumnsBackToTop } from "../Widgets/BackToTop";
 import { Dialog, Icon, Popover } from "@ehpeek/reader/kit/Widgets";
@@ -64,16 +65,8 @@ export function GalleryInfoPanel(props: {
   source: GalleryInfoDom;
 }) {
   const source = untrack(() => props.source);
-  const rating = source.data.rating;
   const hasCover = source.elems.cover !== null;
-  const [ratingValue, setRatingValue] = createSignal(rating?.value ?? 0);
-  const [ratingPreview, setRatingPreview] = createSignal<number | null>(null);
-  const [ratingPickerOpen, setRatingPickerOpen] = createSignal(false);
-  const [ratingSubmitted, setRatingSubmitted] = createSignal(
-    rating?.rated ?? false,
-  );
-  const [ratingCount] = createSignal(rating?.count ?? "");
-  const [ratingValueLabel] = createSignal(rating?.label ?? "");
+  // Tag selection and original-page observation share the panel lifetime.
   const initialTagGroups = source.data.tagGroups.map((group) => ({
     ...group,
     tags: group.tags.flatMap(({ contentSourceIndex, ...tag }) => {
@@ -87,60 +80,12 @@ export function GalleryInfoPanel(props: {
     GalleryPanelTagGroup["tags"][number] | null
   >(null);
   const [tagging, setTagging] = createSignal(false);
-  let ratingPointerType = "";
   const hasNewTag = () => source.elems.newTag !== null;
-  const displayedRating = createMemo(() => ratingPreview() ?? ratingValue());
-  const closeRatingPicker = () => {
-    setRatingPreview(null);
-    setRatingPickerOpen(false);
-  };
-  const ratingLabel = createMemo(() => {
-    const preview = ratingPreview();
-    if (preview !== null) {
-      return `Rate as ${preview.toFixed(1)} stars`;
-    }
-    return ratingSubmitted()
-      ? `Rated ${ratingValue().toFixed(1)} stars`
-      : ratingValueLabel();
-  });
-  const previewRatingFromPointer = (event: PointerEvent): void => {
-    if (event.pointerType !== "mouse") {
-      return;
-    }
-    setRatingPreview(
-      ratingFromPointer(
-        event.clientX,
-        event.currentTarget as HTMLElement,
-      ),
-    );
-  };
-
   onMount(() => {
     const stopObservingTags = source.handle.observeGalleryTagGroups(setTagGroups);
 
     onCleanup(stopObservingTags);
   });
-
-  const submitRating = (value: number): boolean => {
-    if (!rating) {
-      return false;
-    }
-
-    try {
-      source.handle.submitGalleryRating(value);
-      setRatingValue(value);
-      setRatingPreview(null);
-      setRatingSubmitted(true);
-      return true;
-    } catch (error) {
-      setRatingPreview(null);
-      console.error("[ehpeek]", error);
-      window.alert(
-        error instanceof Error ? error.message : texts.errors.loadFailed,
-      );
-      return false;
-    }
-  };
 
   const openTagMenu = (tag: GalleryPanelTagGroup["tags"][number]) => {
     try {
@@ -207,73 +152,7 @@ export function GalleryInfoPanel(props: {
                 </a>
               )}
             </div>
-            {rating && (
-                <button
-                  type="button"
-                  class="flex w-[65%] max-w-full flex-none self-end flex-col items-end ui-gap-xs mt-auto p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-right cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:ui-rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
-                  aria-label={texts.gallery.rate}
-                  onClick={() => {
-                    const preview = ratingPointerType === "mouse"
-                      ? ratingPreview()
-                      : null;
-                    ratingPointerType = "";
-                    if (preview !== null) {
-                      submitRating(preview);
-                      return;
-                    }
-                    setRatingPreview(null);
-                    setRatingPickerOpen(true);
-                  }}
-                  onBlur={() => {
-                    setRatingPreview(null);
-                  }}
-                  onPointerCancel={() => {
-                    ratingPointerType = "";
-                    setRatingPreview(null);
-                  }}
-                  onPointerDown={(event: PointerEvent) => {
-                    ratingPointerType = event.pointerType;
-                    if (event.pointerType !== "mouse") {
-                      setRatingPreview(null);
-                    }
-                  }}
-                >
-                  <div
-                    class="relative inline-flex [&_.ehpeek-icon]:w-[var(--ui-icon-size-lg)] [&_.ehpeek-icon]:h-[var(--ui-icon-size-lg)]"
-                    onPointerDown={previewRatingFromPointer}
-                    onPointerMove={previewRatingFromPointer}
-                    onPointerLeave={() => setRatingPreview(null)}
-                  >
-                    <span
-                      class="flex gap-1px text-[var(--color-muted)] opacity-40"
-                      aria-hidden="true"
-                    >
-                      <For each={RATING_STAR_INDEXES}>
-                        {() => <Icon name="star" />}
-                      </For>
-                    </span>
-                    <span
-                      class={`absolute top-0 left-0 flex gap-1px overflow-hidden ${ratingSubmitted() ? "text-[var(--color-rating-submitted)]" : "ehp-color-site-accent"}`}
-                      aria-hidden="true"
-                      style={{ width: `${(displayedRating() / 5) * 100}%` }}
-                    >
-                      <For each={RATING_STAR_INDEXES}>
-                        {() => <Icon name="star" filled />}
-                      </For>
-                    </span>
-                  </div>
-                  <div class="flex items-center justify-end ui-gap-xs text-[var(--color-muted)] [font-size:var(--ui-font-size-lg)] leading-[1.15] whitespace-nowrap">
-                    <span aria-live="polite">
-                      {ratingLabel()}
-                    </span>
-                    {ratingCount() && (
-                      <span class="flex-none ui-pl-xs border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">
-                        {ratingCount()}
-                      </span>
-                    )}
-                  </div>
-                </button>
-            )}
+            <GalleryRating source={source} />
           </div>
           <div
             class="ehpeek-touch-gallery-primary-actions relative z-1 grid grid-cols-[1fr_1fr] min-h-[var(--ui-control-size-xl)] overflow-visible ui-rounded-xs bg-[var(--color-site-elevated)] shadow-[0_2px_10px_var(--color-shadow-panel)]"
@@ -354,6 +233,139 @@ export function GalleryInfoPanel(props: {
         onClose={closeTagMenu}
         onTagUpdated={updateTag}
       />
+    </section>
+  );
+}
+
+// Rating owns both its inline preview and the temporary submission dialog.
+function GalleryRating(props: { source: GalleryInfoDom }) {
+  const source = untrack(() => props.source);
+  const rating = source.data.rating;
+  const [ratingValue, setRatingValue] = createSignal(rating?.value ?? 0);
+  const [ratingPreview, setRatingPreview] = createSignal<number | null>(null);
+  const [ratingPickerOpen, setRatingPickerOpen] = createSignal(false);
+  const [ratingSubmitted, setRatingSubmitted] = createSignal(
+    rating?.rated ?? false,
+  );
+  const [ratingCount] = createSignal(rating?.count ?? "");
+  const [ratingValueLabel] = createSignal(rating?.label ?? "");
+  let ratingPointerType = "";
+  const displayedRating = createMemo(() => ratingPreview() ?? ratingValue());
+  const closeRatingPicker = () => {
+    setRatingPreview(null);
+    setRatingPickerOpen(false);
+  };
+  const ratingLabel = createMemo(() => {
+    const preview = ratingPreview();
+    if (preview !== null) {
+      return `Rate as ${preview.toFixed(1)} stars`;
+    }
+    return ratingSubmitted()
+      ? `Rated ${ratingValue().toFixed(1)} stars`
+      : ratingValueLabel();
+  });
+  const previewRatingFromPointer = (event: PointerEvent): void => {
+    if (event.pointerType !== "mouse") {
+      return;
+    }
+    setRatingPreview(
+      ratingFromPointer(
+        event.clientX,
+        event.currentTarget as HTMLElement,
+      ),
+    );
+  };
+
+  const submitRating = (value: number): boolean => {
+    if (!rating) {
+      return false;
+    }
+
+    try {
+      source.handle.submitGalleryRating(value);
+      setRatingValue(value);
+      setRatingPreview(null);
+      setRatingSubmitted(true);
+      return true;
+    } catch (error) {
+      setRatingPreview(null);
+      console.error("[ehpeek]", error);
+      window.alert(
+        error instanceof Error ? error.message : texts.errors.loadFailed,
+      );
+      return false;
+    }
+  };
+
+  return (
+    <>
+      {rating && (
+        <button
+          type="button"
+          class="flex w-[65%] max-w-full flex-none self-end flex-col items-end ui-gap-xs mt-auto p-0 border-0 bg-transparent ehp-color-site-text font-inherit text-right cursor-pointer select-none [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] focus-visible:ui-rounded-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-site-accent)] focus-visible:outline-offset-3px"
+          aria-label={texts.gallery.rate}
+          onClick={() => {
+            const preview = ratingPointerType === "mouse"
+              ? ratingPreview()
+              : null;
+            ratingPointerType = "";
+            if (preview !== null) {
+              submitRating(preview);
+              return;
+            }
+            setRatingPreview(null);
+            setRatingPickerOpen(true);
+          }}
+          onBlur={() => {
+            setRatingPreview(null);
+          }}
+          onPointerCancel={() => {
+            ratingPointerType = "";
+            setRatingPreview(null);
+          }}
+          onPointerDown={(event: PointerEvent) => {
+            ratingPointerType = event.pointerType;
+            if (event.pointerType !== "mouse") {
+              setRatingPreview(null);
+            }
+          }}
+        >
+          <div
+            class="relative inline-flex [&_.ehpeek-icon]:w-[var(--ui-icon-size-lg)] [&_.ehpeek-icon]:h-[var(--ui-icon-size-lg)]"
+            onPointerDown={previewRatingFromPointer}
+            onPointerMove={previewRatingFromPointer}
+            onPointerLeave={() => setRatingPreview(null)}
+          >
+            <span
+              class="flex gap-1px text-[var(--color-muted)] opacity-40"
+              aria-hidden="true"
+            >
+              <For each={RATING_STAR_INDEXES}>
+                {() => <Icon name="star" />}
+              </For>
+            </span>
+            <span
+              class={`absolute top-0 left-0 flex gap-1px overflow-hidden ${ratingSubmitted() ? "text-[var(--color-rating-submitted)]" : "ehp-color-site-accent"}`}
+              aria-hidden="true"
+              style={{ width: `${(displayedRating() / 5) * 100}%` }}
+            >
+              <For each={RATING_STAR_INDEXES}>
+                {() => <Icon name="star" filled />}
+              </For>
+            </span>
+          </div>
+          <div class="flex items-center justify-end ui-gap-xs text-[var(--color-muted)] [font-size:var(--ui-font-size-lg)] leading-[1.15] whitespace-nowrap">
+            <span aria-live="polite">
+              {ratingLabel()}
+            </span>
+            {ratingCount() && (
+              <span class="flex-none ui-pl-xs border-0 border-l border-[var(--color-site-border-subtle)] opacity-75">
+                {ratingCount()}
+              </span>
+            )}
+          </div>
+        </button>
+      )}
       <Show when={ratingPickerOpen()}>
         <Dialog
           bodyClass="flex flex-col ui-gap-lg ui-pt-lg ui-px-lg"
@@ -428,8 +440,14 @@ export function GalleryInfoPanel(props: {
           </div>
         </Dialog>
       </Show>
-    </section>
+    </>
   );
+}
+
+function ratingFromPointer(clientX: number, element: HTMLElement): number {
+  const rect = element.getBoundingClientRect();
+  const progress = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+  return Math.max(0.5, Math.ceil(progress * 10) / 2);
 }
 
 function TouchGalleryActionsMenu(props: {
@@ -539,26 +557,9 @@ function TouchGalleryTagMenu(props: {
   onClose: () => void;
   onTagUpdated: (tag: GalleryPanelTagGroup["tags"][number]) => void;
 }) {
+  const source = untrack(() => props.source);
   const onClose = untrack(() => props.onClose);
   const onTagUpdated = untrack(() => props.onTagUpdated);
-  const [favoriteDialogOpen, setFavoriteDialogOpen] = createSignal(false);
-  const tagSets = state.gallery.myTagSets.reload();
-  const [selectedTagSet, setSelectedTagSet] = createSignal(
-    tagSets.find((option) => option.selected)?.value ??
-      tagSets[0]?.value ??
-      "1",
-  );
-  const [collectionOpen, setCollectionOpen] = createSignal(false);
-  const [tagMode, setTagMode] = createSignal<MyTagMode>("marked");
-  const [updating, setUpdating] = createSignal(false);
-  const [favoriteTag, setFavoriteTag] = createSignal<
-    GalleryPanelTagGroup["tags"][number] | null
-  >(null);
-  const closeFavoriteTagDialog = () => {
-    setCollectionOpen(false);
-    setFavoriteDialogOpen(false);
-  };
-
   onMount(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && props.tag) {
@@ -573,31 +574,39 @@ function TouchGalleryTagMenu(props: {
     });
   });
 
-  const updateFavoriteTag = async (tag: GalleryPanelTagGroup["tags"][number]) => {
+  // Selection survives closing the action menu while the favorite dialog is open.
+  const [favoriteDialogOpen, setFavoriteDialogOpen] = createSignal(false);
+  const [favoriteTag, setFavoriteTag] = createSignal<
+    GalleryPanelTagGroup["tags"][number] | null
+  >(null);
+  // One submission covers both dialogs; the background refresh also updates the gallery list.
+  const [updating, setUpdating] = createSignal(false);
+  const updateFavoriteTag = async (
+    tag: GalleryPanelTagGroup["tags"][number],
+    submit: () => ReturnType<GalleryInfoDom["handle"]["removeFavoriteTag"]>,
+  ) => {
     if (updating()) {
       return;
     }
 
     setUpdating(true);
     try {
-      const myTagsPage = tag.myTag
-        ? await props.source.handle.removeFavoriteTag(tag)
-        : await props.source.handle.submitFavoriteTag(tag, selectedTagSet(), tagMode());
+      const myTagsPage = await submit();
       const updateAppearance = (
         appearance: typeof myTagsPage.appearances[number] | undefined,
       ) => onTagUpdated({
-          ...tag,
-          appearance: appearance
-            ? {
-                ...tag.appearance,
-                backgroundColor: appearance.backgroundColor,
-                color: appearance.color,
-              }
-            : { backgroundColor: "", borderColor: "", color: "" },
-          myTag: appearance
-            ? { id: appearance.id, tagSet: appearance.tagSet }
-            : null,
-        });
+        ...tag,
+        appearance: appearance
+          ? {
+            ...tag.appearance,
+            backgroundColor: appearance.backgroundColor,
+            color: appearance.color,
+          }
+          : { backgroundColor: "", borderColor: "", color: "" },
+        myTag: appearance
+          ? { id: appearance.id, tagSet: appearance.tagSet }
+          : null,
+      });
       updateAppearance(myTagsPage.appearances.find((item) => item.name === tag.name));
       setFavoriteDialogOpen(false);
       onClose();
@@ -677,7 +686,8 @@ function TouchGalleryTagMenu(props: {
                       role="menuitem"
                       onClick={(event) => {
                         event.stopPropagation();
-                        void updateFavoriteTag(tag());
+                        const selected = tag();
+                        void updateFavoriteTag(selected, () => source.handle.removeFavoriteTag(selected));
                       }}
                     >
                       <Icon name="heart" filled />
@@ -691,7 +701,6 @@ function TouchGalleryTagMenu(props: {
                     role="menuitem"
                     onClick={() => {
                       setFavoriteTag(tag());
-                      setCollectionOpen(false);
                       setFavoriteDialogOpen(true);
                     }}
                   >
@@ -704,107 +713,138 @@ function TouchGalleryTagMenu(props: {
           </Show>
         </div>
       </div>
-      <Show when={favoriteDialogOpen()}>
-        <Dialog
-          bodyClass="flex flex-col ui-gap-lg ui-pt-lg ui-px-lg"
-          label={texts.gallery.favoriteTag}
-          lockPageScroll
-          onClose={closeFavoriteTagDialog}
-          title={texts.gallery.favoriteTag}
-          variant="site"
-          width="md"
+      <FavoriteTagDialog
+        open={favoriteDialogOpen()}
+        updating={updating()}
+        onClose={() => setFavoriteDialogOpen(false)}
+        onSubmit={(tagSet, mode) => {
+          const tag = favoriteTag();
+          if (tag) void updateFavoriteTag(tag, () => source.handle.submitFavoriteTag(tag, tagSet, mode));
+        }}
+      />
+    </>
+  );
+}
+
+function FavoriteTagDialog(props: {
+  open: boolean;
+  updating: boolean;
+  onClose: () => void;
+  onSubmit: (tagSet: string, mode: MyTagMode) => void;
+}) {
+  const tagSets = state.gallery.myTagSets.reload();
+  const [selectedTagSet, setSelectedTagSet] = createSignal(
+    tagSets.find((option) => option.selected)?.value ??
+    tagSets[0]?.value ??
+    "1",
+  );
+  const [collectionOpen, setCollectionOpen] = createSignal(false);
+  const [tagMode, setTagMode] = createSignal<MyTagMode>("marked");
+  const closeFavoriteTagDialog = () => {
+    setCollectionOpen(false);
+    props.onClose();
+  };
+  createEffect(() => {
+    if (props.open) setCollectionOpen(false);
+  });
+  return (
+    <Show when={props.open}>
+      <Dialog
+        bodyClass="flex flex-col ui-gap-lg ui-pt-lg ui-px-lg"
+        label={texts.gallery.favoriteTag}
+        lockPageScroll
+        onClose={closeFavoriteTagDialog}
+        title={texts.gallery.favoriteTag}
+        variant="site"
+        width="md"
+      >
+        <Show
+          when={!props.updating}
+          fallback={<WelcomeIcon embedded label={texts.common.status.loading} showIcon={false} />}
         >
-          <Show
-            when={!updating()}
-            fallback={<WelcomeIcon embedded label={texts.common.status.loading} showIcon={false} />}
-          >
-              <div class="flex flex-col ui-gap-sm ehp-color-site-text textsize-md font-600">
-                <span>{texts.gallery.tagCollection}</span>
-                <div class="relative">
-                  <button
-                    type="button"
-                    class="flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-rounded-md border ehp-color-site-border !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text ui-px-md font-inherit text-left textsize-md cursor-pointer"
-                    aria-haspopup="listbox"
-                    aria-expanded={collectionOpen()}
-                    onClick={() => setCollectionOpen((open) => !open)}
-                  >
-                    <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-                      {tagSets.find((option) => option.value === selectedTagSet())?.label ?? selectedTagSet()}
-                    </span>
-                    <span class="flex-none" aria-hidden="true">{collectionOpen() ? "▴" : "▾"}</span>
-                  </button>
-                  <Show when={collectionOpen()}>
-                    <div class="absolute top-full left-0 right-0 z-2 ui-mt-xs max-h-240px overflow-y-auto overscroll-contain ui-rounded-md border ehp-color-site-border ehp-color-site-elevated shadow-xl" role="listbox" aria-label={texts.gallery.tagCollection}>
-                      <For each={tagSets}>{(option) => (
-                        <button
-                          type="button"
-                          class={`flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-px-md border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b ehp-color-site-text font-inherit text-left textsize-md cursor-pointer ${selectedTagSet() === option.value ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)]"}`}
-                          role="option"
-                          aria-selected={selectedTagSet() === option.value}
-                          onClick={() => {
-                            setSelectedTagSet(option.value);
-                            setCollectionOpen(false);
-                          }}
-                        >
-                          <span>{option.label}</span>
-                          <Show when={selectedTagSet() === option.value}>
-                            <Icon name="check" />
-                          </Show>
-                        </button>
-                      )}</For>
-                    </div>
-                  </Show>
-                </div>
-              </div>
-              <div class="flex flex-col ui-gap-sm ehp-color-site-text textsize-md font-600">
-                <span>{texts.gallery.tagBehavior}</span>
-                <div class="overflow-hidden ui-rounded-md border ehp-color-site-border" role="radiogroup" aria-label={texts.gallery.tagBehavior}>
-                  <For each={([
-                    ["marked", texts.gallery.markTag],
-                    ["watched", texts.gallery.watchTag],
-                    ["hidden", texts.gallery.hideTag],
-                  ] as const)}>{([value, label]) => (
+          <div class="flex flex-col ui-gap-sm ehp-color-site-text textsize-md font-600">
+            <span>{texts.gallery.tagCollection}</span>
+            <div class="relative">
+              <button
+                type="button"
+                class="flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-rounded-md border ehp-color-site-border !bg-transparent hover:!bg-[var(--color-site-item-hover)] active:!bg-[var(--color-site-item-hover)] ehp-color-site-text ui-px-md font-inherit text-left textsize-md cursor-pointer"
+                aria-haspopup="listbox"
+                aria-expanded={collectionOpen()}
+                onClick={() => setCollectionOpen((open) => !open)}
+              >
+                <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                  {tagSets.find((option) => option.value === selectedTagSet())?.label ?? selectedTagSet()}
+                </span>
+                <span class="flex-none" aria-hidden="true">{collectionOpen() ? "▴" : "▾"}</span>
+              </button>
+              <Show when={collectionOpen()}>
+                <div class="absolute top-full left-0 right-0 z-2 ui-mt-xs max-h-240px overflow-y-auto overscroll-contain ui-rounded-md border ehp-color-site-border ehp-color-site-elevated shadow-xl" role="listbox" aria-label={texts.gallery.tagCollection}>
+                  <For each={tagSets}>{(option) => (
                     <button
                       type="button"
-                      class={`flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-px-md border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b ehp-color-site-text font-inherit text-left textsize-md cursor-pointer ${tagMode() === value ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)]"}`}
-                      role="radio"
-                      aria-checked={tagMode() === value}
-                      onClick={() => setTagMode(value)}
+                      class={`flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-px-md border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b ehp-color-site-text font-inherit text-left textsize-md cursor-pointer ${selectedTagSet() === option.value ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)]"}`}
+                      role="option"
+                      aria-selected={selectedTagSet() === option.value}
+                      onClick={() => {
+                        setSelectedTagSet(option.value);
+                        setCollectionOpen(false);
+                      }}
                     >
-                      <span>{label}</span>
-                      <Show when={tagMode() === value}>
+                      <span>{option.label}</span>
+                      <Show when={selectedTagSet() === option.value}>
                         <Icon name="check" />
                       </Show>
                     </button>
                   )}</For>
                 </div>
-              </div>
-              <div class="grid grid-cols-2 ui-gap-md">
+              </Show>
+            </div>
+          </div>
+          <div class="flex flex-col ui-gap-sm ehp-color-site-text textsize-md font-600">
+            <span>{texts.gallery.tagBehavior}</span>
+            <div class="overflow-hidden ui-rounded-md border ehp-color-site-border" role="radiogroup" aria-label={texts.gallery.tagBehavior}>
+              <For each={([
+                ["marked", texts.gallery.markTag],
+                ["watched", texts.gallery.watchTag],
+                ["hidden", texts.gallery.hideTag],
+              ] as const)}>{([value, label]) => (
                 <button
                   type="button"
-                  class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]`}
-                  onClick={closeFavoriteTagDialog}
+                  class={`flex box-border w-full min-h-[var(--ui-control-size-md)] items-center justify-between ui-gap-md ui-px-md border-0 border-b last:border-b-0 ehp-color-site-border-subtle-b ehp-color-site-text font-inherit text-left textsize-md cursor-pointer ${tagMode() === value ? "bg-[var(--color-site-item-hover)] font-700" : "!bg-transparent hover:!bg-[var(--color-site-item-hover)]"}`}
+                  role="radio"
+                  aria-checked={tagMode() === value}
+                  onClick={() => setTagMode(value)}
                 >
-                  {texts.common.actions.close}
+                  <span>{label}</span>
+                  <Show when={tagMode() === value}>
+                    <Icon name="check" />
+                  </Show>
                 </button>
-                <button
-                  type="button"
-                  class={`${RATING_ACTION_BUTTON_CLASS} ui-gap-md border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108`}
-                  onClick={() => {
-                    const tag = favoriteTag();
-                    if (tag) {
-                      void updateFavoriteTag(tag);
-                    }
-                  }}
-                >
-                  <Icon name="heart" />
-                  <span>{texts.common.actions.confirm}</span>
-                </button>
-              </div>
-          </Show>
-        </Dialog>
-      </Show>
-    </>
+              )}</For>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 ui-gap-md">
+            <button
+              type="button"
+              class={`${RATING_ACTION_BUTTON_CLASS} border-[var(--color-site-border-subtle)] bg-[var(--color-site-surface)] text-[var(--color-site-text)] hover:bg-[var(--color-site-item-hover)]`}
+              onClick={closeFavoriteTagDialog}
+            >
+              {texts.common.actions.close}
+            </button>
+            <button
+              type="button"
+              class={`${RATING_ACTION_BUTTON_CLASS} ui-gap-md border-[var(--color-site-accent)] bg-[var(--color-site-accent)] text-[var(--color-site-surface)] shadow-[0_2px_8px_var(--color-shadow-panel)] hover:brightness-108`}
+              onClick={() => {
+                props.onSubmit(selectedTagSet(), tagMode());
+              }}
+            >
+              <Icon name="heart" />
+              <span>{texts.common.actions.confirm}</span>
+            </button>
+          </div>
+        </Show>
+      </Dialog>
+    </Show>
   );
 }
 
@@ -1055,10 +1095,4 @@ function TouchGalleryFavoriteOption(props: {
       </span>
     </button>
   );
-}
-
-function ratingFromPointer(clientX: number, element: HTMLElement): number {
-  const rect = element.getBoundingClientRect();
-  const progress = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-  return Math.max(0.5, Math.ceil(progress * 10) / 2);
 }

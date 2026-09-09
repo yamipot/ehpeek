@@ -5,7 +5,6 @@ import {
   untrack,
 } from "solid-js";
 import type { GalleryPreviewCache } from "../../App/GalleryPreviewCache";
-import type { GalleryCoordinator } from "../../App/GalleryCoordinator";
 import * as eh from "../../eh";
 import texts from "../../i18n";
 import { createPointerGestureElement, type PointerDragEnd } from "@ehpeek/reader/kit/PointerGesture";
@@ -23,7 +22,7 @@ export type ThumbsGridsActions = {
 };
 
 export function ThumbsGrids(props: {
-  coordinator: GalleryCoordinator;
+  actionsRef: (actions: ThumbsGridsActions) => void;
   onLoadError: (error: unknown) => void;
   previewCache: GalleryPreviewCache;
 }) {
@@ -106,7 +105,7 @@ export function ThumbsGrids(props: {
   const actions: ThumbsGridsActions = {
     gotoPreview: setPageBarCurrentIndex,
   };
-  untrack(() => props.coordinator).attachThumbs(actions);
+  untrack(() => props.actionsRef)(actions);
 
   createEffect<eh.GalleryPreviewDom>((previous) => {
     const current = props.previewCache.current();

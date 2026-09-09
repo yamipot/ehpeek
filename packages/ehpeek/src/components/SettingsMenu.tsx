@@ -67,10 +67,10 @@ const TWO_COLUMNS_READER_MODE_OPTIONS: ReadonlyArray<{
   label: string;
   value: TwoColumnsReaderMode;
 }> = [
-  { label: texts.settings.readerModeFullView, value: "full-view" },
-  { label: texts.settings.readerModeOnPreview, value: "on-preview" },
-  { label: texts.settings.readerModeReaderPreview, value: "reader-preview" },
-];
+    { label: texts.settings.readerModeFullView, value: "full-view" },
+    { label: texts.settings.readerModeOnPreview, value: "on-preview" },
+    { label: texts.settings.readerModeReaderPreview, value: "reader-preview" },
+  ];
 const LICENSES = [
   {
     href: "https://github.com/yamipot/ehpeek/blob/master/LICENSE",
@@ -101,7 +101,6 @@ function SwitchButton(props: {
   onChange: (value: boolean) => void;
 }) {
   const [helpOpen, setHelpOpen] = createSignal(false);
-
   return (
     <div class="border-0 border-b ehp-color-site-border-subtle-b">
       <div class="flex items-stretch">
@@ -187,10 +186,11 @@ export function SettingsMenu(props: {
     untrack(() => ({ ...props.initState })),
   );
   const [activeTab, setActiveTab] = createSignal<SettingsTab>("general");
-  const [helpOpen, setHelpOpen] = createSignal(false);
-  const [licensesOpen, setLicensesOpen] = createSignal(false);
-  const [moreOptionsOpen, setMoreOptionsOpen] = createSignal(false);
   const [changed, setChanged] = createSignal(false);
+  const updateDraft: SettingsPanelProps["onUpdate"] = (key, value) => {
+    setChanged(true);
+    setDraft({ [key]: value });
+  };
   const close = () => {
     if (changed() && !window.confirm(texts.settings.discardChanges)) {
       return false;
@@ -199,18 +199,11 @@ export function SettingsMenu(props: {
     props.onOpenChange(false);
     return true;
   };
-  const updateDraft = (key: keyof SettingsMenuState, value: boolean) => {
-    setChanged(true);
-    setDraft(key, value);
-  };
 
   createEffect(() => {
     if (props.open) {
       setDraft(untrack(() => ({ ...props.initState })));
       setActiveTab("general");
-      setHelpOpen(false);
-      setLicensesOpen(false);
-      setMoreOptionsOpen(false);
       setChanged(false);
     }
   });
@@ -274,216 +267,10 @@ export function SettingsMenu(props: {
           <h2 class="m-0 ui-px-md ui-py-sm border-0 border-b ehp-color-site-border-subtle-b [font-size:var(--ui-font-size-md)] font-700">
             {SETTINGS_SECTIONS.find(([tab]) => tab === activeTab())?.[1]}
           </h2>
-          <div
-            id="ehpeek-settings-panel-general"
-            data-ehpeek-settings-tab="general"
-            role="tabpanel"
-            hidden={activeTab() !== "general"}
-          >
-            <SwitchButton
-              checked={draft.readerEnabled}
-              description={texts.settings.readerHelp}
-              label={texts.settings.readerLabel}
-              onChange={(value) => updateDraft("readerEnabled", value)}
-            />
-            <SwitchButton
-              checked={draft.touchUiEnabled}
-              description={texts.settings.touchUiHelp}
-              label={texts.settings.touchUiLabel}
-              onChange={(value) => updateDraft("touchUiEnabled", value)}
-            />
-            <Show when={draft.readHistoryEnabled}>
-              <a
-                class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
-                href={props.historyHref}
-              >
-                {texts.settings.historyLabel}
-              </a>
-            </Show>
-          </div>
-          <div
-            id="ehpeek-settings-panel-enhance"
-            data-ehpeek-settings-tab="enhance"
-            role="tabpanel"
-            hidden={activeTab() !== "enhance"}
-          >
-            <SwitchButton
-              checked={draft.enhanceSearchGridsEnabled}
-              description={texts.settings.enhanceSearchHelp}
-              label={texts.settings.enhanceSearchLabel}
-              onChange={(value) => updateDraft("enhanceSearchGridsEnabled", value)}
-            />
-            <SwitchButton
-              checked={draft.enhanceThumbsGridsEnabled}
-              description={texts.settings.enhanceThumbsHelp}
-              label={texts.settings.enhanceThumbsLabel}
-              onChange={(value) => updateDraft("enhanceThumbsGridsEnabled", value)}
-            />
-            <Show when={draft.touchUiEnabled}>
-              <SwitchButton
-                checked={draft.fitToViewport}
-                description={texts.settings.fitToViewportHelp}
-                label={texts.settings.fitToViewportLabel}
-                onChange={(value) => updateDraft("fitToViewport", value)}
-              />
-            </Show>
-            <SwitchButton
-              checked={draft.replacePreviewWithScroll}
-              description={texts.settings.replacePreviewWithScrollHelp}
-              label={texts.settings.replacePreviewWithScrollLabel}
-              onChange={(value) => updateDraft("replacePreviewWithScroll", value)}
-            />
-            <SwitchButton
-              checked={draft.myTagsEnabled}
-              description={texts.settings.myTagsHelp}
-              label={texts.settings.myTagsLabel}
-              onChange={(value) => updateDraft("myTagsEnabled", value)}
-            />
-            <SwitchButton
-              checked={draft.readHistoryEnabled}
-              description={texts.settings.readHistoryHelp}
-              label={texts.settings.readHistoryLabel}
-              onChange={(value) => updateDraft("readHistoryEnabled", value)}
-            />
-            <SwitchButton
-              checked={draft.searchHistoryEnabled}
-              description={texts.settings.searchHistoryHelp}
-              label={texts.settings.searchHistoryLabel}
-              onChange={(value) => updateDraft("searchHistoryEnabled", value)}
-            />
-          </div>
-          <div
-            id="ehpeek-settings-panel-options"
-            data-ehpeek-settings-tab="options"
-            role="tabpanel"
-            hidden={activeTab() !== "options"}
-          >
-            <Show when={!moreOptionsOpen()}>
-              <>
-                <SwitchButton
-                  checked={draft.readerFullscreenEnabled}
-                  description={texts.settings.readerFullscreenHelp}
-                  label={texts.settings.readerFullscreenLabel}
-                  onChange={(value) => updateDraft("readerFullscreenEnabled", value)}
-                />
-                <SwitchButton
-                  checked={draft.exitReaderOnFullscreenExit}
-                  description={texts.settings.exitReaderOnFullscreenExitHelp}
-                  label={texts.settings.exitReaderOnFullscreenExitLabel}
-                  onChange={(value) => updateDraft("exitReaderOnFullscreenExit", value)}
-                />
-                <SwitchButton
-                  checked={draft.openGalleryInNewTab}
-                  description={texts.settings.openGalleryInNewTabHelp}
-                  label={texts.settings.openGalleryInNewTabLabel}
-                  onChange={(value) => updateDraft("openGalleryInNewTab", value)}
-                />
-                <SwitchButton
-                  checked={draft.includeUnreadHistoryEnabled}
-                  description={texts.settings.includeUnreadHistoryHelp}
-                  label={texts.settings.includeUnreadHistoryLabel}
-                  onChange={(value) => updateDraft("includeUnreadHistoryEnabled", value)}
-                />
-                <SelectSetting
-                  label={texts.settings.twoColumnsReaderModeLabel}
-                  options={TWO_COLUMNS_READER_MODE_OPTIONS}
-                  value={draft.twoColumnsReaderMode}
-                  onChange={(value) => {
-                    setChanged(true);
-                    setDraft("twoColumnsReaderMode", value);
-                  }}
-                />
-                <SelectSetting
-                  label="Language"
-                  noTranslate
-                  options={APP_LOCALE_OPTIONS}
-                  value={draft.locale}
-                  onChange={(value) => {
-                    setChanged(true);
-                    setDraft("locale", value);
-                  }}
-                />
-              </>
-            </Show>
-            <button
-              type="button"
-              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
-              aria-expanded={moreOptionsOpen()}
-              onClick={() => setMoreOptionsOpen((open) => !open)}
-            >
-              <span>{texts.settings.more}</span>
-              <span
-                class="flex flex-none transition-transform duration-120"
-                classList={{ "rotate-90": moreOptionsOpen() }}
-                aria-hidden="true"
-              >
-                <Icon name="chevron-right" size="var(--ui-icon-size-sm)" />
-              </span>
-            </button>
-            <Show when={moreOptionsOpen()}>
-              <>
-                <SelectSetting
-                  label={texts.settings.portraitUiScaleLabel}
-                  options={UI_SCALE_OPTIONS}
-                  value={draft.portraitUiScale}
-                  onChange={(value) => {
-                    setChanged(true);
-                    setDraft("portraitUiScale", value);
-                  }}
-                />
-                <SelectSetting
-                  label={texts.settings.landscapeUiScaleLabel}
-                  options={UI_SCALE_OPTIONS}
-                  value={draft.landscapeUiScale}
-                  onChange={(value) => {
-                    setChanged(true);
-                    setDraft("landscapeUiScale", value);
-                  }}
-                />
-                <SwitchButton
-                  checked={draft.includeReaderPageInUrl}
-                  description={texts.settings.includeReaderPageInUrlHelp}
-                  label={texts.settings.includeReaderPageInUrlLabel}
-                  onChange={(value) => updateDraft("includeReaderPageInUrl", value)}
-                />
-              </>
-            </Show>
-          </div>
-          <div
-            id="ehpeek-settings-panel-about"
-            data-ehpeek-settings-tab="about"
-            role="tabpanel"
-            hidden={activeTab() !== "about"}
-          >
-            <div class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] font-700">
-              {__EHPEEK_NAME__}
-            </div>
-            <a
-              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center overflow-hidden text-ellipsis whitespace-nowrap ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline [font-size:var(--ui-font-size-md)] font-700 hover:bg-[var(--color-site-item-hover)]"
-              href="https://github.com/yamipot/ehpeek"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              v{__EHPEEK_VERSION__}
-            </a>
-            <button
-              type="button"
-              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
-              onClick={() => setHelpOpen(true)}
-            >
-              <span>{texts.help.title}</span>
-            </button>
-            <button
-              type="button"
-              class="flex w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
-              onClick={() => setLicensesOpen(true)}
-            >
-              <span>{texts.settings.licenses}</span>
-              <span class="flex flex-none" aria-hidden="true">
-                <Icon name="chevron-right" size="var(--ui-icon-size-sm)" />
-              </span>
-            </button>
-          </div>
+          <GeneralSettings active={activeTab() === "general"} draft={draft} onUpdate={updateDraft} historyHref={props.historyHref} />
+          <EnhancementSettings active={activeTab() === "enhance"} draft={draft} onUpdate={updateDraft} />
+          <ReaderOptionsSettings active={activeTab() === "options"} draft={draft} onUpdate={updateDraft} />
+          <AboutSettings active={activeTab() === "about"} />
         </div>
         <div class="grid grid-cols-3 flex-none ui-gap-sm ui-mt-md ui-pt-md border-0 border-t border-t-[var(--color-site-border-subtle)]">
           <button
@@ -518,10 +305,253 @@ export function SettingsMenu(props: {
             {texts.common.actions.close}
           </button>
         </div>
-        <Show when={helpOpen()}>
-          <InteractionHelp variant="site" onClose={() => setHelpOpen(false)} />
-        </Show>
       </Popover>
+    </Show>
+  );
+}
+
+type SettingsPanelProps = {
+  active: boolean;
+  draft: SettingsMenuState;
+  onUpdate: <K extends keyof SettingsMenuState>(key: K, value: SettingsMenuState[K]) => void;
+};
+
+function GeneralSettings(props: SettingsPanelProps & { historyHref: string }) {
+  return (
+    <>
+      <div
+        id="ehpeek-settings-panel-general"
+        data-ehpeek-settings-tab="general"
+        role="tabpanel"
+        hidden={!props.active}
+      >
+        <SwitchButton
+          checked={props.draft.readerEnabled}
+          description={texts.settings.readerHelp}
+          label={texts.settings.readerLabel}
+          onChange={(value) => props.onUpdate("readerEnabled", value)}
+        />
+        <SwitchButton
+          checked={props.draft.touchUiEnabled}
+          description={texts.settings.touchUiHelp}
+          label={texts.settings.touchUiLabel}
+          onChange={(value) => props.onUpdate("touchUiEnabled", value)}
+        />
+        <Show when={props.draft.readHistoryEnabled}>
+          <a
+            class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text no-underline text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
+            href={props.historyHref}
+          >
+            {texts.settings.historyLabel}
+          </a>
+        </Show>
+      </div>
+    </>
+  );
+}
+
+function EnhancementSettings(props: SettingsPanelProps) {
+  return (
+    <>
+      <div
+        id="ehpeek-settings-panel-enhance"
+        data-ehpeek-settings-tab="enhance"
+        role="tabpanel"
+        hidden={!props.active}
+      >
+        <SwitchButton
+          checked={props.draft.enhanceSearchGridsEnabled}
+          description={texts.settings.enhanceSearchHelp}
+          label={texts.settings.enhanceSearchLabel}
+          onChange={(value) => props.onUpdate("enhanceSearchGridsEnabled", value)}
+        />
+        <SwitchButton
+          checked={props.draft.enhanceThumbsGridsEnabled}
+          description={texts.settings.enhanceThumbsHelp}
+          label={texts.settings.enhanceThumbsLabel}
+          onChange={(value) => props.onUpdate("enhanceThumbsGridsEnabled", value)}
+        />
+        <Show when={props.draft.touchUiEnabled}>
+          <SwitchButton
+            checked={props.draft.fitToViewport}
+            description={texts.settings.fitToViewportHelp}
+            label={texts.settings.fitToViewportLabel}
+            onChange={(value) => props.onUpdate("fitToViewport", value)}
+          />
+        </Show>
+        <SwitchButton
+          checked={props.draft.replacePreviewWithScroll}
+          description={texts.settings.replacePreviewWithScrollHelp}
+          label={texts.settings.replacePreviewWithScrollLabel}
+          onChange={(value) => props.onUpdate("replacePreviewWithScroll", value)}
+        />
+        <SwitchButton
+          checked={props.draft.myTagsEnabled}
+          description={texts.settings.myTagsHelp}
+          label={texts.settings.myTagsLabel}
+          onChange={(value) => props.onUpdate("myTagsEnabled", value)}
+        />
+        <SwitchButton
+          checked={props.draft.readHistoryEnabled}
+          description={texts.settings.readHistoryHelp}
+          label={texts.settings.readHistoryLabel}
+          onChange={(value) => props.onUpdate("readHistoryEnabled", value)}
+        />
+        <SwitchButton
+          checked={props.draft.searchHistoryEnabled}
+          description={texts.settings.searchHistoryHelp}
+          label={texts.settings.searchHistoryLabel}
+          onChange={(value) => props.onUpdate("searchHistoryEnabled", value)}
+        />
+      </div>
+    </>
+  );
+}
+
+function ReaderOptionsSettings(props: SettingsPanelProps) {
+  const [moreOptionsOpen, setMoreOptionsOpen] = createSignal(false);
+  return (
+    <>
+      <div
+        id="ehpeek-settings-panel-options"
+        data-ehpeek-settings-tab="options"
+        role="tabpanel"
+        hidden={!props.active}
+      >
+        <Show when={!moreOptionsOpen()}>
+          <>
+            <SwitchButton
+              checked={props.draft.readerFullscreenEnabled}
+              description={texts.settings.readerFullscreenHelp}
+              label={texts.settings.readerFullscreenLabel}
+              onChange={(value) => props.onUpdate("readerFullscreenEnabled", value)}
+            />
+            <SwitchButton
+              checked={props.draft.exitReaderOnFullscreenExit}
+              description={texts.settings.exitReaderOnFullscreenExitHelp}
+              label={texts.settings.exitReaderOnFullscreenExitLabel}
+              onChange={(value) => props.onUpdate("exitReaderOnFullscreenExit", value)}
+            />
+            <SwitchButton
+              checked={props.draft.openGalleryInNewTab}
+              description={texts.settings.openGalleryInNewTabHelp}
+              label={texts.settings.openGalleryInNewTabLabel}
+              onChange={(value) => props.onUpdate("openGalleryInNewTab", value)}
+            />
+            <SwitchButton
+              checked={props.draft.includeUnreadHistoryEnabled}
+              description={texts.settings.includeUnreadHistoryHelp}
+              label={texts.settings.includeUnreadHistoryLabel}
+              onChange={(value) => props.onUpdate("includeUnreadHistoryEnabled", value)}
+            />
+            <SelectSetting
+              label={texts.settings.twoColumnsReaderModeLabel}
+              options={TWO_COLUMNS_READER_MODE_OPTIONS}
+              value={props.draft.twoColumnsReaderMode}
+              onChange={(value) => {
+                props.onUpdate("twoColumnsReaderMode", value);
+              }}
+            />
+            <SelectSetting
+              label="Language"
+              noTranslate
+              options={APP_LOCALE_OPTIONS}
+              value={props.draft.locale}
+              onChange={(value) => {
+                props.onUpdate("locale", value);
+              }}
+            />
+          </>
+        </Show>
+        <button
+          type="button"
+          class="flex w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
+          aria-expanded={moreOptionsOpen()}
+          onClick={() => setMoreOptionsOpen((open) => !open)}
+        >
+          <span>{texts.settings.more}</span>
+          <span
+            class="flex flex-none transition-transform duration-120"
+            classList={{ "rotate-90": moreOptionsOpen() }}
+            aria-hidden="true"
+          >
+            <Icon name="chevron-right" size="var(--ui-icon-size-sm)" />
+          </span>
+        </button>
+        <Show when={moreOptionsOpen()}>
+          <>
+            <SelectSetting
+              label={texts.settings.portraitUiScaleLabel}
+              options={UI_SCALE_OPTIONS}
+              value={props.draft.portraitUiScale}
+              onChange={(value) => {
+                props.onUpdate("portraitUiScale", value);
+              }}
+            />
+            <SelectSetting
+              label={texts.settings.landscapeUiScaleLabel}
+              options={UI_SCALE_OPTIONS}
+              value={props.draft.landscapeUiScale}
+              onChange={(value) => {
+                props.onUpdate("landscapeUiScale", value);
+              }}
+            />
+            <SwitchButton
+              checked={props.draft.includeReaderPageInUrl}
+              description={texts.settings.includeReaderPageInUrlHelp}
+              label={texts.settings.includeReaderPageInUrlLabel}
+              onChange={(value) => props.onUpdate("includeReaderPageInUrl", value)}
+            />
+          </>
+        </Show>
+      </div>
+    </>
+  );
+}
+
+function AboutSettings(props: { active: boolean }) {
+  const [helpOpen, setHelpOpen] = createSignal(false);
+  const [licensesOpen, setLicensesOpen] = createSignal(false);
+  return (
+    <>
+      <div
+        id="ehpeek-settings-panel-about"
+        data-ehpeek-settings-tab="about"
+        role="tabpanel"
+        hidden={!props.active}
+      >
+        <div class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text [font-size:var(--ui-font-size-md)] font-700">
+          {__EHPEEK_NAME__}
+        </div>
+        <a
+          class="flex w-full min-h-[var(--ui-control-size-lg)] items-center overflow-hidden text-ellipsis whitespace-nowrap ui-px-md border-0 border-b ehp-color-site-border-subtle-b ehp-color-site-text no-underline [font-size:var(--ui-font-size-md)] font-700 hover:bg-[var(--color-site-item-hover)]"
+          href="https://github.com/yamipot/ehpeek"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          v{__EHPEEK_VERSION__}
+        </a>
+        <button
+          type="button"
+          class="flex w-full min-h-[var(--ui-control-size-lg)] items-center ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
+          onClick={() => setHelpOpen(true)}
+        >
+          <span>{texts.help.title}</span>
+        </button>
+        <button
+          type="button"
+          class="flex w-full min-h-[var(--ui-control-size-lg)] items-center justify-between ui-gap-md ui-px-md border-0 border-b ehp-color-site-border-subtle-b !bg-transparent hover:!bg-[var(--color-site-item-hover)] ehp-color-site-text font-inherit text-left [font-size:var(--ui-font-size-md)] cursor-pointer"
+          onClick={() => setLicensesOpen(true)}
+        >
+          <span>{texts.settings.licenses}</span>
+          <span class="flex flex-none" aria-hidden="true">
+            <Icon name="chevron-right" size="var(--ui-icon-size-sm)" />
+          </span>
+        </button>
+      </div>
+      <Show when={helpOpen()}>
+        <InteractionHelp variant="site" onClose={() => setHelpOpen(false)} />
+      </Show>
       <Show when={licensesOpen()}>
         <Dialog
           label={texts.settings.licenses}
@@ -548,6 +578,6 @@ export function SettingsMenu(props: {
           )}</For>
         </Dialog>
       </Show>
-    </Show>
+    </>
   );
 }

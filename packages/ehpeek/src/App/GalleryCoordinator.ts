@@ -11,7 +11,8 @@ import {
   type ReadingProgress,
 } from "./ReadingProgressSession";
 import type { GalleryPreviewCache } from "./GalleryPreviewCache";
-import { openOriginalReader, reportReaderOpenError } from "./Reader";
+import { openOriginalReader } from "./Reader";
+import { reportUiError } from "../ui";
 import { createReaderContentSource } from "./ReaderContentSource";
 import { readerSettings, readerSettingCallbacks } from "./ReaderSettings";
 import { createOverlayHistory } from "./OverlayHistory";
@@ -137,7 +138,7 @@ export function createGalleryCoordinator(options: {
           }
         : null;
     },
-    onError: reportReaderOpenError,
+    onError: reportUiError,
     onReaderOpen: (pageNum) => {
       readerLastPage = pageNum;
       readerInitialPreviewIndex = previewCache.current().data.currentIndex;
@@ -161,7 +162,7 @@ export function createGalleryCoordinator(options: {
       if (enhancedPreviewActive()) {
         thumbs?.gotoPreview(exitIndex);
         if (exitIndex !== previewCache.current().data.currentIndex) {
-          void previewCache.select(exitIndex).catch(reportReaderOpenError);
+          void previewCache.select(exitIndex).catch(reportUiError);
         }
         if (reader?.activeView === null)
           replacePreviewLocation(exitIndex);
@@ -178,7 +179,7 @@ export function createGalleryCoordinator(options: {
         options.replacePreviewWithScroll
       ) {
         if (index !== previewCache.current().data.currentIndex) {
-          void previewCache.select(index).catch(reportReaderOpenError);
+          void previewCache.select(index).catch(reportUiError);
         }
         replacePreviewLocation(index);
       } else {
@@ -202,7 +203,7 @@ export function createGalleryCoordinator(options: {
         void progress
           .flush()
           .then(() => window.location.assign(url))
-          .catch(reportReaderOpenError);
+          .catch(reportUiError);
       },
     },
   };
@@ -218,18 +219,18 @@ export function createGalleryCoordinator(options: {
     openFromReadButton: () => {
       void mountedReader()
         .open(options.readHistory ? progress.progress().currentPage : 1, true)
-        .catch(reportReaderOpenError);
+        .catch(reportUiError);
     },
     openGalleryPage: (url, preferredPageNum) => {
       const pageNum =
         preferredPageNum ?? eh.peekPageFromHash() ?? eh.galleryPageNumber(url);
-      if (pageNum) void mountedReader().open(pageNum, true).catch(reportReaderOpenError);
-      else reportReaderOpenError(new Error(texts.errors.imageNotFound));
+      if (pageNum) void mountedReader().open(pageNum, true).catch(reportUiError);
+      else reportUiError(new Error(texts.errors.imageNotFound));
     },
     openReaderFromHash: async () => {
       const pageNum = eh.peekPageFromHash();
       if (pageNum !== null)
-        await mountedReader().open(pageNum).catch(reportReaderOpenError);
+        await mountedReader().open(pageNum).catch(reportUiError);
     },
     progress: progress.progress as Accessor<ReadingProgress>,
   };

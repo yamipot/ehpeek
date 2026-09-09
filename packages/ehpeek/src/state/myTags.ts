@@ -1,6 +1,6 @@
-import * as eh from "../../eh";
-import type { MyTagsPageData } from "../../eh";
-import { state, type MyTagAppearance } from "../../state";
+import * as eh from "../eh";
+import type { MyTagsPageData } from "../eh";
+import { state, type MyTagAppearance } from "./index";
 
 async function loadMyTagsPage(tagSet?: string): Promise<MyTagsPageData> {
   const url = new URL("/mytags", window.location.origin);

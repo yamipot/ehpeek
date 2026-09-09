@@ -229,6 +229,8 @@ export function manageGalleryPreview(
     throw new Error("Cannot read the gallery preview image range.");
   }
   const currentPageSize = endImage - startImage + 1;
+  // The final site page may be short. Earlier pages are full, so their combined
+  // image count divided by the zero-based page index recovers the site's page size.
   const inferredFullPageSize = endImage === totalImages && currentIndex > 0
     ? (totalImages - currentPageSize) / currentIndex
     : currentPageSize;

@@ -1,72 +1,48 @@
+import { imageFileExtension } from "./images";
+import { ReaderPageLoader } from "./loading";
 import { batch, createEffect, onCleanup, onMount, Show, untrack } from "solid-js";
 import { createReadProgressPublisher, type ReadProgressPort } from "../features/ReadProgressSyncer";
-import type { ContentSource, ReaderCustomization, LoadedReaderPage, ReaderPage, ReaderSettingsState } from "../kit/interfaces";
+import type { ContentSource, ReaderCustomization, ReaderPage, ReaderSettingsState } from "../kit/interfaces";
 
 import { useOverlayHost } from "../kit/Widgets/OverlayHost";
 import { useReaderTexts } from "../kit/i18n";
-import { currentReaderOrientation, normalizeReaderScrollSizeScale } from "../features/ReaderSettings";
+import { currentReaderOrientation } from "../features/ReaderSettings";
 import {
   clamp,
-  normalizedAspectRatio,
-  positiveNumber,
 } from "../kit/helpers";
 import type { ScrollMotion } from "../kit/animation";
-import type { PointerDragEnd, PointerGestureCallbacks } from "../kit/PointerGesture";
+import { ReaderGestures } from "./gestures";
 import {
   PagesViewport,
-  pageWindowNumbers,
   type PagesViewportActions,
   type PagesViewportCallbacks,
 } from "./Viewport";
 import {
   Toolbar,
-  type ReaderControls,
   type ToolbarCallbacks,
 } from "./Toolbar";
 import { ZoomOverlay, type ZoomOverlayActions, type ZoomOverlayImage } from "./ZoomOverlay";
 import {
   doublePagePairStart,
   ReaderSession,
-  type ReaderLoadTarget,
+  type ReaderControls,
   type ReaderOptions,
 } from "./session";
 import { ReaderScrollBar } from "./ScrollBar";
-import { ViewportCanvas, type ViewportCanvasCallbacks } from "./ViewportCanvas";
+import { ViewportCanvas, ScrollScaleAdjustment } from "./ViewportCanvas";
 import "../styles";
 import { bindInteractionGate } from "../features/InteractionGate";
 
 const VIEWER_ID = "ehpeek-reader";
-const DEFAULT_WINDOW_SIZE = 10;
 
-const PAGED_SWIPE_THRESHOLD = 24;
-const PAGED_PREVIEW_SWIPE_THRESHOLD = 48;
-const PAGED_PREVIEW_SWIPE_AXIS_LIMIT = 32;
 const PAGED_WHEEL_THRESHOLD = 8;
 const HORIZONTAL_SCROLL_WHEEL_FACTOR = 0.5;
 const PROGRESS_IDLE_COMMIT_MS = 180;
-const LOADED_IMAGE_INFO_CACHE_LIMIT = 160;
-const PROGRESSIVE_IMAGE_SIZE_THRESHOLD = 2 * 1024 * 1024;
-const CONCURRENT_IMAGE_BYTE_LIMIT = 6 * 1024 * 1024;
-const MIN_CONCURRENT_IMAGE_LOADS = 3;
 const SCROLL_GESTURE_IDLE_MS = 160;
 const SCROLL_BAR_IDLE_MS = 900;
 const SCROLL_BAR_SHOW_DISTANCE = 48;
 const SCROLL_BAR_EXPAND_VIEWPORTS = 2;
-const MOUSE_HOLD_ZOOM_MS = 350;
-const ZOOM_DOUBLE_TAP_MS = 300;
-const ZOOM_DOUBLE_TAP_DISTANCE = 36;
-const ZOOM_DOUBLE_TAP_SCALE = 1.2;
-const TAP_CANCEL_DISTANCE = 8;
-const FALLBACK_ASPECT_RATIO = 1.42;
 export type { ReaderOptions } from "./session";
-
-type LoadedReaderImage = ZoomOverlayImage & {
-  originalImageUrl: string | null;
-  fileName?: string;
-  originalFileName?: string;
-  byteSize?: number | null;
-  displayWhileLoading?: boolean;
-};
 
 export type ReaderActions = {
   progress: ReadProgressPort;
@@ -245,17 +221,7 @@ function wireReaderCallbacks(
   let viewportActions!: PagesViewportActions;
   let zoomOverlay!: ZoomOverlayActions;
   const totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : undefined;
-  const renderWindowSize = options.renderWindowSize ?? DEFAULT_WINDOW_SIZE;
-  const preloadWindowSize = options.preloadWindowSize ?? DEFAULT_WINDOW_SIZE;
-  const loadController = new AbortController();
-  const pages = new Map<number, ReaderPage>();
-  const loadedImages = new Map<number, LoadedReaderImage>();
-  let pagedTargetPageNumber: number | null = null;
-  let syncToken = 0;
   let closed = false;
-  let lastReportedPageNum: number | null = null;
-  let loadDirection: -1 | 1 = 1;
-  let loadDirectionEdgePageNum = state.navi.currentPageNum();
   const scrollFitPageNum = state.navi.currentPageNum();
   const pagedMode = () => state.ctrls.value().navigationMode === "paged";
   const doublePageActive = () =>
@@ -346,202 +312,32 @@ function wireReaderCallbacks(
         setCurrentPageNumber(currentPageNum, true);
       });
     } else if (controls.direction !== previous.direction) {
-      syncViewportWindow();
+      loader.syncViewportWindow();
       scrollToCurrentPage();
     }
   }
 
-  function requestReaderClose(): void {
-    if (closed) {
-      return;
-    }
-    closed = callbacks.onClose();
-  }
-
-  function imageAtPoint(point: { clientX: number; clientY: number }): ZoomOverlayImage | null {
-    const pageNum = viewportActions.pageNumAtPoint(point);
-    return pageNum === null || !viewportActions.pageImageReady(pageNum)
-      ? null
-      : loadedImages.get(pageNum) ?? null;
-  }
-
-  function prepareZoomAtPoint(
-    point: { clientX: number; clientY: number },
-    scaleMultiplier = 1,
-  ): boolean {
-    const image = imageAtPoint(point);
-    if (!image) {
-      return false;
-    }
-    stopViewportMotion();
-    viewportActions.cancelDrag();
-    const zoomScale = viewportActions.pageZoomScale(image.pageNum);
-    state.overlay.update(image);
-    zoomOverlay.reset({
-      centerX: point.clientX,
-      centerY: point.clientY,
-      scale: zoomScale * scaleMultiplier,
-    });
-    return true;
-  }
+  // Navigation intent is temporary; only committed pages publish progress.
+  let pagedTargetPageNumber: number | null = null;
+  let lastReportedPageNum: number | null = null;
 
   function setCurrentPageNumber(pageNumber: number, scrollIntoView: boolean, scrollMotion: ScrollMotion = "instant"): void {
     pagedTargetPageNumber = null;
-    const target = normalizedPageNumber(
-      clamp(Math.round(pageNumber), 1, maxReaderPageNum()),
+    const target = state.navi.normalizePage(
+      clamp(Math.round(pageNumber), 1, state.navi.readerPageLimit()),
     );
-    if (target !== state.navi.currentPageNum()) {
-      state.navi.setDirection(target > state.navi.currentPageNum() ? 1 : -1);
-      state.navi.setCurrentPageNum(target);
-    }
+    state.navi.updatePage(target);
     syncAfterPageChange({ scrollIntoView, scrollMotion });
-  }
-
-  function normalizedPageNumber(pageNum: number): number {
-    if (
-      !pagedMode() ||
-      state.ctrls.value().pageLayout !== "double" ||
-      (totalPages !== undefined && pageNum === totalPages + 1)
-    ) {
-      return pageNum;
-    }
-    return doublePagePairStart(pageNum, state.ctrls.value().firstPageSeparate);
   }
 
   function syncAfterPageChange(options: {
     scrollIntoView: boolean;
     scrollMotion?: ScrollMotion;
   }): void {
-    const token = ++syncToken;
-    const numbers = pageWindowNumbers(state.navi.currentPageNum(), renderWindowSize);
-    const missing = numbers.filter((number) => isRealPageNum(number) && !pages.has(number));
-    syncViewportWindow();
-    maintainLoadQueue();
-    notifyActivePageChange();
-    if (options.scrollIntoView) {
-      scrollToCurrentPage({ motion: options.scrollMotion });
-    }
-    if (missing.length > 0) {
-      void loadMissingPages(missing, token);
-    }
-  }
-
-  async function loadMissingPages(pageNums: number[], token: number): Promise<void> {
-    await Promise.all(pageNums.map(async (pageNum) => {
-      const groupPageNums = [pageNum];
-      const loadingTokens = new Map(groupPageNums.flatMap((pageNum) => {
-        const loadingToken = viewportActions.markPageLoading(pageNum);
-        return loadingToken === null ? [] : [[pageNum, loadingToken] as const];
-      }));
-      let incoming: ReaderPage[];
-      try {
-        incoming = await source.getPages(groupPageNums, loadController.signal);
-      }
-      catch (error) {
-        console.error("[ehpeek]", error);
-        const message = error instanceof Error ? error.message : texts.errors.loadFailed;
-        for (const [pageNum, loadingToken] of loadingTokens) {
-          viewportActions.setPageError(pageNum, loadingToken, message);
-        }
-        return;
-      }
-
-      if (closed) {
-        return;
-      }
-      addPages(incoming);
-      const loadedPageNums = new Set(incoming.flatMap((page) =>
-        page.pageNum && page.pageNum > 0 ? [page.pageNum] : []
-      ));
-      for (const [pageNum, loadingToken] of loadingTokens) {
-        if (loadedPageNums.has(pageNum)) {
-          viewportActions.resetPageLoading(pageNum, loadingToken);
-        } else {
-          viewportActions.setPageError(
-            pageNum,
-            loadingToken,
-            texts.errors.imageNotFound,
-          );
-        }
-      }
-    }));
-
-    if (closed || token !== syncToken) {
-      return;
-    }
-    syncViewportWindow();
-    maintainLoadQueue();
-    notifyActivePageChange();
-    if (state.ctrls.value().navigationMode === "scroll" && state.navi.currentPageNum() === scrollFitPageNum) {
-      scrollToCurrentPage();
-    }
-  }
-  function addPages(incomingPages: ReaderPage[]): void {
-    for (const [index, page] of incomingPages.entries()) {
-      const pageNum = pageNumForPage(page, index);
-      if (pageNum > 0) {
-        pages.set(pageNum, {
-          ...page,
-          aspectRatio: normalizedAspectRatio(page.aspectRatio, FALLBACK_ASPECT_RATIO),
-          pageNum,
-        });
-      }
-    }
-  }
-
-  function syncViewportWindow(): void {
-    state.navi.setViewportWindow({
-      currentPageNum: state.navi.currentPageNum(),
-      windowSize: renderWindowSize,
-      totalPages: totalPages,
-      pages: pageMetaForViewport(),
+    loader.sync(() => {
+      notifyActivePageChange();
+      if (options.scrollIntoView) scrollToCurrentPage({ motion: options.scrollMotion });
     });
-    updatePageNumber();
-  }
-
-  function maintainLoadQueue(): void {
-    const firstVisiblePageNum =
-      viewportActions.firstVisiblePageNum() ?? state.navi.currentPageNum();
-    const movement = (firstVisiblePageNum - loadDirectionEdgePageNum) *
-      loadDirection;
-    if (movement >= 0) {
-      loadDirectionEdgePageNum = firstVisiblePageNum;
-    } else if (-movement > 2) {
-      loadDirection = loadDirection === 1 ? -1 : 1;
-      loadDirectionEdgePageNum = firstVisiblePageNum;
-    }
-    const pageNums = [firstVisiblePageNum];
-    for (let offset = 1; offset <= preloadWindowSize; offset += 1) {
-      pageNums.push(firstVisiblePageNum + offset * loadDirection);
-    }
-    pageNums.push(firstVisiblePageNum - loadDirection);
-    session.imageQueue.sync(Array.from(new Set(pageNums)).flatMap((pageNum, priority) => {
-      const target = loadTargetFor(pageNum);
-      return target ? [{ key: pageNum, priority, target }] : [];
-    }));
-  }
-
-  function pageMetaForViewport(): Map<number, {
-    aspectRatio: number;
-  }> {
-    return new Map(Array.from(pages, ([pageNum, page]) => [pageNum, { aspectRatio: page.aspectRatio }]));
-  }
-
-  function loadTargetFor(pageNum: number): ReaderLoadTarget | null {
-    const page = pages.get(pageNum);
-    return page ? { pageNum, page } : null;
-  }
-
-  function maxReaderPageNum(): number {
-    return totalPages ? totalPages + 1 : Number.MAX_SAFE_INTEGER;
-  }
-
-  function maxProgressPageNum(): number {
-    return totalPages ?? Number.MAX_SAFE_INTEGER;
-  }
-
-  function isRealPageNum(pageNum: number): boolean {
-    return pageNum >= 1 && (!totalPages || pageNum <= totalPages);
   }
 
   function turnPageBy(delta: number): void {
@@ -568,7 +364,7 @@ function wireReaderCallbacks(
 
   function animatePagedStep(delta: number): void {
     const base = pagedTargetPageNumber ?? state.navi.currentPageNum();
-    const target = clamp(Math.round(base + delta), 1, maxReaderPageNum());
+    const target = clamp(Math.round(base + delta), 1, state.navi.readerPageLimit());
     if (target === base) {
       scrollToCurrentPage({ motion: "animated", overrideTarget: false });
       return;
@@ -607,12 +403,11 @@ function wireReaderCallbacks(
       ? [pageNum, pageNum + 1]
       : [pageNum];
     state.navi.setDownloadInfos(downloadPageNums.flatMap((downloadPageNum) => {
-      const image = loadedImages.get(downloadPageNum);
-      if (!image || !isRealPageNum(downloadPageNum)) {
+      const image = loader.images.get(downloadPageNum);
+      if (!image || !state.navi.isContentPage(downloadPageNum)) {
         return [];
       }
-      loadedImages.delete(downloadPageNum);
-      loadedImages.set(downloadPageNum, image);
+      loader.images.touch(downloadPageNum);
       const currentFileName = image.fileName ?? `page-${downloadPageNum}.${imageFileExtension(image.imageUrl) || "webp"}`;
       return [{
         currentFileName,
@@ -624,11 +419,11 @@ function wireReaderCallbacks(
         pageNum: downloadPageNum,
       }];
     }));
-    state.navi.setMaxProgressPageNum(Math.max(1, maxProgressPageNum()));
+    state.navi.setMaxProgressPageNum(Math.max(1, state.navi.progressPageLimit()));
   }
 
   function notifyActivePageChange(): void {
-    const page = pages.get(state.navi.currentPageNum());
+    const page = loader.pages.get(state.navi.currentPageNum());
     if (page && page.pageNum !== lastReportedPageNum) {
       lastReportedPageNum = page.pageNum ?? null;
       callbacks.onProgress(page);
@@ -638,163 +433,62 @@ function wireReaderCallbacks(
   function updateCurrentFromScroll(): void {
     const next = viewportActions.centerPageNum();
     if (next !== null && next !== state.navi.currentPageNum()) {
-      state.navi.setDirection(next > state.navi.currentPageNum() ? 1 : -1);
-      state.navi.setCurrentPageNum(next);
+      state.navi.updatePage(next);
       syncAfterPageChange({ scrollIntoView: false });
       return;
     }
-    maintainLoadQueue();
+    loader.maintainLoadQueue();
   }
 
-  const onKeydown = (event: KeyboardEvent): void => {
-    if (disabled() || shouldIgnoreKeyboardEvent(event)) {
-      return;
-    }
-    if (event.key === "Escape") {
-      if (state.overlay.image() !== null) {
-        state.overlay.update(null);
-      } else {
-        requestReaderClose();
-      }
-      event.preventDefault();
-    } else if (
-      event.key === "ArrowLeft" ||
-      event.key === "ArrowRight" ||
-      (state.ctrls.value().direction === "ttb" && (event.key === "ArrowUp" || event.key === "ArrowDown"))
-    ) {
-      event.preventDefault();
-      if (state.overlay.image() === null) {
-        if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-          turnPageBy(event.key === "ArrowUp" ? -1 : 1);
-        } else {
-          turnPageBy(event.key === "ArrowLeft" ? state.navi.leftTapDelta() : state.navi.rightTapDelta());
+  const loader = new ReaderPageLoader(
+    source, options,
+    { pageNum: state.navi.currentPageNum, doublePage: doublePageActive, closed: () => closed },
+    {
+      onWindow: state.navi.setViewportWindow,
+      onImagesChanged: updatePageNumber,
+      onPagesReady: () => {
+        notifyActivePageChange();
+        if (state.ctrls.value().navigationMode === "scroll" && state.navi.currentPageNum() === scrollFitPageNum) {
+          scrollToCurrentPage();
         }
-      }
-    }
-  };
+      },
+      onImageSize: (pageNum, width, height) => {
+        if (pageNum === scrollFitPageNum && width && height && !state.scrollViewport.fitImageSize()) {
+          state.scrollViewport.setFitImageSize({ width, height });
+        }
+      },
+    },
+    texts,
+  );
 
-  const gesture = wireGesture();
-  const viewport = wireViewport();
-  const scrollViewport = wireScrollViewport();
-  wireImageQueue();
-  const toolbar = wireToolbar();
-  createEffect(() => {
-    if (!disabled()) return;
-    untrack(() => {
-      stopViewportMotion();
-      viewportActions.cancelDrag();
-      scrollViewport.endPinch();
-      state.navi.setProgressInputActive(false);
+  function imageAtPoint(point: { clientX: number; clientY: number }): ZoomOverlayImage | null {
+    const pageNum = viewportActions.pageNumAtPoint(point);
+    return pageNum === null || !viewportActions.pageImageReady(pageNum)
+      ? null
+      : loader.images.get(pageNum) ?? null;
+  }
+
+  function prepareZoomAtPoint(
+    point: { clientX: number; clientY: number },
+    scaleMultiplier = 1,
+  ): boolean {
+    const image = imageAtPoint(point);
+    if (!image) {
+      return false;
+    }
+    stopViewportMotion();
+    viewportActions.cancelDrag();
+    const zoomScale = viewportActions.pageZoomScale(image.pageNum);
+    state.overlay.update(image);
+    zoomOverlay.reset({
+      centerX: point.clientX,
+      centerY: point.clientY,
+      scale: zoomScale * scaleMultiplier,
     });
-  });
-
-  return {
-    viewportActionsRef: (actions: PagesViewportActions): void => {
-      viewportActions = actions;
-    },
-    zoomOverlayActionsRef: (actions: ZoomOverlayActions): void => {
-      zoomOverlay = actions;
-    },
-    init: () => {
-      document.addEventListener("keydown", onKeydown, true);
-      window.addEventListener("resize", updateReaderViewportSize);
-      updateReaderViewportSize();
-      viewportResizeObserver = new ResizeObserver(updateReaderViewportSize);
-      viewportResizeObserver.observe(readerElement());
-      viewportActions.focus();
-      updatePageNumber();
-      syncAfterPageChange({ scrollIntoView: true });
-    },
-    cleanup: () => {
-      closed = true;
-      loadController.abort();
-      document.removeEventListener("keydown", onKeydown, true);
-      window.removeEventListener("resize", updateReaderViewportSize);
-      viewportResizeObserver?.disconnect();
-      viewportResizeObserver = null;
-    },
-    gotoPage: (pageNum: number) => setCurrentPageNumber(pageNum, true),
-    syncProgress: (pageNum: number) => {
-      lastReportedPageNum = normalizedPageNumber(
-        clamp(Math.round(pageNum), 1, maxReaderPageNum()),
-      );
-      setCurrentPageNumber(pageNum, true);
-    },
-    realignCurrentPage: () => {
-      scrollToCurrentPage();
-    },
-    toolbar,
-    viewport,
-    viewportCanvas: scrollViewport.callbacks,
-  };
-
-  function wireScrollViewport(): {
-    callbacks: ViewportCanvasCallbacks;
-    endPinch: () => void;
-    movePinch: (scale: number) => void;
-    open: () => void;
-    pinching: () => boolean;
-    startPinch: () => boolean;
-  } {
-    let adjustmentStartSizeScale = state.scrollViewport.sizeScale();
-    let pinchStartScale: number | null = null;
-    const updateImageScale = (scale: number | null): void => {
-      if (scale === null) {
-        state.scrollViewport.setSizeScale(null);
-        return;
-      }
-      const fitScale = state.scrollViewport.fitScale();
-      if (fitScale) {
-        state.scrollViewport.setSizeScale(normalizeReaderScrollSizeScale(
-          scale / fitScale,
-        ));
-      }
-    };
-
-    return {
-      startPinch: () => {
-        const scalePercent = state.scrollViewport.scalePercent();
-        if (scalePercent === null) {
-          return false;
-        }
-        pinchStartScale = scalePercent / 100;
-        return true;
-      },
-      movePinch: (scale) => {
-        if (pinchStartScale === null) {
-          return;
-        }
-        updateImageScale(clamp(pinchStartScale * scale, 0.1, 5));
-      },
-      endPinch: () => {
-        pinchStartScale = null;
-      },
-      pinching: () => pinchStartScale !== null,
-      open: () => {
-        adjustmentStartSizeScale = state.scrollViewport.sizeScale();
-        state.scrollViewport.setAdjusting(true);
-      },
-      callbacks: {
-        onApply: () => state.scrollViewport.setAdjusting(false),
-        onApplyAll: () => {
-          settings.set(
-            state.ctrls.value().direction === "ttb" ? "scrollTtbScale" : "scrollHorizontalScale",
-            state.scrollViewport.sizeScale(),
-          );
-          state.scrollViewport.setAdjusting(false);
-        },
-        onClose: () => {
-          state.scrollViewport.setSizeScale(adjustmentStartSizeScale);
-          state.scrollViewport.setAdjusting(false);
-        },
-        onFill: () => state.scrollViewport.setSizeScale("fill"),
-        onFit: () => updateImageScale(null),
-        onOneToOne: () => state.scrollViewport.setSizeScale("one-to-one"),
-        onScaleChange: updateImageScale,
-      },
-    };
+    return true;
   }
 
+  // Input adapters translate gestures and controls into the navigation operations above.
   function wireViewport(): PagesViewportCallbacks {
     let scrollFrame: number | null = null;
     let scrollBarTimer: number | null = null;
@@ -869,10 +563,10 @@ function wireReaderCallbacks(
         if (!viewportActions.resetPageError(pageNum)) {
           return;
         }
-        if (pages.has(pageNum)) {
-          maintainLoadQueue();
+        if (loader.pages.has(pageNum)) {
+          loader.maintainLoadQueue();
         } else {
-          void loadMissingPages([pageNum], ++syncToken);
+          void loader.loadMissingPages([pageNum], loader.invalidate());
         }
       },
       onWheel: (delta: number, event: WheelEvent): void => {
@@ -927,116 +621,6 @@ function wireReaderCallbacks(
     };
   }
 
-  function wireImageQueue(): void {
-    const imagePageLoadController = new AbortController();
-    const acquireImageLoadBudget = createImageLoadBudget(
-      CONCURRENT_IMAGE_BYTE_LIMIT,
-      MIN_CONCURRENT_IMAGE_LOADS,
-    );
-
-    onCleanup(() => imagePageLoadController.abort());
-
-    const rememberLoadedImage = (pageNum: number, loaded: LoadedReaderPage): LoadedReaderImage => {
-      const image = {
-        ...loaded,
-        pageNum,
-        imageUrl: loaded.imageUrl,
-        originalImageUrl: loaded.originalImageUrl ?? null,
-        width: positiveNumber(loaded.width),
-        height: positiveNumber(loaded.height),
-      };
-      if (pageNum === scrollFitPageNum && image.width && image.height && !state.scrollViewport.fitImageSize()) {
-        state.scrollViewport.setFitImageSize({ height: image.height, width: image.width });
-      }
-      loadedImages.delete(pageNum);
-      loadedImages.set(pageNum, image);
-      while (loadedImages.size > LOADED_IMAGE_INFO_CACHE_LIMIT) {
-        const oldestPageNum = loadedImages.keys().next().value as number | undefined;
-        if (oldestPageNum === undefined) {
-          break;
-        }
-        loadedImages.delete(oldestPageNum);
-      }
-      return image;
-    };
-
-    const installImage = async (
-      target: ReaderLoadTarget,
-      loaded: LoadedReaderPage,
-      token: number,
-    ): Promise<void> => {
-      const imageUrl = loaded.imageUrl;
-      const width = positiveNumber(loaded.width);
-      const height = positiveNumber(loaded.height);
-      let installed = false;
-      try {
-        installed = await viewportActions.loadPageImage(target.pageNum, token, {
-          displayWhileLoading: loaded.displayWhileLoading ?? (
-            imageFileExtension(imageUrl) === "gif" ||
-            imageFileExtension(loaded.originalImageUrl ?? "") === "gif" ||
-            (loaded.byteSize ?? 0) > PROGRESSIVE_IMAGE_SIZE_THRESHOLD
-          ),
-          imageUrl,
-          highPriority: target.pageNum === state.navi.currentPageNum() || (
-          doublePageActive() &&
-            target.pageNum === state.navi.currentPageNum() + 1
-          ),
-          width,
-          height,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : texts.errors.imageLoadFailed;
-        viewportActions.setPageError(target.pageNum, token, message);
-        return;
-      }
-      if (installed && target.pageNum === scrollFitPageNum && !state.scrollViewport.fitImageSize()) {
-        const fitWidth = viewportActions.pageImageWidth(target.pageNum);
-        const fitHeight = viewportActions.pageImageHeight(target.pageNum);
-        if (fitWidth && fitHeight) {
-          state.scrollViewport.setFitImageSize({ height: fitHeight, width: fitWidth });
-        }
-      }
-      if (!closed) {
-        const currentPageNum = state.navi.currentPageNum();
-        if (target.pageNum === currentPageNum || (
-          doublePageActive() &&
-          target.pageNum === currentPageNum + 1
-        )) {
-          updatePageNumber();
-        }
-      }
-    };
-
-    session.imageQueue.updateCallbacks({
-      loadTarget: (target) => Promise.resolve(
-        loadedImages.get(target.pageNum) ??
-        source.loadImage(target.page, imagePageLoadController.signal),
-      ),
-      markLoading: (target) => viewportActions.markPageLoading(target.pageNum),
-      onLoaded: async (target, loaded, token) => {
-        const image = rememberLoadedImage(target.pageNum, loaded);
-        if (!pageWindowNumbers(state.navi.currentPageNum(), renderWindowSize).includes(target.pageNum)) {
-          return;
-        }
-        const releaseBudget = await acquireImageLoadBudget(
-          image.byteSize ?? CONCURRENT_IMAGE_BYTE_LIMIT,
-        );
-        try {
-          if (!pageWindowNumbers(state.navi.currentPageNum(), renderWindowSize).includes(target.pageNum)) {
-            return;
-          }
-          await installImage(target, image, token);
-        } finally {
-          releaseBudget();
-        }
-      },
-      onError: (target, error, token) => {
-        const message = error instanceof Error ? error.message : texts.errors.loadFailed;
-        viewportActions.setPageError(target.pageNum, token, message);
-      },
-    });
-  }
-
   function wireToolbar(): ToolbarCallbacks {
     const toolbar = {} as ToolbarCallbacks;
     let progressNavigationTimer: number | null = null;
@@ -1049,15 +633,12 @@ function wireReaderCallbacks(
       }
     };
     const previewProgress = (pageNum: number): void => {
-      const target = normalizedPageNumber(
-        clamp(Math.round(pageNum), 1, maxProgressPageNum()),
+      const target = state.navi.normalizePage(
+        clamp(Math.round(pageNum), 1, state.navi.progressPageLimit()),
       );
-      if (target !== state.navi.currentPageNum()) {
-        state.navi.setDirection(target > state.navi.currentPageNum() ? 1 : -1);
-        state.navi.setCurrentPageNum(target);
-      }
-      ++syncToken;
-      syncViewportWindow();
+      state.navi.updatePage(target);
+      loader.invalidate();
+      loader.syncViewportWindow();
       scrollToCurrentPage();
       updatePageNumber();
     };
@@ -1073,8 +654,8 @@ function wireReaderCallbacks(
     toolbar.onControlsChange = updateControls;
     toolbar.onFullscreenClick = callbacks.onToggleFullscreen;
     toolbar.onOpenOriginalPageClick = (): void => {
-      const page = pages.get(state.navi.currentPageNum());
-      if (page && isRealPageNum(state.navi.currentPageNum())) {
+      const page = loader.pages.get(state.navi.currentPageNum());
+      if (page && state.navi.isContentPage(state.navi.currentPageNum())) {
         customization.onOpenOriginalPage?.(page.url, page.pageNum ?? state.navi.currentPageNum());
       }
     };
@@ -1092,7 +673,7 @@ function wireReaderCallbacks(
         return;
       }
       state.navi.setProgressInputActive(true);
-      pendingProgressPageNum = clamp(Math.round(pageNum), 1, maxProgressPageNum());
+      pendingProgressPageNum = clamp(Math.round(pageNum), 1, state.navi.progressPageLimit());
       previewProgress(pendingProgressPageNum);
       cancelProgressNavigation();
       progressNavigationTimer = session.setTimeout(
@@ -1115,225 +696,108 @@ function wireReaderCallbacks(
     return toolbar;
   }
 
-
-  function wireGesture(): PointerGestureCallbacks {
-    const gesture: PointerGestureCallbacks = { dragAxis: "any" };
-    let lastZoomTap: { clientX: number; clientY: number; time: number } | null = null;
-    const isZoomDoubleTap = (
-      info: PointerDragEnd,
-      event: PointerEvent | MouseEvent,
-    ): boolean => {
-      const now = event.timeStamp || performance.now();
-      const doubleTap = lastZoomTap !== null &&
-        now - lastZoomTap.time <= ZOOM_DOUBLE_TAP_MS &&
-        Math.hypot(
-            info.clientX - lastZoomTap.clientX,
-            info.clientY - lastZoomTap.clientY,
-          ) <= ZOOM_DOUBLE_TAP_DISTANCE;
-      lastZoomTap = doubleTap
-        ? null
-        : { clientX: info.clientX, clientY: info.clientY, time: now };
-      return doubleTap;
-    };
-    const isPageReloadButtonTarget = (event: PointerEvent | MouseEvent): boolean =>
-      event.target instanceof Element &&
-      event.target.closest(".ehpeek-reader-page-reload") !== null;
-    const shouldStartDrag = (event: PointerEvent): boolean =>
-      state.overlay.image() !== null ||
-      pagedMode() ||
-      state.ctrls.value().direction !== "ttb" ||
-      event.pointerType === "mouse";
-    const isPreviewSwipe = (info: PointerDragEnd): boolean => {
-      if (!pagedMode()) {
-        return false;
-      }
-      return state.ctrls.value().direction === "ttb"
-        ? Math.abs(info.dx) >= PAGED_PREVIEW_SWIPE_THRESHOLD &&
-          Math.abs(info.dy) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT
-        : info.dy >= PAGED_PREVIEW_SWIPE_THRESHOLD &&
-          Math.abs(info.dx) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT;
-    };
-    const runSingleTap = (info: PointerDragEnd, event: PointerEvent | MouseEvent): void => {
-      if (state.overlay.image() !== null) {
-        event.preventDefault();
-      } else if (viewportActions.isHitEndPage(info)) {
-        callbacks.onEnd();
-        requestReaderClose();
-      } else {
-        const zone = viewportActions.viewportXRatio(info.clientX);
-        if (zone >= 1 / 3 && zone <= 2 / 3) {
-          state.toolbar.toggle();
-        } else {
-          turnPageBy(zone < 1 / 3 ? state.navi.leftTapDelta() : state.navi.rightTapDelta());
-        }
-      }
-    };
-    gesture.onTap = (info: PointerDragEnd, event: PointerEvent | MouseEvent): void => {
-      viewportActions.cancelDrag();
-      if (state.overlay.image() !== null) {
-        if (isZoomDoubleTap(info, event)) {
-          state.overlay.update(null);
-        }
-        event.preventDefault();
-        return;
-      }
-
-      const zone = viewportActions.viewportXRatio(info.clientX);
-      const centerTap = zone >= 1 / 3 && zone <= 2 / 3;
-      if (centerTap) {
-        if (
-          isZoomDoubleTap(info, event) &&
-          prepareZoomAtPoint(info, ZOOM_DOUBLE_TAP_SCALE)
-        ) {
-          state.toolbar.close();
-          event.preventDefault();
-          return;
-        }
-      } else {
-        lastZoomTap = null;
-      }
-      runSingleTap(info, event);
-    };
-    gesture.holdDelay = MOUSE_HOLD_ZOOM_MS;
-    gesture.onHold = (info, event) => {
-      const mouseInput = event instanceof PointerEvent
-        ? event.pointerType === "mouse"
-        : event instanceof MouseEvent;
-      if (!mouseInput) {
-        return false;
-      }
-      lastZoomTap = null;
+  const onKeydown = (event: KeyboardEvent): void => {
+    if (disabled() || shouldIgnoreKeyboardEvent(event)) {
+      return;
+    }
+    if (event.key === "Escape") {
       if (state.overlay.image() !== null) {
         state.overlay.update(null);
-        return "consume";
+      } else {
+        requestReaderClose();
       }
-      if (!prepareZoomAtPoint(info)) {
-        return false;
-      }
-      zoomOverlay.movePinch({ centerX: info.clientX, centerY: info.clientY, scale: 2 });
-      zoomOverlay.endPinch();
-      return "drag";
-    };
-    gesture.onStart = (): void => {
-      if (state.overlay.image() !== null) {
-        zoomOverlay.startDrag();
-        return;
-      }
-      pagedTargetPageNumber = null;
-      viewportActions.beginDrag();
-    };
-    gesture.onMove = (info: PointerDragEnd): void => {
-      if (state.overlay.image() !== null) {
-        zoomOverlay.moveDrag(info);
-        return;
-      }
-      if (!viewportActions.moveDrag({ dx: info.dx, dy: info.dy })) {
-        return;
-      }
-    };
-    gesture.onEnd = (info: PointerDragEnd): void => {
-      if (state.overlay.image() !== null) {
-        return;
-      }
-      viewportActions.cancelDrag();
-      if (isPreviewSwipe(info)) {
-        scrollToCurrentPage({ motion: "animated" });
-        callbacks.onOpenPreview(state.navi.currentPageNum());
-        return;
-      }
-      if (!pagedMode()) {
-        if (state.ctrls.value().direction === "ttb") {
-          viewportActions.moveToTop(viewportActions.scrollTop());
-          viewportActions.startVerticalFlingFromDragVelocity(info.velocityY, () => updateCurrentFromScroll());
+      event.preventDefault();
+    } else if (
+      event.key === "ArrowLeft" ||
+      event.key === "ArrowRight" ||
+      (state.ctrls.value().direction === "ttb" && (event.key === "ArrowUp" || event.key === "ArrowDown"))
+    ) {
+      event.preventDefault();
+      if (state.overlay.image() === null) {
+        if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+          turnPageBy(event.key === "ArrowUp" ? -1 : 1);
         } else {
-          viewportActions.moveToLeft(viewportActions.scrollLeft());
-          viewportActions.startHorizontalFlingFromDragVelocity(info.velocityX, () => updateCurrentFromScroll());
+          turnPageBy(event.key === "ArrowLeft" ? state.navi.leftTapDelta() : state.navi.rightTapDelta());
         }
-        updateCurrentFromScroll();
-        return;
       }
-      if (state.ctrls.value().direction === "ttb") {
-        if (info.dy >= PAGED_SWIPE_THRESHOLD) {
-          turnPageBy(-1);
-        } else if (info.dy <= -PAGED_SWIPE_THRESHOLD) {
-          turnPageBy(1);
-        } else {
-          scrollToCurrentPage({ motion: "animated" });
-        }
-        return;
-      }
-      if (info.dx >= PAGED_SWIPE_THRESHOLD) {
-        turnPageBy(state.navi.rightDragDelta());
-      }
-      else if (info.dx <= -PAGED_SWIPE_THRESHOLD) {
-        turnPageBy(state.navi.leftDragDelta());
-      }
-      else {
-        scrollToCurrentPage({ motion: "animated" });
-      }
-    };
-    gesture.onPinchStart = (info: {
-      clientX: number;
-      clientY: number;
-    }): boolean => {
-      lastZoomTap = null;
+    }
+  };
+
+  // Mount/unmount connects the already-defined responsibilities in one place.
+  function requestReaderClose(): void {
+    if (closed) {
+      return;
+    }
+    closed = callbacks.onClose();
+  }
+
+  const scrollViewport = new ScrollScaleAdjustment(state.scrollViewport, () => state.ctrls.value().direction, settings);
+  const gestures = new ReaderGestures(
+    state, scrollViewport,
+    {
+      close: requestReaderClose, onEnd: callbacks.onEnd, openPreview: callbacks.onOpenPreview,
+      turnPageBy, prepareZoom: prepareZoomAtPoint, realign: scrollToCurrentPage,
+      followScroll: updateCurrentFromScroll, stopMotion: stopViewportMotion,
+      cancelPageTarget: () => { pagedTargetPageNumber = null; },
+      imageAtPoint,
+    },
+  );
+  const gesture = gestures.callbacks;
+  const viewport = wireViewport();
+  const toolbar = wireToolbar();
+  createEffect(() => {
+    if (!disabled()) return;
+    untrack(() => {
       stopViewportMotion();
       viewportActions.cancelDrag();
-      if (!pagedMode() && state.overlay.image() === null) {
-        return scrollViewport.startPinch();
-      }
-      if (state.overlay.image() !== null) {
-        zoomOverlay.startPinch({ centerX: info.clientX, centerY: info.clientY });
-        return true;
-      }
-      const image = imageAtPoint(info);
-      if (!image) {
-        return false;
-      }
-      const zoomScale = viewportActions.pageZoomScale(image.pageNum);
-      state.overlay.update(image);
-      zoomOverlay.reset({ centerX: info.clientX, centerY: info.clientY, scale: zoomScale });
-      return true;
-    };
-    gesture.onPinchMove = (info: { clientX: number; clientY: number; scale: number }) => {
-      if (scrollViewport.pinching()) {
-        scrollViewport.movePinch(info.scale);
-        return;
-      }
-      zoomOverlay.movePinch({
-        centerX: info.clientX,
-        centerY: info.clientY,
-        scale: info.scale,
-      });
-    };
-    gesture.onPinchEnd = () => {
-      if (scrollViewport.pinching()) {
-        scrollViewport.endPinch();
-        return;
-      }
-      zoomOverlay.endPinch();
-    };
-    gesture.shouldCaptureDrag = (event) => {
-      if (isPageReloadButtonTarget(event)) {
-        return false;
-      }
-      if (!(event instanceof PointerEvent)) {
-        return false;
-      }
-      if (event.pointerType === "mouse" && event.button !== 0) {
-        return false;
-      }
-      return shouldStartDrag(event);
-    };
-    gesture.shouldObserveTap = (event) =>
-      event instanceof PointerEvent &&
-      !isPageReloadButtonTarget(event) &&
-      event.pointerType !== "mouse" &&
-      !shouldStartDrag(event);
-    gesture.dragStartThreshold = TAP_CANCEL_DISTANCE;
-    gesture.tapMoveThreshold = TAP_CANCEL_DISTANCE;
-    return gesture;
-  }
+      scrollViewport.endPinch();
+      state.navi.setProgressInputActive(false);
+    });
+  });
+
+  return {
+    viewportActionsRef: (actions: PagesViewportActions): void => {
+      viewportActions = actions;
+      loader.viewport = actions;
+      gestures.viewport = actions;
+    },
+    zoomOverlayActionsRef: (actions: ZoomOverlayActions): void => {
+      zoomOverlay = actions;
+      gestures.zoom = actions;
+    },
+    init: () => {
+      document.addEventListener("keydown", onKeydown, true);
+      window.addEventListener("resize", updateReaderViewportSize);
+      updateReaderViewportSize();
+      viewportResizeObserver = new ResizeObserver(updateReaderViewportSize);
+      viewportResizeObserver.observe(readerElement());
+      viewportActions.focus();
+      updatePageNumber();
+      syncAfterPageChange({ scrollIntoView: true });
+    },
+    cleanup: () => {
+      closed = true;
+      loader.dispose();
+      document.removeEventListener("keydown", onKeydown, true);
+      window.removeEventListener("resize", updateReaderViewportSize);
+      viewportResizeObserver?.disconnect();
+      viewportResizeObserver = null;
+    },
+    gotoPage: (pageNum: number) => setCurrentPageNumber(pageNum, true),
+    syncProgress: (pageNum: number) => {
+      lastReportedPageNum = state.navi.normalizePage(
+        clamp(Math.round(pageNum), 1, state.navi.readerPageLimit()),
+      );
+      setCurrentPageNumber(pageNum, true);
+    },
+    realignCurrentPage: () => {
+      scrollToCurrentPage();
+    },
+    toolbar,
+    viewport,
+    viewportCanvas: scrollViewport.callbacks,
+  };
+
 }
 
 function wheelDeltaPixels(delta: number, mode: number): number {
@@ -1344,66 +808,6 @@ function wheelDeltaPixels(delta: number, mode: number): number {
     return delta * window.innerHeight;
   }
   return delta;
-}
-
-function imageFileExtension(imageUrl: string): string {
-  try {
-    const fileName = decodeURIComponent(new URL(imageUrl).pathname.split("/").pop() ?? "");
-    const extension = fileName.match(/\.([a-z0-9]{2,5})$/i)?.[1]?.toLowerCase();
-
-    if (extension && ["avif", "bmp", "gif", "jpeg", "jpg", "png", "webp"].includes(extension)) {
-      return extension;
-    }
-  } catch {
-    return "";
-  }
-  return "";
-}
-
-function createImageLoadBudget(maxBytes: number, minConcurrentLoads: number) {
-  type Waiter = {
-    bytes: number;
-    resolve: (release: () => void) => void;
-  };
-  const waiters: Waiter[] = [];
-  let activeBytes = 0;
-  let activeLoads = 0;
-
-  const drain = (): void => {
-    const next = waiters[0];
-    if (
-      !next ||
-      (activeLoads >= minConcurrentLoads && activeBytes + next.bytes > maxBytes)
-    ) {
-      return;
-    }
-    waiters.shift();
-    activeBytes += next.bytes;
-    activeLoads += 1;
-    let released = false;
-    next.resolve(() => {
-      if (released) {
-        return;
-      }
-      released = true;
-      activeBytes = Math.max(0, activeBytes - next.bytes);
-      activeLoads = Math.max(0, activeLoads - 1);
-      drain();
-    });
-    drain();
-  };
-
-  return (bytes: number): Promise<() => void> =>
-    new Promise((resolve) => {
-      waiters.push({ bytes, resolve });
-      drain();
-    });
-}
-
-
-function pageNumForPage(page: ReaderPage | undefined, index: number): number {
-  const pageNum = page?.pageNum;
-  return typeof pageNum === "number" && Number.isFinite(pageNum) && pageNum > 0 ? pageNum : index + 1;
 }
 
 function shouldIgnoreKeyboardEvent(event: KeyboardEvent): boolean {

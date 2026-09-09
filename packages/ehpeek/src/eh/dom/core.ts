@@ -691,6 +691,8 @@ export class ManagedDomNode<
     this.#node.click();
   }
 
+  // This is an independent Solid root, not a child of the caller's component.
+  // The node owner must call remove() or replace this mount to dispose its contents.
   mount(view: () => JSX.Element): void {
     mountedNodes.get(this.#node)?.();
     this.#node.replaceChildren();

@@ -1,3 +1,4 @@
+import texts from "./i18n";
 import { applyUiScale as applyRootUiScale, uiScaleDeclarations, uiScaleFactor, UI_SCALE_NAMES, type UiScale } from "@ehpeek/reader/kit/ui";
 export { UI_SCALE_NAMES, type UiScale, type UiSizeScale } from "@ehpeek/reader/kit/ui";
 
@@ -86,4 +87,10 @@ function requireUiState(): { pointer: UiPointer; site: UiSite } {
     throw new Error("UI must be configured before it is initialized.");
   }
   return uiState;
+}
+
+export function reportUiError(error: unknown): void {
+  const message = error instanceof Error ? error.message : texts.errors.loadFailed;
+  console.error("[ehpeek]", error);
+  window.alert(message);
 }

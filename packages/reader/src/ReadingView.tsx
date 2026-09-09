@@ -4,10 +4,10 @@ import { ScrollPreview, type ScrollPreviewOpenState } from "./ScrollPreview";
 import { createReaderSettings } from "./features/ReaderSettings";
 import { createPreviewCache } from "./features/PreviewCache";
 import { ReadProgressSyncer, type ReadProgressPort } from "./features/ReadProgressSyncer";
-import { SurfaceStack, type SurfaceCloseReason } from "./features/SurfaceStack";
+import { ReaderPreviewNavi } from "./features/ReaderPreviewNavi";
 import { createOverlayHost, OverlayHostProvider, OverlayPortal } from "./kit/Widgets/OverlayHost";
 import { lockPageScroll, lockPageThemeColor } from "./features/Viewport";
-import type { ReaderInstance, ReaderPage, ReaderPlacement, ReadingSurface, ReadingViewProps } from "./kit/interfaces";
+import type { ReaderInstance, ReaderPage, ReaderPlacement, ReadingViewProps } from "./kit/interfaces";
 import { applyUiScale } from "./kit/ui";
 import "./styles";
 
@@ -20,28 +20,134 @@ export function ReadingView(props: ReadingViewProps) {
   const settings = createReaderSettings(options.settings, options.onSettingChange);
   const cache = createPreviewCache(options.source);
   const [progress, setProgress] = createSignal(options.initialProgress ?? null);
-  const [fullscreenActive, setFullscreenActive] = createSignal(host.fullscreen.active());
-  const [readerView, setReaderView] = createSignal<{ pageNum: number; placement: ReaderPlacement | null } | null>(null);
-  const [preview, setPreview] = createSignal<ScrollPreviewOpenState | null>(null);
   const [readerActions, setReaderActions] = createSignal<ReaderActions | null>(null);
   const [previewProgress, setPreviewProgress] = createSignal<ReadProgressPort | null>(null);
+  const [fullscreenActive, setFullscreenActive] = createSignal(host.fullscreen.active());
   const onError = options.onError ?? ((error: unknown) => console.error("[reader]", error));
+  let previewRoot!: HTMLDivElement;
+
+  type ReaderOpenState = { pageNum: number; placement: ReaderPlacement | null };
+  const [readerView, setReaderView] = createSignal<ReaderOpenState | null>(null);
+  const [preview, setPreview] = createSignal<ScrollPreviewOpenState | null>(null);
   let disposed = false;
-  let preservingFullscreen = false;
+
+  // Browser history waits for navigation before removing the corresponding views.
+  let closing: Promise<void> = Promise.resolve();
+  let pendingBack: { done: Promise<void>; resolve: () => void; notifyReturn: boolean } | null = null;
+  let previewReturnPage = options.source.initialPageNum;
+  const historyDepth = () => Number(readerView() !== null) + Number(preview() !== null);
+  const stopHistory = options.history?.subscribe(depth => {
+    const notifyReturn = pendingBack?.notifyReturn ?? true;
+    closing = closing.then(() => untrack(() => {
+      if (depth < historyDepth()) return removeViews(depth < 1, notifyReturn);
+    })).catch(onError).finally(() => {
+      pendingBack?.resolve();
+      pendingBack = null;
+    });
+  }) ?? (() => {});
+
+  async function removeViews(closeReader: boolean, notifyReturn: boolean): Promise<void> {
+    if (disposed) return;
+    if (preview()) {
+      setPreview(null);
+      if (notifyReturn && (!closeReader || !readerView()))
+        options.onPreviewClosed?.(previewReturnPage);
+    }
+    if (closeReader && readerView()) {
+      setReaderView(null);
+      options.onReaderMount?.(false);
+      await exitFullscreen();
+      if (!disposed) await options.onReaderClosed?.();
+    }
+  }
+
+  function closeViews(closeReader: boolean, notifyReturn: boolean): Promise<void> {
+    if (disposed) return Promise.resolve();
+    if (pendingBack) return pendingBack.done;
+    if (!preview() && (!closeReader || !readerView())) return closing;
+    if (options.history) {
+      let resolve!: () => void;
+      const done = new Promise<void>(finish => { resolve = finish; });
+      pendingBack = { done, resolve, notifyReturn };
+      options.history.back(closeReader ? historyDepth() : 1);
+      return done;
+    }
+    const completion = closing.then(() => untrack(() => removeViews(closeReader, notifyReturn)));
+    closing = completion.catch(onError);
+    return completion;
+  }
+
+  // Reader's initial page belongs to this mount; subsequent navigation uses its own progress.
   let opening: Promise<void> | null = null;
   let pendingMount: { resolve: () => void; reject: (error: unknown) => void } | null = null;
-  let previewRoot!: HTMLDivElement;
-  let previewReturnPage = options.source.initialPageNum;
-  const stack = new SurfaceStack(closeView, onError, options.history);
-  const stopFullscreen = host.fullscreen.subscribe((active) => untrack(() => {
-    const wasFullscreen = fullscreenActive();
-    setFullscreenActive(active);
-    if (wasFullscreen && !active && !preservingFullscreen && options.exitOnFullscreenExit && readerView()) {
-      setPreview(null);
-      setReaderView(null);
-      stack.requestCloseAll();
+
+  function openReader(pageNum: number, configuredFullscreen: boolean): Promise<void> {
+    if (disposed) return Promise.resolve();
+    if (opening) {
+      return opening.then(() => untrack(() => {
+        if (!disposed) readerActions()?.gotoPage(pageNum);
+      }));
     }
-  }));
+    const request = (async () => {
+      if (options.beforeOpen && !(await options.beforeOpen(pageNum))) return;
+      if (!disposed) await navi.openReader(pageNum, configuredFullscreen);
+    })();
+    opening = request;
+    return request.finally(() => { opening = null; });
+  }
+
+  async function mountReader(pageNum: number, configuredFullscreen: boolean): Promise<void> {
+    await (pendingBack?.done ?? closing);
+    if (disposed) return;
+    if (readerView()) {
+      readerActions()?.gotoPage(pageNum);
+      return;
+    }
+    const placement = options.placement?.() ?? null;
+    if (!placement && configuredFullscreen && options.fullscreenOnOpen) {
+      const canOpen = await enterFullscreen();
+      if (disposed || !canOpen) return;
+    }
+    options.history?.push(1, "reader");
+    try {
+      options.onReaderOpen?.(pageNum, placement !== null);
+      options.onReaderMount?.(true);
+      await new Promise<void>((resolve, reject) => {
+        pendingMount = { resolve, reject };
+        setReaderView({ pageNum, placement });
+      });
+    } catch (error) {
+      setReaderView(null);
+      options.onReaderMount?.(false);
+      options.history?.back(1);
+      await exitFullscreen();
+      throw error;
+    } finally {
+      pendingMount = null;
+    }
+  }
+
+  const topPanel = () => disposed ? null : preview()?.mode === "overlay" ? "overlay-preview"
+    : preview()?.mode === "embedded" ? "embedded-preview" : readerView() ? "reader" : null;
+  const navi = ReaderPreviewNavi({
+    top: topPanel,
+    previewMode: () => {
+      const placement = readerView()?.placement;
+      return placement?.coversPreview && placement.container.available() && !fullscreenActive()
+        ? "embedded" : "overlay";
+    },
+    openReader: mountReader,
+    openPreview(pageNum, mode) {
+      if (disposed) return;
+      previewReturnPage = pageNum;
+      if (!preview()) options.history?.push(historyDepth() + 1, "preview");
+      setPreview({ mode, pageNum });
+    },
+    focusPreview: pageNum => previewProgress()?.setProgress(pageNum),
+    closePreview: notifyReturn => closeViews(false, notifyReturn),
+    closeReader: () => closeViews(true, false),
+    onError,
+  });
 
   createEffect(() => {
     const reader = readerActions();
@@ -58,102 +164,9 @@ export function ReadingView(props: ReadingViewProps) {
       settings.set("leftHandedControls", props.leftHandedControls);
   });
 
-  onCleanup(() => {
-    disposed = true;
-    stopFullscreen();
-    stack.dispose();
-    cache.dispose();
-    pendingMount?.resolve();
-    pendingMount = null;
-    options.onReaderMount?.(false);
-    props.instanceRef?.(null);
-    void (async () => {
-      await opening?.catch(onError);
-      await exitFullscreen();
-    })().catch(onError).finally(() => {
-      if (!options.host) host.element.remove();
-    });
-  });
-
   function publishProgress(page: ReaderPage): void {
     if (page.pageNum) setProgress(page.pageNum);
     options.onProgress?.(page);
-  }
-
-  function openReader(pageNum: number, configuredFullscreen = false): Promise<void> {
-    if (disposed) return Promise.resolve();
-    if (opening) {
-      return opening.then(() => untrack(() => {
-        if (!disposed) readerActions()?.gotoPage(pageNum);
-      }));
-    }
-    const request = openReaderAt(pageNum, configuredFullscreen);
-    opening = request;
-    return request.finally(() => { opening = null; });
-  }
-
-  async function openReaderAt(pageNum: number, configuredFullscreen: boolean): Promise<void> {
-    if (options.beforeOpen && !(await options.beforeOpen(pageNum))) return;
-    await stack.whenSettled();
-    if (disposed) return;
-    if (preview()) {
-      stack.requestClose("preview", "switch");
-      await stack.whenSettled();
-    }
-    if (disposed) return;
-    if (readerView()) {
-      readerActions()?.gotoPage(pageNum);
-      return;
-    }
-    const placement = options.placement?.() ?? null;
-    if (!placement && configuredFullscreen && options.fullscreenOnOpen &&
-      !document.fullscreenElement && document.fullscreenEnabled &&
-      typeof host.element.requestFullscreen === "function") {
-      let entered = false;
-      try {
-        await host.fullscreen.enter();
-        entered = true;
-      } catch (error) {
-        console.warn("[reader] Fullscreen request failed", error);
-      }
-      if (disposed || (entered && !host.fullscreen.active())) return;
-    }
-    stack.push("reader");
-    try {
-      options.onReaderOpen?.(pageNum, placement !== null);
-      options.onReaderMount?.(true);
-      await new Promise<void>((resolve, reject) => {
-        pendingMount = { resolve, reject };
-        setReaderView({ pageNum, placement });
-      });
-    } catch (error) {
-      setReaderView(null);
-      options.onReaderMount?.(false);
-      stack.rollbackPush("reader");
-      await exitFullscreen();
-      throw error;
-    } finally {
-      pendingMount = null;
-    }
-  }
-
-  function openPreview(pageNum: number): void {
-    if (disposed) return;
-    previewReturnPage = pageNum;
-    if (stack.top !== "preview") stack.push("preview");
-    setPreview({ mode: "overlay", pageNum });
-  }
-
-  function openReaderPreview(pageNum: number): void {
-    previewReturnPage = pageNum;
-    previewProgress()?.setProgress(pageNum);
-    const placement = readerView()?.placement;
-    if (placement?.coversPreview && placement.container.available() && !fullscreenActive()) {
-      if (stack.top !== "preview") stack.push("preview");
-      setPreview({ mode: "embedded", pageNum });
-    } else {
-      openPreview(pageNum);
-    }
   }
 
   const embeddedPreviewDisabled = () => {
@@ -163,21 +176,25 @@ export function ReadingView(props: ReadingViewProps) {
     return Boolean(view && (fullscreenActive() || !view.placement || view.placement.coversPreview));
   };
 
-  function selectPage(pageNum: number): void {
-    void openReader(pageNum, true).catch(onError);
-  }
-
-  async function closeView(view: ReadingSurface, reason: SurfaceCloseReason): Promise<void> {
-    if (disposed) return;
-    if (view === "preview") {
-      setPreview(null);
-      if (reason === "return") options.onPreviewClosed?.(previewReturnPage);
-      return;
+  let preservingFullscreen = false;
+  const stopFullscreen = host.fullscreen.subscribe((active) => untrack(() => {
+    const wasFullscreen = fullscreenActive();
+    setFullscreenActive(active);
+    if (wasFullscreen && !active && !preservingFullscreen && options.exitOnFullscreenExit && readerView()) {
+      navi.closeAll();
     }
-    setReaderView(null);
-    options.onReaderMount?.(false);
-    await exitFullscreen();
-    if (!disposed) await options.onReaderClosed?.();
+  }));
+
+  async function enterFullscreen(): Promise<boolean> {
+    if (document.fullscreenElement || !document.fullscreenEnabled ||
+      typeof host.element.requestFullscreen !== "function") return true;
+    try {
+      await host.fullscreen.enter();
+      return host.fullscreen.active();
+    } catch (error) {
+      console.warn("[reader] Fullscreen request failed", error);
+      return true;
+    }
   }
 
   async function exitFullscreen(): Promise<void> {
@@ -219,10 +236,10 @@ export function ReadingView(props: ReadingViewProps) {
           disabled={props.disabled || preview() !== null}
           actionsRef={setReaderActions}
           callbacks={{
-            onClose: () => stack.requestClose("reader"),
+            onClose: () => navi.back(),
             onProgress: publishProgress,
             onEnd: () => options.onEnd?.(),
-            onOpenPreview: openReaderPreview,
+            onOpenPreview: pageNum => navi.openPreview(pageNum, true),
             onToggleFullscreen: toggleFullscreen,
           }}
           settings={settings}
@@ -241,18 +258,41 @@ export function ReadingView(props: ReadingViewProps) {
       </div>
     );
     onMount(() => {
-      // Child mount effects must finish before open() reports a successful mount.
+      // Opening completes after child mount effects have initialized the Reader.
       if (pendingMount) queueMicrotask(pendingMount.resolve);
     });
     return element;
   }
 
+  // Teardown follows instance ownership; injected hosts outlive this ReadingView.
+  onCleanup(() => {
+    disposed = true;
+    stopFullscreen();
+    stopHistory();
+    pendingBack?.resolve();
+    pendingBack = null;
+    pendingMount?.resolve();
+    pendingMount = null;
+    options.onReaderMount?.(false);
+    cache.dispose();
+    props.instanceRef?.(null);
+    void (async () => {
+      await opening?.catch(onError);
+      await exitFullscreen();
+    })().catch(onError).finally(() => {
+      if (!options.host) host.element.remove();
+    });
+  });
+
   const instance: ReaderInstance = {
     settings,
     progress,
-    get activeView() { return stack.top ?? null; },
+    get activeView() {
+      const top = topPanel();
+      return top === "overlay-preview" || top === "embedded-preview" ? "preview" : top;
+    },
     open: (pageNum = options.source.initialPageNum, fullscreen = false) => openReader(pageNum, fullscreen),
-    openPreview: (pageNum = progress() ?? options.source.initialPageNum) => openPreview(pageNum),
+    openPreview: (pageNum = progress() ?? options.source.initialPageNum) => navi.openPreview(pageNum),
   };
   onMount(() => props.instanceRef?.(instance));
 
@@ -275,10 +315,10 @@ export function ReadingView(props: ReadingViewProps) {
           onReturnPageChange={(pageNum) => { previewReturnPage = pageNum; }}
           onClose={(pageNum) => {
             previewReturnPage = pageNum;
-            stack.requestClose("preview");
+            navi.back();
           }}
-          onOpenOverlay={openPreview}
-          onSelectPage={(_url, page) => selectPage(page)}
+          onOpenOverlay={pageNum => navi.openPreview(pageNum)}
+          onSelectPage={(_url, page) => { void openReader(page, true).catch(onError); }}
           onLoadError={onError}
           onEmbeddedDirectionChange={(direction) => settings.set("embeddedPreviewDirection", direction)}
           onReadDirectionChange={(direction) => settings.set("previewDirection", direction)}
@@ -291,11 +331,10 @@ export function ReadingView(props: ReadingViewProps) {
         <ErrorBoundary fallback={(error) => {
           if (pendingMount) pendingMount.reject(error);
           else {
-            // Let Solid dispose the failed subtree before closing its owning view.
             queueMicrotask(() => untrack(() => {
               if (disposed || readerView() !== view) return;
               onError(error);
-              stack.requestCloseAll();
+              navi.closeAll();
             }));
           }
           return null;

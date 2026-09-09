@@ -1,3 +1,4 @@
+import { pageWindowNumbers, pageFrameSize } from "./layout";
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, untrack } from "solid-js";
 import type { NavigationMode, PageLayout, ReaderScrollSizeScale, ReadDirection } from "../kit/interfaces";
 import { useReaderTexts, type ReaderTexts } from "../kit/i18n";
@@ -32,16 +33,6 @@ export type PagesViewportWindowOptions = {
   totalPages?: number;
   pages: Map<number, PageMeta>;
 };
-
-export function pageWindowNumbers(currentPageNum: number, windowSize: number): number[] {
-  const numbers: number[] = [];
-
-  for (let offset = -windowSize; offset <= windowSize; offset += 1) {
-    numbers.push(currentPageNum + offset);
-  }
-
-  return numbers;
-}
 
 type ViewportImage = {
   displayWhileLoading: boolean;
@@ -154,16 +145,10 @@ export function PagesViewport(props: {
   const [renderedScrollSizeScale, setRenderedScrollSizeScale] = createSignal(
     untrack(() => props.scrollSizeScale),
   );
-  const horizontalAnimator = new ScrollAnimator("x");
-  const verticalAnimator = new ScrollAnimator("y");
-  const flingAnimator = new ScrollFlingAnimator();
-  let pageSlots: PageSlot[] = [];
   let scroller!: HTMLDivElement;
   let scrollerApi!: ReturnType<typeof createPagesScroller>;
-  let dragStartPosition: { left: number; top: number } | null = null;
   let resizeFrame: number | null = null;
   let scrollScaleRevision = 0;
-  let moveRequestToken = 0;
   let disposed = false;
   let syncedDirection = untrack(() => props.direction);
   let syncedNavigationMode = untrack(() => props.navigationMode);
@@ -171,14 +156,17 @@ export function PagesViewport(props: {
     0,
     Math.floor(untrack(() => props.decodedImageCacheLimit) ?? DEFAULT_DECODED_IMAGE_CACHE_LIMIT),
   );
-  const cachedImages = new Map<number, CachedPageImage>();
-  const pageErrors = new Map<number, string>();
-  let cachedImageBytes = 0;
+  const pages = new ViewportPages(
+    decodedImageCacheLimit,
+    slot => refreshSlot(slot),
+    () => refresh(),
+    texts.errors.imageLoadFailed,
+  );
 
   const refresh = () => setRevision((value) => value + 1);
   const pagedMode = () => props.navigationMode === "paged";
   const horizontalAxis = () => props.direction !== "ttb";
-  const slotFor = (pageNum: number) => pageSlots.find((slot) => slot.pageNum === pageNum);
+  const slotFor = (pageNum: number) => pages.slotFor(pageNum);
   const viewportWidth = () => scrollerApi.viewportWidth();
   const viewportHeight = () => scrollerApi.viewportHeight();
   const scrollTop = () => scrollerApi.scrollTop();
@@ -197,66 +185,33 @@ export function PagesViewport(props: {
     return null;
   };
   const applySlotSize = (slot: PageSlot) => {
-    const aspectRatio = pageSlotAspectRatio(slot);
-    if (pagedMode()) {
-      const availableWidth = props.pageLayout === "double"
-        ? Math.max(1, (viewportWidth() - 3) / 2)
-        : viewportWidth();
-      if (slot.kind !== "page") {
-        slot.frameWidth = availableWidth;
-        slot.frameHeight = viewportHeight();
-        return;
-      }
-      const frameSize = containFitFrame(aspectRatio, availableWidth, viewportHeight());
-      slot.frameWidth = frameSize.width;
-      slot.frameHeight = frameSize.height;
-      return;
-    }
-    const sizeScale = renderedScrollSizeScale();
-    const reference = props.scrollFitImageSize;
-    const referenceAspectRatio = reference
-      ? reference.height / reference.width
-      : props.window.pages.get(props.scrollFitPageNum)?.aspectRatio ?? FALLBACK_ASPECT_RATIO;
-    const scaleMultiplier = sizeScale === "one-to-one" && reference
-      ? 1 / containFitScale(
-          reference.width,
-          reference.height,
-          viewportWidth(),
-          viewportHeight(),
-        )
-      : typeof sizeScale === "number"
-        ? sizeScale
-        : 1;
-    const referenceFrame = sizeScale === "fill"
-      ? horizontalAxis()
-        ? {
-          height: viewportHeight(),
-          width: viewportHeight() / referenceAspectRatio,
-        }
-        : {
-          height: viewportWidth() * referenceAspectRatio,
-          width: viewportWidth(),
-        }
-      : containFitFrame(
-        referenceAspectRatio,
-        viewportWidth(),
-        viewportHeight(),
-        scaleMultiplier,
-      );
-    if (horizontalAxis()) {
-      slot.frameHeight = referenceFrame.height;
-      slot.frameWidth = referenceFrame.height / aspectRatio;
-    } else {
-      slot.frameWidth = referenceFrame.width;
-      slot.frameHeight = referenceFrame.width * aspectRatio;
-    }
+    const scrolling = props.navigationMode === "scroll";
+    const reference = scrolling ? props.scrollFitImageSize : null;
+    const frame = pageFrameSize({
+      aspectRatio: pageSlotAspectRatio(slot),
+      contentPage: slot.kind === "page",
+      viewportWidth: viewportWidth(),
+      viewportHeight: viewportHeight(),
+      navigationMode: props.navigationMode,
+      pageLayout: props.pageLayout,
+      sizeScale: scrolling ? renderedScrollSizeScale() : null,
+      reference,
+      referenceAspectRatio: reference
+        ? reference.height / reference.width
+        : scrolling
+          ? props.window.pages.get(props.scrollFitPageNum)?.aspectRatio ?? FALLBACK_ASPECT_RATIO
+          : FALLBACK_ASPECT_RATIO,
+      horizontal: scrolling && horizontalAxis(),
+    });
+    slot.frameWidth = frame.width;
+    slot.frameHeight = frame.height;
   };
   const renderSlots = () => {
-    for (const slot of pageSlots) {
+    for (const slot of pages.items) {
       applySlotSize(slot);
     }
 
-    setSlots(pageSlots.slice());
+    setSlots(pages.items.slice());
     refresh();
   };
   const refreshSlot = (slot: PageSlot) => {
@@ -352,6 +307,13 @@ export function PagesViewport(props: {
     const pageNum = Number(pageNode.dataset.ehpeekPageNum || "");
     return Number.isFinite(pageNum) ? pageNum : null;
   };
+  // Motion requests may outlive an event, but never their viewport.
+  const horizontalAnimator = new ScrollAnimator("x");
+  const verticalAnimator = new ScrollAnimator("y");
+  const flingAnimator = new ScrollFlingAnimator();
+  let dragStartPosition: { left: number; top: number } | null = null;
+  let moveRequestToken = 0;
+
   const stopMotion = () => {
     moveRequestToken += 1;
     dragStartPosition = null;
@@ -392,7 +354,7 @@ export function PagesViewport(props: {
     });
   };
   const resizePages = () => {
-    for (const slot of pageSlots) {
+    for (const slot of pages.items) {
       applySlotSize(slot);
     }
     refresh();
@@ -401,6 +363,7 @@ export function PagesViewport(props: {
     () => props.disabled ? null : scroller ?? null,
     () => props.callbacks.pointer,
   );
+  // Window replacement transfers ready images between slots and the off-window cache.
   const syncWindow = (options: PagesViewportWindowOptions) => {
     const preserveHorizontalPosition =
       props.navigationMode === "scroll" &&
@@ -410,86 +373,13 @@ export function PagesViewport(props: {
     const anchor = preserveHorizontalPosition
       ? scrollerApi.centerAnchor()
       : null;
-    const oldAnchorOffset = anchor ? horizontalAnchorOffset(pageSlots, anchor) : null;
+    const oldAnchorOffset = anchor ? horizontalAnchorOffset(pages.items, anchor) : null;
     const oldScrollLeft = scrollerApi.scrollLeft();
-    const oldSlots = new Map(pageSlots.map((slot) => [slot.pageNum, slot]));
-    const nextSlots: PageSlot[] = [];
-
-    for (const pageNum of pageWindowNumbers(options.currentPageNum, options.windowSize)) {
-      const kind = pageSlotKind(pageNum, options.totalPages);
-      const oldSlot = oldSlots.get(pageNum);
-      const slot = oldSlot && oldSlot.kind === kind ? oldSlot : pageSlot(pageNum, kind);
-
-      if (!oldSlot && kind === "page") {
-        const errorMessage = pageErrors.get(pageNum);
-        const cached = cachedImages.get(pageNum);
-        if (errorMessage) {
-          slot.state = "error";
-          slot.errorMessage = errorMessage;
-        } else if (cached) {
-          cachedImages.delete(pageNum);
-          cachedImageBytes -= cached.bytes;
-          slot.state = "ready";
-          slot.image = cached.image;
-          slot.width = cached.width;
-          slot.height = cached.height;
-        }
-      }
-
-      if (kind === "page") {
-        const page = options.pages.get(pageNum);
-
-        if (page) {
-          applyPageMetaToSlot(slot, page);
-        }
-      } else {
-        clearNonPageSlotMeta(slot);
-      }
-
-      nextSlots.push(slot);
-    }
-
-    const nextSet = new Set(nextSlots);
-
-    for (const slot of pageSlots) {
-      if (!nextSet.has(slot)) {
-        if (slot.kind === "page" && slot.state === "ready" && slot.image) {
-          const width = positiveNumber(slot.image.naturalWidth) ?? slot.width;
-          const height = positiveNumber(slot.image.naturalHeight) ?? slot.height;
-          const cached = {
-            bytes: width && height ? width * height * 4 : 0,
-            height,
-            image: slot.image,
-            width,
-          };
-          const previous = cachedImages.get(slot.pageNum);
-          if (previous) {
-            cachedImageBytes -= previous.bytes;
-          }
-          cachedImages.delete(slot.pageNum);
-          cachedImages.set(slot.pageNum, cached);
-          cachedImageBytes += cached.bytes;
-        }
-        slot.token += 1;
-      }
-    }
-
-    while (cachedImages.size > decodedImageCacheLimit || cachedImageBytes > DECODED_IMAGE_CACHE_BYTES) {
-      const oldest = cachedImages.entries().next().value as [number, CachedPageImage] | undefined;
-      if (!oldest) {
-        break;
-      }
-      cachedImages.delete(oldest[0]);
-      cachedImageBytes -= oldest[1].bytes;
-      oldest[1].image.removeAttribute("src");
-    }
-
-    pageSlots = nextSlots;
-    pageSlots.forEach((slot, index) => {
-      slot.index = index;
-    });
+    // Preserve the same image-relative anchor across window replacement. Merely
+    // restoring scrollLeft would jump when images before that anchor leave the window.
+    pages.sync(options);
     renderSlots();
-    const newAnchorOffset = anchor ? horizontalAnchorOffset(pageSlots, anchor) : null;
+    const newAnchorOffset = anchor ? horizontalAnchorOffset(pages.items, anchor) : null;
     if (oldAnchorOffset !== null && newAnchorOffset !== null) {
       moveToLeft(oldScrollLeft + newAnchorOffset - oldAnchorOffset);
     }
@@ -497,6 +387,7 @@ export function PagesViewport(props: {
     syncedDirection = props.direction;
   };
   const actions: PagesViewportActions = {
+    // Movement and its cancellation share the same motion owner.
     focus: () => scroller.focus({ preventScroll: true }),
     isDragging: gestureDragging,
     beginDrag(): void {
@@ -525,95 +416,42 @@ export function PagesViewport(props: {
       return true;
     },
     moveToLeft,
+    moveToTop,
+    moveToPage,
     resetPosition: () => scrollerApi.resetPosition(),
     stopMotion,
-    markPageLoading(pageNum): number | null {
-      const slot = slotFor(pageNum);
-
-      if (!slot || slot.kind !== "page" || slot.state !== "idle") {
-        return null;
-      }
-
-      slot.state = "loading";
-      slot.errorMessage = null;
-      slot.token += 1;
-      refreshSlot(slot);
-      return slot.token;
+    startVerticalFlingFromDragVelocity(dragVelocityY, onStop): void {
+      flingAnimator.start({
+        axis: "y",
+        scroller,
+        initialVelocity: -dragVelocityY,
+        setScrollPosition: moveToTop,
+        canRun: () => !disposed && props.navigationMode === "scroll" && !horizontalAxis(),
+        onStop,
+      });
     },
-    async loadPageImage(pageNum, token, slotImage): Promise<boolean> {
-      const image = pageImageDom(pageNum, slotImage);
-      const pendingSlot = slotFor(pageNum);
-      if (pendingSlot && pendingSlot.token === token) {
-        if (slotImage.displayWhileLoading) {
-          pendingSlot.image = image;
-        }
-        pendingSlot.width = slotImage.width;
-        pendingSlot.height = slotImage.height;
-        refreshSlot(pendingSlot);
-      }
-      await loadImage(image, texts.errors.imageLoadFailed);
-      const slot = slotFor(pageNum);
-
-      if (!slot || slot.token !== token || !slot.elements) {
-        return false;
-      }
-
-      slot.state = "ready";
-      slot.image = image;
-      slot.errorMessage = null;
-      pageErrors.delete(pageNum);
-      slot.width = positiveNumber(image.naturalWidth) ?? slotImage.width;
-      slot.height = positiveNumber(image.naturalHeight) ?? slotImage.height;
-      refreshSlot(slot);
-      return true;
+    startHorizontalFlingFromDragVelocity(dragVelocityX, onStop): void {
+      flingAnimator.start({
+        axis: "x",
+        scroller,
+        initialVelocity: -dragVelocityX * HORIZONTAL_FLING_VELOCITY_MULTIPLIER,
+        maxVelocity: HORIZONTAL_FLING_MAX_VELOCITY,
+        setScrollPosition: moveToLeft,
+        canRun: () => !disposed && props.navigationMode === "scroll" && horizontalAxis(),
+        onStop,
+      });
     },
-    setPageError(pageNum, token, errorMessage): boolean {
-      const slot = slotFor(pageNum);
 
-      if (!slot || slot.token !== token) {
-        return false;
-      }
+    ...pages.actions,
 
-      slot.state = "error";
-      slot.image = null;
-      slot.errorMessage = errorMessage;
-      pageErrors.set(pageNum, errorMessage);
-      refresh();
-      return true;
-    },
-    resetPageError(pageNum): boolean {
-      const slot = slotFor(pageNum);
-
-      if (!slot || slot.kind !== "page" || slot.state !== "error") {
-        return false;
-      }
-
-      slot.state = "idle";
-      slot.errorMessage = null;
-      pageErrors.delete(pageNum);
-      refreshSlot(slot);
-      return true;
-    },
-    resetPageLoading(pageNum, token): boolean {
-      const slot = slotFor(pageNum);
-
-      if (!slot || slot.kind !== "page" || slot.state !== "loading" || slot.token !== token) {
-        return false;
-      }
-
-      slot.state = "idle";
-      refreshSlot(slot);
-      return true;
-    },
-    moveToPage,
-    moveToTop,
+    // Read-only measurements translate rendered slots into reader coordinates.
     scrollLeft: () => scrollerApi.scrollLeft(),
     scrollTop,
     viewportWidth,
     viewportXRatio: (clientX) => scrollerApi.viewportXRatio(clientX),
     pageOffset,
     centerPageNum(): number | null {
-      for (const slot of pageSlots) {
+      for (const slot of pages.items) {
         if (slot.elements && slot.kind !== "blank" && scrollerApi.slotContainsViewportTarget(slot.elements, props.direction)) {
           return slot.pageNum;
         }
@@ -623,7 +461,7 @@ export function PagesViewport(props: {
     },
     firstVisiblePageNum(): number | null {
       let first: { distance: number; pageNum: number } | null = null;
-      for (const slot of pageSlots) {
+      for (const slot of pages.items) {
         if (!slot.elements || slot.kind !== "page") {
           continue;
         }
@@ -670,27 +508,6 @@ export function PagesViewport(props: {
       return readerScale > 0 && overlayScale > 0 ? readerScale / overlayScale : 1;
     },
     pageNumAtPoint,
-    startVerticalFlingFromDragVelocity(dragVelocityY, onStop): void {
-      flingAnimator.start({
-        axis: "y",
-        scroller,
-        initialVelocity: -dragVelocityY,
-        setScrollPosition: moveToTop,
-        canRun: () => !disposed && props.navigationMode === "scroll" && !horizontalAxis(),
-        onStop,
-      });
-    },
-    startHorizontalFlingFromDragVelocity(dragVelocityX, onStop): void {
-      flingAnimator.start({
-        axis: "x",
-        scroller,
-        initialVelocity: -dragVelocityX * HORIZONTAL_FLING_VELOCITY_MULTIPLIER,
-        maxVelocity: HORIZONTAL_FLING_MAX_VELOCITY,
-        setScrollPosition: moveToLeft,
-        canRun: () => !disposed && props.navigationMode === "scroll" && horizontalAxis(),
-        onStop,
-      });
-    },
   };
 
   untrack(() => props.actionsRef(actions));
@@ -729,11 +546,11 @@ export function PagesViewport(props: {
     }
     if (props.direction === "ttb") {
       return {
-        width: `${Math.max(viewportWidth(), ...pageSlots.map((slot) => slot.frameWidth))}px`,
+        width: `${Math.max(viewportWidth(), ...pages.items.map((slot) => slot.frameWidth))}px`,
       };
     }
     return {
-      height: `${Math.max(viewportHeight(), ...pageSlots.map((slot) => slot.frameHeight))}px`,
+      height: `${Math.max(viewportHeight(), ...pages.items.map((slot) => slot.frameHeight))}px`,
       width: "max-content",
     };
   };
@@ -755,11 +572,7 @@ export function PagesViewport(props: {
   onCleanup(() => {
     disposed = true;
     stopMotion();
-    for (const cached of cachedImages.values()) {
-      cached.image.removeAttribute("src");
-    }
-    cachedImages.clear();
-    cachedImageBytes = 0;
+    pages.dispose();
     if (resizeFrame !== null) {
       window.cancelAnimationFrame(resizeFrame);
       resizeFrame = null;
@@ -809,6 +622,216 @@ export function PagesViewport(props: {
       </main>
     </div>
   );
+}
+
+/** Owns slot identity, loading tokens and off-window image retention together. */
+class ViewportPages {
+  items: PageSlot[] = [];
+  private readonly errors = new Map<number, string>();
+  private readonly decodedImages: DecodedPageImages;
+
+  constructor(
+    cacheLimit: number,
+    private readonly onSlotChange: (slot: PageSlot) => void,
+    private readonly onChange: () => void,
+    private readonly imageLoadError: string,
+  ) {
+    this.decodedImages = new DecodedPageImages(cacheLimit);
+  }
+
+  slotFor(pageNum: number): PageSlot | undefined {
+    return this.items.find(slot => slot.pageNum === pageNum);
+  }
+
+  sync(options: PagesViewportWindowOptions): void {
+    const oldSlots = new Map(this.items.map((slot) => [slot.pageNum, slot]));
+    const nextSlots: PageSlot[] = [];
+
+    for (const pageNum of pageWindowNumbers(options.currentPageNum, options.windowSize)) {
+      const kind = pageSlotKind(pageNum, options.totalPages);
+      const oldSlot = oldSlots.get(pageNum);
+      const slot = oldSlot && oldSlot.kind === kind ? oldSlot : pageSlot(pageNum, kind);
+
+      if (!oldSlot && kind === "page") {
+        const errorMessage = this.errors.get(pageNum);
+        const cached = errorMessage ? undefined : this.decodedImages.take(pageNum);
+        if (errorMessage) {
+          slot.state = "error";
+          slot.errorMessage = errorMessage;
+        } else if (cached) {
+          slot.state = "ready";
+          slot.image = cached.image;
+          slot.width = cached.width;
+          slot.height = cached.height;
+        }
+      }
+
+      if (kind === "page") {
+        const page = options.pages.get(pageNum);
+
+        if (page) {
+          applyPageMetaToSlot(slot, page);
+        }
+      } else {
+        clearNonPageSlotMeta(slot);
+      }
+
+      nextSlots.push(slot);
+    }
+
+    const nextSet = new Set(nextSlots);
+
+    for (const slot of this.items) {
+      if (!nextSet.has(slot)) {
+        if (slot.kind === "page" && slot.state === "ready" && slot.image) {
+          const width = positiveNumber(slot.image.naturalWidth) ?? slot.width;
+          const height = positiveNumber(slot.image.naturalHeight) ?? slot.height;
+          const cached = {
+            bytes: width && height ? width * height * 4 : 0,
+            height,
+            image: slot.image,
+            width,
+          };
+          this.decodedImages.retain(slot.pageNum, cached);
+        }
+        slot.token += 1;
+      }
+    }
+
+    this.decodedImages.prune();
+
+    this.items = nextSlots;
+    this.items.forEach((slot, index) => {
+      slot.index = index;
+    });
+
+  }
+
+  readonly actions: Pick<PagesViewportActions, "markPageLoading" | "loadPageImage" | "setPageError" | "resetPageError" | "resetPageLoading"> = {
+    // Loading tokens belong to slots, not to the upstream request cache.
+    markPageLoading: (pageNum): number | null => {
+      const slot = this.slotFor(pageNum);
+
+      if (!slot || slot.kind !== "page" || slot.state !== "idle") {
+        return null;
+      }
+
+      slot.state = "loading";
+      slot.errorMessage = null;
+      slot.token += 1;
+      this.onSlotChange(slot);
+      return slot.token;
+    },
+    loadPageImage: async (pageNum, token, slotImage): Promise<boolean> => {
+      const image = pageImageDom(pageNum, slotImage);
+      const pendingSlot = this.slotFor(pageNum);
+      if (pendingSlot && pendingSlot.token === token) {
+        if (slotImage.displayWhileLoading) {
+          pendingSlot.image = image;
+        }
+        pendingSlot.width = slotImage.width;
+        pendingSlot.height = slotImage.height;
+        this.onSlotChange(pendingSlot);
+      }
+      await loadImage(image, this.imageLoadError);
+      const slot = this.slotFor(pageNum);
+
+      if (!slot || slot.token !== token || !slot.elements) {
+        return false;
+      }
+
+      slot.state = "ready";
+      slot.image = image;
+      slot.errorMessage = null;
+      this.errors.delete(pageNum);
+      slot.width = positiveNumber(image.naturalWidth) ?? slotImage.width;
+      slot.height = positiveNumber(image.naturalHeight) ?? slotImage.height;
+      this.onSlotChange(slot);
+      return true;
+    },
+    setPageError: (pageNum, token, errorMessage): boolean => {
+      const slot = this.slotFor(pageNum);
+
+      if (!slot || slot.token !== token) {
+        return false;
+      }
+
+      slot.state = "error";
+      slot.image = null;
+      slot.errorMessage = errorMessage;
+      this.errors.set(pageNum, errorMessage);
+      this.onChange();
+      return true;
+    },
+    resetPageError: (pageNum): boolean => {
+      const slot = this.slotFor(pageNum);
+
+      if (!slot || slot.kind !== "page" || slot.state !== "error") {
+        return false;
+      }
+
+      slot.state = "idle";
+      slot.errorMessage = null;
+      this.errors.delete(pageNum);
+      this.onSlotChange(slot);
+      return true;
+    },
+    resetPageLoading: (pageNum, token): boolean => {
+      const slot = this.slotFor(pageNum);
+
+      if (!slot || slot.kind !== "page" || slot.state !== "loading" || slot.token !== token) {
+        return false;
+      }
+
+      slot.state = "idle";
+      this.onSlotChange(slot);
+      return true;
+    },
+
+  };
+
+  dispose(): void { this.decodedImages.dispose(); }
+}
+
+/** Off-window DOM images remain reusable until the viewport budget evicts them. */
+class DecodedPageImages {
+  private readonly entries = new Map<number, CachedPageImage>();
+  private bytes = 0;
+
+  constructor(private readonly itemLimit: number) { }
+
+  take(pageNum: number): CachedPageImage | undefined {
+    const cached = this.entries.get(pageNum);
+    if (cached) {
+      this.entries.delete(pageNum);
+      this.bytes -= cached.bytes;
+    }
+    return cached;
+  }
+
+  retain(pageNum: number, cached: CachedPageImage): void {
+    const previous = this.entries.get(pageNum);
+    if (previous) this.bytes -= previous.bytes;
+    this.entries.delete(pageNum);
+    this.entries.set(pageNum, cached);
+    this.bytes += cached.bytes;
+  }
+
+  prune(): void {
+    while (this.entries.size > this.itemLimit || this.bytes > DECODED_IMAGE_CACHE_BYTES) {
+      const oldest = this.entries.entries().next().value;
+      if (!oldest) break;
+      this.entries.delete(oldest[0]);
+      this.bytes -= oldest[1].bytes;
+      oldest[1].image.removeAttribute("src");
+    }
+  }
+
+  dispose(): void {
+    for (const cached of this.entries.values()) cached.image.removeAttribute("src");
+    this.entries.clear();
+    this.bytes = 0;
+  }
 }
 
 function PageSlotView(props: {
@@ -1068,10 +1091,10 @@ function createPagesScroller(element: HTMLElement) {
       const pageNum = Number(closest.node.dataset.ehpeekPageNum || "");
       return Number.isFinite(pageNum) && rect.width > 0 && rect.height > 0
         ? {
-            pageNum,
-            xRatio: (centerX - rect.left) / rect.width,
-            yRatio: (centerY - rect.top) / rect.height,
-          }
+          pageNum,
+          xRatio: (centerX - rect.left) / rect.width,
+          yRatio: (centerY - rect.top) / rect.height,
+        }
         : null;
     },
     restoreCenterAnchor(anchor: ViewportCenterAnchor): void {
@@ -1230,29 +1253,4 @@ function pageSlotAspectRatio(slot: PageSlot): number {
   return slot.width && slot.height && slot.width > 0 && slot.height > 0
     ? slot.height / slot.width
     : normalizedAspectRatio(slot.aspectRatio, FALLBACK_ASPECT_RATIO);
-}
-
-export function containFitScale(
-  imageWidth: number,
-  imageHeight: number,
-  viewportWidth: number,
-  viewportHeight: number,
-): number {
-  return Math.min(
-    Math.max(1, viewportWidth) / Math.max(1, imageWidth),
-    Math.max(1, viewportHeight) / Math.max(1, imageHeight),
-  );
-}
-
-function containFitFrame(
-  aspectRatio: number,
-  viewportWidth: number,
-  viewportHeight: number,
-  scale = 1,
-): { height: number; width: number } {
-  const width = Math.max(1, Math.min(
-    Math.max(1, viewportWidth),
-    Math.max(1, viewportHeight) / aspectRatio,
-  ) * scale);
-  return { height: width * aspectRatio, width };
 }

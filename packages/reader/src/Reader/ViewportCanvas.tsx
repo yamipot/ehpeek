@@ -1,3 +1,7 @@
+import type { ReaderSession } from "./session";
+import type { ReaderSettingsState, ReadDirection } from "../kit/interfaces";
+import { normalizeReaderScrollSizeScale } from "../features/ReaderSettings";
+import { clamp } from "../kit/helpers";
 import { createEffect, Show, type JSX } from "solid-js";
 import { useReaderTexts } from "../kit/i18n";
 import { Button } from "../kit/Widgets/Button";
@@ -164,4 +168,71 @@ export function ViewportCanvas(props: {
       </Show>
     </div>
   );
+}
+
+// The temporary adjustment snapshot and pinch scale belong to the same scale transaction.
+// Reader gestures and this canvas use it without maintaining separate adjustment state.
+export class ScrollScaleAdjustment {
+  private adjustmentStartSizeScale;
+  private pinchStartScale: number | null = null;
+
+  constructor(
+    private readonly scale: ReaderSession["state"]["scrollViewport"],
+    private readonly direction: () => ReadDirection,
+    private readonly settings: ReaderSettingsState,
+  ) {
+    this.adjustmentStartSizeScale = scale.sizeScale();
+  }
+
+  private readonly updateImageScale = (scale: number | null): void => {
+    if (scale === null) {
+      this.scale.setSizeScale(null);
+      return;
+    }
+    const fitScale = this.scale.fitScale();
+    if (fitScale) {
+      // UI percentages are absolute image scale; the viewport stores a fit-relative factor.
+      this.scale.setSizeScale(normalizeReaderScrollSizeScale(scale / fitScale));
+    }
+  };
+
+  startPinch(): boolean {
+    const scalePercent = this.scale.scalePercent();
+    if (scalePercent === null) return false;
+    this.pinchStartScale = scalePercent / 100;
+    return true;
+  }
+
+  movePinch(scale: number): void {
+    if (this.pinchStartScale !== null) {
+      this.updateImageScale(clamp(this.pinchStartScale * scale, 0.1, 5));
+    }
+  }
+
+  endPinch(): void { this.pinchStartScale = null; }
+  pinching(): boolean { return this.pinchStartScale !== null; }
+
+  readonly open = (): void => {
+    this.adjustmentStartSizeScale = this.scale.sizeScale();
+    this.scale.setAdjusting(true);
+  };
+
+  readonly callbacks: ViewportCanvasCallbacks = {
+    onApply: () => this.scale.setAdjusting(false),
+    onApplyAll: () => {
+      this.settings.set(
+        this.direction() === "ttb" ? "scrollTtbScale" : "scrollHorizontalScale",
+        this.scale.sizeScale(),
+      );
+      this.scale.setAdjusting(false);
+    },
+    onClose: () => {
+      this.scale.setSizeScale(this.adjustmentStartSizeScale);
+      this.scale.setAdjusting(false);
+    },
+    onFill: () => this.scale.setSizeScale("fill"),
+    onFit: () => this.updateImageScale(null),
+    onOneToOne: () => this.scale.setSizeScale("one-to-one"),
+    onScaleChange: this.updateImageScale,
+  };
 }

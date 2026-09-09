@@ -24,6 +24,7 @@ export type OverlayHost = {
   texts: ReaderTexts;
 };
 
+/** The caller owns this host; the provider only supplies context, not disposal. */
 export function createOverlayHost(
   parent: HTMLElement,
   initialUiScale: UiScale = "small",

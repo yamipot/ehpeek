@@ -1,24 +1,26 @@
+import { containFitScale } from "./layout";
+import type { NavigationMode, PageLayout, ReadDirection, RightTapAction } from "../kit/interfaces";
 import { createEffect, createMemo, createSignal } from "solid-js";
-import type { LoadedReaderPage, ReaderPage } from "../kit/interfaces";
 import type { ReaderSettingsState, ReaderScrollSizeScale } from "../kit/interfaces";
 import { clamp } from "../kit/helpers";
-import type { ReaderControls, ReaderDownloadInfo } from "./Toolbar";
+import type { ReaderDownloadInfo } from "./Toolbar";
 import {
-  containFitScale,
   type PagesViewportWindowOptions,
   type ScrollFitImageSize,
 } from "./Viewport";
 import type { ZoomOverlayImage } from "./ZoomOverlay";
-import { PriorityLoadQueue } from "../features/PriorityLoadQueue";
 
 const DEFAULT_WINDOW_SIZE = 10;
 
-export type Direction = -1 | 1;
-export type ReaderLoadTarget = {
-  pageNum: number;
-  page: ReaderPage;
+export type ReaderControls = {
+  navigationMode: NavigationMode;
+  direction: ReadDirection;
+  firstPageSeparate: boolean;
+  pageLayout: PageLayout;
+  rightTapAction: RightTapAction;
 };
 
+export type Direction = -1 | 1;
 export type ReaderOptions = {
   decodedImageCacheLimit?: number;
   initialPageNum: number;
@@ -29,16 +31,12 @@ export type ReaderOptions = {
 };
 
 export class ReaderSession {
-  readonly imageQueue: PriorityLoadQueue<ReaderLoadTarget, LoadedReaderPage>;
   readonly state;
   private readonly animationFrames = new Set<number>();
   private readonly timers = new Set<number>();
   private disposed = false;
 
   constructor(options: ReaderOptions, settings: ReaderSettingsState) {
-    this.imageQueue = new PriorityLoadQueue(
-      options.concurrentLoads,
-    );
     const readerControls = settings.controls();
     const navigationMode = readerControls.navigationMode;
     const initialControls: ReaderControls = {
@@ -55,18 +53,71 @@ export class ReaderSession {
         initialControls.pageLayout === "double"
       ? doublePagePairStart(initialPageNumber(options), initialControls.firstPageSeparate)
       : initialPageNumber(options);
-    const [toolbarOpen, setToolbarOpen] = createSignal(false);
+
+    // Page position and its toolbar projection live for this Reader mount.
     const [viewportWindow, setViewportWindow] = createSignal(
       initialViewportWindow(options, initialPageNum),
     );
-    const [zoomImage, setZoomImage] = createSignal<ZoomOverlayImage | null>(null);
     const [currentPageNum, setCurrentPageNum] = createSignal(initialPageNum);
     const [direction, setDirection] = createSignal<Direction>(1);
     const [downloadInfos, setDownloadInfos] = createSignal<ReaderDownloadInfo[]>([]);
     const [maxProgressPageNum, setMaxProgressPageNum] = createSignal(initialMaxProgressPageNumber(options));
     const [progressInputActive, setProgressInputActive] = createSignal(false);
+    const totalPages = options.totalPages && options.totalPages > 0 ? options.totalPages : undefined;
+    const readerPageLimit = () => totalPages ? totalPages + 1 : Number.MAX_SAFE_INTEGER;
+    const progressPageLimit = () => totalPages ?? Number.MAX_SAFE_INTEGER;
+    const normalizePage = (pageNum: number): number => {
+      // The end screen is a navigation position, never half of a double-page pair.
+      if (controls().navigationMode !== "paged" || controls().pageLayout !== "double" ||
+        (totalPages !== undefined && pageNum === totalPages + 1)) return pageNum;
+      return doublePagePairStart(pageNum, controls().firstPageSeparate);
+    };
+    const updatePage = (pageNum: number): void => {
+      if (pageNum === currentPageNum()) return;
+      setDirection(pageNum > currentPageNum() ? 1 : -1);
+      setCurrentPageNum(pageNum);
+    };
+    const navi = {
+      currentPageNum,
+      direction,
+      // Viewport observations are already positioned; requested jumps need alignment first.
+      updatePage,
+      normalizePage,
+      readerPageLimit,
+      progressPageLimit,
+      isContentPage: (pageNum: number) => pageNum >= 1 && (!totalPages || pageNum <= totalPages),
+      setDirection,
+      setViewportWindow,
+      viewportWindow,
+      leftDragDelta: () => controls().direction === "rtl" ? -1 : 1,
+      leftTapDelta: () => controls().rightTapAction === "previous" ? 1 : -1,
+      rightDragDelta: () => controls().direction === "rtl" ? 1 : -1,
+      rightTapDelta: () => controls().rightTapAction === "previous" ? -1 : 1,
+      downloadInfos,
+      maxProgressPageNum,
+      progressInputActive,
+      setDownloadInfos,
+      setMaxProgressPageNum,
+      setProgressInputActive,
+    };
+
+    const [toolbarOpen, setToolbarOpen] = createSignal(false);
+    const toolbar = {
+      close: () => setToolbarOpen(false),
+      open: toolbarOpen,
+      toggle: () => setToolbarOpen((open) => !open),
+    };
+
     const [scrollBarVisible, setScrollBarVisible] = createSignal(false);
     const [scrollBarExpanded, setScrollBarExpanded] = createSignal(false);
+    const scrollBar = {
+      expanded: scrollBarExpanded,
+      updateExpanded: setScrollBarExpanded,
+      updateVisible: setScrollBarVisible,
+      visible: scrollBarVisible,
+    };
+
+    // Each axis retains its temporary scale until that axis's configured default changes.
     const [scrollViewportAdjusting, setScrollViewportAdjusting] = createSignal(false);
     const [scrollViewportTtbScale, setScrollViewportTtbScale] = createSignal<ReaderScrollSizeScale>(
       settings.value().scrollTtbScale,
@@ -74,7 +125,6 @@ export class ReaderSession {
     const [scrollViewportHorizontalScale, setScrollViewportHorizontalScale] = createSignal<ReaderScrollSizeScale>(
       settings.value().scrollHorizontalScale,
     );
-    // Only a change to this axis's default replaces its temporary adjustment.
     const configuredTtbScale = createMemo(() => settings.value().scrollTtbScale);
     const configuredHorizontalScale = createMemo(() => settings.value().scrollHorizontalScale);
     createEffect(() => setScrollViewportTtbScale(configuredTtbScale()));
@@ -113,71 +163,48 @@ export class ReaderSession {
         : readerViewportHeight() / imageSize.height;
     };
 
+    const scrollViewport = {
+      adjusting: scrollViewportAdjusting,
+      scaleMode: () => scrollViewportSizeScale() === null
+        ? "fit" as const
+        : scrollViewportSizeScale() === "fill"
+          ? "fill" as const
+          : scrollViewportSizeScale() === "one-to-one"
+            ? "one-to-one" as const
+            : "custom" as const,
+      scalePercent: () => {
+        const sizeScale = scrollViewportSizeScale();
+        if (sizeScale === "one-to-one") {
+          return 100;
+        }
+        if (sizeScale === "fill") {
+          const fillScale = scrollFillScale();
+          return fillScale ? fillScale * 100 : null;
+        }
+        const fitScale = scrollFitScale();
+        return fitScale
+          ? (sizeScale ?? 1) * fitScale * 100
+          : null;
+      },
+      fitImageSize: scrollFitImageSize,
+      fitScale: scrollFitScale,
+      setAdjusting: setScrollViewportAdjusting,
+      setFitImageSize: setScrollFitImageSize,
+      setViewportWidth: setReaderViewportWidth,
+      setSizeScale: setScrollViewportSizeScale,
+      setViewportHeight: setReaderViewportHeight,
+      viewportWidth: readerViewportWidth,
+      viewportHeight: readerViewportHeight,
+      sizeScale: scrollViewportSizeScale,
+    };
+
+    const [zoomImage, setZoomImage] = createSignal<ZoomOverlayImage | null>(null);
     this.state = {
-      navi: {
-        currentPageNum,
-        direction,
-        setCurrentPageNum,
-        setDirection,
-        setViewportWindow,
-        viewportWindow,
-        leftDragDelta: () => controls().direction === "rtl" ? -1 : 1,
-        leftTapDelta: () => controls().rightTapAction === "previous" ? 1 : -1,
-        rightDragDelta: () => controls().direction === "rtl" ? 1 : -1,
-        rightTapDelta: () => controls().rightTapAction === "previous" ? -1 : 1,
-        downloadInfos,
-        maxProgressPageNum,
-        progressInputActive,
-        setDownloadInfos,
-        setMaxProgressPageNum,
-        setProgressInputActive,
-      },
+      navi,
       ctrls: { update: setControls, value: controls },
-      toolbar: {
-        close: () => setToolbarOpen(false),
-        open: toolbarOpen,
-        toggle: () => setToolbarOpen((open) => !open),
-      },
-      scrollBar: {
-        expanded: scrollBarExpanded,
-        updateExpanded: setScrollBarExpanded,
-        updateVisible: setScrollBarVisible,
-        visible: scrollBarVisible,
-      },
-      scrollViewport: {
-        adjusting: scrollViewportAdjusting,
-        scaleMode: () => scrollViewportSizeScale() === null
-          ? "fit" as const
-          : scrollViewportSizeScale() === "fill"
-            ? "fill" as const
-            : scrollViewportSizeScale() === "one-to-one"
-              ? "one-to-one" as const
-              : "custom" as const,
-        scalePercent: () => {
-          const sizeScale = scrollViewportSizeScale();
-          if (sizeScale === "one-to-one") {
-            return 100;
-          }
-          if (sizeScale === "fill") {
-            const fillScale = scrollFillScale();
-            return fillScale ? fillScale * 100 : null;
-          }
-          const fitScale = scrollFitScale();
-          return fitScale
-            ? (sizeScale ?? 1) * fitScale * 100
-            : null;
-        },
-        fitImageSize: scrollFitImageSize,
-        fitScale: scrollFitScale,
-        setAdjusting: setScrollViewportAdjusting,
-        setFitImageSize: setScrollFitImageSize,
-        setViewportWidth: setReaderViewportWidth,
-        setSizeScale: setScrollViewportSizeScale,
-        setViewportHeight: setReaderViewportHeight,
-        viewportWidth: readerViewportWidth,
-        viewportHeight: readerViewportHeight,
-        sizeScale: scrollViewportSizeScale,
-      },
+      toolbar,
+      scrollBar,
+      scrollViewport,
       overlay: { image: zoomImage, update: setZoomImage },
     };
   }
@@ -227,7 +254,6 @@ export class ReaderSession {
     for (const frame of this.animationFrames) {
       window.cancelAnimationFrame(frame);
     }
-    this.imageQueue.dispose();
     this.timers.clear();
     this.animationFrames.clear();
   }

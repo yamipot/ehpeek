@@ -13,9 +13,3 @@ export async function openOriginalReader(
 
   window.location.assign(page.url);
 }
-
-export function reportReaderOpenError(error: unknown): void {
-  const message = error instanceof Error ? error.message : texts.errors.loadFailed;
-  console.error("[ehpeek]", error);
-  window.alert(message);
-}

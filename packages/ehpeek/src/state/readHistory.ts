@@ -1,8 +1,5 @@
-import {
-  persisted,
-  state,
-  type PersistedGMStoreValue,
-} from "./index";
+import { state } from "./index";
+import { persisted, type PersistedGMStoreValue } from "./storage";
 import type { GalleryHistoryInfo } from "../eh/types";
 
 const HISTORY_KEY_PREFIX = "ehpeek:history:";
@@ -106,6 +103,129 @@ export class GalleryReadHistory {
   }
 }
 
+export async function galleryReadHistory(
+  galleryId: number,
+  token: string,
+): Promise<GalleryReadHistory> {
+  const history = new GalleryReadHistory(galleryId, token);
+  await history.reload();
+  return history;
+}
+
+function mergeGalleryInfo(
+  previous: GalleryHistoryInfo | undefined,
+  current: GalleryHistoryInfo | undefined,
+): GalleryHistoryInfo | undefined {
+  const merged = {
+    category: current?.category ?? previous?.category,
+    categoryClass: current?.categoryClass ?? previous?.categoryClass,
+    coverUrl: current?.coverUrl ?? previous?.coverUrl,
+    language: current?.language ?? previous?.language,
+    postedAt: current?.postedAt ??
+      (typeof previous?.postedAt === "number" ? previous.postedAt : undefined),
+    rating: current?.rating ?? (typeof previous?.rating === "number" ? previous.rating : undefined),
+    title: current?.title ?? previous?.title,
+    titleSub: current?.titleSub ?? previous?.titleSub,
+    uploader: current?.uploader ?? previous?.uploader,
+  };
+  const entries = Object.entries(merged).filter((entry) => entry[1] !== undefined);
+  return entries.length > 0 ? Object.fromEntries(entries) as GalleryHistoryInfo : undefined;
+}
+
+// Collection operations share the persisted count estimate and retention policy.
+export async function loadDisplayReadHistoryRecords(): Promise<DisplayReadHistoryRecord[]> {
+  const keys = await GM.listValues();
+  await clearLegacyHistoryQueue(keys);
+  return (await loadAllReadHistoryRecords(keys))
+    .filter((record): record is DisplayReadHistoryRecord => record.gallery !== undefined)
+    .slice(0, READ_HISTORY_LIMIT);
+}
+
+export async function clearReadHistory(): Promise<void> {
+  const keys = await GM.listValues();
+  await Promise.all(keys
+    .filter((key) => key.startsWith(HISTORY_KEY_PREFIX) || key.startsWith(HISTORY_QUEUE_KEY_PREFIX))
+    .map((key) => GM.deleteValue(key)));
+  state.gallery.readHistoryCompactEstimate.set(0);
+}
+
+export async function removeReadHistory(galleryId: number, token: string): Promise<void> {
+  const history = await galleryReadHistory(galleryId, token);
+  const record = history.value;
+  if (!record) {
+    return;
+  }
+
+  await history.clear();
+  state.gallery.readHistoryCompactEstimate.set(
+    Math.max(0, (await state.gallery.readHistoryCompactEstimate.reload()) - 1),
+  );
+}
+
+async function incrementReadHistoryEstimate(): Promise<void> {
+  const estimate = (await state.gallery.readHistoryCompactEstimate.reload()) + 1;
+  state.gallery.readHistoryCompactEstimate.set(estimate);
+  if (estimate >= HISTORY_COMPACT_THRESHOLD) {
+    await pruneReadHistory();
+  }
+}
+
+function historyKey(galleryId: number, token: string): string {
+  return `${HISTORY_KEY_PREFIX}${historyReference(galleryId, token)}`;
+}
+
+async function loadAllReadHistoryRecords(keys?: string[]): Promise<ReadHistoryRecord[]> {
+  const storageKeys = keys ?? await GM.listValues();
+  const records = await Promise.all(storageKeys
+    .filter((key) => key.startsWith(HISTORY_KEY_PREFIX))
+    .map((key) => GM.getValue<ReadHistoryRecord | null>(key, null)));
+  return records
+    .filter((record): record is ReadHistoryRecord => record !== null)
+    .sort((left, right) => right.updatedAt - left.updatedAt);
+}
+
+async function clearLegacyHistoryQueue(keys: string[]): Promise<void> {
+  // TODO: Remove this one-time hist_q migration cleanup after existing installs have opened History.
+  await Promise.all(keys
+    .filter((key) => key.startsWith(HISTORY_QUEUE_KEY_PREFIX))
+    .map((key) => GM.deleteValue(key)));
+}
+
+async function pruneReadHistory(): Promise<void> {
+  const keys = await GM.listValues();
+  const records = (await Promise.all(keys
+    .filter((key) => key.startsWith(HISTORY_KEY_PREFIX))
+    .map(async (key) => ({
+      key,
+      record: await GM.getValue<ReadHistoryRecord | null>(key, null),
+    }))))
+    .filter((entry): entry is { key: string; record: ReadHistoryRecord } =>
+      entry.record !== null,
+    )
+    .sort((left, right) => right.record.updatedAt - left.record.updatedAt);
+  const retained = records.slice(0, READ_HISTORY_LIMIT);
+
+  await Promise.all(records.slice(retained.length).map((entry) => GM.deleteValue(entry.key)));
+
+  state.gallery.readHistoryCompactEstimate.set(retained.length);
+}
+
+function historyReference(galleryId: number, token: string): string {
+  return `${galleryId}:${token}`;
+}
+
+function storedReadHistoryRecord(record: ReadHistoryRecord): ReadHistoryRecord {
+  return {
+    galleryId: record.galleryId,
+    gallery: record.gallery,
+    token: record.token,
+    pageNum: record.pageNum,
+    totalPages: record.totalPages,
+    updatedAt: record.updatedAt,
+  };
+}
+
+// The archive format is validated before any stored record is merged or written.
 type ReadHistoryArchiveGallery = GalleryHistoryInfo;
 
 type ReadHistoryArchiveRecord = {
@@ -122,23 +242,6 @@ type ReadHistoryArchive = {
   version: typeof READ_HISTORY_ARCHIVE_VERSION;
   records: ReadHistoryArchiveRecord[];
 };
-
-export async function galleryReadHistory(
-  galleryId: number,
-  token: string,
-): Promise<GalleryReadHistory> {
-  const history = new GalleryReadHistory(galleryId, token);
-  await history.reload();
-  return history;
-}
-
-export async function loadDisplayReadHistoryRecords(): Promise<DisplayReadHistoryRecord[]> {
-  const keys = await GM.listValues();
-  await clearLegacyHistoryQueue(keys);
-  return (await loadAllReadHistoryRecords(keys))
-    .filter((record): record is DisplayReadHistoryRecord => record.gallery !== undefined)
-    .slice(0, READ_HISTORY_LIMIT);
-}
 
 export async function exportReadHistory(): Promise<string> {
   const archive: ReadHistoryArchive = {
@@ -191,55 +294,6 @@ export async function importReadHistory(source: string): Promise<number> {
 
   await pruneReadHistory();
   return Math.min(imported.size, READ_HISTORY_LIMIT);
-}
-
-export async function clearReadHistory(): Promise<void> {
-  const keys = await GM.listValues();
-  await Promise.all(keys
-    .filter((key) => key.startsWith(HISTORY_KEY_PREFIX) || key.startsWith(HISTORY_QUEUE_KEY_PREFIX))
-    .map((key) => GM.deleteValue(key)));
-  state.gallery.readHistoryCompactEstimate.set(0);
-}
-
-export async function removeReadHistory(galleryId: number, token: string): Promise<void> {
-  const history = await galleryReadHistory(galleryId, token);
-  const record = history.value;
-  if (!record) {
-    return;
-  }
-
-  await history.clear();
-  state.gallery.readHistoryCompactEstimate.set(
-    Math.max(0, (await state.gallery.readHistoryCompactEstimate.reload()) - 1),
-  );
-}
-
-async function incrementReadHistoryEstimate(): Promise<void> {
-  const estimate = (await state.gallery.readHistoryCompactEstimate.reload()) + 1;
-  state.gallery.readHistoryCompactEstimate.set(estimate);
-  if (estimate >= HISTORY_COMPACT_THRESHOLD) {
-    await pruneReadHistory();
-  }
-}
-
-function mergeGalleryInfo(
-  previous: GalleryHistoryInfo | undefined,
-  current: GalleryHistoryInfo | undefined,
-): GalleryHistoryInfo | undefined {
-  const merged = {
-    category: current?.category ?? previous?.category,
-    categoryClass: current?.categoryClass ?? previous?.categoryClass,
-    coverUrl: current?.coverUrl ?? previous?.coverUrl,
-    language: current?.language ?? previous?.language,
-    postedAt: current?.postedAt ??
-      (typeof previous?.postedAt === "number" ? previous.postedAt : undefined),
-    rating: current?.rating ?? (typeof previous?.rating === "number" ? previous.rating : undefined),
-    title: current?.title ?? previous?.title,
-    titleSub: current?.titleSub ?? previous?.titleSub,
-    uploader: current?.uploader ?? previous?.uploader,
-  };
-  const entries = Object.entries(merged).filter((entry) => entry[1] !== undefined);
-  return entries.length > 0 ? Object.fromEntries(entries) as GalleryHistoryInfo : undefined;
 }
 
 function parseReadHistoryArchive(source: unknown): ReadHistoryArchive {
@@ -361,59 +415,4 @@ function optionalPositiveNumber(
 
 function isRecord(source: unknown): source is Record<string, unknown> {
   return typeof source === "object" && source !== null && !Array.isArray(source);
-}
-
-function historyKey(galleryId: number, token: string): string {
-  return `${HISTORY_KEY_PREFIX}${historyReference(galleryId, token)}`;
-}
-
-async function loadAllReadHistoryRecords(keys?: string[]): Promise<ReadHistoryRecord[]> {
-  const storageKeys = keys ?? await GM.listValues();
-  const records = await Promise.all(storageKeys
-    .filter((key) => key.startsWith(HISTORY_KEY_PREFIX))
-    .map((key) => GM.getValue<ReadHistoryRecord | null>(key, null)));
-  return records
-    .filter((record): record is ReadHistoryRecord => record !== null)
-    .sort((left, right) => right.updatedAt - left.updatedAt);
-}
-
-async function clearLegacyHistoryQueue(keys: string[]): Promise<void> {
-  // TODO: Remove this one-time hist_q migration cleanup after existing installs have opened History.
-  await Promise.all(keys
-    .filter((key) => key.startsWith(HISTORY_QUEUE_KEY_PREFIX))
-    .map((key) => GM.deleteValue(key)));
-}
-
-async function pruneReadHistory(): Promise<void> {
-  const keys = await GM.listValues();
-  const records = (await Promise.all(keys
-    .filter((key) => key.startsWith(HISTORY_KEY_PREFIX))
-    .map(async (key) => ({
-      key,
-      record: await GM.getValue<ReadHistoryRecord | null>(key, null),
-    }))))
-    .filter((entry): entry is { key: string; record: ReadHistoryRecord } =>
-      entry.record !== null,
-    )
-    .sort((left, right) => right.record.updatedAt - left.record.updatedAt);
-  const retained = records.slice(0, READ_HISTORY_LIMIT);
-
-  await Promise.all(records.slice(retained.length).map((entry) => GM.deleteValue(entry.key)));
-
-  state.gallery.readHistoryCompactEstimate.set(retained.length);
-}
-
-function historyReference(galleryId: number, token: string): string {
-  return `${galleryId}:${token}`;
-}
-
-function storedReadHistoryRecord(record: ReadHistoryRecord): ReadHistoryRecord {
-  return {
-    galleryId: record.galleryId,
-    gallery: record.gallery,
-    token: record.token,
-    pageNum: record.pageNum,
-    totalPages: record.totalPages,
-    updatedAt: record.updatedAt,
-  };
 }
