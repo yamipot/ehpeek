@@ -152,6 +152,8 @@ export type ReaderInstance = {
 };
 
 export type ReadingViewProps = {
+  /** Suspend user input without stopping loading or programmatic progress updates. */
+  disabled?: boolean;
   /** Configuration for this mount; remount to replace the content source or host. */
   options: ReadingViewOptions;
   embeddedPreview?: boolean;

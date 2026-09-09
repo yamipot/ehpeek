@@ -14,6 +14,7 @@ import {
 import { createReadProgressPublisher, type ReadProgressPort } from "../features/ReadProgressSyncer";
 import type { PreviewCache } from "../features/PreviewCache";
 import { lockPageScroll } from "../features/Viewport";
+import { bindInteractionGate } from "../features/InteractionGate";
 
 import { OverlayPortal, useOverlayHost } from "../kit/Widgets/OverlayHost";
 import type { PreviewItem, ReadDirection } from "../kit/interfaces";
@@ -436,6 +437,7 @@ function EmbeddedPreviewToolbar(props: {
 }
 
 type PreviewViewportState = {
+  disabled: Accessor<boolean>;
   canvasHeight: Accessor<string>;
   canvasWidth: Accessor<string>;
   decodeCache: PreviewDecodeCache;
@@ -539,6 +541,7 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
       </div>
       <Show when={state.positionBarVisible()}>
         <PositionBar
+          disabled={state.disabled()}
           ariaLabel={texts.gallery.scrollPreview}
           axis={state.horizontal ? "horizontal" : "vertical"}
           currentValue={state.positionValue()}
@@ -567,6 +570,9 @@ export type ScrollPreviewOpenState = {
 };
 
 export type ScrollPreviewProps = {
+  disabled?: boolean;
+  embeddedDisabled?: boolean;
+  onReturnPageChange: (pageNum: number) => void;
   openState: ScrollPreviewOpenState | null;
   progressRef: (progress: ReadProgressPort | null) => void;
   onClose: (pageNum: number) => void;
@@ -672,6 +678,10 @@ function EmbeddedScrollPreview(props: {
     <Show when={source.replaceOriginalPreview}>
       <Show when={session.embeddedReadDirection()} keyed>{(direction) => (
         <ScrollPreviewPanel
+          disabled={source.disabled || source.embeddedDisabled}
+          onReturnPageChange={(page) => {
+            if (source.openState?.mode === "embedded") source.onReturnPageChange(page);
+          }}
           crossCountOverride={session.embeddedCrossCountOverride()}
           decodeCache={session.decodeCache}
           embedded
@@ -709,7 +719,10 @@ function ScrollPreviewLauncher(props: {
   const source = untrack(() => props.source);
   return (
     <Show when={!source.replaceOriginalPreview}>
-      <div class="ehpeek-preview-launcher">
+      <div
+        ref={(element) => bindInteractionGate(() => element, () => Boolean(source.disabled || source.embeddedDisabled))}
+        class="ehpeek-preview-launcher"
+      >
         <LauncherButton
           icon="grid"
           label={texts.gallery.scrollPreview}
@@ -732,6 +745,8 @@ function ScrollPreviewOverlay(props: {
       <OverlayPortal>
         <Show when={session.readDirection()} keyed>{(direction) => (
           <ScrollPreviewPanel
+            disabled={source.disabled}
+            onReturnPageChange={source.onReturnPageChange}
             crossCountOverride={session.crossCountOverride()}
             decodeCache={session.decodeCache}
             embedded={false}
@@ -759,6 +774,8 @@ function ScrollPreviewOverlay(props: {
 }
 
 function ScrollPreviewPanel(props: {
+  disabled?: boolean;
+  onReturnPageChange: (pageNum: number) => void;
   crossCountOverride: number | null;
   decodeCache: PreviewDecodeCache;
   embedded: boolean;
@@ -818,6 +835,9 @@ function ScrollPreviewPanel(props: {
       ? texts.gallery.scrollPreviewDirectionRtl
       : texts.gallery.scrollPreviewDirectionLtr;
   const flingAnimator = new ScrollFlingAnimator();
+  let exitAnimation: Animation | null = null;
+  const disabled = () => props.disabled ?? false;
+  untrack(() => bindInteractionGate(() => overlay, disabled));
   const crossCountOverride = (): number | null => props.crossCountOverride;
   const [exitDragOffset, setExitDragOffset] = createSignal(0);
   const [previewLoadReady, setPreviewLoadReady] = createSignal(false);
@@ -1046,7 +1066,7 @@ function ScrollPreviewPanel(props: {
     );
   };
   createPointerGestureElement(
-    () => scroller ?? null,
+    () => props.disabled ? null : scroller ?? null,
     () => ({
       dragAxis: embedded
         ? horizontal
@@ -1099,7 +1119,7 @@ function ScrollPreviewPanel(props: {
             const translation = horizontal
               ? `0, ${direction * 100}vh`
               : `${direction * 100}vw, 0`;
-            void overlay.animate(
+            void (exitAnimation = overlay.animate(
               [
                 {
                   opacity: overlay.style.opacity,
@@ -1115,10 +1135,12 @@ function ScrollPreviewPanel(props: {
                 easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
                 fill: "forwards",
               },
-            ).finished.then(() => onClose?.(pageNum));
+            )).finished.then(() => {
+              if (!disposed && !untrack(disabled)) onClose?.(pageNum);
+            }).catch(() => {});
             return;
           }
-          void overlay.animate(
+          void (exitAnimation = overlay.animate(
             [
               {
                 opacity: overlay.style.opacity,
@@ -1130,7 +1152,7 @@ function ScrollPreviewPanel(props: {
               },
             ],
             { duration: 180, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
-          ).finished.then(() => setExitDragOffset(0));
+          )).finished.then(() => setExitDragOffset(0)).catch(() => {});
           return;
         }
         dragDirection = null;
@@ -1193,6 +1215,21 @@ function ScrollPreviewPanel(props: {
         (mainViewportSize() - groupSizeAt(currentLayout, group)) / 2,
     );
   };
+  createEffect(() => props.onReturnPageChange(centeredPageNum()));
+  createEffect(() => {
+    if (!props.disabled) return;
+    untrack(() => {
+      flingAnimator.cancel();
+      exitAnimation?.cancel();
+      exitAnimation = null;
+      pointerActive = false;
+      dragDirection = null;
+      dragStartPosition = null;
+      resizeAnchorPageNum = null;
+      setExitDragOffset(0);
+      applyPendingLayout();
+    });
+  });
   const scrollToPreview = (previewIndex: number, currentLayout: PreviewLayout): void => {
     scrollToPage(previewCache.pageForBatch(previewIndex), currentLayout);
   };
@@ -1469,6 +1506,7 @@ function ScrollPreviewPanel(props: {
     updateLayout(true);
     onCleanup(() => {
       disposed = true;
+      exitAnimation?.cancel();
       flingAnimator.cancel();
       resizeObserver.disconnect();
       unlockScroll();
@@ -1514,6 +1552,7 @@ function ScrollPreviewPanel(props: {
     );
   };
   const viewportState: PreviewViewportState = {
+    disabled: () => props.disabled ?? false,
     canvasHeight: () => horizontal ? "100%" : `${totalMainSize()}px`,
     canvasWidth: () => horizontal ? `${mainCanvasSize()}px` : "100%",
     decodeCache,

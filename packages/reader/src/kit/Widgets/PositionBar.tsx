@@ -1,10 +1,11 @@
-import { createSignal, untrack } from "solid-js";
+import { createEffect, createSignal, untrack } from "solid-js";
 import { clamp } from "../helpers";
 import "../../styles";
 
 type PositionBarThickness = "narrow" | "normal";
 
 export function PositionBar(props: {
+  disabled?: boolean;
   ariaLabel: string;
   axis: "horizontal" | "vertical";
   currentValue: number;
@@ -28,6 +29,14 @@ export function PositionBar(props: {
   let track!: HTMLDivElement;
   let thumb!: HTMLDivElement;
   let dragOffset = 0;
+  let capturedPointer: number | null = null;
+  createEffect(() => {
+    if (!props.disabled) return;
+    setDragging(false);
+    if (capturedPointer !== null && track.hasPointerCapture(capturedPointer))
+      track.releasePointerCapture(capturedPointer);
+    capturedPointer = null;
+  });
   const axis = untrack(() => props.axis);
   const thickness = () => props.thickness ?? "normal";
   const horizontal = axis === "horizontal";
@@ -46,7 +55,7 @@ export function PositionBar(props: {
     0,
     1,
   );
-  const draggable = () => valueRange() > 0 && thumbRatio() < 1;
+  const draggable = () => !props.disabled && valueRange() > 0 && thumbRatio() < 1;
   const coordinate = (event: PointerEvent): number =>
     horizontal ? event.clientX : event.clientY;
   const valueAt = (pointerCoordinate: number): number => {
@@ -80,6 +89,7 @@ export function PositionBar(props: {
     }
     setDragging(true);
     track.setPointerCapture(event.pointerId);
+    capturedPointer = event.pointerId;
     const thumbRect = thumb.getBoundingClientRect();
     dragOffset = thumbPressed
       ? coordinate(event) - (horizontal ? thumbRect.left : thumbRect.top)
@@ -99,6 +109,7 @@ export function PositionBar(props: {
     setDragging(false);
     const value = inputAt(event);
     track.releasePointerCapture(event.pointerId);
+    capturedPointer = null;
     props.onCommit?.(value);
   };
   const onPointerCancel = (event: PointerEvent): void => {
@@ -107,6 +118,7 @@ export function PositionBar(props: {
     }
     setDragging(false);
     track.releasePointerCapture(event.pointerId);
+    capturedPointer = null;
     props.onCommit?.(props.currentValue);
   };
   const stopClick = (event: MouseEvent): void => event.stopPropagation();

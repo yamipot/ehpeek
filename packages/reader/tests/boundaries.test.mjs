@@ -104,8 +104,8 @@ test("thumbnail cache requests logical pages, deduplicates and aborts on dispose
 test("default surface stack closes preview before selecting in reader", async () => {
   const events = [];
   const stack = new SurfaceStack(
-    (surface) => {
-      events.push(`close:${surface}`);
+    (surface, reason) => {
+      events.push(`close:${surface}:${reason}`);
     },
     (error) => {
       throw error;
@@ -113,9 +113,10 @@ test("default surface stack closes preview before selecting in reader", async ()
   );
   stack.push("reader");
   stack.push("preview");
-  stack.requestClose("preview", () => events.push("select:12"));
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(events, ["close:preview", "select:12"]);
+  stack.requestClose("preview", "switch");
+  await stack.whenSettled();
+  events.push("select:12");
+  assert.deepEqual(events, ["close:preview:switch", "select:12"]);
   assert.equal(stack.top, "reader");
   stack.dispose();
 });

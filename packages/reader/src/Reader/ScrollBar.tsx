@@ -2,6 +2,7 @@ import type { ToolbarCallbacks } from "./Toolbar";
 import { PositionBar } from "../kit/Widgets/PositionBar";
 
 export function ReaderScrollBar(props: {
+  disabled?: boolean;
   callbacks: Pick<
     ToolbarCallbacks,
     "onProgressCommit" | "onProgressInput" | "onProgressPointerDown"
@@ -15,6 +16,7 @@ export function ReaderScrollBar(props: {
 }) {
   return (
     <PositionBar
+      disabled={props.disabled}
       ariaLabel="Reader position"
       axis="vertical"
       currentValue={props.currentPage}

@@ -1001,6 +1001,12 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
 .ehpeek-help-item { margin-bottom: var(--ui-space-xs); }
 .ehpeek-help-item:last-child { margin-bottom: 0; }
 
+#ehpeek-reader[inert] .ehpeek-reader-scroller,
+.ehpeek-preview-panel[inert] .ehpeek-preview-scroller {
+  overflow: hidden;
+  touch-action: none;
+}
+
 @keyframes ehpeek-reader-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }

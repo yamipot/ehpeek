@@ -54,6 +54,7 @@ export type ToolbarCallbacks = {
 };
 
 export function Toolbar(props: {
+  disabled?: boolean;
   callbacks: ToolbarCallbacks;
   customization?: ReaderCustomization;
   leftHandedControls: boolean;
@@ -376,7 +377,7 @@ export function Toolbar(props: {
           onCommit={props.callbacks.onProgressCommit}
         />
       </div>
-      <Show when={downloadDialogPageNum() !== null && props.downloadInfos.length > 0}>
+      <Show when={!props.disabled && downloadDialogPageNum() !== null && props.downloadInfos.length > 0}>
         <Dialog
           bodyClass="ehpeek-reader-download-body"
           label={texts.reader.download}
@@ -469,7 +470,7 @@ export function Toolbar(props: {
           </div>
         </Dialog>
       </Show>
-      <Show when={helpOpen()}>
+      <Show when={!props.disabled && helpOpen()}>
         <InteractionHelp variant="reader" onClose={() => setHelpOpen(false)} />
       </Show>
     </div>

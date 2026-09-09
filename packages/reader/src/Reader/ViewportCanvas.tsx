@@ -16,6 +16,7 @@ export type ViewportCanvasCallbacks = {
 };
 
 export function ViewportCanvas(props: {
+  disabled?: boolean;
   adjusting: boolean;
   callbacks: ViewportCanvasCallbacks;
   children: JSX.Element;
@@ -46,7 +47,10 @@ export function ViewportCanvas(props: {
   };
 
   createEffect(() => {
-    if (!props.adjusting) {
+    if (!props.adjusting || props.disabled) {
+      for (const id of pointers.keys()) {
+        if (interactionLayer.hasPointerCapture(id)) interactionLayer.releasePointerCapture(id);
+      }
       pointers.clear();
       pinchStart = null;
     }

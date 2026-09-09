@@ -135,6 +135,7 @@ export type PagesViewportActions = {
 };
 
 export function PagesViewport(props: {
+  disabled?: boolean;
   actionsRef: (actions: PagesViewportActions) => void;
   callbacks: PagesViewportCallbacks;
   decodedImageCacheLimit?: number;
@@ -397,7 +398,7 @@ export function PagesViewport(props: {
     refresh();
   };
   const gestureDragging = createPointerGestureElement(
-    () => scroller ?? null,
+    () => props.disabled ? null : scroller ?? null,
     () => props.callbacks.pointer,
   );
   const syncWindow = (options: PagesViewportWindowOptions) => {

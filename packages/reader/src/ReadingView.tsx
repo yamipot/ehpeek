@@ -4,7 +4,7 @@ import { ScrollPreview, type ScrollPreviewOpenState } from "./ScrollPreview";
 import { createReaderSettings } from "./features/ReaderSettings";
 import { createPreviewCache } from "./features/PreviewCache";
 import { ReadProgressSyncer, type ReadProgressPort } from "./features/ReadProgressSyncer";
-import { SurfaceStack } from "./features/SurfaceStack";
+import { SurfaceStack, type SurfaceCloseReason } from "./features/SurfaceStack";
 import { createOverlayHost, OverlayHostProvider, OverlayPortal } from "./kit/Widgets/OverlayHost";
 import { lockPageScroll, lockPageThemeColor } from "./features/Viewport";
 import type { ReaderInstance, ReaderPage, ReaderPlacement, ReadingSurface, ReadingViewProps } from "./kit/interfaces";
@@ -31,6 +31,7 @@ export function ReadingView(props: ReadingViewProps) {
   let opening: Promise<void> | null = null;
   let pendingMount: { resolve: () => void; reject: (error: unknown) => void } | null = null;
   let previewRoot!: HTMLDivElement;
+  let previewReturnPage = options.source.initialPageNum;
   const stack = new SurfaceStack(closeView, onError, options.history);
   const stopFullscreen = host.fullscreen.subscribe((active) => untrack(() => {
     const wasFullscreen = fullscreenActive();
@@ -93,6 +94,12 @@ export function ReadingView(props: ReadingViewProps) {
 
   async function openReaderAt(pageNum: number, configuredFullscreen: boolean): Promise<void> {
     if (options.beforeOpen && !(await options.beforeOpen(pageNum))) return;
+    await stack.whenSettled();
+    if (disposed) return;
+    if (preview()) {
+      stack.requestClose("preview", "switch");
+      await stack.whenSettled();
+    }
     if (disposed) return;
     if (readerView()) {
       readerActions()?.gotoPage(pageNum);
@@ -132,11 +139,13 @@ export function ReadingView(props: ReadingViewProps) {
 
   function openPreview(pageNum: number): void {
     if (disposed) return;
+    previewReturnPage = pageNum;
     if (stack.top !== "preview") stack.push("preview");
     setPreview({ mode: "overlay", pageNum });
   }
 
   function openReaderPreview(pageNum: number): void {
+    previewReturnPage = pageNum;
     previewProgress()?.setProgress(pageNum);
     const placement = readerView()?.placement;
     if (placement?.coversPreview && placement.container.available() && !fullscreenActive()) {
@@ -147,16 +156,22 @@ export function ReadingView(props: ReadingViewProps) {
     }
   }
 
+  const embeddedPreviewDisabled = () => {
+    if (preview()?.mode === "overlay") return true;
+    if (preview()?.mode === "embedded") return false;
+    const view = readerView();
+    return Boolean(view && (fullscreenActive() || !view.placement || view.placement.coversPreview));
+  };
+
   function selectPage(pageNum: number): void {
-    const open = () => { void openReader(pageNum, true).catch(onError); };
-    if (stack.top === "preview") stack.requestClose("preview", open);
-    else open();
+    void openReader(pageNum, true).catch(onError);
   }
 
-  async function closeView(view: ReadingSurface): Promise<void> {
+  async function closeView(view: ReadingSurface, reason: SurfaceCloseReason): Promise<void> {
     if (disposed) return;
     if (view === "preview") {
       setPreview(null);
+      if (reason === "return") options.onPreviewClosed?.(previewReturnPage);
       return;
     }
     setReaderView(null);
@@ -201,6 +216,7 @@ export function ReadingView(props: ReadingViewProps) {
         }}
       >
         <Reader
+          disabled={props.disabled || preview() !== null}
           actionsRef={setReaderActions}
           callbacks={{
             onClose: () => stack.requestClose("reader"),
@@ -244,6 +260,8 @@ export function ReadingView(props: ReadingViewProps) {
     <OverlayHostProvider host={host}>
       <div ref={previewRoot} class="ehpeek-ui-root ehpeek-reading-view">
         <ScrollPreview
+          disabled={props.disabled ?? false}
+          embeddedDisabled={embeddedPreviewDisabled()}
           openState={preview()}
           progressRef={(port) => {
             setPreviewProgress(port);
@@ -254,7 +272,11 @@ export function ReadingView(props: ReadingViewProps) {
           embeddedDirection={settings.value().embeddedPreviewDirection}
           fillEmbeddedContainer={props.fillPreviewContainer ?? (() => false)}
           leftHandedControls={() => settings.value().leftHandedControls}
-          onClose={(pageNum) => stack.requestClose("preview", () => options.onPreviewClosed?.(pageNum))}
+          onReturnPageChange={(pageNum) => { previewReturnPage = pageNum; }}
+          onClose={(pageNum) => {
+            previewReturnPage = pageNum;
+            stack.requestClose("preview");
+          }}
           onOpenOverlay={openPreview}
           onSelectPage={(_url, page) => selectPage(page)}
           onLoadError={onError}

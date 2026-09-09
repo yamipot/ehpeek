@@ -33,6 +33,7 @@ import {
 import { ReaderScrollBar } from "./ScrollBar";
 import { ViewportCanvas, type ViewportCanvasCallbacks } from "./ViewportCanvas";
 import "../styles";
+import { bindInteractionGate } from "../features/InteractionGate";
 
 const VIEWER_ID = "ehpeek-reader";
 const DEFAULT_WINDOW_SIZE = 10;
@@ -80,6 +81,7 @@ export type ReaderCallbacks = {
   onToggleFullscreen: () => void;
 };
 export type ReaderProps = {
+  disabled?: boolean;
   callbacks: ReaderCallbacks;
   actionsRef: (actions: ReaderActions | null) => void;
   settings: ReaderSettingsState;
@@ -98,9 +100,11 @@ export function Reader(props: ReaderProps) {
   const readerState = session.state;
   const scrollFitPageNum = readerState.navi.currentPageNum();
   let readerElement!: HTMLDivElement;
+  const disabled = () => props.disabled ?? false;
+  untrack(() => bindInteractionGate(() => readerElement, disabled));
   const publisher = createReadProgressPublisher();
   const clientCallbacks = untrack(() => props.callbacks);
-  const readerCallbacks = wireReaderCallbacks(
+  const readerCallbacks = untrack(() => wireReaderCallbacks(
     session,
     options,
     source,
@@ -114,7 +118,8 @@ export function Reader(props: ReaderProps) {
     untrack(() => props.settings),
     untrack(() => props.customization) ?? {},
     () => readerElement,
-  );
+    disabled,
+  ));
   untrack(() => props.actionsRef)({
     gotoPage: readerCallbacks.gotoPage,
     progress: {
@@ -161,6 +166,7 @@ export function Reader(props: ReaderProps) {
       <Show when={!readerState.scrollViewport.adjusting()}>
         <header class="ehpeek-reader-header">
           <Toolbar
+            disabled={props.disabled}
             callbacks={readerCallbacks.toolbar}
             customization={props.customization}
             leftHandedControls={props.settings.value().leftHandedControls}
@@ -178,12 +184,14 @@ export function Reader(props: ReaderProps) {
         </header>
       </Show>
       <ViewportCanvas
+        disabled={props.disabled}
         adjusting={readerState.scrollViewport.adjusting()}
         callbacks={readerCallbacks.viewportCanvas}
         scaleMode={readerState.scrollViewport.scaleMode()}
         scalePercent={readerState.scrollViewport.scalePercent()}
       >
         <PagesViewport
+          disabled={props.disabled}
           actionsRef={readerCallbacks.viewportActionsRef}
           callbacks={readerCallbacks.viewport}
           decodedImageCacheLimit={options.decodedImageCacheLimit}
@@ -203,6 +211,7 @@ export function Reader(props: ReaderProps) {
         totalPages > 1
       }>
         <ReaderScrollBar
+          disabled={props.disabled}
           callbacks={readerCallbacks.toolbar}
           currentPage={readerState.navi.currentPageNum()}
           expanded={readerState.scrollBar.expanded()}
@@ -229,6 +238,7 @@ function wireReaderCallbacks(
   settings: ReaderSettingsState,
   customization: ReaderCustomization,
   readerElement: () => HTMLElement,
+  disabled: () => boolean,
 ) {
   const texts = useReaderTexts();
   const state = session.state;
@@ -637,7 +647,7 @@ function wireReaderCallbacks(
   }
 
   const onKeydown = (event: KeyboardEvent): void => {
-    if (shouldIgnoreKeyboardEvent(event)) {
+    if (disabled() || shouldIgnoreKeyboardEvent(event)) {
       return;
     }
     if (event.key === "Escape") {
@@ -668,6 +678,15 @@ function wireReaderCallbacks(
   const scrollViewport = wireScrollViewport();
   wireImageQueue();
   const toolbar = wireToolbar();
+  createEffect(() => {
+    if (!disabled()) return;
+    untrack(() => {
+      stopViewportMotion();
+      viewportActions.cancelDrag();
+      scrollViewport.endPinch();
+      state.navi.setProgressInputActive(false);
+    });
+  });
 
   return {
     viewportActionsRef: (actions: PagesViewportActions): void => {
@@ -1044,6 +1063,11 @@ function wireReaderCallbacks(
     };
 
     onCleanup(cancelProgressNavigation);
+    createEffect(() => {
+      if (!disabled()) return;
+      cancelProgressNavigation();
+      pendingProgressPageNum = null;
+    });
 
     toolbar.onCloseClick = requestReaderClose;
     toolbar.onControlsChange = updateControls;

@@ -211,7 +211,7 @@ const actualOutput = await build({
   stdin: {
     contents: `
       export { ReadingView } from "@ehpeek/reader";
-      export { createComponent } from "solid-js";
+      export { createComponent, createSignal } from "solid-js";
       export { render } from "solid-js/web";
     `,
     resolveDir: new URL("../", import.meta.url).pathname,
@@ -221,6 +221,195 @@ const actualOutput = await build({
 const actual = await import(
   `data:text/javascript;base64,${Buffer.from(actualOutput.outputFiles[0].text).toString("base64")}`
 );
+
+function mountActual(t, options = {}, props = {}) {
+  document.body.replaceChildren();
+  Object.defineProperty(document, "fullscreenElement", { configurable: true, value: null });
+  const root = document.createElement("div");
+  document.body.append(root);
+  const source = {
+    totalPages: 10, initialPageNum: 1, aspectRatio: 1, initialPreviewItems: [],
+    getPreviewItems: async () => [],
+    getPages: async numbers => numbers.map(pageNum => ({ pageNum, url: "/page/" + pageNum, aspectRatio: 1 })),
+    loadImage: () => new Promise(() => {}),
+  };
+  let instance, setDisabled;
+  const dispose = actual.render(() => {
+    const [disabled, set] = actual.createSignal(false);
+    setDisabled = set;
+    return actual.createComponent(actual.ReadingView, {
+      ...props, options: { source, ...options },
+      get disabled() { return disabled(); },
+      instanceRef: value => { instance = value; },
+    });
+  }, root);
+  t.after(async () => { dispose(); await settle(); });
+  return { instance, root, setDisabled, dispose };
+}
+
+function labelledButton(root, label) {
+  const button = [...root.querySelectorAll("button")].find(button => button.getAttribute("aria-label") === label);
+  assert.ok(button, label);
+  return button;
+}
+function keydown(key) {
+  document.body.dispatchEvent(new window.KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+}
+function pointer(target, type, x = 200, y = 100) {
+  target.dispatchEvent(new window.PointerEvent(type, {
+    bubbles: true, pointerId: 1, pointerType: "mouse", button: 0, clientX: x, clientY: y,
+  }));
+}
+
+test("covered Reader ignores keyboard, wheel, buttons and a pointer released after coverage", async t => {
+  const { instance } = mountActual(t);
+  await instance.open(2);
+  const reader = document.querySelector("#ehpeek-reader");
+  const scroller = reader.querySelector(".ehpeek-reader-scroller");
+  scroller.getBoundingClientRect = () => new window.DOMRect(0, 0, 400, 600);
+  pointer(scroller, "pointerdown");
+  instance.openPreview(2);
+  assert.equal(reader.inert, true);
+  assert.equal(window.getComputedStyle(scroller).overflow, "hidden");
+  pointer(document, "pointerup");
+  keydown("ArrowDown");
+  scroller.dispatchEvent(new window.WheelEvent("wheel", { deltaY: 100, bubbles: true, cancelable: true }));
+  labelledButton(reader, "Close").click();
+  assert.equal(instance.progress(), 2);
+  assert.equal(instance.activeView, "preview");
+  assert.equal(reader.querySelector(".ehpeek-reader-toolbar-controls").hidden, true);
+  labelledButton(document.querySelector('.ehpeek-preview-panel[data-embedded="false"]'), "Close").click();
+  await settle();
+  assert.equal(reader.inert, false);
+  assert.equal(document.querySelector("#ehpeek-reader"), reader);
+  keydown("ArrowDown");
+  assert.equal(instance.progress(), 3);
+});
+
+test("public open switches from Preview with and without history, without a return callback", async t => {
+  for (const withHistory of [false, true]) {
+    await t.test(withHistory ? "history" : "local", async t => {
+      let pop, depth = 0;
+      const returns = [];
+      const history = {
+        push: value => { depth = value; },
+        back: count => { depth -= count; queueMicrotask(() => pop(depth)); },
+        subscribe: fn => { pop = fn; return () => {}; },
+      };
+      const { instance } = mountActual(t, {
+        history: withHistory ? history : undefined,
+        onPreviewClosed: page => returns.push(page),
+      });
+      instance.openPreview(2);
+      await instance.open(3);
+      const reader = document.querySelector("#ehpeek-reader");
+      assert.equal(instance.activeView, "reader");
+      assert.equal(document.querySelector('.ehpeek-preview-panel[data-embedded="false"]'), null);
+      instance.openPreview(3);
+      await instance.open(5);
+      assert.equal(document.querySelector("#ehpeek-reader"), reader);
+      assert.equal(instance.progress(), 5);
+      assert.equal(instance.activeView, "reader");
+      assert.equal(document.querySelector('.ehpeek-preview-panel[data-embedded="false"]'), null);
+      assert.deepEqual(returns, []);
+      if (withHistory) assert.equal(depth, 1);
+    });
+  }
+});
+
+test("disabled input preserves programmatic navigation and separately gates side-by-side Preview", async t => {
+  const placement = {
+    coversPreview: false,
+    container: {
+      available: () => true, bounds: () => ({ left: 0, top: 0, width: 400, height: 600 }),
+      listen: () => () => {},
+    },
+  };
+  const { instance, root, setDisabled } = mountActual(t, { placement: () => placement }, { embeddedPreview: true });
+  await instance.open(2);
+  const reader = document.querySelector("#ehpeek-reader");
+  const embedded = root.querySelector('.ehpeek-preview-panel[data-embedded="true"]');
+  assert.equal(reader.inert, false);
+  assert.equal(embedded.inert, false);
+  const scroller = reader.querySelector(".ehpeek-reader-scroller");
+  scroller.getBoundingClientRect = () => new window.DOMRect(0, 0, 400, 600);
+  pointer(scroller, "pointerdown"); pointer(document, "pointerup");
+  labelledButton(reader, "Help").click();
+  assert.ok(document.querySelector(".ehpeek-dialog"));
+  setDisabled(true);
+  assert.equal(reader.inert, true);
+  assert.equal(embedded.inert, true);
+  assert.equal(document.querySelector(".ehpeek-dialog"), null);
+  keydown("ArrowDown");
+  assert.equal(instance.progress(), 2);
+  await instance.open(4);
+  assert.equal(instance.progress(), 4);
+  assert.equal(document.querySelector("#ehpeek-reader"), reader);
+  instance.openPreview(4);
+  const overlay = document.querySelector('.ehpeek-preview-panel[data-embedded="false"]');
+  assert.equal(overlay.inert, true);
+  labelledButton(overlay, "Close").click();
+  assert.equal(instance.activeView, "preview");
+  setDisabled(false);
+  assert.equal(overlay.inert, false);
+  assert.equal(embedded.inert, true);
+  assert.equal(reader.inert, true);
+  const previewScroller = overlay.querySelector(".ehpeek-preview-scroller");
+  pointer(previewScroller, "pointerdown");
+  document.dispatchEvent(new window.MouseEvent("mousemove", { bubbles: true, clientX: 200, clientY: 50 }));
+  setDisabled(true);
+  const stoppedOffset = previewScroller.scrollTop;
+  document.dispatchEvent(new window.MouseEvent("mousemove", { bubbles: true, clientX: 200, clientY: 0 }));
+  pointer(document, "pointerup", 200, 0);
+  assert.equal(previewScroller.scrollTop, stoppedOffset);
+  setDisabled(false);
+  labelledButton(overlay, "Close").click();
+  await settle();
+  assert.equal(reader.inert, false);
+  assert.equal(embedded.inert, false);
+});
+
+test("history returns notify the current preview page, but closing the whole reader does not", async t => {
+  const env = setup(t);
+  let pop;
+  const returns = [];
+  let readerCloses = 0;
+  const { instance } = env.start({
+    history: { push() {}, back() {}, subscribe: fn => { pop = fn; return () => {}; } },
+    onPreviewClosed: page => returns.push(page),
+    onReaderClosed: () => { readerCloses++; },
+  });
+  await instance.open(2);
+  instance.openPreview(3);
+  fixture.previewProps.onReturnPageChange(8);
+  pop(1);
+  await settle();
+  assert.deepEqual(returns, [8]);
+  assert.equal(instance.activeView, "reader");
+  instance.openPreview(5);
+  pop(0);
+  await settle();
+  assert.deepEqual(returns, [8]);
+  assert.equal(readerCloses, 1);
+  assert.equal(instance.activeView, null);
+});
+
+test("unmount releases an open waiting for the Preview history entry to close", async t => {
+  const env = setup(t);
+  let backs = 0;
+  const { instance, unmount } = env.start({
+    history: { push() {}, back() { backs++; }, subscribe: () => () => {} },
+  });
+  instance.openPreview(2);
+  const opening = instance.open(3);
+  await settle();
+  assert.equal(backs, 1);
+  assert.equal(fixture.mounts, 0);
+  unmount();
+  await opening;
+  assert.equal(fixture.mounts, 0);
+  assert.equal(instance.activeView, null);
+});
 
 test("mounted public Reader and Preview respond to instance settings without view mocks", async t => {
   document.body.replaceChildren();
@@ -349,6 +538,8 @@ test("embedded preview returns to the existing reader and retains progress sync"
   assert.equal(fixture.preview.current(), 2);
   await instance.open(4);
   assert.equal(instance.activeView, "reader");
+  assert.equal(fixture.readerProps.disabled, false);
+  assert.equal(fixture.previewProps.embeddedDisabled, true);
   assert.equal(fixture.preview.current(), 4);
   const mounted = fixture.readerElement.parentElement;
   assert.equal(mounted.style.width, "400px");
@@ -365,6 +556,8 @@ test("embedded preview returns to the existing reader and retains progress sync"
   assert.equal(fixture.preview.current(), 5);
   fixture.readerProps.callbacks.onOpenPreview(5);
   assert.equal(instance.activeView, "preview");
+  assert.equal(fixture.readerProps.disabled, true);
+  assert.equal(fixture.previewProps.embeddedDisabled, false);
   assert.equal(mounted.style.visibility, "hidden");
   assert.deepEqual(fixture.openState, { mode: "embedded", pageNum: 5 });
   fixture.previewProps.onClose(5);
