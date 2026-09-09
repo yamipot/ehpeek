@@ -1,8 +1,6 @@
-import utilities from "reader:uno.css";
 import theme from "./theme.css";
 import reader from "./reader.css";
 import { registerGlobalStyle } from "./kit/helpers";
-registerGlobalStyle("ehpeek-reader-utilities", utilities);
 registerGlobalStyle("ehpeek-reader-theme", theme);
 registerGlobalStyle("ehpeek-reader-style", reader);
 

@@ -736,20 +736,6 @@ export function PagesViewport(props: {
       width: "max-content",
     };
   };
-  const stripClass = () => {
-    if (props.navigationMode === "paged") {
-      if (props.direction === "ttb" && props.pageLayout === "double") {
-        return "grid grid-cols-2 auto-rows-[100%] w-full h-full gap-x-3px";
-      }
-      return props.direction === "ttb"
-        ? "flex flex-col w-full h-full"
-        : `flex flex-row w-auto h-full${props.pageLayout === "double" ? " gap-3px" : ""}`;
-    }
-    if (props.direction === "ttb") {
-      return "flex flex-col min-h-full mx-auto py-56px px-0 pb-72px";
-    }
-    return `flex flex-row min-w-full my-auto py-0 ${props.direction === "rtl" ? "pl-72px pr-56px" : "pl-56px pr-72px"}`;
-  };
   onMount(() => {
     const observer = new ResizeObserver(() => {
       if (resizeFrame !== null) {
@@ -785,14 +771,11 @@ export function PagesViewport(props: {
         scroller = element;
         scrollerApi = createPagesScroller(element);
       }}
-      class={
-        "w-full h-full overflow-auto overscroll-contain scroll-auto cursor-grab scrollbar-hidden " +
-        (!props.zoomActive && props.navigationMode === "scroll" && props.direction === "ttb"
-          ? "[touch-action:pan-x_pan-y] "
-          : "touch-none ") +
-        "[&[data-dragging=true]]:(cursor-grabbing select-none) " +
-        "[#ehpeek-reader[data-navigation-mode=paged]_&]:(overflow-hidden touch-none select-none)"
-      }
+      class="ehpeek-reader-scroller"
+      data-navigation-mode={props.navigationMode}
+      data-read-direction={props.direction}
+      data-page-layout={props.pageLayout}
+      data-zoom-active={props.zoomActive}
       tabIndex={-1}
       onScroll={() => props.callbacks.onNativeScroll()}
       onWheel={(event: WheelEvent) => {
@@ -801,7 +784,7 @@ export function PagesViewport(props: {
       }}
     >
       <main
-        class={`ehpeek-reader-page-strip ${stripClass()}`}
+        class="ehpeek-reader-page-strip"
         style={scrollStripStyle()}
       >
         <For each={slots()}>{(slot) => (
@@ -882,11 +865,8 @@ function PageSlotView(props: {
   return (
     <section
       ref={node}
-      class={`ehpeek-page flex items-center ${props.doublePageSide === "left" ? "justify-end" : props.doublePageSide === "right" ? "justify-start" : "justify-center"} ${pageSlotClass(
-        props.navigationMode,
-        props.direction,
-        props.pageLayout,
-      )}`}
+      class="ehpeek-page"
+      data-pair-side={props.doublePageSide}
       data-ehpeek-page-num={String(props.slot.pageNum)}
       style={slotStyle()}
     >
@@ -895,7 +875,7 @@ function PageSlotView(props: {
           frame = element;
           props.slot.elements = { node, frame };
         }}
-        class="relative flex w-[var(--reader-frame-width)] h-[var(--reader-frame-height)] items-center justify-center overflow-hidden [container-type:size]"
+        class="ehpeek-reader-page-frame"
       >
         <Show
           when={image()}
@@ -906,7 +886,7 @@ function PageSlotView(props: {
         </Show>
         <Show when={imageLoading()}>
           <span
-            class="pointer-events-none absolute [right:var(--ui-space-sm)] [bottom:var(--ui-space-sm)] z-1 block w-[var(--ui-icon-size-xl)] h-[var(--ui-icon-size-xl)] box-border animate-spin rounded-full border-2px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]"
+            class="ehpeek-reader-page-loading"
             role="status"
             aria-label={texts.common.status.loading}
           />
@@ -934,26 +914,6 @@ function doublePageSide(
   return firstInPair ? "left" : "right";
 }
 
-function pageSlotClass(
-  navigationMode: NavigationMode,
-  direction: ReadDirection,
-  pageLayout: PageLayout,
-): string {
-  if (navigationMode === "scroll") {
-    return direction === "ttb"
-      ? "w-full h-[var(--reader-page-height)] items-start pb-sm"
-      : "flex-[0_0_var(--reader-page-width)] w-[var(--reader-page-width)] h-full pr-sm";
-  }
-  if (direction === "ttb") {
-    return pageLayout === "double"
-      ? "w-full h-full"
-      : "flex-[0_0_100%] w-full h-full";
-  }
-  return pageLayout === "double"
-    ? "h-full"
-    : "flex-[0_0_100%] w-full h-full";
-}
-
 function PageSlotPlaceholder(props: {
   content: SlotContent;
   text: string;
@@ -967,30 +927,25 @@ function PageSlotPlaceholder(props: {
 
   return (
     <div
-      class={
-        props.content.state === "error"
-          ? "flex w-full h-full flex-col items-center justify-center ui-gap-lg bg-[var(--color-reader-surface)] ui-p-xl text-[var(--color-danger)] text-center textsize-md font-700 leading-1"
-          : "relative flex w-full h-full items-center justify-center bg-[var(--color-reader-surface)] text-[var(--color-reader-muted)] text-center " +
-            (props.content.kind === "end"
-              ? "p-[var(--reader-end-padding)] [direction:ltr] [font-size:min(var(--ui-font-size-xl),var(--reader-end-font-size))] font-700 leading-[1.3] [unicode-bidi:plaintext]"
-              : "[font-size:min(25vw,35cqi,35cqb,180px)] font-mono font-850 leading-[1] [font-variant-numeric:tabular-nums]")
-      }
+      class="ehpeek-reader-placeholder"
+      data-state={props.content.state}
+      data-kind={props.content.kind}
       role={props.content.state === "loading" ? "status" : undefined}
       aria-label={props.content.state === "loading" ? `${texts.common.status.loading} ${props.text}` : undefined}
     >
       <Show when={props.content.state === "error"} fallback={
         <Show when={props.content.state === "loading"} fallback={props.text}>
-          <span class="flex w-full h-full flex-col items-center justify-center ui-gap-xl overflow-hidden" aria-hidden="true">
-            <span class="block max-w-full flex-none m-0 p-0 text-center leading-[1] whitespace-nowrap [direction:ltr] [unicode-bidi:plaintext]">
+          <span class="ehpeek-reader-placeholder-loading" aria-hidden="true">
+            <span class="ehpeek-reader-placeholder-number">
               {props.text}
             </span>
-            <span class="block w-[var(--ui-icon-size-xl)] h-[var(--ui-icon-size-xl)] flex-none box-border animate-spin rounded-full border-4px border-solid border-[var(--color-reader-border)] border-t-[var(--color-reader-accent)]" />
+            <span class="ehpeek-reader-placeholder-spinner" />
           </span>
         </Show>
       }>
         <button
           type="button"
-          class="ehpeek-reader-page-reload appearance-none inline-flex ui-hit-square-xl items-center justify-center border border-[var(--color-border)] ui-rounded-md bg-[var(--color-control)] text-[var(--color-text)] cursor-pointer font-sans textsize-lg font-700 leading-1 hover:bg-[var(--color-badge)] active:scale-96 [touch-action:manipulation]"
+          class="ehpeek-reader-page-reload"
           aria-label={`${texts.reader.reloadPage} ${props.content.pageNum}`}
           title={texts.reader.reloadPage}
           onPointerDown={stop}
@@ -1001,11 +956,11 @@ function PageSlotPlaceholder(props: {
         >
           <Icon name="refresh" size="var(--ui-icon-size-xl)" />
         </button>
-        <div class="max-w-[min(86vw,760px)] break-anywhere [direction:ltr] [unicode-bidi:plaintext]">
+        <div class="ehpeek-reader-page-error">
           {texts.common.status.failed}
         </div>
         <Show when={props.content.errorMessage}>
-          <div class="max-w-[min(86vw,760px)] opacity-80 break-anywhere textsize-sm font-500 leading-[1.4] [direction:ltr] [unicode-bidi:plaintext]">
+          <div class="ehpeek-reader-page-error-detail">
             {props.content.errorMessage}
           </div>
         </Show>
@@ -1017,8 +972,7 @@ function PageSlotPlaceholder(props: {
 function pageImageDom(pageNum: number, slotImage: ViewportImage): HTMLImageElement {
   const image = document.createElement("img");
 
-  image.dataset.readerUi = "";
-  image.className = "block w-full h-full object-contain select-none [-webkit-user-drag:none]";
+  image.className = "ehpeek-reader-page-image";
   image.alt = `Page ${pageNum}`;
   image.decoding = "async";
   image.loading = "eager";

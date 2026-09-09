@@ -1,4 +1,4 @@
-import { createEffect, onCleanup, onMount, Show, untrack } from "solid-js";
+import { batch, createEffect, onCleanup, onMount, Show, untrack } from "solid-js";
 import { createReadProgressPublisher, type ReadProgressPort } from "../features/ReadProgressSyncer";
 import type { ContentSource, ReaderCustomization, LoadedReaderPage, ReaderPage, ReaderSettingsState } from "../kit/interfaces";
 
@@ -153,13 +153,13 @@ export function Reader(props: ReaderProps) {
     <div
       ref={readerElement}
       id={VIEWER_ID}
-      class="fixed inset-0 z-reader overflow-hidden ehp-color-reader font-sans textsize-sm leading-[1.4]"
+      class="ehpeek-reader"
       data-navigation-mode={readerState.ctrls.value().navigationMode}
       data-page-layout={viewportPageLayout()}
       data-read-direction={readerState.ctrls.value().direction}
     >
       <Show when={!readerState.scrollViewport.adjusting()}>
-        <header class="contents">
+        <header class="ehpeek-reader-header">
           <Toolbar
             callbacks={readerCallbacks.toolbar}
             customization={props.customization}
@@ -265,7 +265,7 @@ function wireReaderCallbacks(
     const nextOrientation = currentReaderOrientation();
     if (nextOrientation !== readerOrientation) {
       readerOrientation = nextOrientation;
-      updateControls(configuredReaderControls());
+      applyControls(configuredReaderControls());
     }
   };
 
@@ -285,7 +285,6 @@ function wireReaderCallbacks(
 
   function updateControls(requestedControls: ReaderControls): void {
     const previous = state.ctrls.value();
-    const currentPageNum = state.navi.currentPageNum();
     const persistedControls = settings.controls();
     const controls = requestedControls.navigationMode === previous.navigationMode
       ? requestedControls
@@ -295,15 +294,31 @@ function wireReaderCallbacks(
             ? persistedControls.scrollDirection
             : persistedControls.pagedDirection,
         };
-    settings.updateControls({
-      ...persistedControls,
-      navigationMode: controls.navigationMode,
-      ...(controls.navigationMode === "scroll"
-        ? { scrollDirection: controls.direction }
-        : { pagedDirection: controls.direction }),
-      pageLayout: controls.pageLayout,
-      rightTapAction: controls.rightTapAction,
+    batch(() => {
+      settings.updateControls({
+        ...persistedControls,
+        navigationMode: controls.navigationMode,
+        ...(controls.navigationMode === "scroll"
+          ? { scrollDirection: controls.direction }
+          : { pagedDirection: controls.direction }),
+        pageLayout: controls.pageLayout,
+        rightTapAction: controls.rightTapAction,
+      });
+      applyControls(controls);
     });
+  }
+
+  createEffect(() => {
+    settings.controls();
+    untrack(() => applyControls(configuredReaderControls()));
+  });
+
+  function applyControls(controls: ReaderControls): void {
+    const previous = state.ctrls.value();
+    if (Object.keys(controls).every((key) =>
+      controls[key as keyof ReaderControls] === previous[key as keyof ReaderControls]
+    )) return;
+    const currentPageNum = state.navi.currentPageNum();
     state.ctrls.update(controls);
     if (controls.navigationMode !== "scroll") {
       state.scrollViewport.setAdjusting(false);

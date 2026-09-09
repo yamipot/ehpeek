@@ -1,12 +1,10 @@
-import { mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { build } from "esbuild";
 import { solidPlugin } from "esbuild-plugin-solid";
-import { generateCss, readerUnoConfig, variantGroupBabelPlugin } from "../ehpeek/uno.config.mjs";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
-const css = await generateCss([path.join(dir, "src")], readerUnoConfig);
 const sizes = readSpectrumUiSizes();
 const entries = readSourceFiles(path.join(dir, "src")).filter(
   (file) => /\.tsx?$/.test(file) && !file.endsWith(".d.ts"),
@@ -25,24 +23,24 @@ await build({
   external: ["solid-js", "solid-js/*", "lucide-solid", "lucide-solid/*"],
   loader: { ".css": "text" },
   plugins: [
-    solidPlugin({ babel: { plugins: [readerUiBabelPlugin, variantGroupBabelPlugin] } }),
+    solidPlugin(),
     {
       name: "reader-resources",
       setup(build) {
-        build.onResolve({ filter: /^reader:styles$/ }, () => ({ path: path.join(dir, "src/styles.ts") }));
-        build.onResolve({ filter: /^reader:(uno.css|ui-sizes)$/ }, (args) => ({
+        build.onResolve({ filter: /^reader:ui-sizes$/ }, (args) => ({
           path: args.path,
           namespace: "reader",
         }));
-        build.onLoad({ filter: /.*/, namespace: "reader" }, (args) =>
-          args.path === "reader:uno.css"
-            ? { contents: css, loader: "text" }
-            : { contents: JSON.stringify(sizes), loader: "json" },
-        );
+        build.onLoad({ filter: /.*/, namespace: "reader" }, () => ({
+          contents: JSON.stringify(sizes),
+          loader: "json",
+        }));
       },
     },
   ],
 });
+// Public text types reference these JSON modules; declaration-only emit does not copy them.
+cpSync(path.join(dir, "src/locales"), path.join(outputDir, "locales"), { recursive: true });
 console.log("[reader] built dist");
 
 function readSourceFiles(dir) {
@@ -109,33 +107,4 @@ function readSpectrumTokenFile(fileName) {
     import.meta.resolve(`@adobe/spectrum-tokens/src/${fileName}`),
   );
   return JSON.parse(readFileSync(file, "utf-8"));
-}
-
-// Stamp only DOM created by this package, including independently imported widgets.
-function readerUiBabelPlugin({ types: t }) {
-  return {
-    visitor: {
-      Program(program) {
-        let createsUi = false;
-        program.traverse({
-          JSXOpeningElement(element) {
-            const name = element.node.name;
-            if (!t.isJSXIdentifier(name) || !/^[a-z]/.test(name.name)) return;
-            element.node.attributes.push(
-              t.jsxAttribute(
-                t.jsxIdentifier("data-reader-ui"),
-                t.stringLiteral(""),
-              ),
-            );
-            createsUi = true;
-          },
-        });
-        if (!createsUi) return;
-        program.unshiftContainer(
-          "body",
-          t.importDeclaration([], t.stringLiteral("reader:styles")),
-        );
-      },
-    },
-  };
 }

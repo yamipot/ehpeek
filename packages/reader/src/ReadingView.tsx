@@ -9,6 +9,7 @@ import { createOverlayHost, OverlayHostProvider, OverlayPortal } from "./kit/Wid
 import { lockPageScroll, lockPageThemeColor } from "./features/Viewport";
 import type { ReaderInstance, ReaderPage, ReaderPlacement, ReadingSurface, ReadingViewProps } from "./kit/interfaces";
 import { applyUiScale } from "./kit/ui";
+import "./styles";
 
 export function ReadingView(props: ReadingViewProps) {
   const options = untrack(() => props.options);
@@ -185,7 +186,7 @@ export function ReadingView(props: ReadingViewProps) {
     onCleanup(() => setReaderActions(null));
     const element = (
       <div
-        classList={{ "z-reader-panel": container !== undefined }}
+        classList={{ "ehpeek-reader-panel": container !== undefined }}
         style={{
           ...(bounds() ? {
             height: `${bounds()!.height}px`,
@@ -241,7 +242,7 @@ export function ReadingView(props: ReadingViewProps) {
 
   return (
     <OverlayHostProvider host={host}>
-      <div ref={previewRoot} class="ehpeek-ui-root contents">
+      <div ref={previewRoot} class="ehpeek-ui-root ehpeek-reading-view">
         <ScrollPreview
           openState={preview()}
           progressRef={(port) => {

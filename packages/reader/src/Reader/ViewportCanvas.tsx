@@ -53,12 +53,12 @@ export function ViewportCanvas(props: {
   });
 
   return (
-    <div class="fixed inset-0 z-1">
+    <div class="ehpeek-reader-canvas">
       {props.children}
       <Show when={props.adjusting}>
         <div
           ref={interactionLayer}
-          class="absolute inset-0 z-2 touch-none select-none"
+          class="ehpeek-reader-scale-gesture"
           onClick={stopInteraction}
           onWheel={(event: WheelEvent) => {
             stopInteraction(event);
@@ -108,12 +108,12 @@ export function ViewportCanvas(props: {
           onPointerCancel={endPointer}
         />
         <div
-          class="fixed bottom-[calc(12px+env(safe-area-inset-bottom,0px))] left-1/2 z-3 flex w-[min(680px,calc(100%-24px))] -translate-x-1/2 flex-col items-center ui-gap-sm ui-rounded-lg border border-[var(--color-reader-border)] bg-[var(--color-control)] ui-p-sm shadow-xl [container-type:inline-size]"
+          class="ehpeek-reader-scale-toolbar"
           role="toolbar"
           aria-label={texts.reader.adjustScrollViewport}
         >
-          <div class="grid w-full grid-cols-[max-content_minmax(var(--ui-control-size-md),1fr)] items-center justify-center ui-gap-sm">
-            <span class="flex w-full flex-col items-center justify-center text-center font-mono textsize-sm font-600 leading-[1.05]">
+          <div class="ehpeek-reader-scale-slider-row">
+            <span class="ehpeek-reader-scale-label">
               <Show when={props.scaleMode !== "custom"}>
                 <span>{props.scaleMode === "fit"
                   ? texts.reader.fit
@@ -125,7 +125,7 @@ export function ViewportCanvas(props: {
             </span>
             <input
               type="range"
-              class="w-full min-w-0 accent-[var(--color-reader-accent)]"
+              class="ehpeek-reader-scale-input"
               aria-label={texts.reader.resizeScrollViewport}
               min={MIN_SCALE_PERCENT}
               max={MAX_SCALE_PERCENT}
@@ -134,25 +134,25 @@ export function ViewportCanvas(props: {
               onInput={(event) => props.callbacks.onScaleChange(event.currentTarget.valueAsNumber / 100)}
             />
           </div>
-          <div class="grid w-full grid-cols-3 items-stretch justify-center ui-gap-sm">
-            <Button class="w-full" onClick={() => props.callbacks.onFit()}>
+          <div class="ehpeek-reader-scale-presets">
+            <Button onClick={() => props.callbacks.onFit()}>
               {texts.reader.fit}
             </Button>
-            <Button class="w-full" onClick={() => props.callbacks.onFill()}>
+            <Button onClick={() => props.callbacks.onFill()}>
               {texts.reader.fill}
             </Button>
-            <Button class="w-full" onClick={() => props.callbacks.onOneToOne()}>
+            <Button onClick={() => props.callbacks.onOneToOne()}>
               1:1
             </Button>
           </div>
-          <div class="grid w-full max-w-full grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] items-stretch justify-center ui-gap-sm">
-            <Button class="w-full whitespace-normal leading-[1.1]" onClick={() => props.callbacks.onApplyAll()}>
+          <div class="ehpeek-reader-scale-actions">
+            <Button class="ehpeek-reader-scale-apply-all" onClick={() => props.callbacks.onApplyAll()}>
               {texts.reader.applyGlobally}
             </Button>
-            <Button class="w-full" onClick={() => props.callbacks.onApply()}>
+            <Button onClick={() => props.callbacks.onApply()}>
               {texts.common.actions.apply}
             </Button>
-            <Button class="w-full" onClick={() => props.callbacks.onClose()}>
+            <Button onClick={() => props.callbacks.onClose()}>
               {texts.common.actions.close}
             </Button>
           </div>

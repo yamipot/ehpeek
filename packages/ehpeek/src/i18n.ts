@@ -1,8 +1,8 @@
-import en from "../locales/en.json";
+import en from "./locales/en.json";
 import { readerLocales } from "@ehpeek/reader/kit/i18n";
 import type { ReaderTexts } from "@ehpeek/reader/interfaces";
-import ja from "../locales/ja.json";
-import zhCn from "../locales/zh-CN.json";
+import ja from "./locales/ja.json";
+import zhCn from "./locales/zh-CN.json";
 
 export const APP_LOCALES = ["en", "zh-CN", "ja"] as const;
 export type AppLocale = typeof APP_LOCALES[number];

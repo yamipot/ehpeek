@@ -299,14 +299,14 @@ function OverlayPreviewToolbar(props: {
 }) {
   const texts = useReaderTexts();
   return (
-    <div class={`flex min-h-[var(--ui-control-size-md)] flex-none items-center justify-between ui-gap-md bg-[var(--color-site-elevated)] safe-pt-sm safe-pr-sm ui-pb-sm safe-pl-sm border-0 border-b border-[var(--color-site-border)] text-[var(--color-site-text)] textsize-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
-      <span class="flex items-center ui-gap-sm opacity-75">
+    <div class="ehpeek-preview-toolbar" data-left-handed={props.state.leftHanded()}>
+      <span class="ehpeek-preview-range">
         <Show when={props.state.loading()}>
-          <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
+          <span class="ehpeek-preview-loading" />
         </Show>
         {props.state.rangeText()}
       </span>
-      <div class={`flex flex-none ui-gap-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}>
+      <div class="ehpeek-preview-toolbar-actions">
         <IconButton
           variant="subtle"
           size="md"
@@ -369,22 +369,18 @@ function EmbeddedPreviewToolbar(props: {
   const texts = useReaderTexts();
   return (
     <div
-      class={`flex min-h-[var(--ui-control-size-sm)] flex-none flex-wrap items-center justify-between ui-gap-sm ui-px-sm ui-py-xs border-0 border-b ehp-color-site-border-subtle-b bg-[var(--color-site-elevated)] textsize-sm${props.state.leftHanded() ? " flex-row-reverse" : ""}`}
+      class="ehpeek-preview-toolbar ehpeek-preview-toolbar--embedded" data-left-handed={props.state.leftHanded()}
     >
       <span
-        class="inline-flex min-h-[var(--ui-control-size-sm)] flex-none items-center ui-gap-xs ui-px-sm ui-rounded-sm bg-[var(--color-site-surface)] opacity-75"
+        class="ehpeek-preview-range"
       >
         <Show when={props.state.loading()}>
-          <span class="block w-[var(--ui-icon-size-sm)] h-[var(--ui-icon-size-sm)] box-border animate-spin rounded-full border-2px border-solid ehp-color-spinner" />
+          <span class="ehpeek-preview-loading" />
         </Show>
         {props.state.rangeText()}
       </span>
       <div
-        class={`flex min-w-0 max-w-full flex-wrap items-center ui-gap-xs ${
-          props.state.leftHanded()
-            ? "mr-auto flex-row-reverse"
-            : "ml-auto"
-        }`}
+        class="ehpeek-preview-toolbar-actions"
       >
         <IconButton
           variant="surface"
@@ -472,16 +468,16 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
   const texts = useReaderTexts();
   const state = untrack(() => props.state);
   return (
-    <div class="relative min-h-0 w-full flex-1">
+    <div class="ehpeek-preview-viewport">
       <div
         ref={state.onScroller}
-        class="absolute box-border bg-[var(--color-surface)] cursor-grab [&[data-dragging=true]]:(cursor-grabbing select-none) [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"
+        class="ehpeek-preview-scroller"
         classList={state.scrollerClassList}
         onScroll={state.onScroll}
         onWheel={state.onWheel}
       >
         <div
-          class="relative"
+          class="ehpeek-preview-canvas"
           style={{
             height: state.canvasHeight(),
             width: state.canvasWidth(),
@@ -514,7 +510,7 @@ function PreviewViewport(props: { state: PreviewViewportState }) {
               : state.layout().tileCrossSize;
             return (
               <div
-                class="absolute"
+                class="ehpeek-preview-slot"
                 style={{
                   height: `${height()}px`,
                   left: `${left()}px`,
@@ -598,8 +594,6 @@ type ScrollPreviewSession = {
   readDirection: Accessor<ReadDirection>;
   setCrossCountOverride: Setter<number | null>;
   setEmbeddedCrossCountOverride: Setter<number | null>;
-  setEmbeddedReadDirection: Setter<ReadDirection>;
-  setReadDirection: Setter<ReadDirection>;
   setTargetPageNum: Setter<number | null>;
   targetPageNum: Accessor<number | null>;
   targetPreviewIndex: Accessor<number>;
@@ -610,11 +604,6 @@ export function ScrollPreview(props: ScrollPreviewProps) {
   const decodeCache = new PreviewDecodeCache(DECODE_CACHE_BYTES, DECODE_CACHE_ITEMS);
   const publisher = createReadProgressPublisher();
   const open = () => props.openState?.mode === "overlay";
-  const [readDirection, setReadDirection] = createSignal(
-    untrack(() => props.readDirection),
-  );
-  const [embeddedReadDirection, setEmbeddedReadDirection] =
-    createSignal<ReadDirection>(untrack(() => props.embeddedDirection));
   const [crossCountOverride, setCrossCountOverride] = createSignal<number | null>(null);
   const [embeddedCrossCountOverride, setEmbeddedCrossCountOverride] =
     createSignal<number | null>(null);
@@ -625,7 +614,6 @@ export function ScrollPreview(props: ScrollPreviewProps) {
     untrack(() => props.initialProgress ?? null),
   );
   const [targetPageNum, setTargetPageNum] = createSignal<number | null>(null);
-  createEffect(() => setEmbeddedReadDirection(props.embeddedDirection));
   createEffect(() => {
     const view = props.openState;
     setTargetPageNum(view?.pageNum ?? null);
@@ -654,14 +642,12 @@ export function ScrollPreview(props: ScrollPreviewProps) {
     crossCountOverride,
     decodeCache,
     embeddedCrossCountOverride,
-    embeddedReadDirection,
+    embeddedReadDirection: () => props.embeddedDirection,
     highlightedPageNum,
     open,
-    readDirection,
+    readDirection: () => props.readDirection,
     setCrossCountOverride,
     setEmbeddedCrossCountOverride,
-    setEmbeddedReadDirection,
-    setReadDirection,
     setTargetPageNum,
     targetPageNum,
     targetPreviewIndex,
@@ -695,7 +681,6 @@ function EmbeddedScrollPreview(props: {
           onClose={source.onClose}
           onDirectionChange={(next, pageNum) => {
             session.setTargetPageNum(pageNum);
-            session.setEmbeddedReadDirection(next);
             source.onEmbeddedDirectionChange(next);
           }}
           onLoadError={source.onLoadError}
@@ -724,7 +709,7 @@ function ScrollPreviewLauncher(props: {
   const source = untrack(() => props.source);
   return (
     <Show when={!source.replaceOriginalPreview}>
-      <div class="flex w-full justify-center ui-my-sm">
+      <div class="ehpeek-preview-launcher">
         <LauncherButton
           icon="grid"
           label={texts.gallery.scrollPreview}
@@ -756,7 +741,6 @@ function ScrollPreviewOverlay(props: {
             onClose={source.onClose}
             onDirectionChange={(next, pageNum) => {
               session.setTargetPageNum(pageNum);
-              session.setReadDirection(next);
               source.onReadDirectionChange(next);
             }}
             onLoadError={source.onLoadError}
@@ -1572,39 +1556,19 @@ function ScrollPreviewPanel(props: {
     screenEndPageNum,
     screenStartPageNum,
     scrollerClassList: {
-      "inset-0": !embedded,
-      "top-0 right-xs left-xs": embedded,
-      "bottom-[calc(var(--ui-control-size-xs)/2)]": embedded && horizontal,
-      "bottom-xs": embedded && !horizontal,
-      "overflow-x-auto overflow-y-hidden": horizontal,
-      "overflow-y-auto overflow-x-hidden": !horizontal,
-      "overscroll-auto": embedded,
-      "[touch-action:pan-x]": embedded && !horizontal,
-      "[touch-action:pan-y]": embedded && horizontal,
-      "overscroll-contain [touch-action:none]": !embedded,
+      "ehpeek-preview-scroller--embedded": embedded,
+      "ehpeek-preview-scroller--horizontal": horizontal,
     },
     slots: visibleSlots,
     thickness: embedded || !horizontal ? "narrow" : "normal",
   };
 
   return (
-    <div
-      classList={{
-        "contents": embedded,
-        "fixed inset-0 z-[1300] [touch-action:none]": !embedded,
-      }}
-    >
+    <div class="ehpeek-preview-host" data-embedded={embedded}>
       <section
         ref={overlay}
-        class="box-border flex flex-col overflow-hidden text-[var(--color-text)] font-sans textsize-md leading-[1.4]"
-        classList={{
-          "absolute inset-0 bg-[var(--color-site-surface)] text-[var(--color-site-text)]":
-            !embedded,
-          "border ehp-color-site-border ui-rounded-sm bg-[var(--color-site-elevated)]":
-            embedded,
-          "relative h-[var(--scroll-preview-height)] max-h-[100svh]": embedded,
-          "w-full": true,
-        }}
+        class="ehpeek-preview-panel"
+        data-embedded={embedded}
         style={{
           opacity: embedded
             ? "1"
@@ -1662,7 +1626,7 @@ function PreviewTile(props: {
 
   return (
     <div
-      class="relative flex w-full min-w-0 items-center justify-center overflow-hidden rounded-sm bg-[var(--color-background)]"
+      class="ehpeek-preview-tile"
       style={{ height: `${props.height}px` }}
     >
       <Show
@@ -1671,8 +1635,7 @@ function PreviewTile(props: {
         fallback={
           <button
             type="button"
-            class="flex w-full h-full flex-col items-center justify-center ui-gap-sm border-0 !bg-transparent text-[var(--color-text)] font-inherit textsize-sm cursor-default"
-            classList={{ "cursor-pointer": props.failed }}
+            class="ehpeek-preview-placeholder"
             disabled={!props.failed}
             onClick={() => props.onRetry()}
           >
@@ -1695,7 +1658,7 @@ function PreviewTile(props: {
               when={item.thumbnail.kind === "background"}
               fallback={
                 <img
-                  class="pointer-events-none block flex-none select-none [-webkit-user-drag:none]"
+                  class="ehpeek-preview-image"
                   src={item.thumbnail.url}
                   alt=""
                   width={item.thumbnail.width}
@@ -1710,7 +1673,7 @@ function PreviewTile(props: {
               }
             >
               <span
-                class="pointer-events-none block flex-none"
+                class="ehpeek-preview-image"
                 style={{
                   "background-image": `url(${JSON.stringify(item.thumbnail.url)})`,
                   "background-position": item.thumbnail.backgroundPosition,
@@ -1726,7 +1689,7 @@ function PreviewTile(props: {
               />
             </Show>
             <a
-              class="absolute inset-0 text-[var(--color-text)] no-underline hover:no-underline active:no-underline"
+              class="ehpeek-preview-page-link"
               href={item.pageUrl}
               draggable={false}
               aria-label={`Page ${item.pageNum}`}
@@ -1739,7 +1702,7 @@ function PreviewTile(props: {
             />
             <Show when={props.highlighted}>
               <span
-                class="pointer-events-none absolute inset-0 z-1 box-border rounded-sm border-6 border-solid border-[var(--color-danger)]"
+                class="ehpeek-preview-highlight"
                 aria-hidden="true"
               />
             </Show>

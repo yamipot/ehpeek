@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { existsSync, readFileSync } from "node:fs";
 import { build, transform } from "esbuild";
-import { createGenerator } from "unocss";
-import hostConfig, { readerUnoConfig as readerConfig } from "../../ehpeek/uno.config.mjs";
+import ts from "typescript";
+import { dirname, resolve, sep } from "node:path";
 
 test("package entry points resolve built files without exposing reader internals", () => {
   const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
@@ -51,24 +51,11 @@ test("the main entry exposes the complete reader, not its implementation pieces"
   assert.deepEqual(Object.values(output.metafile.outputs)[0].exports.sort(), ["ReadingView"]);
 });
 
-test("reader utilities preserve selector variants without affecting host utilities", async () => {
-  const tokens =
-    "flex ui-px-md px-0 before:block hover:bg-red-500 [&>span]:mb-0 [#ehpeek-reader_&]:hidden container animate-spin";
-  const reader = await createGenerator(readerConfig);
-  const host = await createGenerator(hostConfig);
-  const readerCss = (await reader.generate(tokens)).css;
-  const hostCss = (await host.generate(tokens)).css;
-  assert.match(readerCss, /\.flex\[data-reader-ui\]\{display:flex/);
-  assert.match(readerCss, /\.ui-px-md\[data-reader-ui\]\{/);
-  assert.doesNotMatch(readerCss, /\[data-reader-ui\]\[data-reader-ui\]/);
-  assert.match(readerCss, /\[data-reader-ui\]::before\{display:block/);
-  assert.match(readerCss, /\[data-reader-ui\]>span\{margin-bottom:0/);
-  assert.match(readerCss, /\.container\[data-reader-ui\]\{width:100%/);
-  assert.match(readerCss, /--reader-bg-opacity/);
-  assert.doesNotMatch(readerCss, /--un-|ehpeek-ui-state|@keyframes spin/);
-  assert.match(hostCss, /\.flex\{display:flex/);
-  assert.match(hostCss, /--un-bg-opacity/);
-  assert.doesNotMatch(hostCss, /data-reader-ui|--reader-|data-reader-pointer/);
+test("Reader build and styles have no Uno or EhPeek dependency", () => {
+  for (const file of ["build.mjs", "src/styles.ts"]) {
+    const source = readFileSync(new URL("../" + file, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /unocss|reader:uno|reader:styles|readerUiBabelPlugin|variantGroup|\.\.\/ehpeek/);
+  }
 });
 
 test("EhPeek builds only its own source, with no reader build imports", () => {
@@ -89,7 +76,7 @@ test("shared widget CSS covers all controls without Uno implementation dependenc
   );
   const result = await transform(css, { loader: "css" });
   assert.deepEqual(result.warnings, []);
-  assert.doesNotMatch(css, /@apply|--un-|--reader-|data-reader-ui/);
+  assert.doesNotMatch(css, /@apply|--un-|--reader-bg-opacity|data-reader-ui/);
   for (const name of [
     "button", "dialog", "icon", "launcher-button", "popover",
     "position-bar", "progress-bar", "swipe-indicator",
@@ -149,17 +136,14 @@ test("a built widget installs its styles and pointer tracking without Uno in the
   );
   assert.equal(typeof widget.Button, "function");
   assert.equal(typeof widget.Popover, "function");
-  const css = styles.get("ehpeek-reader-utilities").textContent;
-  assert.match(css, /data-reader-ui/);
-  // Toolbar controls must restore hit testing inside their click-through wrapper.
-  assert.match(css, /\.pointer-events-auto\[data-reader-ui\]\{pointer-events:auto;\}/);
+  assert.equal(styles.has("ehpeek-reader-utilities"), false);
   const buttonCss = styles.get("ehpeek-reader-style").textContent;
   assert.match(buttonCss, /\.ehpeek-button--control/);
   assert.match(buttonCss, /color-icon-button-hover/);
-  assert.doesNotMatch(buttonCss, /data-reader-ui|--reader-|--un-/);
+  assert.doesNotMatch(buttonCss, /data-reader-ui|--reader-bg-opacity|--un-/);
   assert.ok(styles.has("ehpeek-reader-theme"));
   assert.deepEqual(appended, [
-    "ehpeek-reader-utilities", "ehpeek-reader-theme",
+    "ehpeek-reader-theme",
     "ehpeek-reader-style",
   ]);
   assert.match(styles.get("ehpeek-reader-style").textContent, /#ehpeek-reader/);
@@ -173,4 +157,39 @@ test("a built widget installs its styles and pointer tracking without Uno in the
     document.dispatchEvent(event);
     assert.equal(document.documentElement.dataset.readerPointer, expected);
   }
+});
+
+test("public declarations resolve using only files shipped in the package", () => {
+  const root = new URL("../", import.meta.url).pathname;
+  const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
+  assert.deepEqual(manifest.files, ["dist"]);
+  for (const locale of ["en", "ja", "zh-CN"]) {
+    assert.equal(
+      readFileSync(resolve(root, "dist/locales", locale + ".json"), "utf8"),
+      readFileSync(resolve(root, "src/locales", locale + ".json"), "utf8"),
+    );
+  }
+  const shipped = manifest.files.map(file => resolve(root, file));
+  const options = {
+    noEmit: true, strict: true, noUncheckedIndexedAccess: true,
+    target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    jsx: ts.JsxEmit.Preserve, jsxImportSource: "solid-js",
+  };
+  const host = ts.createCompilerHost(options);
+  const allowed = path => !path.startsWith(root) ||
+    path === resolve(root, "package.json") ||
+    path === resolve(root, "tests/consumer.tsx") ||
+    shipped.some(file => path === file || path.startsWith(file + sep)) ||
+    path.startsWith(resolve(root, "node_modules") + sep);
+  const read = host.readFile.bind(host);
+  const exists = host.fileExists.bind(host);
+  host.readFile = path => allowed(resolve(path)) ? read(path) : undefined;
+  host.fileExists = path => allowed(resolve(path)) && exists(path);
+  const program = ts.createProgram([resolve(root, "tests/consumer.tsx")], options, host);
+  const diagnostics = ts.getPreEmitDiagnostics(program);
+  assert.deepEqual(diagnostics.map(d => ({
+    file: d.file && dirname(d.file.fileName),
+    message: ts.flattenDiagnosticMessageText(d.messageText, "\n"),
+  })), []);
 });

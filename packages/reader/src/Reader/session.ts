@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal } from "solid-js";
 import type { LoadedReaderPage, ReaderPage } from "../kit/interfaces";
 import type { ReaderSettingsState, ReaderScrollSizeScale } from "../kit/interfaces";
 import { clamp } from "../kit/helpers";
@@ -74,6 +74,11 @@ export class ReaderSession {
     const [scrollViewportHorizontalScale, setScrollViewportHorizontalScale] = createSignal<ReaderScrollSizeScale>(
       settings.value().scrollHorizontalScale,
     );
+    // Only a change to this axis's default replaces its temporary adjustment.
+    const configuredTtbScale = createMemo(() => settings.value().scrollTtbScale);
+    const configuredHorizontalScale = createMemo(() => settings.value().scrollHorizontalScale);
+    createEffect(() => setScrollViewportTtbScale(configuredTtbScale()));
+    createEffect(() => setScrollViewportHorizontalScale(configuredHorizontalScale()));
     const [scrollFitImageSize, setScrollFitImageSize] = createSignal<ScrollFitImageSize | null>(null);
     const [readerViewportWidth, setReaderViewportWidth] = createSignal(Math.max(1, window.innerWidth));
     const [readerViewportHeight, setReaderViewportHeight] = createSignal(Math.max(1, window.innerHeight));

@@ -9,20 +9,20 @@ export function InteractionHelp(props: {
   const texts = useReaderTexts();
   return (
     <Dialog
-      bodyClass="ui-p-xl"
+      bodyClass="ehpeek-help-body"
       label={texts.help.title}
       onClose={props.onClose}
       title={texts.help.title}
       variant={props.variant}
       width="lg"
     >
-      <div class="grid ui-gap-lg text-left textsize-md leading-[1.45]">
+      <div class="ehpeek-help">
         <For each={texts.help.sections}>{(section) => (
           <section>
-            <h3 class="m-0 ui-mb-sm textsize-md font-700">{section.title}</h3>
-            <ul class="m-0 ui-pl-xl">
+            <h3 class="ehpeek-help-title">{section.title}</h3>
+            <ul class="ehpeek-help-list">
               <For each={section.items}>{(item) => (
-                <li class="ui-mb-xs last:mb-0"><HelpText text={item} /></li>
+                <li class="ehpeek-help-item"><HelpText text={item} /></li>
               )}</For>
             </ul>
           </section>

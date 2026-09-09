@@ -157,12 +157,12 @@ export function ZoomOverlay(props: {
   return (
     <div
       ref={element}
-      class="fixed inset-0 z-4 flex items-center justify-center overflow-hidden ehp-color-reader pointer-events-none"
+      class="ehpeek-reader-zoom"
       hidden={!props.image}
       style={{ display: props.image ? "" : "none" }}
     >
       <img
-        class="block max-w-screen max-h-screen object-contain origin-center select-none will-change-transform [-webkit-user-drag:none]"
+        class="ehpeek-reader-zoom-image"
         src={props.image?.imageUrl}
         alt={props.image ? `Page ${props.image.pageNum}` : ""}
         width={props.image?.width ?? undefined}

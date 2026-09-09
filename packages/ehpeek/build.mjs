@@ -105,7 +105,7 @@ await build({
 console.log("[ehpeek] built dist/ehpeek.user.js");
 
 function readLocaleTexts() {
-  const localesDir = path.join(packageDir, "locales");
+  const localesDir = path.join(packageDir, "src/locales");
   return new Map(
     readdirSync(localesDir)
       .filter((fileName) => fileName.endsWith(".json"))

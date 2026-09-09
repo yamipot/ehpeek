@@ -8,8 +8,10 @@ import { Window } from "happy-dom";
 // and browser fullscreen boundary so lifecycle regressions are reproducible in Node.
 const window = new Window({ url: "https://reader.test/" });
 const document = window.document;
-for (const key of ["window", "document", "Node", "Element", "HTMLElement", "HTMLHeadElement"])
+for (const key of ["window", "document", "Node", "Element", "HTMLElement", "HTMLHeadElement", "ResizeObserver", "PointerEvent", "MouseEvent"])
   globalThis[key] = key === "window" ? window : window[key];
+for (const key of ["getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame"])
+  globalThis[key] = window[key].bind(window);
 after(() => window.close());
 
 const mocks = {
@@ -102,6 +104,7 @@ const mocks = {
     }
   `,
   "./kit/ui": "export function applyUiScale() {}",
+  "./styles": "",
 };
 const output = await build({
   stdin: {
@@ -203,6 +206,127 @@ function setup(t) {
   return { source, host: fixture.host, setFullscreen, listeners, start };
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
+
+const actualOutput = await build({
+  stdin: {
+    contents: `
+      export { ReadingView } from "@ehpeek/reader";
+      export { createComponent } from "solid-js";
+      export { render } from "solid-js/web";
+    `,
+    resolveDir: new URL("../", import.meta.url).pathname,
+  },
+  bundle: true, write: false, platform: "browser", format: "esm",
+});
+const actual = await import(
+  `data:text/javascript;base64,${Buffer.from(actualOutput.outputFiles[0].text).toString("base64")}`
+);
+
+test("mounted public Reader and Preview respond to instance settings without view mocks", async t => {
+  document.body.replaceChildren();
+  Object.defineProperty(document, "fullscreenElement", { configurable: true, value: null });
+  const root = document.createElement("div");
+  document.body.append(root);
+  let instance;
+  const changes = [];
+  const source = {
+    totalPages: 3, initialPageNum: 1, aspectRatio: 1,
+    initialPreviewItems: [],
+    getPreviewItems: async () => [],
+    getPages: async numbers => numbers.map(pageNum => ({
+      pageNum, url: "/page/" + pageNum, aspectRatio: 1,
+    })),
+    loadImage: () => new Promise(() => {}),
+  };
+  const dispose = actual.render(() => actual.createComponent(actual.ReadingView, {
+    options: {
+      source,
+      onSettingChange: {
+        portraitControls: next => changes.push(next),
+        landscapeControls: next => changes.push(next),
+      },
+    },
+    embeddedPreview: true,
+    instanceRef: value => { instance = value; },
+  }), root);
+  t.after(async () => { dispose(); await settle(); });
+  await instance.open(1);
+  const reader = document.querySelector("#ehpeek-reader");
+  assert.ok(reader);
+  assert.equal(reader.dataset.navigationMode, "scroll");
+  for (const key of ["portraitControls", "landscapeControls"]) {
+    instance.settings.set(key, {
+      ...instance.settings.value()[key],
+      navigationMode: "paged", pagedDirection: "ltr", pageLayout: "double",
+    });
+  }
+  assert.equal(document.querySelector("#ehpeek-reader"), reader);
+  assert.equal(reader.dataset.navigationMode, "paged");
+  assert.equal(reader.dataset.readDirection, "ltr");
+  assert.equal(reader.dataset.pageLayout, "double");
+  assert.equal(changes.length, 2);
+  const button = label => {
+    const found = [...reader.querySelectorAll("button")].find(btn => btn.getAttribute("aria-label") === label);
+    assert.ok(found, label);
+    return found;
+  };
+  // Opening the real toolbar must restore hit testing above the gesture canvas.
+  const scroller = reader.querySelector(".ehpeek-reader-scroller");
+  scroller.getBoundingClientRect = () => new window.DOMRect(0, 0, 400, 600);
+  scroller.dispatchEvent(new window.PointerEvent("pointerdown", {
+    bubbles: true, pointerId: 1, pointerType: "mouse", button: 0, clientX: 200, clientY: 100,
+  }));
+  document.dispatchEvent(new window.PointerEvent("pointerup", {
+    bubbles: true, pointerId: 1, pointerType: "mouse", button: 0, clientX: 200, clientY: 100,
+  }));
+  const controls = reader.querySelector(".ehpeek-reader-toolbar-controls");
+  assert.equal(controls.hidden, false);
+  assert.equal(window.getComputedStyle(controls).pointerEvents, "auto");
+  assert.ok(Number(window.getComputedStyle(reader.querySelector(".ehpeek-reader-toolbar")).zIndex) >
+    Number(window.getComputedStyle(reader.querySelector(".ehpeek-reader-canvas")).zIndex));
+  button("Reading options").click();
+  assert.ok(reader.querySelector(".ehpeek-reader-toolbar-more"));
+  button("Paged mode").click();
+  assert.equal(reader.dataset.navigationMode, "scroll");
+  assert.equal(instance.settings.controls().navigationMode, "scroll");
+  assert.equal(reader.dataset.readDirection, "ttb");
+  assert.equal(changes.length, 3);
+
+  button("Adjust Scroll viewport size").click();
+  const scaleLabel = () => reader.querySelector(".ehpeek-reader-scale-label").textContent;
+  const scaleAction = text => {
+    const target = [...reader.querySelectorAll(".ehpeek-reader-scale-toolbar button")]
+      .find(btn => btn.textContent === text);
+    assert.ok(target, text);
+    target.click();
+  };
+  assert.match(scaleLabel(), /Fill/);
+  scaleAction("Fit");
+  assert.match(scaleLabel(), /Fit/);
+  assert.equal(instance.settings.value().scrollTtbScale, "fill");
+  instance.settings.set("leftHandedControls", true);
+  assert.match(scaleLabel(), /Fit/);
+  instance.settings.set("scrollTtbScale", "one-to-one");
+  assert.match(scaleLabel(), /1:1/);
+  instance.settings.set("scrollHorizontalScale", null);
+  assert.match(scaleLabel(), /1:1/);
+  scaleAction("Fill");
+  scaleAction("Set Default");
+  assert.equal(instance.settings.value().scrollTtbScale, "fill");
+
+  instance.settings.set("embeddedPreviewDirection", "ttb");
+  const embedded = () => root.querySelector('.ehpeek-preview-panel[data-embedded="true"]');
+  assert.ok(embedded().querySelector('[aria-label="Scroll Preview: top to bottom"]'));
+  instance.settings.set("embeddedPreviewDirection", "ltr");
+  assert.ok(embedded().querySelector('[aria-label="Scroll Preview: left to right"]'));
+  instance.openPreview(2);
+  const overlay = () => document.querySelector('.ehpeek-preview-panel[data-embedded="false"]');
+  assert.ok(overlay());
+  instance.settings.set("previewDirection", "rtl");
+  assert.ok(overlay().querySelector('[aria-label="Scroll Preview: right to left"]'));
+  instance.settings.set("previewDirection", "ttb");
+  assert.ok(overlay().querySelector('[aria-label="Scroll Preview: top to bottom"]'));
+});
 
 test("embedded preview returns to the existing reader and retains progress sync", async t => {
   const env = setup(t);

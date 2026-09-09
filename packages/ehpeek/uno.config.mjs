@@ -186,33 +186,6 @@ function pointerHoverPostprocessor(pointerSelector) {
 
 export default createUiUnoConfig("html:has(#ehpeek-ui-state.ehpeek-pointer-mouse) .ehpeek-ui-root");
 
-// Used only while the remaining reader layouts are migrated to component CSS.
-export const readerUnoConfig = createUiUnoConfig('html[data-reader-pointer="mouse"]');
-readerUnoConfig.presets = [presetWind3({ variablePrefix: "reader-" })];
-readerUnoConfig.theme = {
-  preflightRoot: [
-    "[data-reader-ui], [data-reader-ui]::before, [data-reader-ui]::after, [data-reader-ui]::backdrop",
-  ],
-};
-readerUnoConfig.variants.unshift({
-  name: "reader-ui",
-  match: (matcher) => {
-    // The outer container shortcut is scoped; its internal rule needs no variants
-    // to emit the base width (Uno checks variantHandlers.length).
-    if (matcher === "__container") return;
-    return {
-      matcher,
-      selector: (selector) =>
-        selector.includes("[data-reader-ui]")
-          ? selector
-          : `${selector}[data-reader-ui]`,
-    };
-  },
-});
-readerUnoConfig.rules = [
-  ["animate-spin", { animation: "ehpeek-reader-spin 1s linear infinite" }],
-];
-
 export async function generateCss(sourceDirs, config) {
   const generator = await createGenerator(config);
   const content = sourceDirs

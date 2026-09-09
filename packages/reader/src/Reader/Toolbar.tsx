@@ -23,8 +23,8 @@ export type PageProgress = {
   keepInputValue?: boolean;
 };
 
-const READER_TOOLBAR_BUTTON_CLASS = "!w-[var(--ui-control-size-lg)] !min-w-0 !ui-px-sm flex-none";
-const READER_FLOATING_ICON_ACTION_CLASS = "!min-w-[var(--ui-control-size-lg)] !h-[var(--ui-control-size-lg)] opacity-85 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-160 !w-[calc(var(--ui-control-size-lg)*2)] px-0";
+const READER_TOOLBAR_BUTTON_CLASS = "ehpeek-reader-toolbar-button";
+const READER_FLOATING_ICON_ACTION_CLASS = "ehpeek-reader-floating-button";
 const READER_ICON_SIZE = "var(--ui-icon-size-md)";
 const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
   hour: "2-digit",
@@ -132,21 +132,15 @@ export function Toolbar(props: {
   });
 
   return (
-    <div class="contents">
+    <div class="ehpeek-reader-tools" data-left-handed={leftHandedControls()}>
       <div
-        class={
-          "fixed z-2 flex justify-end transition-[opacity,transform] duration-160 ease-in-out " +
-          (leftHandedControls() ? "safe-left-md "
-            : "safe-right-md ") +
-          "bottom-[calc(var(--ui-control-size-lg)*2+var(--ui-font-size-lg)*2.4+env(safe-area-inset-bottom,0px))] " +
-          "[&[data-open=false]]:(opacity-0 translate-y-[calc(100%+16px)] pointer-events-none)"
-        }
+        class="ehpeek-reader-floating-toolbar"
         data-open={String(props.open)}
         onClick={stopEvent}
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
-        <div class="flex flex-col ui-gap-sm">
+        <div class="ehpeek-reader-floating-actions">
           <Button
             class={READER_FLOATING_ICON_ACTION_CLASS}
             aria-label={texts.gallery.scrollPreview}
@@ -175,26 +169,17 @@ export function Toolbar(props: {
         </div>
       </div>
       <div
-        class={
-          "ehpeek-reader-toolbar fixed z-3 flex justify-end pointer-events-none " +
-          "top-[calc(10px+env(safe-area-inset-top,0px))] " +
-          (leftHandedControls() ? "safe-left-sm "
-            : "safe-right-sm ")
-        }
+        class="ehpeek-reader-toolbar"
         style={{ top: fullscreenToolbarTop() }}
         onClick={stopEvent}
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
         <div
-          class="flex flex-col ui-gap-md pointer-events-auto"
-          classList={{
-            "items-start": leftHandedControls(),
-            "items-end": !leftHandedControls(),
-            "!hidden": !props.open,
-          }}
+          class="ehpeek-reader-toolbar-controls"
+          hidden={!props.open}
         >
-          <div class={`flex flex-row ui-gap-md${leftHandedControls() ? " flex-row-reverse" : ""}`}>
+          <div class="ehpeek-reader-toolbar-row">
           <Button
             class={READER_TOOLBAR_BUTTON_CLASS}
             disabled={!props.customization?.onOpenOriginalPage}
@@ -229,7 +214,7 @@ export function Toolbar(props: {
           </Button>
           </div>
           <Show when={moreOpen()}>
-            <div class={`flex w-[calc(var(--ui-control-size-lg)*4+var(--ui-space-md)*4)] flex-row flex-wrap ui-gap-md${leftHandedControls() ? " flex-row-reverse" : ""}`}>
+            <div class="ehpeek-reader-toolbar-more">
               <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-label={props.controls.navigationMode === "scroll" ? texts.reader.scrollMode : texts.reader.pagedMode}
@@ -343,16 +328,7 @@ export function Toolbar(props: {
       </div>
       <div
         ref={pageNumber}
-        class={
-          "ehpeek-reader-page-number fixed z-3 pointer-events-none " +
-          "top-[calc(10px+env(safe-area-inset-top,0px))] " +
-          (leftHandedControls() ? "safe-right-sm left-auto "
-            : "safe-left-sm right-auto ") +
-          "min-w-0 max-w-[calc(100vw-20px)] " +
-          "ui-py-xs ui-px-md ui-rounded-md bg-[var(--color-badge)] ehp-color-text " +
-          "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap " +
-          (leftHandedControls() ? "text-right" : "text-left")
-        }
+        class="ehpeek-reader-page-number"
         hidden={props.controls.navigationMode === "scroll" && !props.open && !props.fullscreenActive}
       >
         {pageNumberText(texts,
@@ -366,14 +342,7 @@ export function Toolbar(props: {
       <Show when={props.fullscreenActive}>
         <div
           ref={fullscreenStatus}
-          class={
-            "ehpeek-reader-fullscreen-status fixed z-3 flex items-center ui-gap-sm pointer-events-none " +
-            "top-[calc(10px+env(safe-area-inset-top,0px))] " +
-            (leftHandedControls() ? "safe-right-sm "
-              : "safe-left-sm ") +
-            "ui-py-xs ui-px-md ui-rounded-md bg-[var(--color-badge)] ehp-color-text " +
-            "font-sans textsize-md font-600 leading-[1.4] whitespace-nowrap"
-          }
+          class="ehpeek-reader-fullscreen-status"
           role="status"
         >
           <span>{fullscreenTime()}</span>
@@ -381,24 +350,20 @@ export function Toolbar(props: {
       </Show>
       <Show when={controlChange()} keyed>
         {(message) => (
-          <div class="fixed z-overlay top-1/2 left-1/2 w-max max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 pointer-events-none ui-rounded-lg bg-[var(--color-badge)] ehp-color-text ui-px-xl ui-py-lg font-sans textsize-lg font-700 leading-[1.3] whitespace-pre-line text-center shadow-xl">
+          <div class="ehpeek-reader-control-notice">
             {message}
           </div>
         )}
       </Show>
       <div
-        class={
-          "fixed z-2 flex items-center p-0 transition-[opacity,transform] duration-160 ease-in-out " +
-          "safe-right-md bottom-[calc(12px+env(safe-area-inset-bottom,0px))] safe-left-md " +
-          "[&[data-open=false]]:(opacity-0 translate-y-[calc(100%+16px)] pointer-events-none)"
-        }
+        class="ehpeek-reader-progress"
         data-open={String(props.open)}
         onClick={stopEvent}
         onPointerDown={stopEvent}
         onWheel={stopEvent}
       >
         <ProgressBar
-          class="textsize-lg"
+          class="ehpeek-reader-progress-input"
           direction={props.controls.direction === "rtl" ? "rtl" : "ltr"}
           fillPercent={progressFillPercent(props.progress)}
           keepInputValue={props.progress.keepInputValue}
@@ -413,17 +378,17 @@ export function Toolbar(props: {
       </div>
       <Show when={downloadDialogPageNum() !== null && props.downloadInfos.length > 0}>
         <Dialog
-          bodyClass="ui-pt-lg ui-px-lg"
+          bodyClass="ehpeek-reader-download-body"
           label={texts.reader.download}
           onClose={() => setDownloadDialogPageNum(null)}
           title={`${texts.reader.download} · ${props.downloadInfos.map((info) => info.pageNum).join(", ")}`}
           variant="reader"
           width="lg"
         >
-          <div class="grid ui-gap-md font-sans textsize-md">
+          <div class="ehpeek-reader-download-options">
             <For each={props.downloadInfos}>
               {(downloadInfo) => (
-                <div class="grid ui-gap-md">
+                <div class="ehpeek-reader-download-page">
                   <Button
                     variant="option"
                     disabled={!props.customization?.download}
@@ -433,10 +398,10 @@ export function Toolbar(props: {
                       }
                     }}
                   >
-                    <span class="textsize-md font-700">
+                    <span class="ehpeek-reader-download-title">
                       {`${texts.reader.downloadDisplayedImage} · ${downloadInfo.pageNum}`}
                     </span>
-                    <span class="max-w-full overflow-hidden text-ellipsis whitespace-nowrap textsize-sm opacity-75">
+                    <span class="ehpeek-reader-download-filename">
                       {downloadInfo.currentFileName}
                     </span>
                   </Button>
@@ -454,30 +419,30 @@ export function Toolbar(props: {
                       }
                     }}
                   >
-                    <span class="textsize-md font-700">
+                    <span class="ehpeek-reader-download-title">
                       {`${texts.reader.downloadOriginalImage} · ${downloadInfo.pageNum}`}
                     </span>
-                    <span class="textsize-sm opacity-75">
+                    <span class="ehpeek-reader-download-detail">
                       {downloadInfo.originalImageUrl ? texts.reader.originalImageSource : texts.reader.originalImageUnavailable}
                     </span>
                   </Button>
                 </div>
               )}
             </For>
-            <details class="textsize-sm opacity-75">
-              <summary class="cursor-pointer font-700">
+            <details class="ehpeek-reader-download-detail">
+              <summary class="ehpeek-reader-download-summary">
                 {texts.reader.downloadHelpLabel}
               </summary>
-              <p class="m-0 ui-mt-sm leading-[1.4]">
+              <p class="ehpeek-reader-download-help">
                 {props.customization?.downloadHelp?.()}
               </p>
-              <div class="ui-mt-md flex flex-wrap items-center ui-gap-x-md ui-gap-y-sm">
-                <span class="font-700">{texts.reader.openImage}:</span>
+              <div class="ehpeek-reader-download-links">
+                <strong>{texts.reader.openImage}:</strong>
                 <For each={props.downloadInfos}>
                   {(downloadInfo) => (
                     <>
                       <a
-                        class="text-[var(--color-accent)] hover:underline"
+                        class="ehpeek-reader-download-link"
                         href={downloadInfo.currentImageUrl}
                         rel="noopener noreferrer"
                         target="_blank"
@@ -487,7 +452,7 @@ export function Toolbar(props: {
                       <Show when={downloadInfo.originalImageUrl}>
                         {(originalImageUrl) => (
                           <a
-                            class="text-[var(--color-accent)] hover:underline"
+                            class="ehpeek-reader-download-link"
                             href={originalImageUrl()}
                             rel="noopener noreferrer"
                             target="_blank"

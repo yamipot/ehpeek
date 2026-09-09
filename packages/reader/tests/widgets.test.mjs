@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { build } from "esbuild";
 import { solidPlugin } from "esbuild-plugin-solid";
-import { generateCss, readerUnoConfig } from "../../ehpeek/uno.config.mjs";
 
 const result = await build({
   stdin: {
@@ -186,24 +185,6 @@ test("class changes preserve active toggles, including left-handed positioning",
   );
 });
 
-test("remaining reader utilities keep independent hover and scoped preflights", async () => {
-  const css = await generateCss(
-    [new URL("../src", import.meta.url).pathname],
-    readerUnoConfig,
-  );
-  const hoverRules = css.split("\n").filter((line) => line.includes(":hover"));
-  assert.ok(hoverRules.length > 0);
-  assert.ok(
-    hoverRules.every(
-      (line) =>
-        line.startsWith('html[data-reader-pointer="mouse"] ') &&
-        line.includes("[data-reader-ui]"),
-    ),
-  );
-  assert.doesNotMatch(css, /ehpeek-ui-state|--un-|@keyframes spin/);
-  assert.match(css, /\[data-reader-ui\]::before/);
-  assert.match(css, /animation:ehpeek-reader-spin/);
-});
 
 test("position bar exposes visual state without changing its logical progress", () => {
   const props = { ariaLabel: "Page", currentValue: 3, maxValue: 9, onInput() {} };
