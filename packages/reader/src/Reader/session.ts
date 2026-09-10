@@ -1,6 +1,7 @@
 import { containFitScale } from "./layout";
 import type { NavigationMode, PageLayout, ReadDirection, RightTapAction } from "../kit/interfaces";
-import { createEffect, createMemo, createSignal } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
+import { currentReaderOrientation } from "../features/ReaderSettings";
 import type { ReaderSettingsState, ReaderScrollSizeScale } from "../kit/interfaces";
 import { clamp } from "../kit/helpers";
 import type { ReaderDownloadInfo } from "./Toolbar";
@@ -37,16 +38,16 @@ export class ReaderSession {
   private disposed = false;
 
   constructor(options: ReaderOptions, settings: ReaderSettingsState) {
-    const readerControls = settings.controls();
-    const navigationMode = readerControls.navigationMode;
+    const readerControls = settings[`${currentReaderOrientation()}Controls`];
+    const navigationMode = readerControls.navigationMode.value();
     const initialControls: ReaderControls = {
       navigationMode,
       direction: navigationMode === "scroll"
-        ? readerControls.scrollDirection
-        : readerControls.pagedDirection,
+        ? readerControls.scrollDirection.value()
+        : readerControls.pagedDirection.value(),
       firstPageSeparate: false,
-      pageLayout: readerControls.pageLayout,
-      rightTapAction: readerControls.rightTapAction,
+      pageLayout: readerControls.pageLayout.value(),
+      rightTapAction: readerControls.rightTapAction.value(),
     };
     const [controls, setControls] = createSignal(initialControls);
     const initialPageNum = initialControls.navigationMode === "paged" &&
@@ -120,15 +121,13 @@ export class ReaderSession {
     // Each axis retains its temporary scale until that axis's configured default changes.
     const [scrollViewportAdjusting, setScrollViewportAdjusting] = createSignal(false);
     const [scrollViewportTtbScale, setScrollViewportTtbScale] = createSignal<ReaderScrollSizeScale>(
-      settings.value().scrollTtbScale,
+      settings.scrollTtbScale.value(),
     );
     const [scrollViewportHorizontalScale, setScrollViewportHorizontalScale] = createSignal<ReaderScrollSizeScale>(
-      settings.value().scrollHorizontalScale,
+      settings.scrollHorizontalScale.value(),
     );
-    const configuredTtbScale = createMemo(() => settings.value().scrollTtbScale);
-    const configuredHorizontalScale = createMemo(() => settings.value().scrollHorizontalScale);
-    createEffect(() => setScrollViewportTtbScale(configuredTtbScale()));
-    createEffect(() => setScrollViewportHorizontalScale(configuredHorizontalScale()));
+    createEffect(() => setScrollViewportTtbScale(settings.scrollTtbScale.value()));
+    createEffect(() => setScrollViewportHorizontalScale(settings.scrollHorizontalScale.value()));
     const [scrollFitImageSize, setScrollFitImageSize] = createSignal<ScrollFitImageSize | null>(null);
     const [readerViewportWidth, setReaderViewportWidth] = createSignal(Math.max(1, window.innerWidth));
     const [readerViewportHeight, setReaderViewportHeight] = createSignal(Math.max(1, window.innerHeight));

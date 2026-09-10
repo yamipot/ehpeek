@@ -211,7 +211,7 @@ const actualOutput = await build({
   stdin: {
     contents: `
       export { ReadingView } from "@ehpeek/reader";
-      export { createComponent, createSignal } from "solid-js";
+      export { createComponent, createSignal, createRoot, createEffect } from "solid-js";
       export { render } from "solid-js/web";
     `,
     resolveDir: new URL("../", import.meta.url).pathname,
@@ -444,16 +444,15 @@ test("mounted public Reader and Preview respond to instance settings without vie
   assert.ok(reader);
   assert.equal(reader.dataset.navigationMode, "scroll");
   for (const key of ["portraitControls", "landscapeControls"]) {
-    instance.settings.set(key, {
-      ...instance.settings.value()[key],
-      navigationMode: "paged", pagedDirection: "ltr", pageLayout: "double",
-    });
+    instance.settings[key].navigationMode.set("paged");
+    instance.settings[key].pagedDirection.set("ltr");
+    instance.settings[key].pageLayout.set("double");
   }
   assert.equal(document.querySelector("#ehpeek-reader"), reader);
   assert.equal(reader.dataset.navigationMode, "paged");
   assert.equal(reader.dataset.readDirection, "ltr");
   assert.equal(reader.dataset.pageLayout, "double");
-  assert.equal(changes.length, 2);
+  assert.equal(changes.length, 6);
   const button = label => {
     const found = [...reader.querySelectorAll("button")].find(btn => btn.getAttribute("aria-label") === label);
     assert.ok(found, label);
@@ -477,9 +476,10 @@ test("mounted public Reader and Preview respond to instance settings without vie
   assert.ok(reader.querySelector(".ehpeek-reader-toolbar-more"));
   button("Paged mode").click();
   assert.equal(reader.dataset.navigationMode, "scroll");
-  assert.equal(instance.settings.controls().navigationMode, "scroll");
+  const orientation = window.matchMedia("(orientation: landscape)").matches ? "landscape" : "portrait";
+  assert.equal(instance.settings[`${orientation}Controls`].navigationMode.value(), "scroll");
   assert.equal(reader.dataset.readDirection, "ttb");
-  assert.equal(changes.length, 3);
+  assert.equal(changes.length, 7);
 
   button("Adjust Scroll viewport size").click();
   const scaleLabel = () => reader.querySelector(".ehpeek-reader-scale-label").textContent;
@@ -492,29 +492,79 @@ test("mounted public Reader and Preview respond to instance settings without vie
   assert.match(scaleLabel(), /Fill/);
   scaleAction("Fit");
   assert.match(scaleLabel(), /Fit/);
-  assert.equal(instance.settings.value().scrollTtbScale, "fill");
-  instance.settings.set("leftHandedControls", true);
+  assert.equal(instance.settings.scrollTtbScale.value(), "fill");
+  instance.settings.leftHandedControls.set(true);
   assert.match(scaleLabel(), /Fit/);
-  instance.settings.set("scrollTtbScale", "one-to-one");
+  instance.settings.scrollTtbScale.set("one-to-one");
   assert.match(scaleLabel(), /1:1/);
-  instance.settings.set("scrollHorizontalScale", null);
+  instance.settings.scrollHorizontalScale.set(null);
   assert.match(scaleLabel(), /1:1/);
   scaleAction("Fill");
   scaleAction("Set Default");
-  assert.equal(instance.settings.value().scrollTtbScale, "fill");
+  assert.equal(instance.settings.scrollTtbScale.value(), "fill");
 
-  instance.settings.set("embeddedPreviewDirection", "ttb");
+  instance.settings.embeddedPreviewDirection.set("ttb");
   const embedded = () => root.querySelector('.ehpeek-preview-host[data-embedded="true"] > .ehpeek-preview-panel');
   assert.ok(embedded().querySelector('[aria-label="Scroll Preview: top to bottom"]'));
-  instance.settings.set("embeddedPreviewDirection", "ltr");
+  instance.settings.embeddedPreviewDirection.set("ltr");
   assert.ok(embedded().querySelector('[aria-label="Scroll Preview: left to right"]'));
   instance.openPreview(2);
   const overlay = () => document.querySelector('.ehpeek-preview-host[data-embedded="false"] > .ehpeek-preview-panel');
   assert.ok(overlay());
-  instance.settings.set("previewDirection", "rtl");
+  instance.settings.previewDirection.set("rtl");
   assert.ok(overlay().querySelector('[aria-label="Scroll Preview: right to left"]'));
-  instance.settings.set("previewDirection", "ttb");
+  instance.settings.previewDirection.set("ttb");
   assert.ok(overlay().querySelector('[aria-label="Scroll Preview: top to bottom"]'));
+});
+
+test("setting dependencies are per field, including fields in the same orientation", t => {
+  const { instance } = mountActual(t);
+  const settings = instance.settings;
+  const reads = { portraitDirection: 0, portraitMode: 0, landscapeDirection: 0, scale: 0 };
+  actual.createRoot(dispose => {
+    t.after(dispose);
+    actual.createEffect(() => { settings.portraitControls.pagedDirection.value(); reads.portraitDirection++; });
+    actual.createEffect(() => { settings.portraitControls.navigationMode.value(); reads.portraitMode++; });
+    actual.createEffect(() => { settings.landscapeControls.pagedDirection.value(); reads.landscapeDirection++; });
+    actual.createEffect(() => { settings.scrollTtbScale.value(); reads.scale++; });
+  });
+  assert.deepEqual(reads, { portraitDirection: 1, portraitMode: 1, landscapeDirection: 1, scale: 1 });
+  settings.portraitControls.pagedDirection.set("ltr");
+  settings.portraitControls.pagedDirection.set("ltr");
+  settings.leftHandedControls.set(true);
+  settings.scrollHorizontalScale.set(2);
+  assert.deepEqual(reads, { portraitDirection: 2, portraitMode: 1, landscapeDirection: 1, scale: 1 });
+});
+
+test("Reader follows the selected orientation's individual settings after rotation", async t => {
+  const matchMedia = window.matchMedia;
+  let landscape = false;
+  window.matchMedia = query => query === "(orientation: landscape)"
+    ? { matches: landscape }
+    : matchMedia.call(window, query);
+  t.after(() => { window.matchMedia = matchMedia; });
+  const { instance } = mountActual(t);
+  await instance.open(1);
+  const reader = document.querySelector("#ehpeek-reader");
+  const { portraitControls: portrait, landscapeControls: wide } = instance.settings;
+  wide.navigationMode.set("paged");
+  wide.pagedDirection.set("ltr");
+  assert.equal(reader.dataset.navigationMode, "scroll");
+  assert.equal(reader.dataset.readDirection, "ttb");
+  landscape = true;
+  window.dispatchEvent(new window.Event("resize"));
+  assert.equal(reader.dataset.navigationMode, "paged");
+  assert.equal(reader.dataset.readDirection, "ltr");
+  wide.pagedDirection.set("rtl");
+  assert.equal(reader.dataset.readDirection, "rtl");
+  portrait.scrollDirection.set("ltr");
+  assert.equal(reader.dataset.readDirection, "rtl");
+  landscape = false;
+  window.dispatchEvent(new window.Event("resize"));
+  assert.equal(reader.dataset.navigationMode, "scroll");
+  assert.equal(reader.dataset.readDirection, "ltr");
+  portrait.scrollDirection.set("ttb");
+  assert.equal(reader.dataset.readDirection, "ttb");
 });
 
 test("embedded preview returns to the existing reader and retains progress sync", async t => {

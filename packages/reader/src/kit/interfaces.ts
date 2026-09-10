@@ -110,14 +110,26 @@ export type ReaderSettings = {
 export type SettingCallbacks = {
   [K in keyof ReaderSettings]?: (value: ReaderSettings[K]) => void;
 };
+/** Independently reactive preference; changed values also notify onSettingChange. */
+export type SettingItem<T> = {
+  value: Accessor<T>;
+  set(value: T): void;
+};
+export type OrientationSettingsState = {
+  navigationMode: SettingItem<NavigationMode>;
+  scrollDirection: SettingItem<ReadDirection>;
+  pagedDirection: SettingItem<ReadDirection>;
+  pageLayout: SettingItem<PageLayout>;
+  rightTapAction: SettingItem<RightTapAction>;
+};
 export type ReaderSettingsState = {
-  value: Accessor<ReaderSettings>;
-  set: <K extends keyof ReaderSettings>(
-    key: K,
-    value: ReaderSettings[K],
-  ) => void;
-  controls: () => OrientationSettings;
-  updateControls: (controls: OrientationSettings) => void;
+  portraitControls: OrientationSettingsState;
+  landscapeControls: OrientationSettingsState;
+  scrollTtbScale: SettingItem<ReaderScrollSizeScale>;
+  scrollHorizontalScale: SettingItem<ReaderScrollSizeScale>;
+  leftHandedControls: SettingItem<boolean>;
+  previewDirection: SettingItem<ReadDirection>;
+  embeddedPreviewDirection: SettingItem<ReadDirection>;
 };
 
 export type ReadingViewOptions = {

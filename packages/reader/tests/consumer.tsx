@@ -28,7 +28,10 @@ export function currentView(instance: ReaderInstance): "reader" | "preview" | nu
 }
 
 export function updateClientSettings(instance: ReaderInstance) {
-  instance.settings.set("previewDirection", "ttb");
+  instance.settings.previewDirection.set("ttb");
+  instance.settings.portraitControls.pagedDirection.set("rtl");
+  const direction: "ltr" | "rtl" | "ttb" = instance.settings.portraitControls.pagedDirection.value();
+  return direction;
 }
 
 export function ClientReader(props: { source: ContentSource }) {

@@ -159,9 +159,9 @@ export function ReadingView(props: ReadingViewProps) {
   createEffect(() => applyUiScale(host.uiScale(), previewRoot));
   createEffect(() => {
     if (props.embeddedDirection !== undefined)
-      settings.set("embeddedPreviewDirection", props.embeddedDirection);
+      settings.embeddedPreviewDirection.set(props.embeddedDirection);
     if (props.leftHandedControls !== undefined)
-      settings.set("leftHandedControls", props.leftHandedControls);
+      settings.leftHandedControls.set(props.leftHandedControls);
   });
 
   function publishProgress(page: ReaderPage): void {
@@ -309,9 +309,9 @@ export function ReadingView(props: ReadingViewProps) {
             if (page !== null) port?.setProgress(page);
           }}
           initialProgress={options.initialProgress}
-          embeddedDirection={settings.value().embeddedPreviewDirection}
+          embeddedDirection={settings.embeddedPreviewDirection.value()}
           fillEmbeddedContainer={props.fillPreviewContainer ?? (() => false)}
-          leftHandedControls={() => settings.value().leftHandedControls}
+          leftHandedControls={settings.leftHandedControls.value}
           onReturnPageChange={(pageNum) => { previewReturnPage = pageNum; }}
           onClose={(pageNum) => {
             previewReturnPage = pageNum;
@@ -320,10 +320,10 @@ export function ReadingView(props: ReadingViewProps) {
           onOpenOverlay={pageNum => navi.openPreview(pageNum)}
           onSelectPage={page => { void openReader(page, true).catch(onError); }}
           onLoadError={onError}
-          onEmbeddedDirectionChange={(direction) => settings.set("embeddedPreviewDirection", direction)}
-          onReadDirectionChange={(direction) => settings.set("previewDirection", direction)}
+          onEmbeddedDirectionChange={settings.embeddedPreviewDirection.set}
+          onReadDirectionChange={settings.previewDirection.set}
           previewCache={cache}
-          readDirection={settings.value().previewDirection}
+          readDirection={settings.previewDirection.value()}
           replaceOriginalPreview={props.embeddedPreview ?? false}
         />
       </div>

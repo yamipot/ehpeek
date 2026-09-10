@@ -1,6 +1,6 @@
 import { imageFileExtension } from "./images";
 import { ReaderPageLoader } from "./loading";
-import { batch, createEffect, onCleanup, onMount, Show, untrack } from "solid-js";
+import { batch, createEffect, createSignal, onCleanup, onMount, Show, untrack } from "solid-js";
 import { createReadProgressPublisher, type ReadProgressPort } from "../features/ReadProgressSyncer";
 import type { ContentSource, ReaderCustomization, ReaderPage, ReaderSettingsState } from "../kit/interfaces";
 
@@ -143,7 +143,7 @@ export function Reader(props: ReaderProps) {
             disabled={props.disabled}
             callbacks={readerCallbacks.toolbar}
             customization={props.customization}
-            leftHandedControls={props.settings.value().leftHandedControls}
+            leftHandedControls={props.settings.leftHandedControls.value()}
             controls={readerState.ctrls.value()}
             downloadInfos={readerState.navi.downloadInfos()}
             fullscreenActive={props.fullscreenActive}
@@ -229,61 +229,56 @@ function wireReaderCallbacks(
     pagedTargetPageNumber = null;
     viewportActions.stopMotion();
   };
-  let readerOrientation = currentReaderOrientation();
+  const [readerOrientation, setReaderOrientation] = createSignal(currentReaderOrientation());
   let viewportResizeObserver: ResizeObserver | null = null;
   const updateReaderViewportSize = () => {
     const viewport = readerElement();
     state.scrollViewport.setViewportWidth(Math.max(1, viewport.clientWidth));
     state.scrollViewport.setViewportHeight(Math.max(1, viewport.clientHeight));
-    const nextOrientation = currentReaderOrientation();
-    if (nextOrientation !== readerOrientation) {
-      readerOrientation = nextOrientation;
-      applyControls(configuredReaderControls());
-    }
+    setReaderOrientation(currentReaderOrientation());
   };
 
   function configuredReaderControls(): ReaderControls {
-    const controls = settings.controls();
-    const navigationMode = controls.navigationMode;
+    const controls = settings[`${readerOrientation()}Controls`];
+    const navigationMode = controls.navigationMode.value();
     return {
       navigationMode,
       direction: navigationMode === "scroll"
-        ? controls.scrollDirection
-        : controls.pagedDirection,
-      firstPageSeparate: state.ctrls.value().firstPageSeparate,
-      pageLayout: controls.pageLayout,
-      rightTapAction: controls.rightTapAction,
+        ? controls.scrollDirection.value()
+        : controls.pagedDirection.value(),
+      firstPageSeparate: untrack(() => state.ctrls.value().firstPageSeparate),
+      pageLayout: controls.pageLayout.value(),
+      rightTapAction: controls.rightTapAction.value(),
     };
   }
 
   function updateControls(requestedControls: ReaderControls): void {
     const previous = state.ctrls.value();
-    const persistedControls = settings.controls();
+    const persistedControls = settings[`${readerOrientation()}Controls`];
     const controls = requestedControls.navigationMode === previous.navigationMode
       ? requestedControls
       : {
           ...requestedControls,
           direction: requestedControls.navigationMode === "scroll"
-            ? persistedControls.scrollDirection
-            : persistedControls.pagedDirection,
+            ? persistedControls.scrollDirection.value()
+            : persistedControls.pagedDirection.value(),
         };
     batch(() => {
-      settings.updateControls({
-        ...persistedControls,
-        navigationMode: controls.navigationMode,
-        ...(controls.navigationMode === "scroll"
-          ? { scrollDirection: controls.direction }
-          : { pagedDirection: controls.direction }),
-        pageLayout: controls.pageLayout,
-        rightTapAction: controls.rightTapAction,
-      });
+      persistedControls.navigationMode.set(controls.navigationMode);
+      if (controls.navigationMode === "scroll") {
+        persistedControls.scrollDirection.set(controls.direction);
+      } else {
+        persistedControls.pagedDirection.set(controls.direction);
+      }
+      persistedControls.pageLayout.set(controls.pageLayout);
+      persistedControls.rightTapAction.set(controls.rightTapAction);
       applyControls(controls);
     });
   }
 
   createEffect(() => {
-    settings.controls();
-    untrack(() => applyControls(configuredReaderControls()));
+    const controls = configuredReaderControls();
+    untrack(() => applyControls(controls));
   });
 
   function applyControls(controls: ReaderControls): void {

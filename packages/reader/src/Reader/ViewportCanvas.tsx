@@ -220,10 +220,11 @@ export class ScrollScaleAdjustment {
   readonly callbacks: ViewportCanvasCallbacks = {
     onApply: () => this.scale.setAdjusting(false),
     onApplyAll: () => {
-      this.settings.set(
-        this.direction() === "ttb" ? "scrollTtbScale" : "scrollHorizontalScale",
-        this.scale.sizeScale(),
-      );
+      if (this.direction() === "ttb") {
+        this.settings.scrollTtbScale.set(this.scale.sizeScale());
+      } else {
+        this.settings.scrollHorizontalScale.set(this.scale.sizeScale());
+      }
       this.scale.setAdjusting(false);
     },
     onClose: () => {

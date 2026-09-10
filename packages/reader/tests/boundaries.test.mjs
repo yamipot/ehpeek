@@ -31,13 +31,15 @@ const { ReaderSession } = await loadModule("Reader/session");
 
 test("Reader navigation owns alignment and direction without aligning viewport observations", () => {
   const previousWindow = globalThis.window;
-  globalThis.window = { innerWidth: 800, innerHeight: 600 };
+  globalThis.window = { innerWidth: 800, innerHeight: 600, matchMedia: () => ({ matches: false }) };
   let session;
   try {
-    session = new ReaderSession({ initialPageNum: 4, totalPages: 8 }, {
-      controls: () => ({ navigationMode: "paged", pagedDirection: "rtl", pageLayout: "double", rightTapAction: "previous" }),
-      value: () => ({ scrollTtbScale: "fill", scrollHorizontalScale: "fill" }),
-    });
+    session = new ReaderSession({ initialPageNum: 4, totalPages: 8 }, createReaderSettings({
+      portraitControls: {
+        navigationMode: "paged", scrollDirection: "ttb", pagedDirection: "rtl",
+        pageLayout: "double", rightTapAction: "previous",
+      },
+    }));
     const { navi, ctrls } = session.state;
     assert.equal(navi.currentPageNum(), 3);
     assert.equal(navi.normalizePage(4), 3);
@@ -214,17 +216,37 @@ test("settings are isolated per instance and notify only subscribed keys", () =>
     { previewDirection: (value) => changes.push(value) },
   );
   const second = createReaderSettings();
-  first.set("previewDirection", "ltr");
-  first.set("previewDirection", "ltr");
-  first.set("scrollTtbScale", 2);
-  assert.equal(first.value().previewDirection, "ltr");
-  assert.equal(second.value().previewDirection, "ttb");
-  assert.equal(second.value().scrollTtbScale, "fill");
+  first.previewDirection.set("ltr");
+  first.previewDirection.set("ltr");
+  first.scrollTtbScale.set(2);
+  assert.equal(first.previewDirection.value(), "ltr");
+  assert.equal(second.previewDirection.value(), "ttb");
+  assert.equal(second.scrollTtbScale.value(), "fill");
   assert.deepEqual(changes, ["ltr"]);
   assert.notEqual(
-    first.value().portraitControls,
-    second.value().portraitControls,
+    first.portraitControls,
+    second.portraitControls,
   );
+});
+
+test("orientation fields notify snapshots without changing other preferences", () => {
+  const changes = [];
+  const settings = createReaderSettings({ scrollTtbScale: null }, {
+    portraitControls: value => changes.push(value),
+    landscapeControls: () => assert.fail("portrait edits must not notify landscape"),
+  });
+  const portrait = settings.portraitControls;
+  portrait.pagedDirection.set("ltr");
+  portrait.pagedDirection.set("ltr");
+  portrait.navigationMode.set("paged");
+  assert.deepEqual(changes, [
+    { navigationMode: "scroll", scrollDirection: "ttb", pagedDirection: "ltr", pageLayout: "single", rightTapAction: "previous" },
+    { navigationMode: "paged", scrollDirection: "ttb", pagedDirection: "ltr", pageLayout: "single", rightTapAction: "previous" },
+  ]);
+  assert.equal(portrait.scrollDirection.value(), "ttb");
+  assert.equal(settings.landscapeControls.pagedDirection.value(), "rtl");
+  assert.equal(settings.landscapeControls.navigationMode.value(), "scroll");
+  assert.equal(settings.scrollTtbScale.value(), null);
 });
 
 test("thumbnail cache requests logical pages, deduplicates and aborts on dispose", async () => {

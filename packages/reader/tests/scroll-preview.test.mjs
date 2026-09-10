@@ -239,7 +239,7 @@ test("ReadingView shares highlights but retains independent Preview viewports ac
   button(inline, "Scroll Preview: top to bottom").click();
   await nextFrame();
   assert.deepEqual(directions, ["ltr"]);
-  assert.equal(mounted.instance.settings.value().embeddedPreviewDirection, "ltr");
+  assert.equal(mounted.instance.settings.embeddedPreviewDirection.value(), "ltr");
   assertVisible(inline, 55);
 });
 

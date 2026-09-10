@@ -1,4 +1,4 @@
-import type { ReaderSettings, ReaderSettingsState, SettingCallbacks, OrientationSettings, ReaderOrientation } from "../kit/interfaces";
+import type { ReaderSettings, ReaderSettingsState, SettingCallbacks, SettingItem, OrientationSettings, OrientationSettingsState, ReaderOrientation } from "../kit/interfaces";
 import { createSignal, untrack } from "solid-js";
 
 const defaultControls: OrientationSettings = {
@@ -13,30 +13,57 @@ export function createReaderSettings(
   initial: Partial<ReaderSettings> = {},
   callbacks: SettingCallbacks = {},
 ): ReaderSettingsState {
-  const [value, update] = createSignal<ReaderSettings>({
-    portraitControls: { ...defaultControls },
-    landscapeControls: { ...defaultControls },
-    scrollTtbScale: "fill",
-    scrollHorizontalScale: "fill",
-    leftHandedControls: false,
-    previewDirection: "ttb",
-    embeddedPreviewDirection: "rtl",
-    ...initial,
-  });
-  const set: ReaderSettingsState["set"] = (key, next) => {
-    if (Object.is(untrack(value)[key], next)) return;
-    update((current) => ({ ...current, [key]: next }));
-    callbacks[key]?.(next);
+  return {
+    portraitControls: createOrientationSettings(initial.portraitControls, callbacks.portraitControls),
+    landscapeControls: createOrientationSettings(initial.landscapeControls, callbacks.landscapeControls),
+    scrollTtbScale: createSettingItem(
+      initial.scrollTtbScale === undefined ? "fill" : initial.scrollTtbScale,
+      callbacks.scrollTtbScale,
+    ),
+    scrollHorizontalScale: createSettingItem(
+      initial.scrollHorizontalScale === undefined ? "fill" : initial.scrollHorizontalScale,
+      callbacks.scrollHorizontalScale,
+    ),
+    leftHandedControls: createSettingItem(initial.leftHandedControls ?? false, callbacks.leftHandedControls),
+    previewDirection: createSettingItem(initial.previewDirection ?? "ttb", callbacks.previewDirection),
+    embeddedPreviewDirection: createSettingItem(initial.embeddedPreviewDirection ?? "rtl", callbacks.embeddedPreviewDirection),
   };
-  const controlsKey = () =>
-    currentReaderOrientation() === "landscape"
-      ? "landscapeControls"
-      : "portraitControls";
+}
+
+function createOrientationSettings(
+  initial: OrientationSettings = defaultControls,
+  onChange?: (value: OrientationSettings) => void,
+): OrientationSettingsState {
+  // Persistence still uses an orientation snapshot; UI updates remain per preference.
+  const notify = () => onChange?.(untrack(() => ({
+    navigationMode: settings.navigationMode.value(),
+    scrollDirection: settings.scrollDirection.value(),
+    pagedDirection: settings.pagedDirection.value(),
+    pageLayout: settings.pageLayout.value(),
+    rightTapAction: settings.rightTapAction.value(),
+  })));
+  const settings: OrientationSettingsState = {
+    navigationMode: createSettingItem(initial.navigationMode, notify),
+    scrollDirection: createSettingItem(initial.scrollDirection, notify),
+    pagedDirection: createSettingItem(initial.pagedDirection, notify),
+    pageLayout: createSettingItem(initial.pageLayout, notify),
+    rightTapAction: createSettingItem(initial.rightTapAction, notify),
+  };
+  return settings;
+}
+
+function createSettingItem<T extends string | number | boolean | null>(
+  initial: T,
+  onChange?: (value: T) => void,
+): SettingItem<T> {
+  const [value, setValue] = createSignal(initial);
   return {
     value,
-    set,
-    controls: () => value()[controlsKey()],
-    updateControls: (controls) => set(controlsKey(), controls),
+    set(next) {
+      if (Object.is(untrack(value), next)) return;
+      setValue(() => next);
+      onChange?.(next);
+    },
   };
 }
 
