@@ -10,7 +10,7 @@ export function WelcomeIcon(props: {
   const showIcon = () => props.showIcon !== false;
   const placementClass = () => props.embedded
     ? "relative box-border w-full border-0 bg-transparent ui-px-lg ui-py-md"
-    : "fixed left-1/2 top-1/2 z-[1200] -translate-x-1/2 -translate-y-1/2 ui-rounded-lg border ehp-color-site-border bg-[var(--color-loading)] ui-px-xl ui-py-lg shadow-[0_6px_20px_var(--color-shadow-floating)]";
+    : "fixed left-1/2 top-1/2 z-[2200] -translate-x-1/2 -translate-y-1/2 ui-rounded-lg border ehp-color-site-border bg-[var(--color-loading)] ui-px-xl ui-py-lg shadow-[0_6px_20px_var(--color-shadow-floating)]";
 
   return (
     <div

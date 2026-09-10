@@ -321,7 +321,7 @@ function installSettingsMenu(): void {
   }
 
   const mount = createAppMount(
-    "fixed inset-0 z-[1150] pointer-events-none",
+    "fixed inset-0 z-[2150] pointer-events-none",
     overlayHost.element,
   );
   mount.mount(() => (

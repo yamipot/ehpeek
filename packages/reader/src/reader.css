@@ -164,7 +164,7 @@ html[data-reader-pointer="mouse"] .ehpeek-launcher-button:hover {
 }
 
 .ehpeek-popover {
-  z-index: 1100;
+  z-index: 2100;
   overflow: hidden;
   border-width: 1px;
   border-color: var(--color-site-border);
@@ -176,7 +176,7 @@ html[data-reader-pointer="mouse"] .ehpeek-launcher-button:hover {
 .ehpeek-dialog {
   position: fixed;
   inset: 0;
-  z-index: 1400;
+  z-index: 2400;
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -434,7 +434,7 @@ html[data-reader-pointer="mouse"] .ehpeek-launcher-button:hover {
 .ehpeek-swipe-indicator {
   position: fixed;
   top: 50%;
-  z-index: 1100;
+  z-index: 2100;
   display: flex;
   width: 42px;
   height: 108px;
@@ -463,7 +463,7 @@ html[data-reader-pointer="mouse"] .ehpeek-launcher-button:hover {
 .ehpeek-reader {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: 2200;
   overflow: hidden;
   background: var(--color-reader-background);
   color: var(--color-reader-text);
@@ -580,7 +580,7 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-floating-button:enabled:hover {
   position: fixed;
   top: 50%;
   left: 50%;
-  z-index: 1100;
+  z-index: 2100;
   width: max-content;
   max-width: calc(100vw - 32px);
   transform: translate(-50%, -50%);
@@ -851,7 +851,7 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
 .ehpeek-reader-page-error-detail { opacity: 0.8; font-size: var(--ui-font-size-sm); font-weight: 500; line-height: 1.4; }
 
 /* Embedded and overlay previews share the same tile and toolbar styles. */
-.ehpeek-preview-host[data-embedded="false"] { position: fixed; inset: 0; z-index: 1300; touch-action: none; }
+.ehpeek-preview-host[data-embedded="false"] { position: fixed; inset: 0; z-index: 2300; touch-action: none; }
 .ehpeek-preview-host[data-embedded="true"] { display: contents; }
 .ehpeek-preview-panel {
   box-sizing: border-box;
