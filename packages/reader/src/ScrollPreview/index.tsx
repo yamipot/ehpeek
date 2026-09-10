@@ -114,7 +114,7 @@ function PreviewRoot(props: PreviewRootProps) {
   let retainedPage = normalizePage(untrack(() => props.initPage), totalPages);
   const [viewport, setViewport] = createSignal<PreviewViewportRef | null>(null);
   const currentPage = createMemo(() => viewport()?.currentPage() ?? retainedPage);
-  const onViewportRef = (next: PreviewViewportRef | null): void => {
+  const bindViewport = (next: PreviewViewportRef | null): void => {
     // Direction changes replace the viewport; only its browsing page survives.
     if (next === null) retainedPage = viewport()?.currentPage() ?? retainedPage;
     setViewport(next);
@@ -146,10 +146,12 @@ function PreviewRoot(props: PreviewRootProps) {
     visible,
     disabled,
     leftHanded,
-    get panel() { return panel; },
     fitContentHeight: () => props.fitContentHeight ?? false,
-    viewport,
-    viewportRef: onViewportRef,
+    refs: {
+      viewport,
+      get panel() { return panel; },
+      bindViewport,
+    },
     currentPage,
     scrollToPage,
     locateHighlightedPage() {

@@ -20,8 +20,8 @@ export interface PreviewToolbarProps {
 export function PreviewToolbar(props: PreviewToolbarProps) {
   const ctx = useScrollPreviewContext();
   const texts = useReaderTexts();
-  const crossCount = () => ctx.viewport()?.crossCount() ?? 1;
-  const crossCountLimits = () => ctx.viewport()?.crossCountLimits() ?? { min: 1, max: 1 };
+  const crossCount = () => ctx.refs.viewport()?.crossCount() ?? 1;
+  const crossCountLimits = () => ctx.refs.viewport()?.crossCountLimits() ?? { min: 1, max: 1 };
   const direction = () => ctx.settings[0].direction;
   const directionIcon = () => direction() === "ttb"
     ? "arrow-down" as const
@@ -38,7 +38,7 @@ export function PreviewToolbar(props: PreviewToolbarProps) {
     ctx.settings[1]("direction", NEXT_DIRECTION[direction()]);
   };
   const range = () => {
-    const pages = ctx.viewport()?.visiblePages();
+    const pages = ctx.refs.viewport()?.visiblePages();
     return pages
       ? `${pages.first}–${pages.last} / ${ctx.previewCache.source.totalPages}`
       : `— / ${ctx.previewCache.source.totalPages}`;

@@ -49,7 +49,7 @@ function Viewport(props: PreviewViewportProps) {
   const horizontal = direction !== "ttb";
   const rightToLeft = direction === "rtl";
   const initPage = untrack(ctx.currentPage);
-  const panel = ctx.panel;
+  const panel = ctx.refs.panel;
   const pixelScale = useUiPixelScale();
   const estimatedAspectRatio = layoutAspectRatio(source.aspectRatio);
   const referenceThumbnailCrossSize = medianSize(
@@ -175,7 +175,7 @@ function Viewport(props: PreviewViewportProps) {
   };
 
   onMount(() => {
-    ctx.viewportRef(reference);
+    ctx.refs.bindViewport(reference);
 
     createEffect(on(
       [ctx.visible, () => ctx.settings[0].crossCount, pixelScale, ctx.fitContentHeight],
@@ -211,7 +211,7 @@ function Viewport(props: PreviewViewportProps) {
       observer.disconnect();
       if (layoutFrame !== null) window.cancelAnimationFrame(layoutFrame);
       if (scrollFrame !== null) window.cancelAnimationFrame(scrollFrame);
-      ctx.viewportRef(null);
+      ctx.refs.bindViewport(null);
     });
   });
 

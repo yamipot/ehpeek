@@ -1,9 +1,9 @@
+import { createEffect, onCleanup, untrack, type Accessor, type Setter } from "solid-js";
 import type { PointerDragEnd, PointerGestureCallbacks } from "../kit/PointerGesture";
-import type { ReaderSession } from "./session";
-import type { PagesViewportActions } from "./Viewport";
-import type { ZoomOverlayActions, ZoomOverlayImage } from "./ZoomOverlay";
-import type { ScrollScaleAdjustment } from "./ViewportCanvas";
 import type { ScrollMotion } from "../kit/animation";
+import type { ZoomOverlayActions, ZoomOverlayImage } from "./ZoomOverlay";
+import { getReaderControls, useReaderContext } from "./Context";
+import { clamp } from "../kit/helpers";
 
 const PAGED_SWIPE_THRESHOLD = 24;
 const PAGED_PREVIEW_SWIPE_THRESHOLD = 48;
@@ -14,104 +14,145 @@ const ZOOM_DOUBLE_TAP_DISTANCE = 36;
 const ZOOM_DOUBLE_TAP_SCALE = 1.2;
 const TAP_CANCEL_DISTANCE = 8;
 
-/** Pointer routing owns double-tap recognition, not reader navigation or image resources. */
-export class ReaderGestures {
-  // Child actions are connected once during this Reader mount.
-  viewport!: PagesViewportActions;
-  zoom!: ZoomOverlayActions;
-  private lastZoomTap: { clientX: number; clientY: number; time: number } | null = null;
-  constructor(
-    private readonly state: ReaderSession["state"],
-    private readonly scale: ScrollScaleAdjustment,
-    private readonly actions: {
-      close: () => void; onEnd: () => void; openPreview: (pageNum: number) => void;
-      turnPageBy: (delta: number) => void;
-      prepareZoom: (point: { clientX: number; clientY: number }, scale?: number) => boolean;
-      realign: (options?: { motion?: ScrollMotion }) => void;
-      followScroll: () => void; stopMotion: () => void; cancelPageTarget: () => void;
-      imageAtPoint: (point: { clientX: number; clientY: number }) => ZoomOverlayImage | null;
-    },
-  ) { }
 
-  private pagedMode(): boolean { return this.state.ctrls.value().navigationMode === "paged"; }
+/** Geometry commands used only by this viewport's input handling. */
+export interface ReaderGestureViewport {
+  beginDrag(): void;
+  cancelDrag(): void;
+  moveDrag(delta: { dx: number; dy: number }): boolean;
+  isDragging(): boolean;
+  isHitEndPage(point: { clientX: number; clientY: number }): boolean;
+  viewportXRatio(clientX: number): number;
+  pageNumAtPoint(point: { clientX: number; clientY: number }): number | null;
+  pageZoomScale(pageNum: number): number;
+  moveToPage(pageNum: number, motion?: ScrollMotion): Promise<boolean>;
+  stopMotion(): void;
+  moveToTop(value: number): void;
+  moveToLeft(value: number): void;
+  scrollTop(): number;
+  scrollLeft(): number;
+  startVerticalFlingFromDragVelocity(velocity: number, onStop: () => void): void;
+  startHorizontalFlingFromDragVelocity(velocity: number, onStop: () => void): void;
+}
 
-  private readonly isZoomDoubleTap = (
+export function createReaderGestures(options: {
+  viewport: ReaderGestureViewport;
+  zoom: ZoomOverlayActions;
+  zoomImage: [Accessor<ZoomOverlayImage | null>, Setter<ZoomOverlayImage | null>];
+  onToggleToolbar(): void;
+  onHideToolbar(): void;
+  followScroll(): void;
+}) {
+  const ctx = useReaderContext();
+  const { viewport, zoom } = options;
+  const [zoomImage, setZoomImage] = options.zoomImage;
+  const controls = () => getReaderControls(ctx);
+  const pagedMode = () => controls().navigationMode === "paged";
+  let lastZoomTap: { clientX: number; clientY: number; time: number } | null = null;
+  let pinchStart: number | null = null;
+  const startPinch = () => {
+    const percent = ctx.scrollScale.percent();
+    pinchStart = percent === null ? null : percent / 100;
+    return pinchStart !== null;
+  };
+  const movePinch = (scale: number) => {
+    if (pinchStart !== null) ctx.scrollScale.resize(clamp(pinchStart * scale, 0.1, 5));
+  };
+  const endPinch = () => { pinchStart = null; };
+  const imageAtPoint = (point: { clientX: number; clientY: number }): ZoomOverlayImage | null => {
+    const pageNum = viewport.pageNumAtPoint(point);
+    const resource = pageNum === null ? null : ctx.loading.page(pageNum);
+    return resource?.status === "ready" && resource.image && pageNum !== null
+      ? { pageNum, imageUrl: resource.image.imageUrl,
+          width: resource.element?.naturalWidth || resource.image.width || null,
+          height: resource.element?.naturalHeight || resource.image.height || null }
+      : null;
+  };
+  const prepareZoom = (point: { clientX: number; clientY: number }, multiplier = 1) => {
+    const image = imageAtPoint(point);
+    if (!image) return false;
+    viewport.stopMotion();
+    viewport.cancelDrag();
+    setZoomImage(image);
+    zoom.reset({ centerX: point.clientX, centerY: point.clientY, scale: viewport.pageZoomScale(image.pageNum) * multiplier });
+    return true;
+  };
+  const isZoomDoubleTap = (
     info: PointerDragEnd,
     event: PointerEvent | MouseEvent,
   ): boolean => {
     const now = event.timeStamp || performance.now();
-    const doubleTap = this.lastZoomTap !== null &&
-      now - this.lastZoomTap.time <= ZOOM_DOUBLE_TAP_MS &&
+    const doubleTap = lastZoomTap !== null &&
+      now - lastZoomTap.time <= ZOOM_DOUBLE_TAP_MS &&
       Math.hypot(
-        info.clientX - this.lastZoomTap.clientX,
-        info.clientY - this.lastZoomTap.clientY,
+        info.clientX - lastZoomTap.clientX,
+        info.clientY - lastZoomTap.clientY,
       ) <= ZOOM_DOUBLE_TAP_DISTANCE;
-    this.lastZoomTap = doubleTap
+    lastZoomTap = doubleTap
       ? null
       : { clientX: info.clientX, clientY: info.clientY, time: now };
     return doubleTap;
   };
-  private readonly isPageReloadButtonTarget = (event: PointerEvent | MouseEvent): boolean =>
+  const isPageReloadButtonTarget = (event: PointerEvent | MouseEvent): boolean =>
     event.target instanceof Element &&
     event.target.closest(".ehpeek-reader-page-reload") !== null;
-  private readonly shouldStartDrag = (event: PointerEvent): boolean =>
-    this.state.overlay.image() !== null ||
-    this.pagedMode() ||
-    this.state.ctrls.value().direction !== "ttb" ||
+  const shouldStartDrag = (event: PointerEvent): boolean =>
+    zoomImage() !== null ||
+    pagedMode() ||
+    controls().direction !== "ttb" ||
     event.pointerType === "mouse";
-  private readonly isPreviewSwipe = (info: PointerDragEnd): boolean => {
-    if (!this.pagedMode()) {
+  const isPreviewSwipe = (info: PointerDragEnd): boolean => {
+    if (!pagedMode()) {
       return false;
     }
-    return this.state.ctrls.value().direction === "ttb"
+    return controls().direction === "ttb"
       ? Math.abs(info.dx) >= PAGED_PREVIEW_SWIPE_THRESHOLD &&
       Math.abs(info.dy) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT
       : info.dy >= PAGED_PREVIEW_SWIPE_THRESHOLD &&
       Math.abs(info.dx) <= PAGED_PREVIEW_SWIPE_AXIS_LIMIT;
   };
-  private readonly runSingleTap = (info: PointerDragEnd, event: PointerEvent | MouseEvent): void => {
-    if (this.state.overlay.image() !== null) {
+  const runSingleTap = (info: PointerDragEnd, event: PointerEvent | MouseEvent): void => {
+    if (zoomImage() !== null) {
       event.preventDefault();
-    } else if (this.viewport.isHitEndPage(info)) {
-      this.actions.onEnd();
-      this.actions.close();
+    } else if (viewport.isHitEndPage(info)) {
+      ctx.finish();
     } else {
-      const zone = this.viewport.viewportXRatio(info.clientX);
+      const zone = viewport.viewportXRatio(info.clientX);
       if (zone >= 1 / 3 && zone <= 2 / 3) {
-        this.state.toolbar.toggle();
+        options.onToggleToolbar();
       } else {
-        this.actions.turnPageBy(zone < 1 / 3 ? this.state.navi.leftTapDelta() : this.state.navi.rightTapDelta());
+        ctx.position.turnPage(zone < 1 / 3 ? (controls().rightTapAction === "previous" ? 1 : -1) : (controls().rightTapAction === "previous" ? -1 : 1));
       }
     }
   };
 
-  readonly callbacks: PointerGestureCallbacks = {
+  const pointer: PointerGestureCallbacks = {
     dragAxis: "any",
     onTap: (info: PointerDragEnd, event: PointerEvent | MouseEvent): void => {
-      this.viewport.cancelDrag();
-      if (this.state.overlay.image() !== null) {
-        if (this.isZoomDoubleTap(info, event)) {
-          this.state.overlay.update(null);
+      viewport.cancelDrag();
+      if (zoomImage() !== null) {
+        if (isZoomDoubleTap(info, event)) {
+          setZoomImage(null);
         }
         event.preventDefault();
         return;
       }
 
-      const zone = this.viewport.viewportXRatio(info.clientX);
+      const zone = viewport.viewportXRatio(info.clientX);
       const centerTap = zone >= 1 / 3 && zone <= 2 / 3;
       if (centerTap) {
         if (
-          this.isZoomDoubleTap(info, event) &&
-          this.actions.prepareZoom(info, ZOOM_DOUBLE_TAP_SCALE)
+          isZoomDoubleTap(info, event) &&
+          prepareZoom(info, ZOOM_DOUBLE_TAP_SCALE)
         ) {
-          this.state.toolbar.close();
+          options.onHideToolbar();
           event.preventDefault();
           return;
         }
       } else {
-        this.lastZoomTap = null;
+        lastZoomTap = null;
       }
-      this.runSingleTap(info, event);
+      runSingleTap(info, event);
     },
     holdDelay: MOUSE_HOLD_ZOOM_MS,
     onHold: (info, event) => {
@@ -121,119 +162,121 @@ export class ReaderGestures {
       if (!mouseInput) {
         return false;
       }
-      this.lastZoomTap = null;
-      if (this.state.overlay.image() !== null) {
-        this.state.overlay.update(null);
+      lastZoomTap = null;
+      if (zoomImage() !== null) {
+        setZoomImage(null);
         return "consume";
       }
-      if (!this.actions.prepareZoom(info)) {
+      if (!prepareZoom(info)) {
         return false;
       }
-      this.zoom.movePinch({ centerX: info.clientX, centerY: info.clientY, scale: 2 });
-      this.zoom.endPinch();
+      zoom.movePinch({ centerX: info.clientX, centerY: info.clientY, scale: 2 });
+      zoom.endPinch();
       return "drag";
     },
     onStart: (): void => {
-      if (this.state.overlay.image() !== null) {
-        this.zoom.startDrag();
+      if (zoomImage() !== null) {
+        zoom.startDrag();
         return;
       }
-      this.actions.cancelPageTarget();
-      this.viewport.beginDrag();
+      viewport.stopMotion();
+      viewport.beginDrag();
     },
     onMove: (info: PointerDragEnd): void => {
-      if (this.state.overlay.image() !== null) {
-        this.zoom.moveDrag(info);
+      if (zoomImage() !== null) {
+        zoom.moveDrag(info);
         return;
       }
-      if (!this.viewport.moveDrag({ dx: info.dx, dy: info.dy })) {
+      if (!viewport.moveDrag({ dx: info.dx, dy: info.dy })) {
         return;
       }
     },
     onEnd: (info: PointerDragEnd): void => {
-      if (this.state.overlay.image() !== null) {
+      if (zoomImage() !== null) {
         return;
       }
-      this.viewport.cancelDrag();
-      if (this.isPreviewSwipe(info)) {
-        this.actions.realign({ motion: "animated" });
-        this.actions.openPreview(this.state.navi.currentPageNum());
+      viewport.cancelDrag();
+      if (isPreviewSwipe(info)) {
+        // Preview disables Reader and cancels motion, so alignment must finish before coverage.
+        void viewport.moveToPage(ctx.position.page()).then(completed => {
+          if (completed) ctx.openPreview();
+        });
         return;
       }
-      if (!this.pagedMode()) {
-        if (this.state.ctrls.value().direction === "ttb") {
-          this.viewport.moveToTop(this.viewport.scrollTop());
-          this.viewport.startVerticalFlingFromDragVelocity(info.velocityY, () => this.actions.followScroll());
+      if (!pagedMode()) {
+        if (controls().direction === "ttb") {
+          viewport.moveToTop(viewport.scrollTop());
+          viewport.startVerticalFlingFromDragVelocity(info.velocityY, () => options.followScroll());
         } else {
-          this.viewport.moveToLeft(this.viewport.scrollLeft());
-          this.viewport.startHorizontalFlingFromDragVelocity(info.velocityX, () => this.actions.followScroll());
+          viewport.moveToLeft(viewport.scrollLeft());
+          viewport.startHorizontalFlingFromDragVelocity(info.velocityX, () => options.followScroll());
         }
-        this.actions.followScroll();
+        options.followScroll();
         return;
       }
-      if (this.state.ctrls.value().direction === "ttb") {
+      if (controls().direction === "ttb") {
         if (info.dy >= PAGED_SWIPE_THRESHOLD) {
-          this.actions.turnPageBy(-1);
+          ctx.position.turnPage(-1);
         } else if (info.dy <= -PAGED_SWIPE_THRESHOLD) {
-          this.actions.turnPageBy(1);
+          ctx.position.turnPage(1);
         } else {
-          this.actions.realign({ motion: "animated" });
+          viewport.moveToPage(ctx.position.page(), "animated");
         }
         return;
       }
       if (info.dx >= PAGED_SWIPE_THRESHOLD) {
-        this.actions.turnPageBy(this.state.navi.rightDragDelta());
+        ctx.position.turnPage((controls().direction === "rtl" ? 1 : -1));
       }
       else if (info.dx <= -PAGED_SWIPE_THRESHOLD) {
-        this.actions.turnPageBy(this.state.navi.leftDragDelta());
+        ctx.position.turnPage((controls().direction === "rtl" ? -1 : 1));
       }
       else {
-        this.actions.realign({ motion: "animated" });
+        viewport.moveToPage(ctx.position.page(), "animated");
       }
     },
     onPinchStart: (info: {
       clientX: number;
       clientY: number;
     }): boolean => {
-      this.lastZoomTap = null;
-      this.actions.stopMotion();
-      this.viewport.cancelDrag();
-      if (!this.pagedMode() && this.state.overlay.image() === null) {
-        return this.scale.startPinch();
+      lastZoomTap = null;
+      viewport.stopMotion();
+      viewport.cancelDrag();
+      if (!pagedMode() && zoomImage() === null) {
+        return startPinch();
       }
-      if (this.state.overlay.image() !== null) {
-        this.zoom.startPinch({ centerX: info.clientX, centerY: info.clientY });
+      if (zoomImage() !== null) {
+        zoom.startPinch({ centerX: info.clientX, centerY: info.clientY });
         return true;
       }
-      const image = this.actions.imageAtPoint(info);
+      const image = imageAtPoint(info);
       if (!image) {
         return false;
       }
-      const zoomScale = this.viewport.pageZoomScale(image.pageNum);
-      this.state.overlay.update(image);
-      this.zoom.reset({ centerX: info.clientX, centerY: info.clientY, scale: zoomScale });
+      const zoomScale = viewport.pageZoomScale(image.pageNum);
+      setZoomImage(image);
+      zoom.reset({ centerX: info.clientX, centerY: info.clientY, scale: zoomScale });
       return true;
     },
     onPinchMove: (info: { clientX: number; clientY: number; scale: number }) => {
-      if (this.scale.pinching()) {
-        this.scale.movePinch(info.scale);
+      if ((pinchStart !== null)) {
+        movePinch(info.scale);
         return;
       }
-      this.zoom.movePinch({
+      zoom.movePinch({
         centerX: info.clientX,
         centerY: info.clientY,
         scale: info.scale,
       });
     },
     onPinchEnd: () => {
-      if (this.scale.pinching()) {
-        this.scale.endPinch();
+      if ((pinchStart !== null)) {
+        endPinch();
         return;
       }
-      this.zoom.endPinch();
+      zoom.endPinch();
     },
     shouldCaptureDrag: (event) => {
-      if (this.isPageReloadButtonTarget(event)) {
+      if (isPageReloadButtonTarget(event)) {
         return false;
       }
       if (!(event instanceof PointerEvent)) {
@@ -242,14 +285,56 @@ export class ReaderGestures {
       if (event.pointerType === "mouse" && event.button !== 0) {
         return false;
       }
-      return this.shouldStartDrag(event);
+      return shouldStartDrag(event);
     },
     shouldObserveTap: (event) =>
       event instanceof PointerEvent &&
-      !this.isPageReloadButtonTarget(event) &&
+      !isPageReloadButtonTarget(event) &&
       event.pointerType !== "mouse" &&
-      !this.shouldStartDrag(event),
+      !shouldStartDrag(event),
     dragStartThreshold: TAP_CANCEL_DISTANCE,
     tapMoveThreshold: TAP_CANCEL_DISTANCE,
   };
+  const wheel = (event: WheelEvent) => {
+    if (ctx.disabled()) return;
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    const pixels = delta * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1);
+    if (zoomImage()) {
+      event.preventDefault();
+      zoom.moveWheel({ centerX: event.clientX, centerY: event.clientY, delta: pixels });
+    } else if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      if (!pagedMode()) {
+        if (startPinch()) { movePinch(Math.exp(-clamp(pixels, -100, 100) * 0.0025)); endPinch(); }
+      } else if (prepareZoom(event)) zoom.moveWheel({ centerX: event.clientX, centerY: event.clientY, delta: pixels });
+    } else if (pagedMode()) {
+      event.preventDefault();
+      if (!viewport.isDragging() && Math.abs(delta) >= 8) ctx.position.turnPage(delta > 0 ? 1 : -1);
+    } else if (controls().direction !== "ttb") {
+      event.preventDefault();
+      viewport.moveToLeft(viewport.scrollLeft() + pixels * (controls().direction === "rtl" ? -1 : 1) * 0.5);
+    }
+  };
+  const keydown = (event: KeyboardEvent) => {
+    if (ctx.disabled() || event.isComposing ||
+      (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']"))) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      ctx.close();
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowRight" ||
+      (controls().direction === "ttb" && (event.key === "ArrowUp" || event.key === "ArrowDown"))) {
+      event.preventDefault();
+      if (zoomImage()) return;
+      ctx.position.turnPage(event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1
+        : event.key === "ArrowLeft" ? (controls().rightTapAction === "previous" ? 1 : -1)
+        : (controls().rightTapAction === "previous" ? -1 : 1));
+    }
+  };
+  document.addEventListener("keydown", keydown, true);
+  onCleanup(() => document.removeEventListener("keydown", keydown, true));
+  createEffect(() => {
+    if (!ctx.disabled()) return;
+    untrack(() => { endPinch(); lastZoomTap = null; viewport.stopMotion(); viewport.cancelDrag(); });
+  });
+  return { pointer, wheel };
 }

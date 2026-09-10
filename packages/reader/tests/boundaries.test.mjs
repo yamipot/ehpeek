@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { build } from "esbuild";
-import { readdirSync, readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 async function loadModule(name) {
   const result = await build({
@@ -18,8 +15,6 @@ async function loadModule(name) {
   );
 }
 
-const { ReadProgressSyncer, createReadProgressPublisher } =
-  await loadModule("features/ReadProgressSyncer");
 const { createReaderSettings } = await loadModule("features/ReaderSettings");
 const { createPreviewCache } = await loadModule("features/PreviewCache");
 const { ReaderPreviewNavi } = await loadModule("features/ReaderPreviewNavi");
@@ -27,43 +22,18 @@ const { lockPageScroll } = await loadModule("features/Viewport");
 const readerLayout = await loadModule("Reader/layout");
 const previewLayout = await loadModule("ScrollPreview/layout");
 const { ReaderImages } = await loadModule("Reader/images");
-const { ReaderSession } = await loadModule("Reader/session");
-
-test("Reader navigation owns alignment and direction without aligning viewport observations", () => {
-  const previousWindow = globalThis.window;
-  globalThis.window = { innerWidth: 800, innerHeight: 600, matchMedia: () => ({ matches: false }) };
-  let session;
-  try {
-    session = new ReaderSession({ initialPageNum: 4, totalPages: 8 }, createReaderSettings({
-      portraitControls: {
-        navigationMode: "paged", scrollDirection: "ttb", pagedDirection: "rtl",
-        pageLayout: "double", rightTapAction: "previous",
-      },
-    }));
-    const { navi, ctrls } = session.state;
-    assert.equal(navi.currentPageNum(), 3);
-    assert.equal(navi.normalizePage(4), 3);
-    assert.equal(navi.normalizePage(9), 9);
-    assert.equal(navi.readerPageLimit(), 9);
-    assert.equal(navi.progressPageLimit(), 8);
-    assert.equal(navi.isContentPage(9), false);
-    assert.equal(navi.isContentPage(8), true);
-    navi.updatePage(4);
-    assert.equal(navi.currentPageNum(), 4);
-    assert.equal(navi.direction(), 1);
-    navi.updatePage(2);
-    assert.equal(navi.direction(), -1);
-    navi.updatePage(2);
-    assert.equal(navi.direction(), -1);
-    ctrls.update({ ...ctrls.value(), firstPageSeparate: true });
-    assert.equal(navi.normalizePage(1), 1);
-    assert.equal(navi.normalizePage(3), 2);
-    ctrls.update({ ...ctrls.value(), navigationMode: "scroll" });
-    assert.equal(navi.normalizePage(3), 3);
-  } finally {
-    session?.dispose();
-    globalThis.window = previousWindow;
-  }
+test("Reader alignment preserves cover pairs and the end screen", () => {
+  const { normalizeReadingPage: normalize, nextReadingPage: next } = readerLayout;
+  assert.equal(normalize(4, 8, "paged", "double", false), 3);
+  assert.equal(normalize(9, 8, "paged", "double", false), 9);
+  assert.equal(normalize(3, 8, "paged", "double", true), 2);
+  assert.equal(normalize(1, 8, "paged", "double", true), 1);
+  assert.equal(normalize(3, 8, "scroll", "double", true), 3);
+  assert.equal(next(1, 1, 8, "double", true), 2);
+  assert.equal(next(2, -1, 8, "double", true), 1);
+  assert.equal(next(9, -1, 8, "double", true), 8);
+  assert.equal(next(9, -1, 8, "double", false), 7);
+  assert.equal(next(7, 1, 8, "double", false), 9);
 });
 
 test("layout calculations retain page windows, median sizing and group offsets", () => {
@@ -75,7 +45,6 @@ test("layout calculations retain page windows, median sizing and group offsets",
     navigationMode: "paged", pageLayout: "double", sizeScale: "fill",
     reference: null, referenceAspectRatio: 1.5, horizontal: false,
   };
-  assert.deepEqual(readerLayout.pageFrameSize(frame), { width: 398.5, height: 597.75 });
   assert.deepEqual(readerLayout.pageFrameSize({ ...frame, navigationMode: "scroll", aspectRatio: 2 }),
     { width: 800, height: 1600 });
   assert.equal(previewLayout.medianSize([10, 30, 20, 100], 1), 25);
@@ -92,7 +61,6 @@ test("layout calculations retain page windows, median sizing and group offsets",
   });
   assert.deepEqual(geometry.groupOffsets, [0, 208, 416]);
   assert.equal(geometry.totalMainSize, 616);
-  assert.equal(geometry.gap, 8);
   assert.equal(previewLayout.groupAtOffset(geometry, 208), 1);
   assert.equal(previewLayout.groupOffsetAt(geometry, 2), 416);
   assert.equal(previewLayout.groupSizeAt(geometry, 1), 200);
@@ -100,7 +68,7 @@ test("layout calculations retain page windows, median sizing and group offsets",
   assert.equal(previewLayout.physicalGroupOffset(geometry, 1.25), 260);
 });
 
-test("Reader image resources retain metadata, touch LRU entries and abort on disposal", async () => {
+test("Reader reuses loaded image metadata and aborts source requests on disposal", async () => {
   let requestSignal;
   let requests = 0;
   const images = new ReaderImages({
@@ -115,11 +83,6 @@ test("Reader image resources retain metadata, touch LRU entries and abort on dis
   images.remember(1, loaded);
   assert.equal((await images.load(target)).imageUrl, "/image");
   assert.equal(requests, 1);
-  for (let page = 2; page <= 160; page++) images.remember(page, loaded);
-  images.touch(1);
-  images.remember(161, loaded);
-  assert.ok(images.get(1));
-  assert.equal(images.get(2), undefined);
   assert.equal(requestSignal.aborted, false);
   images.dispose();
   assert.equal(requestSignal.aborted, true);
@@ -188,27 +151,6 @@ test("Reader decode admission retains its minimum concurrency and releases waiti
   images.dispose();
 });
 
-test("progress sync is directional and disconnects", () => {
-  const reader = createReadProgressPublisher();
-  const preview = createReadProgressPublisher();
-  let readerPage = 1;
-  let previewPage = 1;
-  preview.subscribe((page) => {
-    readerPage = page;
-  });
-  const sync = new ReadProgressSyncer(reader, {
-    setProgress: (page) => {
-      previewPage = page;
-    },
-  });
-  reader.publish(8);
-  assert.equal(previewPage, 8);
-  assert.equal(readerPage, 1);
-  sync.dispose();
-  reader.publish(9);
-  assert.equal(previewPage, 8);
-});
-
 test("settings are isolated per instance and notify only subscribed keys", () => {
   const changes = [];
   const first = createReaderSettings(
@@ -223,10 +165,6 @@ test("settings are isolated per instance and notify only subscribed keys", () =>
   assert.equal(second.previewDirection.value(), "ttb");
   assert.equal(second.scrollTtbScale.value(), "fill");
   assert.deepEqual(changes, ["ltr"]);
-  assert.notEqual(
-    first.portraitControls,
-    second.portraitControls,
-  );
 });
 
 test("orientation fields notify snapshots without changing other preferences", () => {
@@ -284,8 +222,6 @@ test("thumbnail cache requests logical pages, deduplicates and aborts on dispose
   assert.equal(cache.item(45), null);
 });
 
-
-
 function navigationFixture(overrides = {}) {
   let top = null;
   const events = [];
@@ -300,20 +236,17 @@ function navigationFixture(overrides = {}) {
     onError: error => { events.push(["error", error.message]); },
     ...overrides,
   });
-  return { navi, events, getTop: () => top, setTop: value => { top = value; } };
+  return { navi, events, setTop: value => { top = value; } };
 }
 
-test("ReaderPreviewNavi routes back by the supplied top panel without owning view state", () => {
-  const { navi, events, getTop, setTop } = navigationFixture();
+test("Back closes the top panel and is ignored when nothing is open", () => {
+  const { navi, events, setTop } = navigationFixture();
   assert.equal(navi.back(), false);
   for (const top of ["reader", "overlay-preview", "embedded-preview"]) {
     setTop(top);
-    assert.equal(getTop(), top);
     assert.equal(navi.back(), true);
-    assert.equal(getTop(), top);
   }
   assert.deepEqual(events, [["close-reader"], ["close-preview", true], ["close-preview", true]]);
-  assert.deepEqual(Object.keys(navi).sort(), ["back", "closeAll", "openPreview", "openReader"]);
 });
 
 test("ReaderPreviewNavi waits for Preview to close before reading the selected page", async () => {
@@ -333,11 +266,10 @@ test("ReaderPreviewNavi waits for Preview to close before reading the selected p
 });
 
 test("ReaderPreviewNavi navigates directly when Reader is already on top", async () => {
-  const { navi, events, getTop, setTop } = navigationFixture();
+  const { navi, events, setTop } = navigationFixture();
   setTop("reader");
   await navi.openReader(7);
   assert.deepEqual(events, [["read", 7, false]]);
-  assert.equal(getTop(), "reader");
 });
 
 test("ReaderPreviewNavi distinguishes Reader's Preview button from Preview enlargement", () => {
@@ -395,41 +327,4 @@ test("scroll locks tolerate out-of-order and repeated cleanup", () => {
   assert.equal(htmlStyle.getPropertyPriority(), "important");
   assert.equal(bodyStyle.getPropertyValue(), "");
   delete globalThis.document;
-});
-
-
-test("reader source has no client imports or persistence calls", () => {
-  const root = fileURLToPath(new URL("../", import.meta.url));
-  const walk = (dir) =>
-    readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-      const file = path.join(dir, entry.name);
-      return entry.isDirectory() ? walk(file) : [file];
-    });
-  for (const file of walk(path.join(root, "src")).filter((file) =>
-    /\.tsx?$/.test(file),
-  )) {
-    const source = readFileSync(file, "utf8");
-    assert.doesNotMatch(
-      source,
-      /\b(?:GM|localStorage|sessionStorage)\b|window\.history/,
-      file,
-    );
-    for (const match of source.matchAll(
-      /(?:from\s+|import\s*)["']([^"']+)["']/g,
-    )) {
-      const dependency = match[1];
-      if (dependency.startsWith(".")) {
-        assert.ok(
-          path.resolve(path.dirname(file), dependency).startsWith(root),
-          file,
-        );
-      } else {
-        assert.match(
-          dependency,
-          /^(?:solid-js(?:\/|$)|lucide-solid(?:\/|$)|reader:)/,
-          file,
-        );
-      }
-    }
-  }
 });

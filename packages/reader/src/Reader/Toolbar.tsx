@@ -8,7 +8,8 @@ import { Icon } from "../kit/Widgets/Icon";
 import { ProgressBar } from "../kit/Widgets/ProgressBar";
 import { InteractionHelp } from "../kit/Widgets/InteractionHelp";
 
-import type { ReaderControls } from "./session";
+import { getReaderControls, useReaderContext } from "./Context";
+import { imageFileExtension } from "./images";
 
 export type PageProgress = {
   pageNum: number;
@@ -35,31 +36,44 @@ export type ReaderDownloadInfo = {
   pageNum: number;
 };
 
-export type ToolbarCallbacks = {
-  onCloseClick: () => void;
-  onControlsChange: (controls: ReaderControls) => void;
-  onFullscreenClick: () => void;
-  onOpenOriginalPageClick: () => void;
-  onOpenScrollPreviewClick: () => void;
-  onProgressCommit: (value: number) => void;
-  onProgressInput: (value: number) => void;
-  onProgressPointerDown: (event: PointerEvent) => void;
-  onViewportAdjustClick: () => void;
-};
-
-export function Toolbar(props: {
-  disabled?: boolean;
-  callbacks: ToolbarCallbacks;
-  customization?: ReaderCustomization;
-  leftHandedControls: boolean;
-  controls: ReaderControls;
-  downloadInfos: ReaderDownloadInfo[];
-  fullscreenActive: boolean;
+export interface ReaderToolbarProps {
+  /** Tool visibility; menus and dialogs retain their own local state. */
   open: boolean;
-  progress: PageProgress;
-}) {
+  fullscreenActive: boolean;
+  onToggleFullscreen(): void;
+}
+
+export function ReaderToolbar(props: ReaderToolbarProps) {
+  const ctx = useReaderContext();
+  const controls = () => getReaderControls(ctx);
+  const settings = () => ctx.settings[`${ctx.orientation()}Controls`];
+  const progress = (): PageProgress => ({
+    pageNum: ctx.position.page(),
+    totalPages: ctx.source.totalPages,
+    maxProgressPageNum: ctx.source.totalPages || Number.MAX_SAFE_INTEGER,
+    keepInputValue: ctx.position.seeking(),
+  });
+  const downloadInfos = (): ReaderDownloadInfo[] => ctx.position.contentPages().flatMap(pageNum => {
+    const resource = ctx.loading.page(pageNum);
+    const image = resource?.image;
+    if (!image) return [];
+    const fileName = image.fileName ?? `page-${pageNum}.${imageFileExtension(image.imageUrl) || "webp"}`;
+    return [{
+      currentFileName: fileName,
+      currentImageUrl: image.imageUrl,
+      imageWidth: resource.element?.naturalWidth || image.width || null,
+      imageHeight: resource.element?.naturalHeight || image.height || null,
+      originalFileName: image.originalFileName ?? fileName,
+      originalImageUrl: image.originalImageUrl ?? null,
+      pageNum,
+    }];
+  });
+  const openOriginal = () => {
+    const page = ctx.loading.page(ctx.position.page())?.page;
+    if (page) ctx.customization.onOpenOriginalPage?.(page.url, ctx.position.page());
+  };
   const texts = useReaderTexts();
-  const leftHandedControls = () => props.leftHandedControls;
+  const leftHandedControls = () => ctx.settings.leftHandedControls.value();
   const [helpOpen, setHelpOpen] = createSignal(false);
   const [moreOpen, setMoreOpen] = createSignal(false);
   const [controlChange, setControlChange] = createSignal<string | null>(null);
@@ -131,7 +145,7 @@ export function Toolbar(props: {
             class={READER_FLOATING_ICON_ACTION_CLASS}
             aria-label={texts.gallery.scrollPreview}
             title={texts.gallery.scrollPreview}
-            onClick={() => props.callbacks.onOpenScrollPreviewClick()}
+            onClick={() => ctx.openPreview()}
           >
             <Icon name="grid" size={READER_ICON_SIZE} />
           </Button>
@@ -139,15 +153,15 @@ export function Toolbar(props: {
             class={READER_FLOATING_ICON_ACTION_CLASS}
             aria-label={props.fullscreenActive ? texts.reader.exitFullscreen : texts.reader.fullscreen}
             title={props.fullscreenActive ? texts.reader.exitFullscreen : texts.reader.fullscreen}
-            onClick={() => props.callbacks.onFullscreenClick()}
+            onClick={() => props.onToggleFullscreen()}
           >
             <Icon name={props.fullscreenActive ? "fullscreen-exit" : "fullscreen"} size={READER_ICON_SIZE} />
           </Button>
           <ReaderDownload
-            disabled={props.disabled}
-            downloadInfos={props.downloadInfos}
-            pageNum={props.progress.pageNum}
-            customization={props.customization}
+            disabled={ctx.disabled()}
+            downloadInfos={downloadInfos()}
+            pageNum={progress().pageNum}
+            customization={ctx.customization}
           />
         </div>
       </div>
@@ -165,8 +179,8 @@ export function Toolbar(props: {
           <div class="ehpeek-reader-toolbar-row">
             <Button
               class={READER_TOOLBAR_BUTTON_CLASS}
-              disabled={!props.customization?.onOpenOriginalPage}
-              onClick={() => props.callbacks.onOpenOriginalPageClick()}
+              disabled={!ctx.customization?.onOpenOriginalPage}
+              onClick={() => openOriginal()}
             >
               <Icon name="external-link" size={READER_ICON_SIZE} />
             </Button>
@@ -191,7 +205,7 @@ export function Toolbar(props: {
               class={READER_TOOLBAR_BUTTON_CLASS}
               aria-label={texts.common.actions.close}
               title={texts.common.actions.close}
-              onClick={() => props.callbacks.onCloseClick()}
+              onClick={() => ctx.close()}
             >
               <Icon name="close" size={READER_ICON_SIZE} />
             </Button>
@@ -200,33 +214,33 @@ export function Toolbar(props: {
             <div class="ehpeek-reader-toolbar-more">
               <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
-                aria-label={props.controls.navigationMode === "scroll" ? texts.reader.scrollMode : texts.reader.pagedMode}
-                title={props.controls.navigationMode === "scroll" ? texts.reader.scrollMode : texts.reader.pagedMode}
+                aria-label={controls().navigationMode === "scroll" ? texts.reader.scrollMode : texts.reader.pagedMode}
+                title={controls().navigationMode === "scroll" ? texts.reader.scrollMode : texts.reader.pagedMode}
                 onClick={() => {
-                  const navigationMode: NavigationMode = props.controls.navigationMode === "scroll" ? "paged" : "scroll";
-                  props.callbacks.onControlsChange({ ...props.controls, navigationMode });
+                  const navigationMode: NavigationMode = controls().navigationMode === "scroll" ? "paged" : "scroll";
+                  settings().navigationMode.set(navigationMode);
                   showControlChange(navigationMode === "paged" ? texts.reader.pagedMode : texts.reader.scrollMode);
                 }}
               >
                 <Icon
-                  name={props.controls.navigationMode === "paged" ? "page" : "scroll-continuous"}
+                  name={controls().navigationMode === "paged" ? "page" : "scroll-continuous"}
                   size={READER_ICON_SIZE}
                 />
               </Button>
               <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
-                aria-label={props.controls.direction === "rtl"
+                aria-label={controls().direction === "rtl"
                   ? texts.reader.directionRtl
-                  : props.controls.direction === "ltr"
+                  : controls().direction === "ltr"
                     ? texts.reader.directionLtr
                     : texts.reader.directionTtb}
                 onClick={() => {
-                  const direction: ReadDirection = props.controls.direction === "rtl"
+                  const direction: ReadDirection = controls().direction === "rtl"
                     ? "ltr"
-                    : props.controls.direction === "ltr"
+                    : controls().direction === "ltr"
                       ? "ttb"
                       : "rtl";
-                  props.callbacks.onControlsChange({ ...props.controls, direction });
+                  (controls().navigationMode === "scroll" ? settings().scrollDirection : settings().pagedDirection).set(direction);
                   showControlChange(
                     direction === "rtl"
                       ? texts.reader.directionRtl
@@ -237,9 +251,9 @@ export function Toolbar(props: {
                 }}
               >
                 <Icon
-                  name={props.controls.direction === "rtl"
+                  name={controls().direction === "rtl"
                     ? "arrow-left"
-                    : props.controls.direction === "ltr"
+                    : controls().direction === "ltr"
                       ? "arrow-right"
                       : "arrow-down"}
                   size={READER_ICON_SIZE}
@@ -247,35 +261,32 @@ export function Toolbar(props: {
               </Button>
               <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
-                aria-label={props.controls.pageLayout === "double" ? texts.reader.doublePageMode : texts.reader.singlePageMode}
-                disabled={props.controls.navigationMode !== "paged"}
+                aria-label={controls().pageLayout === "double" ? texts.reader.doublePageMode : texts.reader.singlePageMode}
+                disabled={controls().navigationMode !== "paged"}
                 onClick={() => {
-                  const pageLayout: PageLayout = props.controls.pageLayout === "single" ? "double" : "single";
-                  props.callbacks.onControlsChange({ ...props.controls, pageLayout });
+                  const pageLayout: PageLayout = controls().pageLayout === "single" ? "double" : "single";
+                  settings().pageLayout.set(pageLayout);
                   showControlChange(pageLayout === "double" ? texts.reader.doublePageMode : texts.reader.singlePageMode);
                 }}
               >
-                {props.controls.pageLayout === "double" ? "2P" : "1P"}
+                {controls().pageLayout === "double" ? "2P" : "1P"}
               </Button>
               <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
-                aria-pressed={props.controls.firstPageSeparate}
-                aria-label={props.controls.firstPageSeparate
+                aria-pressed={controls().firstPageSeparate}
+                aria-label={controls().firstPageSeparate
                   ? texts.reader.pairSecondAndThirdPages
                   : texts.reader.pairFirstAndSecondPages}
-                title={props.controls.firstPageSeparate
+                title={controls().firstPageSeparate
                   ? texts.reader.pairSecondAndThirdPages
                   : texts.reader.pairFirstAndSecondPages}
                 disabled={
-                  props.controls.navigationMode !== "paged" ||
-                  props.controls.pageLayout !== "double"
+                  controls().navigationMode !== "paged" ||
+                  controls().pageLayout !== "double"
                 }
                 onClick={() => {
-                  const firstPageSeparate = !props.controls.firstPageSeparate;
-                  props.callbacks.onControlsChange({
-                    ...props.controls,
-                    firstPageSeparate,
-                  });
+                  const firstPageSeparate = !controls().firstPageSeparate;
+                  ctx.firstPageSeparate[1](firstPageSeparate);
                   showControlChange(
                     firstPageSeparate
                       ? texts.reader.pairSecondAndThirdPages
@@ -283,25 +294,25 @@ export function Toolbar(props: {
                   );
                 }}
               >
-                {props.controls.firstPageSeparate ? "2+3" : "1+2"}
+                {controls().firstPageSeparate ? "2+3" : "1+2"}
               </Button>
               <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
-                aria-label={props.controls.rightTapAction === "previous" ? texts.reader.rightTapPrevious : texts.reader.rightTapNext}
+                aria-label={controls().rightTapAction === "previous" ? texts.reader.rightTapPrevious : texts.reader.rightTapNext}
                 onClick={() => {
-                  const rightTapAction = props.controls.rightTapAction === "previous" ? "next" : "previous";
-                  props.callbacks.onControlsChange({ ...props.controls, rightTapAction });
+                  const rightTapAction = controls().rightTapAction === "previous" ? "next" : "previous";
+                  settings().rightTapAction.set(rightTapAction);
                   showControlChange(rightTapAction === "previous" ? texts.reader.rightTapPrevious : texts.reader.rightTapNext);
                 }}
               >
-                {props.controls.rightTapAction === "previous" ? "R-" : "R+"}
+                {controls().rightTapAction === "previous" ? "R-" : "R+"}
               </Button>
               <Button
                 class={READER_TOOLBAR_BUTTON_CLASS}
                 aria-label={texts.reader.adjustScrollViewport}
                 title={texts.reader.adjustScrollViewport}
-                disabled={props.controls.navigationMode !== "scroll"}
-                onClick={() => props.callbacks.onViewportAdjustClick()}
+                disabled={controls().navigationMode !== "scroll"}
+                onClick={() => ctx.scrollScale.open()}
               >
                 <Icon name="viewport" size={READER_ICON_SIZE} />
               </Button>
@@ -312,14 +323,14 @@ export function Toolbar(props: {
       <div
         ref={pageNumber}
         class="ehpeek-reader-page-number"
-        hidden={props.controls.navigationMode === "scroll" && !props.open && !props.fullscreenActive}
+        hidden={controls().navigationMode === "scroll" && !props.open && !props.fullscreenActive}
       >
         {pageNumberText(texts,
-          props.progress.pageNum,
-          props.progress.totalPages,
-          props.controls.navigationMode,
-          props.controls.pageLayout,
-          props.controls.firstPageSeparate,
+          progress().pageNum,
+          progress().totalPages,
+          controls().navigationMode,
+          controls().pageLayout,
+          controls().firstPageSeparate,
         )}
       </div>
       <Show when={props.fullscreenActive}>
@@ -347,19 +358,19 @@ export function Toolbar(props: {
       >
         <ProgressBar
           class="ehpeek-reader-progress-input"
-          direction={props.controls.direction === "rtl" ? "rtl" : "ltr"}
-          fillPercent={progressFillPercent(props.progress)}
-          keepInputValue={props.progress.keepInputValue}
-          max={Math.max(1, props.progress.maxProgressPageNum)}
+          direction={controls().direction === "rtl" ? "rtl" : "ltr"}
+          fillPercent={progressFillPercent(progress())}
+          keepInputValue={progress().keepInputValue}
+          max={Math.max(1, progress().maxProgressPageNum)}
           min={1}
           step={1}
-          value={props.progress.pageNum}
-          onPointerDown={props.callbacks.onProgressPointerDown}
-          onInput={props.callbacks.onProgressInput}
-          onCommit={props.callbacks.onProgressCommit}
+          value={progress().pageNum}
+          onPointerDown={(event) => { event.stopPropagation(); ctx.position.beginSeek(); }}
+          onInput={ctx.position.seek}
+          onCommit={ctx.position.commitSeek}
         />
       </div>
-      <Show when={!props.disabled && helpOpen()}>
+      <Show when={!ctx.disabled() && helpOpen()}>
         <InteractionHelp variant="reader" onClose={() => setHelpOpen(false)} />
       </Show>
     </div>

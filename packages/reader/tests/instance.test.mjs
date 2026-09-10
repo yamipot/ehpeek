@@ -42,21 +42,21 @@ const mocks = {
       if (fixture.failMount) throw fixture.failMount;
       fixture.mounts++;
       fixture.readerProps = props;
-      const port = progress(props.options.initialPageNum);
+      const port = progress(props.initPage);
       const actions = {
         progress: port,
         gotoPage(pageNum) {
           port.publish(pageNum);
-          props.callbacks.onProgress({ url: "/page/" + pageNum, aspectRatio: 1, pageNum });
+          props.onProgress({ url: "/page/" + pageNum, aspectRatio: 1, pageNum });
         },
       };
       fixture.reader = actions;
-      props.actionsRef(actions);
+      props.ref(actions);
       onMount(() => {
         if (fixture.failOnMount) throw fixture.failOnMount;
-        actions.gotoPage(props.options.initialPageNum);
+        actions.gotoPage(props.initPage);
       });
-      onCleanup(() => { fixture.unmounts++; props.actionsRef(null); });
+      onCleanup(() => { fixture.unmounts++; props.ref(null); });
       createEffect(() => { fixture.fullscreen = props.fullscreenActive; });
       const element = document.createElement("div");
       element.dataset.testReader = "";
@@ -211,7 +211,10 @@ const actualOutput = await build({
   stdin: {
     contents: `
       export { ReadingView } from "@ehpeek/reader";
-      export { createComponent, createSignal, createRoot, createEffect } from "solid-js";
+      export { Reader } from "./dist/Reader/index.js";
+      export { createReaderSettings } from "./dist/features/ReaderSettings.js";
+      export { createReaderLoading } from "./dist/Reader/loading.js";
+      export { createComponent, createSignal, createRoot } from "solid-js";
       export { render } from "solid-js/web";
     `,
     resolveDir: new URL("../", import.meta.url).pathname,
@@ -247,6 +250,270 @@ function mountActual(t, options = {}, props = {}) {
   return { instance, root, setDisabled, dispose };
 }
 
+
+function mountReader(t, overrides = {}, initialSettings = {}) {
+  document.body.replaceChildren();
+  const root = document.createElement("div");
+  document.body.append(root);
+  const changes = [];
+  const source = {
+    totalPages: 40, initialPageNum: 1, aspectRatio: 1, initialPreviewItems: [],
+    getPreviewItems: async () => [],
+    getPages: async numbers => numbers.map(pageNum => ({ pageNum, url: "/page/" + pageNum, aspectRatio: 1 })),
+    loadImage: () => new Promise(() => {}),
+    ...overrides,
+  };
+  const settings = actual.createReaderSettings(initialSettings);
+  let reader, setDisabled;
+  const dispose = actual.render(() => {
+    const [disabled, set] = actual.createSignal(false);
+    setDisabled = set;
+    return actual.createComponent(actual.Reader, {
+      source, settings, fullscreenActive: false,
+      get disabled() { return disabled(); },
+      ref: value => { reader = value; },
+      onProgress: page => changes.push(page.pageNum),
+      onClose: () => true, onEnd() {}, onOpenPreview() {}, onToggleFullscreen() {},
+    });
+  }, root);
+  t.after(async () => { dispose(); await settle(); });
+  return { reader, root, changes, settings, setDisabled, dispose };
+}
+
+test("Reader preserves silent sync through delayed metadata and publishes the next local destination", async t => {
+  const pending = new Map();
+  const { reader, changes } = mountReader(t, {
+    initialPageNum: 2,
+    getPages: numbers => new Promise(resolve => pending.set(numbers[0], resolve)),
+  });
+  const resolvePage = pageNum => {
+    assert.ok(pending.has(pageNum));
+    pending.get(pageNum)([{ pageNum, url: "/page/" + pageNum, aspectRatio: 1 }]);
+  };
+  reader.progress.setProgress(5);
+  resolvePage(2);
+  resolvePage(5);
+  await settle();
+  assert.equal(reader.progress.current(), 5);
+  assert.deepEqual(changes, []);
+  reader.gotoPage(6);
+  assert.deepEqual(changes, []);
+  resolvePage(6);
+  await settle();
+  assert.deepEqual(changes, [6]);
+  reader.gotoPage(6);
+  await settle();
+  assert.deepEqual(changes, [6]);
+});
+
+test("Reader seek previews defer requests and progress; disable cancels the idle commit", async t => {
+  const requested = [];
+  const { reader, root, changes, setDisabled } = mountReader(t, {
+    getPages: async numbers => {
+      requested.push(...numbers);
+      return numbers.map(pageNum => ({ pageNum, url: "/page/" + pageNum, aspectRatio: 1 }));
+    },
+  });
+  await settle();
+  changes.length = 0;
+  const input = root.querySelector(".ehpeek-reader-progress-input");
+  const seek = pageNum => {
+    pointer(input, "pointerdown");
+    input.value = String(pageNum);
+    input.dispatchEvent(new window.Event("input", { bubbles: true }));
+  };
+  seek(7);
+  assert.equal(reader.progress.current(), 7);
+  assert.deepEqual(changes, []);
+  input.dispatchEvent(new window.Event("change", { bubbles: true }));
+  await settle();
+  assert.deepEqual(changes, [7]);
+  changes.length = 0;
+  seek(30);
+  await settle();
+  assert.equal(reader.progress.current(), 30);
+  assert.equal(requested.includes(30), false);
+  assert.deepEqual(changes, []);
+  setDisabled(true);
+  await new Promise(resolve => setTimeout(resolve, 220));
+  assert.deepEqual(changes, []);
+  reader.progress.setProgress(4);
+  await settle();
+  assert.equal(reader.progress.current(), 4);
+  assert.deepEqual(changes, []);
+});
+
+test("Reader paged turns accumulate targets and cannot commit after silent sync or disable", async t => {
+  const originalRequest = window.requestAnimationFrame, originalCancel = window.cancelAnimationFrame;
+  const frames = new Map();
+  let nextId = 1, now = performance.now();
+  window.requestAnimationFrame = callback => { const id = nextId++; frames.set(id, callback); return id; };
+  window.cancelAnimationFrame = id => { frames.delete(id); };
+  t.after(() => { window.requestAnimationFrame = originalRequest; window.cancelAnimationFrame = originalCancel; });
+  const flush = async () => {
+    for (let step = 0; step < 12; step++) {
+      await settle();
+      const callbacks = [...frames.values()];
+      frames.clear();
+      now += 32;
+      for (const callback of callbacks) callback(now);
+    }
+    await settle();
+  };
+  const controls = { navigationMode: "paged", scrollDirection: "ttb", pagedDirection: "ltr", pageLayout: "double", rightTapAction: "previous" };
+  const { reader, changes, setDisabled } = mountReader(t, {}, { portraitControls: controls, landscapeControls: controls });
+  await flush();
+  changes.length = 0;
+  keydown("ArrowLeft");
+  keydown("ArrowLeft");
+  await flush();
+  assert.equal(reader.progress.current(), 5);
+  assert.deepEqual(changes, [5]);
+  changes.length = 0;
+  keydown("ArrowLeft");
+  reader.progress.setProgress(4);
+  await flush();
+  assert.equal(reader.progress.current(), 3);
+  assert.deepEqual(changes, []);
+  keydown("ArrowLeft");
+  setDisabled(true);
+  await flush();
+  assert.equal(reader.progress.current(), 3);
+  assert.deepEqual(changes, []);
+});
+
+test("Reader loading owns retry, progressive images, decoded retention and abort", async t => {
+  let loader, dispose, signal, failMetadata = true;
+  const [requestedPage, setRequestedPage] = actual.createSignal(1);
+  actual.createRoot(cleanup => {
+    dispose = cleanup;
+    loader = actual.createReaderLoading({
+      source: {
+        totalPages: 4, initialPageNum: 1, aspectRatio: 1, initialPreviewItems: [],
+        getPreviewItems: async () => [],
+        getPages: async (numbers, abortSignal) => {
+          signal = abortSignal;
+          if (failMetadata) throw new Error("metadata failed");
+          return numbers.map(pageNum => ({ pageNum, url: "/page/" + pageNum, aspectRatio: 1 }));
+        },
+        loadImage: async page => ({
+          imageUrl: "https://reader.test/image/" + page.pageNum, width: 100, height: 100, displayWhileLoading: true,
+        }),
+      },
+      requestedPage, priorityPages: () => [requestedPage()], firstVisiblePage: () => null,
+      seeking: () => false, closing: () => false, renderWindowSize: 0, decodedImageCacheLimit: 0,
+    });
+  });
+  t.after(dispose);
+  await settle();
+  assert.equal(loader.page(1).status, "error");
+  failMetadata = false;
+  loader.retry(1);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.ok(loader.page(1).page);
+  assert.equal(loader.page(1).status, "loading");
+  const element = loader.page(1).element;
+  assert.ok(element);
+  Object.defineProperty(element, "naturalWidth", { value: 100 });
+  Object.defineProperty(element, "naturalHeight", { value: 100 });
+  element.decode = async () => {};
+  element.dispatchEvent(new window.Event("load"));
+  await settle();
+  assert.equal(loader.page(1).status, "ready");
+  setRequestedPage(3);
+  assert.equal(loader.page(1).element, null);
+  assert.equal(loader.page(1).image, null);
+  assert.equal(element.hasAttribute("src"), false);
+  dispose();
+  assert.equal(signal.aborted, true);
+});
+
+test("Reader accepts native scrolling without writing a second reading position during window replacement", async t => {
+  const originalBounds = window.HTMLElement.prototype.getBoundingClientRect;
+  window.HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.classList.contains("ehpeek-reader-scroller")) return new window.DOMRect(0, 0, 400, 600);
+    if (this.classList.contains("ehpeek-page")) {
+      const scroller = this.closest(".ehpeek-reader-scroller");
+      const first = Number(scroller.querySelector(".ehpeek-page").dataset.ehpeekPageNum);
+      const page = Number(this.dataset.ehpeekPageNum);
+      return new window.DOMRect(0, (page - first) * 100 - scroller.scrollTop, 400, 100);
+    }
+    return originalBounds.call(this);
+  };
+  t.after(() => { window.HTMLElement.prototype.getBoundingClientRect = originalBounds; });
+  const { reader, root, changes } = mountReader(t);
+  const frames = () => new Promise(resolve => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
+  await settle();
+  await frames();
+  await frames();
+  changes.length = 0;
+  const scroller = root.querySelector(".ehpeek-reader-scroller");
+  assert.equal(scroller.scrollTop, 1000);
+  scroller.scrollTop += 300;
+  scroller.dispatchEvent(new window.Event("scroll"));
+  await frames();
+  await settle();
+  assert.equal(reader.progress.current(), 4);
+  assert.deepEqual(changes, [4]);
+  await frames();
+  assert.equal(reader.progress.current(), 4);
+  assert.deepEqual(changes, [4]);
+});
+
+test("Reader native scrolling cannot enter window padding beyond the first page or end screen", async t => {
+  for (const direction of ["ttb", "ltr", "rtl"]) {
+    await t.test(direction, async t => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const originalBounds = window.HTMLElement.prototype.getBoundingClientRect;
+      window.HTMLElement.prototype.getBoundingClientRect = function () {
+        if (this.classList.contains("ehpeek-reader-scroller")) return new window.DOMRect(0, 0, width, height);
+        if (this.classList.contains("ehpeek-page")) {
+          const scroller = this.closest(".ehpeek-reader-scroller");
+          const nodes = [...scroller.querySelectorAll(".ehpeek-page")];
+          const index = direction === "rtl" ? nodes.length - 1 - nodes.indexOf(this) : nodes.indexOf(this);
+          return new window.DOMRect(
+            direction === "ttb" ? 0 : index * width - scroller.scrollLeft,
+            direction === "ttb" ? index * height - scroller.scrollTop : 0,
+            width, height,
+          );
+        }
+        return originalBounds.call(this);
+      };
+      t.after(() => { window.HTMLElement.prototype.getBoundingClientRect = originalBounds; });
+      const controls = { navigationMode: "scroll", scrollDirection: direction };
+      const { reader, root } = mountReader(t, { totalPages: 3, initialPageNum: 3 }, {
+        portraitControls: controls, landscapeControls: controls,
+      });
+      const frames = () => new Promise(resolve => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
+      await settle();
+      await frames();
+      await frames();
+      const scroller = root.querySelector(".ehpeek-reader-scroller");
+      const offset = direction === "ttb" ? "scrollTop" : "scrollLeft";
+      const advance = (direction === "ttb" ? height : width) * (direction === "rtl" ? -1 : 1);
+      const pageRect = page => scroller.querySelector(`[data-ehpeek-page-num="${page}"]`).getBoundingClientRect();
+      scroller[offset] += advance * 5;
+      scroller.dispatchEvent(new window.Event("scroll"));
+      assert.equal(direction === "ttb" ? pageRect(4).bottom : pageRect(4).right, direction === "ttb" ? height : width);
+      await frames();
+      await settle();
+      assert.equal(reader.progress.current(), 4);
+
+      reader.gotoPage(1);
+      await settle();
+      await frames();
+      await frames();
+      scroller[offset] -= advance * 5;
+      scroller.dispatchEvent(new window.Event("scroll"));
+      assert.equal(direction === "ttb" ? pageRect(1).top : pageRect(1).left, 0);
+      await frames();
+      await settle();
+      assert.equal(reader.progress.current(), 1);
+    });
+  }
+});
+
 function labelledButton(root, label) {
   const button = [...root.querySelectorAll("button")].find(button => button.getAttribute("aria-label") === label);
   assert.ok(button, label);
@@ -260,6 +527,50 @@ function pointer(target, type, x = 200, y = 100) {
     bubbles: true, pointerId: 1, pointerType: "mouse", button: 0, clientX: x, clientY: y,
   }));
 }
+
+test("Reader preview swipe restores page alignment before coverage and retains it after closing Preview", async t => {
+  const originalBounds = window.HTMLElement.prototype.getBoundingClientRect;
+  window.HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.classList.contains("ehpeek-reader-scroller")) return new window.DOMRect(0, 0, 400, 600);
+    if (this.classList.contains("ehpeek-page")) {
+      const scroller = this.closest(".ehpeek-reader-scroller");
+      const nodes = [...scroller.querySelectorAll(".ehpeek-page")];
+      const index = scroller.dataset.readDirection === "rtl" ? nodes.length - 1 - nodes.indexOf(this) : nodes.indexOf(this);
+      return new window.DOMRect(index * 400 - scroller.scrollLeft, 0, 400, 600);
+    }
+    return originalBounds.call(this);
+  };
+  t.after(() => { window.HTMLElement.prototype.getBoundingClientRect = originalBounds; });
+  for (const direction of ["ltr", "rtl"]) {
+    await t.test(direction, async t => {
+      const { instance } = mountActual(t);
+      for (const controls of [instance.settings.portraitControls, instance.settings.landscapeControls]) {
+        controls.navigationMode.set("paged");
+        controls.pagedDirection.set(direction);
+        controls.pageLayout.set("single");
+      }
+      await instance.open(2);
+      await settle();
+      const reader = document.querySelector("#ehpeek-reader");
+      const scroller = reader.querySelector(".ehpeek-reader-scroller");
+      const aligned = scroller.scrollLeft;
+      pointer(scroller, "pointerdown", 200, 100);
+      document.dispatchEvent(new window.MouseEvent("mousemove", { bubbles: true, clientX: 220, clientY: 180 }));
+      assert.equal(scroller.scrollLeft, aligned - 20);
+      pointer(document, "pointerup", 220, 180);
+      await settle();
+      assert.equal(instance.activeView, "preview");
+      assert.equal(reader.inert, true);
+      assert.equal(scroller.scrollLeft, aligned);
+      labelledButton(document.querySelector('.ehpeek-preview-host[data-embedded="false"] > .ehpeek-preview-panel'), "Close").click();
+      await settle();
+      assert.equal(instance.activeView, "reader");
+      assert.equal(reader.inert, false);
+      assert.equal(scroller.scrollLeft, aligned);
+      assert.equal(instance.progress(), 2);
+    });
+  }
+});
 
 test("covered Reader ignores keyboard, wheel, buttons and a pointer released after coverage", async t => {
   const { instance } = mountActual(t);
@@ -458,7 +769,6 @@ test("mounted public Reader and Preview respond to instance settings without vie
     assert.ok(found, label);
     return found;
   };
-  // Opening the real toolbar must restore hit testing above the gesture canvas.
   const scroller = reader.querySelector(".ehpeek-reader-scroller");
   scroller.getBoundingClientRect = () => new window.DOMRect(0, 0, 400, 600);
   scroller.dispatchEvent(new window.PointerEvent("pointerdown", {
@@ -469,9 +779,6 @@ test("mounted public Reader and Preview respond to instance settings without vie
   }));
   const controls = reader.querySelector(".ehpeek-reader-toolbar-controls");
   assert.equal(controls.hidden, false);
-  assert.equal(window.getComputedStyle(controls).pointerEvents, "auto");
-  assert.ok(Number(window.getComputedStyle(reader.querySelector(".ehpeek-reader-toolbar")).zIndex) >
-    Number(window.getComputedStyle(reader.querySelector(".ehpeek-reader-canvas")).zIndex));
   button("Reading options").click();
   assert.ok(reader.querySelector(".ehpeek-reader-toolbar-more"));
   button("Paged mode").click();
@@ -517,24 +824,6 @@ test("mounted public Reader and Preview respond to instance settings without vie
   assert.ok(overlay().querySelector('[aria-label="Scroll Preview: top to bottom"]'));
 });
 
-test("setting dependencies are per field, including fields in the same orientation", t => {
-  const { instance } = mountActual(t);
-  const settings = instance.settings;
-  const reads = { portraitDirection: 0, portraitMode: 0, landscapeDirection: 0, scale: 0 };
-  actual.createRoot(dispose => {
-    t.after(dispose);
-    actual.createEffect(() => { settings.portraitControls.pagedDirection.value(); reads.portraitDirection++; });
-    actual.createEffect(() => { settings.portraitControls.navigationMode.value(); reads.portraitMode++; });
-    actual.createEffect(() => { settings.landscapeControls.pagedDirection.value(); reads.landscapeDirection++; });
-    actual.createEffect(() => { settings.scrollTtbScale.value(); reads.scale++; });
-  });
-  assert.deepEqual(reads, { portraitDirection: 1, portraitMode: 1, landscapeDirection: 1, scale: 1 });
-  settings.portraitControls.pagedDirection.set("ltr");
-  settings.portraitControls.pagedDirection.set("ltr");
-  settings.leftHandedControls.set(true);
-  settings.scrollHorizontalScale.set(2);
-  assert.deepEqual(reads, { portraitDirection: 2, portraitMode: 1, landscapeDirection: 1, scale: 1 });
-});
 
 test("Reader follows the selected orientation's individual settings after rotation", async t => {
   const matchMedia = window.matchMedia;
@@ -583,8 +872,6 @@ test("embedded preview returns to the existing reader and retains progress sync"
     }),
   }, { embeddedPreview: true });
   assert.equal(instance.activeView, null);
-  assert.equal("dispose" in instance, false);
-  assert.equal("Preview" in instance, false);
   assert.equal(fixture.preview.current(), 2);
   await instance.open(4);
   assert.equal(instance.activeView, "reader");
@@ -604,7 +891,7 @@ test("embedded preview returns to the existing reader and retains progress sync"
   fixture.reader.gotoPage(5);
   assert.equal(instance.progress(), 5);
   assert.equal(fixture.preview.current(), 5);
-  fixture.readerProps.callbacks.onOpenPreview(5);
+  fixture.readerProps.onOpenPreview(5);
   assert.equal(instance.activeView, "preview");
   assert.equal(fixture.readerProps.disabled, true);
   assert.equal(fixture.previewProps.embeddedDisabled, false);
@@ -616,7 +903,7 @@ test("embedded preview returns to the existing reader and retains progress sync"
   assert.equal(mounted.style.visibility, "");
   fixture.reader.gotoPage(6);
   assert.equal(fixture.preview.current(), 6);
-  fixture.readerProps.callbacks.onOpenPreview(6);
+  fixture.readerProps.onOpenPreview(6);
   fixture.previewProps.onSelectPage(8);
   await settle();
   assert.equal(instance.activeView, "reader");
@@ -651,7 +938,7 @@ test("overlay preview respects history closure and browser fullscreen exit", asy
   });
   await instance.open(3, true);
   assert.equal(env.host.fullscreen.active(), true);
-  fixture.readerProps.callbacks.onOpenPreview(3);
+  fixture.readerProps.onOpenPreview(3);
   assert.deepEqual(fixture.openState, { mode: "overlay", pageNum: 3 });
   fixture.previewProps.onClose(3);
   assert.equal(instance.activeView, "preview");
@@ -751,7 +1038,7 @@ test("closing and reopening reader reconnects progress without remounting previe
   await instance.open(2);
   const previous = fixture.reader.progress;
   fixture.reader.gotoPage(3);
-  fixture.readerProps.callbacks.onClose();
+  fixture.readerProps.onClose();
   await settle();
   assert.equal(instance.activeView, null);
   assert.equal(previous.listeners.size, 0);

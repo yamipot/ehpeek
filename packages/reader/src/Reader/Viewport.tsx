@@ -1,179 +1,97 @@
-import { pageWindowNumbers, pageFrameSize } from "./layout";
-import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, untrack } from "solid-js";
-import type { NavigationMode, PageLayout, ReaderScrollSizeScale, ReadDirection } from "../kit/interfaces";
-import { useReaderTexts, type ReaderTexts } from "../kit/i18n";
-import { clamp, normalizedAspectRatio, positiveNumber } from "../kit/helpers";
+import { createEffect, createSignal, For, onCleanup, onMount, Show, untrack, type Accessor, type JSX } from "solid-js";
+import { getReaderControls, useReaderContext } from "./Context";
+import { createReaderGestures, type ReaderGestureViewport } from "./gestures";
+import { ReaderPageView } from "./Page";
+import { ReaderPositionBar } from "./PositionBar";
+import { ZoomOverlay, type ZoomOverlayImage } from "./ZoomOverlay";
+import { pageFrameSize } from "./layout";
+import { createPagesScroller, type SlotElements, type ScrollBounds, type ViewportCenterAnchor } from "./scroller";
 import { ScrollAnimator, ScrollFlingAnimator, type ScrollMotion } from "../kit/animation";
-import { createPointerGestureElement, type PointerGestureCallbacks } from "../kit/PointerGesture";
-import { Icon } from "../kit/Widgets/Icon";
+import { createPointerGestureElement } from "../kit/PointerGesture";
+import { clamp, normalizedAspectRatio } from "../kit/helpers";
+export interface ReaderViewportSize {
+  /** Available reading area in CSS pixels. */
+  width: number;
+  height: number;
+}
 
-const FALLBACK_ASPECT_RATIO = 1.42;
+export interface ReaderViewportRef {
+  size: Accessor<ReaderViewportSize | null>;
+  /** First visible content page in reading order; null before layout or on the end screen. */
+  firstVisiblePage: Accessor<number | null>;
+  /**
+   * Align a reading page after its frame is available. True means alignment completed;
+   * replacement, user interruption or unmount settles the request with false.
+   */
+  moveToPage(pageNum: number, motion?: ScrollMotion): Promise<boolean>;
+  /** Stop page movement and dragging without changing the committed reading page. */
+  stopMotion(): void;
+  /** Dismiss image zoom; return false when there was no zoom to dismiss. */
+  closeZoom(): boolean;
+}
+
+export interface ReaderViewportProps {
+  /** Initial normalized reading page, including the separate-cover and double-page rules. */
+  initPage: number;
+  /**
+   * Report the reading page observed during user scrolling, not programmatic alignment.
+   * Reader accepts this position without writing the same scroll offset back to the DOM.
+   */
+  onScrollPageChange(pageNum: number): void;
+  /** Center taps toggle tools; opening image zoom hides them. */
+  onToggleToolbar(): void;
+  onHideToolbar(): void;
+}
+
+
 const PAGE_SLOT_SPACING = 8;
-const DEFAULT_DECODED_IMAGE_CACHE_LIMIT = 24;
-const DECODED_IMAGE_CACHE_BYTES = 96 * 1024 * 1024;
+const FALLBACK_ASPECT_RATIO = 1.42;
 const HORIZONTAL_FLING_VELOCITY_MULTIPLIER = 1.4;
 const HORIZONTAL_FLING_MAX_VELOCITY = 1.8;
-
-type PageMeta = {
-  aspectRatio: number;
-};
-
-type PageState = "idle" | "loading" | "ready" | "error";
-type VerticalScrollBounds = { min?: number; max?: number };
-type HorizontalScrollBounds = { min?: number; max?: number };
-type ViewportCenterAnchor = {
-  pageNum: number;
-  xRatio: number;
-  yRatio: number;
-};
-
-export type PagesViewportWindowOptions = {
-  currentPageNum: number;
-  windowSize: number;
-  totalPages?: number;
-  pages: Map<number, PageMeta>;
-};
-
-type ViewportImage = {
-  displayWhileLoading: boolean;
-  imageUrl: string;
-  highPriority: boolean;
-  width: number | null;
-  height: number | null;
-};
-
-export type ScrollFitImageSize = {
-  height: number;
-  width: number;
-};
-
-type PageSlotKind = "page" | "blank" | "end";
-type DoublePageSide = "left" | "right" | null;
-
-type SlotContent = {
-  pageNum: number;
-  kind: PageSlotKind;
-  state: PageState;
-  errorMessage?: string;
-};
-
-type SlotElements = {
-  node: HTMLElement;
-  frame: HTMLElement;
-};
-
 type PageSlot = {
   pageNum: number;
   index: number;
-  kind: PageSlotKind;
-  state: PageState;
-  aspectRatio: number;
-  width: number | null;
-  height: number | null;
-  image: HTMLImageElement | null;
-  errorMessage: string | null;
+  kind: "page" | "blank" | "end";
   frameWidth: number;
   frameHeight: number;
   elements: SlotElements | null;
-  token: number;
 };
 
-type CachedPageImage = {
-  bytes: number;
-  height: number | null;
-  image: HTMLImageElement;
-  width: number | null;
-};
-
-export type PagesViewportCallbacks = {
-  onNativeScroll: () => void;
-  onReloadPage: (pageNum: number) => void;
-  onWheel: (delta: number, event: WheelEvent) => void;
-  pointer: PointerGestureCallbacks;
-};
-
-export type PagesViewportActions = {
-  beginDrag: () => void;
-  cancelDrag: () => void;
-  centerPageNum: () => number | null;
-  firstVisiblePageNum: () => number | null;
-  focus: () => void;
-  isDragging: () => boolean;
-  isHitEndPage: (point: { clientX: number; clientY: number }) => boolean;
-  loadPageImage: (pageNum: number, token: number, slotImage: ViewportImage) => Promise<boolean>;
-  markPageLoading: (pageNum: number) => number | null;
-  moveToPage: (pageNum: number, motion?: ScrollMotion, onComplete?: () => void) => void;
-  moveToTop: (scrollTop: number) => void;
-  moveDrag: (delta: { dx: number; dy: number }) => boolean;
-  moveToLeft: (scrollLeft: number) => void;
-  pageImageHeight: (pageNum: number) => number | null;
-  pageImageReady: (pageNum: number) => boolean;
-  pageImageWidth: (pageNum: number) => number | null;
-  pageZoomScale: (pageNum: number) => number;
-  pageNumAtPoint: (point: { clientX: number; clientY: number }) => number | null;
-  pageOffset: (pageNum: number) => number | null;
-  resetPageError: (pageNum: number) => boolean;
-  resetPageLoading: (pageNum: number, token: number) => boolean;
-  resetPosition: () => void;
-  scrollLeft: () => number;
-  scrollTop: () => number;
-  setPageError: (pageNum: number, token: number, errorMessage: string) => boolean;
-  startHorizontalFlingFromDragVelocity: (dragVelocityX: number, onStop: () => void) => void;
-  startVerticalFlingFromDragVelocity: (dragVelocityY: number, onStop: () => void) => void;
-  stopMotion: () => void;
-  viewportWidth: () => number;
-  viewportXRatio: (clientX: number) => number;
-};
-
-export function PagesViewport(props: {
-  disabled?: boolean;
-  actionsRef: (actions: PagesViewportActions) => void;
-  callbacks: PagesViewportCallbacks;
-  decodedImageCacheLimit?: number;
-  direction: ReadDirection;
-  navigationMode: NavigationMode;
-  pageLayout: PageLayout;
-  scrollFitImageSize: ScrollFitImageSize | null;
-  scrollFitPageNum: number;
-  scrollSizeScale: ReaderScrollSizeScale;
-  window: PagesViewportWindowOptions;
-  zoomActive: boolean;
-}) {
-  const texts = useReaderTexts();
+export function ReaderViewport(props: ReaderViewportProps) {
+  const ctx = useReaderContext();
+  const controls = () => getReaderControls(ctx);
+  const pageLayout = () => controls().pageLayout === "double" && controls().firstPageSeparate && ctx.position.page() === 1 ? "single" : controls().pageLayout;
+  const pagedMode = () => controls().navigationMode === "paged";
+  const horizontalAxis = () => controls().direction !== "ttb";
   const [slots, setSlots] = createSignal<PageSlot[]>([]);
   const [revision, setRevision] = createSignal(0);
-  const [renderedScrollSizeScale, setRenderedScrollSizeScale] = createSignal(
-    untrack(() => props.scrollSizeScale),
-  );
+  const [size, setSize] = createSignal<ReaderViewportSize | null>(null);
+  const [firstVisiblePage, setFirstVisiblePage] = createSignal<number | null>(null);
+  const [scrollOffset, setScrollOffset] = createSignal(0);
+  const [zoomImage, setZoomImage] = createSignal<ZoomOverlayImage | null>(null);
   let scroller!: HTMLDivElement;
   let scrollerApi!: ReturnType<typeof createPagesScroller>;
-  let resizeFrame: number | null = null;
-  let scrollScaleRevision = 0;
+  let gestures!: ReturnType<typeof createReaderGestures>;
   let disposed = false;
-  let syncedDirection = untrack(() => props.direction);
-  let syncedNavigationMode = untrack(() => props.navigationMode);
-  const decodedImageCacheLimit = Math.max(
-    0,
-    Math.floor(untrack(() => props.decodedImageCacheLimit) ?? DEFAULT_DECODED_IMAGE_CACHE_LIMIT),
-  );
-  const pages = new ViewportPages(
-    decodedImageCacheLimit,
-    slot => refreshSlot(slot),
-    () => refresh(),
-    texts.errors.imageLoadFailed,
-  );
-
-  const refresh = () => setRevision((value) => value + 1);
-  const pagedMode = () => props.navigationMode === "paged";
-  const horizontalAxis = () => props.direction !== "ttb";
-  const slotFor = (pageNum: number) => pages.slotFor(pageNum);
-  const viewportWidth = () => scrollerApi.viewportWidth();
-  const viewportHeight = () => scrollerApi.viewportHeight();
+  let resizeFrame: number | undefined;
+  let scrollFrame: number | undefined;
+  let programmaticFrame: number | undefined;
+  let programmatic = false;
+  let syncingRevision = 0;
+  const pages = { items: [] as PageSlot[] };
+  const slotFor = (pageNum: number) => pages.items.find(slot => slot.pageNum === pageNum);
+  const refresh = () => setRevision(value => value + 1);
+  const viewportWidth = () => size()?.width ?? 1;
+  const viewportHeight = () => size()?.height ?? 1;
   const scrollTop = () => scrollerApi.scrollTop();
-  const visualSlotIndex = (index: number, slotCount: number) =>
-    props.direction === "rtl" ? slotCount - 1 - index : index;
+  const aspectRatio = (pageNum: number) => {
+    const resource = ctx.loading.page(pageNum);
+    const width = resource?.element?.naturalWidth || resource?.image?.width;
+    const height = resource?.element?.naturalHeight || resource?.image?.height;
+    return width && height ? height / width : normalizedAspectRatio(resource?.page?.aspectRatio, FALLBACK_ASPECT_RATIO);
+  };
   const horizontalAnchorOffset = (pageSlots: PageSlot[], anchor: ViewportCenterAnchor): number | null => {
-    const orderedSlots = props.direction === "rtl" ? pageSlots.slice().reverse() : pageSlots;
+    const orderedSlots = controls().direction === "rtl" ? pageSlots.slice().reverse() : pageSlots;
     let offset = 0;
     for (const slot of orderedSlots) {
       const extent = slot.frameWidth + PAGE_SLOT_SPACING;
@@ -185,48 +103,36 @@ export function PagesViewport(props: {
     return null;
   };
   const applySlotSize = (slot: PageSlot) => {
-    const scrolling = props.navigationMode === "scroll";
-    const reference = scrolling ? props.scrollFitImageSize : null;
+    const scrolling = controls().navigationMode === "scroll";
+    const reference = scrolling ? ctx.scrollScale.referenceImageSize() : null;
     const frame = pageFrameSize({
-      aspectRatio: pageSlotAspectRatio(slot),
+      aspectRatio: aspectRatio(slot.pageNum),
       contentPage: slot.kind === "page",
       viewportWidth: viewportWidth(),
       viewportHeight: viewportHeight(),
-      navigationMode: props.navigationMode,
-      pageLayout: props.pageLayout,
-      sizeScale: scrolling ? renderedScrollSizeScale() : null,
+      navigationMode: controls().navigationMode,
+      pageLayout: pageLayout(),
+      sizeScale: scrolling ? ctx.scrollScale.value() : null,
       reference,
       referenceAspectRatio: reference
         ? reference.height / reference.width
         : scrolling
-          ? props.window.pages.get(props.scrollFitPageNum)?.aspectRatio ?? FALLBACK_ASPECT_RATIO
+          ? ctx.loading.page(props.initPage)?.page?.aspectRatio ?? FALLBACK_ASPECT_RATIO
           : FALLBACK_ASPECT_RATIO,
       horizontal: scrolling && horizontalAxis(),
     });
     slot.frameWidth = frame.width;
     slot.frameHeight = frame.height;
   };
-  const renderSlots = () => {
-    for (const slot of pages.items) {
-      applySlotSize(slot);
-    }
-
-    setSlots(pages.items.slice());
-    refresh();
-  };
-  const refreshSlot = (slot: PageSlot) => {
-    applySlotSize(slot);
-    refresh();
-  };
   const pageOffset = (pageNum: number) => {
     const elements = slotFor(pageNum)?.elements;
-    return elements ? scrollerApi.slotOffset(elements, props.navigationMode, props.direction, props.pageLayout) : null;
+    return elements ? scrollerApi.slotOffset(elements, controls().navigationMode, controls().direction, pageLayout()) : null;
   };
   const verticalScrollBoundsForElements = (
     firstElements: SlotElements | null | undefined,
     lastElements: SlotElements | null | undefined,
-  ): VerticalScrollBounds | null => {
-    const bounds: VerticalScrollBounds = {};
+  ): ScrollBounds | null => {
+    const bounds: ScrollBounds = {};
 
     if (firstElements) {
       bounds.min = scrollerApi.slotTop(firstElements);
@@ -248,27 +154,27 @@ export function PagesViewport(props: {
 
     return bounds;
   };
-  const verticalScrollBounds = (): VerticalScrollBounds | null => {
-    if (props.navigationMode !== "scroll" || horizontalAxis()) {
+  const verticalScrollBounds = (): ScrollBounds | null => {
+    if (controls().navigationMode !== "scroll" || horizontalAxis()) {
       return null;
     }
 
     return verticalScrollBoundsForElements(
       slotFor(1)?.elements,
-      props.window.totalPages ? slotFor(props.window.totalPages + 1)?.elements : null,
+      ctx.source.totalPages ? slotFor(ctx.source.totalPages + 1)?.elements : null,
     );
   };
   const moveToTop = (nextScrollTop: number) => {
     scrollerApi.moveToTop(nextScrollTop, verticalScrollBounds());
   };
-  const horizontalScrollBounds = (): HorizontalScrollBounds | null => {
-    if (props.navigationMode !== "scroll" || !horizontalAxis()) {
+  const horizontalScrollBounds = (): ScrollBounds | null => {
+    if (controls().navigationMode !== "scroll" || !horizontalAxis()) {
       return null;
     }
     const firstElements = slotFor(1)?.elements;
-    const endElements = props.window.totalPages ? slotFor(props.window.totalPages + 1)?.elements : null;
-    const bounds: HorizontalScrollBounds = {};
-    if (props.direction === "rtl") {
+    const endElements = ctx.source.totalPages ? slotFor(ctx.source.totalPages + 1)?.elements : null;
+    const bounds: ScrollBounds = {};
+    if (controls().direction === "rtl") {
       if (firstElements) {
         bounds.max = scrollerApi.slotLeft(firstElements) +
           firstElements.node.getBoundingClientRect().width - viewportWidth();
@@ -307,91 +213,91 @@ export function PagesViewport(props: {
     const pageNum = Number(pageNode.dataset.ehpeekPageNum || "");
     return Number.isFinite(pageNum) ? pageNum : null;
   };
-  // Motion requests may outlive an event, but never their viewport.
+
+  // Alignment settles exactly once, including interruption and component disposal.
   const horizontalAnimator = new ScrollAnimator("x");
   const verticalAnimator = new ScrollAnimator("y");
   const flingAnimator = new ScrollFlingAnimator();
   let dragStartPosition: { left: number; top: number } | null = null;
-  let moveRequestToken = 0;
-
+  let settleMove: ((completed: boolean) => void) | null = null;
+  let moveRevision = 0;
+  const suppressScrollObservation = () => {
+    programmatic = true;
+    window.cancelAnimationFrame(programmaticFrame ?? 0);
+    programmaticFrame = window.requestAnimationFrame(() => {
+      programmaticFrame = window.requestAnimationFrame(() => { programmatic = false; });
+    });
+  };
   const stopMotion = () => {
-    moveRequestToken += 1;
+    moveRevision++;
     dragStartPosition = null;
     flingAnimator.cancel();
     horizontalAnimator.cancel();
     verticalAnimator.cancel();
+    settleMove?.(false);
+    settleMove = null;
   };
-  const performPageMove = (pageNum: number, motion: ScrollMotion, onComplete?: () => void): boolean => {
-    const delta = pageOffset(pageNum);
-
-    if (delta === null) {
-      return false;
-    }
-
-    if (horizontalAxis()) {
-      horizontalAnimator.scrollTo(scroller, scrollerApi.scrollLeft() + delta, motion, onComplete);
-    } else if (pagedMode()) {
-      verticalAnimator.scrollTo(scroller, scrollTop() + delta, motion, onComplete);
-    } else {
-      moveToTop(scrollTop() + delta);
-      onComplete?.();
-    }
-    return true;
-  };
-  const moveToPage = (pageNum: number, motion: ScrollMotion = "instant", onComplete?: () => void): void => {
-    const requestToken = ++moveRequestToken;
-
-    if (performPageMove(pageNum, motion, onComplete)) {
-      return;
-    }
-
-    queueMicrotask(() => {
-      untrack(() => {
-        if (!disposed && requestToken === moveRequestToken) {
-          performPageMove(pageNum, motion, onComplete);
-        }
-      });
+  const moveToPage = (pageNum: number, motion: ScrollMotion = "instant"): Promise<boolean> => {
+    stopMotion();
+    suppressScrollObservation();
+    const token = moveRevision;
+    return new Promise(resolve => {
+      settleMove = resolve;
+      queueMicrotask(() => untrack(() => {
+        if (disposed || token !== moveRevision) return;
+        const delta = pageOffset(pageNum);
+        const complete = () => {
+          if (token !== moveRevision) return;
+          settleMove = null;
+          suppressScrollObservation();
+          setFirstVisiblePage(measureFirstVisiblePage());
+          resolve(true);
+        };
+        if (delta === null) { settleMove = null; resolve(false); return; }
+        programmatic = true;
+        window.cancelAnimationFrame(programmaticFrame ?? 0);
+        if (horizontalAxis()) horizontalAnimator.scrollTo(scroller, scrollerApi.scrollLeft() + delta, motion, complete);
+        else if (pagedMode()) verticalAnimator.scrollTo(scroller, scrollTop() + delta, motion, complete);
+        else { moveToTop(scrollTop() + delta); complete(); }
+      }));
     });
   };
-  const resizePages = () => {
-    for (const slot of pages.items) {
-      applySlotSize(slot);
-    }
-    refresh();
-  };
   const gestureDragging = createPointerGestureElement(
-    () => props.disabled ? null : scroller ?? null,
-    () => props.callbacks.pointer,
+    () => ctx.disabled() || ctx.scrollScale.adjusting() ? null : scroller ?? null,
+    () => gestures.pointer,
   );
-  // Window replacement transfers ready images between slots and the off-window cache.
-  const syncWindow = (options: PagesViewportWindowOptions) => {
-    const preserveHorizontalPosition =
-      props.navigationMode === "scroll" &&
-      horizontalAxis() &&
-      syncedNavigationMode === props.navigationMode &&
-      syncedDirection === props.direction;
-    const anchor = preserveHorizontalPosition
-      ? scrollerApi.centerAnchor()
-      : null;
-    const oldAnchorOffset = anchor ? horizontalAnchorOffset(pages.items, anchor) : null;
-    const oldScrollLeft = scrollerApi.scrollLeft();
-    // Preserve the same image-relative anchor across window replacement. Merely
-    // restoring scrollLeft would jump when images before that anchor leave the window.
-    pages.sync(options);
-    renderSlots();
-    const newAnchorOffset = anchor ? horizontalAnchorOffset(pages.items, anchor) : null;
-    if (oldAnchorOffset !== null && newAnchorOffset !== null) {
-      moveToLeft(oldScrollLeft + newAnchorOffset - oldAnchorOffset);
-    }
-    syncedNavigationMode = props.navigationMode;
-    syncedDirection = props.direction;
+  const centerPageNum = (): number | null => {
+      for (const slot of pages.items) {
+        if (slot.elements && slot.kind !== "blank" && scrollerApi.slotContainsViewportTarget(slot.elements, controls().direction)) {
+          return slot.pageNum;
+        }
+      }
+
+      return null;
   };
-  const actions: PagesViewportActions = {
+  const measureFirstVisiblePage = (): number | null => {
+      let first: { distance: number; pageNum: number } | null = null;
+      for (const slot of pages.items) {
+        if (!slot.elements || slot.kind !== "page") {
+          continue;
+        }
+        const distance = scrollerApi.slotViewportStartDistance(
+          slot.elements,
+          controls().direction,
+        );
+        if (distance !== null && (!first || distance < first.distance)) {
+          first = { distance, pageNum: slot.pageNum };
+        }
+      }
+      return first?.pageNum ?? null;
+  };
+
+  const actions: ReaderGestureViewport = {
     // Movement and its cancellation share the same motion owner.
-    focus: () => scroller.focus({ preventScroll: true }),
     isDragging: gestureDragging,
     beginDrag(): void {
       stopMotion();
+      programmatic = false;
       dragStartPosition = {
         left: scrollerApi.scrollLeft(),
         top: scrollTop(),
@@ -418,7 +324,6 @@ export function PagesViewport(props: {
     moveToLeft,
     moveToTop,
     moveToPage,
-    resetPosition: () => scrollerApi.resetPosition(),
     stopMotion,
     startVerticalFlingFromDragVelocity(dragVelocityY, onStop): void {
       flingAnimator.start({
@@ -426,7 +331,7 @@ export function PagesViewport(props: {
         scroller,
         initialVelocity: -dragVelocityY,
         setScrollPosition: moveToTop,
-        canRun: () => !disposed && props.navigationMode === "scroll" && !horizontalAxis(),
+        canRun: () => !disposed && controls().navigationMode === "scroll" && !horizontalAxis(),
         onStop,
       });
     },
@@ -437,65 +342,26 @@ export function PagesViewport(props: {
         initialVelocity: -dragVelocityX * HORIZONTAL_FLING_VELOCITY_MULTIPLIER,
         maxVelocity: HORIZONTAL_FLING_MAX_VELOCITY,
         setScrollPosition: moveToLeft,
-        canRun: () => !disposed && props.navigationMode === "scroll" && horizontalAxis(),
+        canRun: () => !disposed && controls().navigationMode === "scroll" && horizontalAxis(),
         onStop,
       });
     },
 
-    ...pages.actions,
 
     // Read-only measurements translate rendered slots into reader coordinates.
     scrollLeft: () => scrollerApi.scrollLeft(),
     scrollTop,
-    viewportWidth,
     viewportXRatio: (clientX) => scrollerApi.viewportXRatio(clientX),
-    pageOffset,
-    centerPageNum(): number | null {
-      for (const slot of pages.items) {
-        if (slot.elements && slot.kind !== "blank" && scrollerApi.slotContainsViewportTarget(slot.elements, props.direction)) {
-          return slot.pageNum;
-        }
-      }
-
-      return null;
-    },
-    firstVisiblePageNum(): number | null {
-      let first: { distance: number; pageNum: number } | null = null;
-      for (const slot of pages.items) {
-        if (!slot.elements || slot.kind !== "page") {
-          continue;
-        }
-        const distance = scrollerApi.slotViewportStartDistance(
-          slot.elements,
-          props.direction,
-        );
-        if (distance !== null && (!first || distance < first.distance)) {
-          first = { distance, pageNum: slot.pageNum };
-        }
-      }
-      return first?.pageNum ?? null;
-    },
     isHitEndPage(point): boolean {
       const pageNum = pageNumAtPoint(point);
       return pageNum !== null && slotFor(pageNum)?.kind === "end";
     },
-    pageImageHeight(pageNum): number | null {
-      const slot = slotFor(pageNum);
-      return slot?.image?.naturalHeight || slot?.height || null;
-    },
-    pageImageReady(pageNum): boolean {
-      const slot = slotFor(pageNum);
-      return slot?.state === "ready" && slot.image !== null;
-    },
-    pageImageWidth(pageNum): number | null {
-      const slot = slotFor(pageNum);
-      return slot?.image?.naturalWidth || slot?.width || null;
-    },
     pageZoomScale(pageNum): number {
       const slot = slotFor(pageNum);
       const frameRect = slot?.elements?.frame.getBoundingClientRect();
-      const imageWidth = slot?.image?.naturalWidth || slot?.width;
-      const imageHeight = slot?.image?.naturalHeight || slot?.height;
+      const resource = ctx.loading.page(pageNum);
+      const imageWidth = resource?.element?.naturalWidth || resource?.image?.width;
+      const imageHeight = resource?.element?.naturalHeight || resource?.image?.height;
       if (!frameRect || !imageWidth || !imageHeight) {
         return 1;
       }
@@ -510,747 +376,170 @@ export function PagesViewport(props: {
     pageNumAtPoint,
   };
 
-  untrack(() => props.actionsRef(actions));
-  createEffect(() => syncWindow(props.window));
-  createEffect(() => {
-    const navigationMode = props.navigationMode;
-    const direction = props.direction;
-    const scrollFitImageSize = props.scrollFitImageSize;
-    const scrollSizeScale = props.scrollSizeScale;
-    void scrollFitImageSize;
-    if (navigationMode !== "scroll") {
-      setRenderedScrollSizeScale(1);
-      return;
+
+  const followScroll = () => {
+    setFirstVisiblePage(measureFirstVisiblePage());
+    if (ctx.disabled() || ctx.scrollScale.adjusting() || zoomImage() || pagedMode() || programmatic) return;
+    const page = centerPageNum();
+    if (page !== null && page !== ctx.position.page()) props.onScrollPageChange(page);
+  };
+  const onScroll = () => {
+    // Native scrolling bypasses gesture bounds; window padding is not a reading destination.
+    if (!pagedMode() && !ctx.scrollScale.adjusting() && !zoomImage()) {
+      if (horizontalAxis()) moveToLeft(scrollerApi.scrollLeft());
+      else moveToTop(scrollTop());
     }
-    const anchor = scrollerApi.centerAnchor();
-    const scaleRevision = ++scrollScaleRevision;
-    setRenderedScrollSizeScale(scrollSizeScale);
-    untrack(resizePages);
+    setScrollOffset(horizontalAxis() ? scrollerApi.scrollLeft() : scrollTop());
+    if (programmatic || gestureDragging() || scrollFrame !== undefined) return;
+    scrollFrame = window.requestAnimationFrame(() => untrack(() => {
+      scrollFrame = undefined;
+      followScroll();
+    }));
+  };
+
+  // Frame identity survives window changes; loading owns the image lifetime independently.
+  let previousMode = "";
+  let previousDirection = "";
+  let previousPageLayout = "";
+  let previousViewportSize: ReaderViewportSize | null = null;
+  createEffect(() => {
+    const numbers = ctx.loading.windowPages();
+    const mode = controls().navigationMode;
+    const direction = controls().direction;
+    const layout = pageLayout();
+    const viewportSize = size();
+    const anchorMoveRevision = moveRevision;
+    const anchor = settleMove ? null : scrollerApi.centerAnchor();
+    const oldOffset = anchor && horizontalAxis() ? horizontalAnchorOffset(pages.items, anchor) : null;
+    const oldLeft = scrollerApi.scrollLeft();
+    const previous = new Map(pages.items.map(slot => [slot.pageNum, slot]));
+    const previousSizes = pages.items.map(slot => ({ page: slot.pageNum, width: slot.frameWidth, height: slot.frameHeight }));
+    pages.items = numbers.map((pageNum, index) => {
+      const slot = previous.get(pageNum) ?? {
+        pageNum, index, kind: pageNum < 1 || (ctx.source.totalPages && pageNum > ctx.source.totalPages + 1) ? "blank"
+          : ctx.source.totalPages && pageNum === ctx.source.totalPages + 1 ? "end" : "page",
+        frameWidth: 1, frameHeight: 1, elements: null,
+      };
+      slot.index = index;
+      return slot;
+    });
+    for (const slot of pages.items) applySlotSize(slot);
+    const changed = previousMode !== mode || previousDirection !== direction || previousPageLayout !== layout ||
+      previousViewportSize?.width !== viewportSize?.width || previousViewportSize?.height !== viewportSize?.height ||
+      previousSizes.length !== pages.items.length || pages.items.some((slot, index) => {
+        const old = previousSizes[index];
+        return !old || old.page !== slot.pageNum || old.width !== slot.frameWidth || old.height !== slot.frameHeight;
+      });
+    // Loading/error changes repaint Page, but must not interrupt a scroll with unchanged geometry.
+    if (!changed) return;
+    previousMode = mode;
+    previousDirection = direction;
+    previousPageLayout = layout;
+    previousViewportSize = viewportSize;
+    setSlots(pages.items.slice());
+    refresh();
+    const nextOffset = anchor && horizontalAxis() ? horizontalAnchorOffset(pages.items, anchor) : null;
+    const token = ++syncingRevision;
+    // Offset deltas compensate for frames removed before the same image-relative anchor.
+    if (oldOffset !== null && nextOffset !== null) {
+      suppressScrollObservation();
+      moveToLeft(oldLeft + nextOffset - oldOffset);
+    }
     queueMicrotask(() => {
-      if (disposed || scaleRevision !== scrollScaleRevision) {
-        return;
-      }
-      if (anchor) {
+      if (disposed || token !== syncingRevision) return;
+      // A newer seek/turn takes precedence over the anchor captured for this reflow.
+      if (anchor && !settleMove && anchorMoveRevision === moveRevision) {
+        suppressScrollObservation();
         scrollerApi.restoreCenterAnchor(anchor);
-      } else if (direction === "ttb") {
-        scrollerApi.centerHorizontal();
-      } else {
-        scrollerApi.centerVertical();
       }
+      setFirstVisiblePage(measureFirstVisiblePage());
     });
   });
-  const scrollStripStyle = () => {
-    void revision();
-    if (props.navigationMode !== "scroll") {
-      return {};
-    }
-    if (props.direction === "ttb") {
-      return {
-        width: `${Math.max(viewportWidth(), ...pages.items.map((slot) => slot.frameWidth))}px`,
-      };
-    }
-    return {
-      height: `${Math.max(viewportHeight(), ...pages.items.map((slot) => slot.frameHeight))}px`,
-      width: "max-content",
-    };
+  const stripStyle = () => {
+    revision();
+    if (pagedMode()) return {};
+    return horizontalAxis()
+      ? { height: `${Math.max(viewportHeight(), ...pages.items.map(slot => slot.frameHeight))}px`, width: "max-content" }
+      : { width: `${Math.max(viewportWidth(), ...pages.items.map(slot => slot.frameWidth))}px` };
   };
   onMount(() => {
+    const measure = () => {
+      setSize({ width: Math.max(1, scroller.clientWidth || window.innerWidth), height: Math.max(1, scroller.clientHeight || window.innerHeight) });
+    };
+    measure();
     const observer = new ResizeObserver(() => {
-      if (resizeFrame !== null) {
-        return;
-      }
-
-      resizeFrame = window.requestAnimationFrame(() => {
-        resizeFrame = null;
-        untrack(resizePages);
-      });
+      if (resizeFrame !== undefined) return;
+      resizeFrame = window.requestAnimationFrame(() => { resizeFrame = undefined; measure(); });
     });
-
     observer.observe(scroller);
     onCleanup(() => observer.disconnect());
+    ctx.refs.bindViewport({
+      size, firstVisiblePage, moveToPage, stopMotion,
+      closeZoom() {
+        if (!zoomImage()) return false;
+        setZoomImage(null);
+        return true;
+      },
+    });
+    scroller.focus({ preventScroll: true });
+    void moveToPage(props.initPage);
   });
   onCleanup(() => {
     disposed = true;
     stopMotion();
-    pages.dispose();
-    if (resizeFrame !== null) {
-      window.cancelAnimationFrame(resizeFrame);
-      resizeFrame = null;
-    }
+    window.cancelAnimationFrame(resizeFrame ?? 0);
+    window.cancelAnimationFrame(scrollFrame ?? 0);
+    window.cancelAnimationFrame(programmaticFrame ?? 0);
+    ctx.refs.bindViewport(null);
   });
 
-  return (
-    <div
-      ref={(element) => {
-        scroller = element;
-        scrollerApi = createPagesScroller(element);
-      }}
-      class="ehpeek-reader-scroller"
-      data-navigation-mode={props.navigationMode}
-      data-read-direction={props.direction}
-      data-page-layout={props.pageLayout}
-      data-zoom-active={props.zoomActive}
-      tabIndex={-1}
-      onScroll={() => props.callbacks.onNativeScroll()}
-      onWheel={(event: WheelEvent) => {
-        const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
-        props.callbacks.onWheel(delta, event);
-      }}
-    >
-      <main
-        class="ehpeek-reader-page-strip"
-        style={scrollStripStyle()}
-      >
-        <For each={slots()}>{(slot) => (
-          <PageSlotView
-            doublePageSide={doublePageSide(
-              slot.pageNum,
-              props.window.currentPageNum,
-              props.navigationMode,
-              props.pageLayout,
-              props.direction,
-            )}
-            direction={props.direction}
-            navigationMode={props.navigationMode}
-            pageLayout={props.pageLayout}
-            slot={slot}
-            revision={revision()}
-            visualIndex={visualSlotIndex(slot.index, slots().length)}
-            onReloadPage={(pageNum) => props.callbacks.onReloadPage(pageNum)}
-          />
-        )}</For>
-      </main>
+  return <>
+    <ZoomOverlay image={zoomImage()} onClose={() => setZoomImage(null)}
+      actionsRef={zoom => { gestures = createReaderGestures({
+        viewport: actions, zoom, zoomImage: [zoomImage, setZoomImage],
+        onToggleToolbar: () => props.onToggleToolbar(),
+        onHideToolbar: () => props.onHideToolbar(),
+        followScroll,
+      }); }} />
+    <div class="ehpeek-reader-canvas">
+      <div ref={element => { scroller = element; scrollerApi = createPagesScroller(element); }}
+        class="ehpeek-reader-scroller"
+        data-navigation-mode={controls().navigationMode} data-read-direction={controls().direction}
+        data-page-layout={pageLayout()} data-zoom-active={zoomImage() !== null} tabIndex={-1}
+        onScroll={onScroll} onWheel={event => gestures.wheel(event)}>
+        <main class="ehpeek-reader-page-strip" style={stripStyle()}>
+          <For each={slots()}>{slot => <PageFrame slot={slot} revision={revision()}
+            visualIndex={controls().direction === "rtl" ? slots().length - 1 - slot.index : slot.index}
+            side={!pagedMode() || pageLayout() !== "double" ? null
+              : (Math.abs(slot.pageNum - ctx.position.page()) % 2 === 0) === (controls().direction === "rtl") ? "right" : "left"} />}</For>
+        </main>
+      </div>
     </div>
-  );
+    <Show when={!pagedMode() && controls().direction === "ttb" && (ctx.source.totalPages ?? 0) > 1}>
+      <ReaderPositionBar scrollOffset={scrollOffset()} viewportLength={viewportHeight()} narrow={viewportWidth() < window.innerWidth} />
+    </Show>
+  </>;
 }
 
-/** Owns slot identity, loading tokens and off-window image retention together. */
-class ViewportPages {
-  items: PageSlot[] = [];
-  private readonly errors = new Map<number, string>();
-  private readonly decodedImages: DecodedPageImages;
-
-  constructor(
-    cacheLimit: number,
-    private readonly onSlotChange: (slot: PageSlot) => void,
-    private readonly onChange: () => void,
-    private readonly imageLoadError: string,
-  ) {
-    this.decodedImages = new DecodedPageImages(cacheLimit);
-  }
-
-  slotFor(pageNum: number): PageSlot | undefined {
-    return this.items.find(slot => slot.pageNum === pageNum);
-  }
-
-  sync(options: PagesViewportWindowOptions): void {
-    const oldSlots = new Map(this.items.map((slot) => [slot.pageNum, slot]));
-    const nextSlots: PageSlot[] = [];
-
-    for (const pageNum of pageWindowNumbers(options.currentPageNum, options.windowSize)) {
-      const kind = pageSlotKind(pageNum, options.totalPages);
-      const oldSlot = oldSlots.get(pageNum);
-      const slot = oldSlot && oldSlot.kind === kind ? oldSlot : pageSlot(pageNum, kind);
-
-      if (!oldSlot && kind === "page") {
-        const errorMessage = this.errors.get(pageNum);
-        const cached = errorMessage ? undefined : this.decodedImages.take(pageNum);
-        if (errorMessage) {
-          slot.state = "error";
-          slot.errorMessage = errorMessage;
-        } else if (cached) {
-          slot.state = "ready";
-          slot.image = cached.image;
-          slot.width = cached.width;
-          slot.height = cached.height;
-        }
-      }
-
-      if (kind === "page") {
-        const page = options.pages.get(pageNum);
-
-        if (page) {
-          applyPageMetaToSlot(slot, page);
-        }
-      } else {
-        clearNonPageSlotMeta(slot);
-      }
-
-      nextSlots.push(slot);
-    }
-
-    const nextSet = new Set(nextSlots);
-
-    for (const slot of this.items) {
-      if (!nextSet.has(slot)) {
-        if (slot.kind === "page" && slot.state === "ready" && slot.image) {
-          const width = positiveNumber(slot.image.naturalWidth) ?? slot.width;
-          const height = positiveNumber(slot.image.naturalHeight) ?? slot.height;
-          const cached = {
-            bytes: width && height ? width * height * 4 : 0,
-            height,
-            image: slot.image,
-            width,
-          };
-          this.decodedImages.retain(slot.pageNum, cached);
-        }
-        slot.token += 1;
-      }
-    }
-
-    this.decodedImages.prune();
-
-    this.items = nextSlots;
-    this.items.forEach((slot, index) => {
-      slot.index = index;
-    });
-
-  }
-
-  readonly actions: Pick<PagesViewportActions, "markPageLoading" | "loadPageImage" | "setPageError" | "resetPageError" | "resetPageLoading"> = {
-    // Loading tokens belong to slots, not to the upstream request cache.
-    markPageLoading: (pageNum): number | null => {
-      const slot = this.slotFor(pageNum);
-
-      if (!slot || slot.kind !== "page" || slot.state !== "idle") {
-        return null;
-      }
-
-      slot.state = "loading";
-      slot.errorMessage = null;
-      slot.token += 1;
-      this.onSlotChange(slot);
-      return slot.token;
-    },
-    loadPageImage: async (pageNum, token, slotImage): Promise<boolean> => {
-      const image = pageImageDom(pageNum, slotImage);
-      const pendingSlot = this.slotFor(pageNum);
-      if (pendingSlot && pendingSlot.token === token) {
-        if (slotImage.displayWhileLoading) {
-          pendingSlot.image = image;
-        }
-        pendingSlot.width = slotImage.width;
-        pendingSlot.height = slotImage.height;
-        this.onSlotChange(pendingSlot);
-      }
-      await loadImage(image, this.imageLoadError);
-      const slot = this.slotFor(pageNum);
-
-      if (!slot || slot.token !== token || !slot.elements) {
-        return false;
-      }
-
-      slot.state = "ready";
-      slot.image = image;
-      slot.errorMessage = null;
-      this.errors.delete(pageNum);
-      slot.width = positiveNumber(image.naturalWidth) ?? slotImage.width;
-      slot.height = positiveNumber(image.naturalHeight) ?? slotImage.height;
-      this.onSlotChange(slot);
-      return true;
-    },
-    setPageError: (pageNum, token, errorMessage): boolean => {
-      const slot = this.slotFor(pageNum);
-
-      if (!slot || slot.token !== token) {
-        return false;
-      }
-
-      slot.state = "error";
-      slot.image = null;
-      slot.errorMessage = errorMessage;
-      this.errors.set(pageNum, errorMessage);
-      this.onChange();
-      return true;
-    },
-    resetPageError: (pageNum): boolean => {
-      const slot = this.slotFor(pageNum);
-
-      if (!slot || slot.kind !== "page" || slot.state !== "error") {
-        return false;
-      }
-
-      slot.state = "idle";
-      slot.errorMessage = null;
-      this.errors.delete(pageNum);
-      this.onSlotChange(slot);
-      return true;
-    },
-    resetPageLoading: (pageNum, token): boolean => {
-      const slot = this.slotFor(pageNum);
-
-      if (!slot || slot.kind !== "page" || slot.state !== "loading" || slot.token !== token) {
-        return false;
-      }
-
-      slot.state = "idle";
-      this.onSlotChange(slot);
-      return true;
-    },
-
-  };
-
-  dispose(): void { this.decodedImages.dispose(); }
-}
-
-/** Off-window DOM images remain reusable until the viewport budget evicts them. */
-class DecodedPageImages {
-  private readonly entries = new Map<number, CachedPageImage>();
-  private bytes = 0;
-
-  constructor(private readonly itemLimit: number) { }
-
-  take(pageNum: number): CachedPageImage | undefined {
-    const cached = this.entries.get(pageNum);
-    if (cached) {
-      this.entries.delete(pageNum);
-      this.bytes -= cached.bytes;
-    }
-    return cached;
-  }
-
-  retain(pageNum: number, cached: CachedPageImage): void {
-    const previous = this.entries.get(pageNum);
-    if (previous) this.bytes -= previous.bytes;
-    this.entries.delete(pageNum);
-    this.entries.set(pageNum, cached);
-    this.bytes += cached.bytes;
-  }
-
-  prune(): void {
-    while (this.entries.size > this.itemLimit || this.bytes > DECODED_IMAGE_CACHE_BYTES) {
-      const oldest = this.entries.entries().next().value;
-      if (!oldest) break;
-      this.entries.delete(oldest[0]);
-      this.bytes -= oldest[1].bytes;
-      oldest[1].image.removeAttribute("src");
-    }
-  }
-
-  dispose(): void {
-    for (const cached of this.entries.values()) cached.image.removeAttribute("src");
-    this.entries.clear();
-    this.bytes = 0;
-  }
-}
-
-function PageSlotView(props: {
-  doublePageSide: DoublePageSide;
-  direction: ReadDirection;
-  navigationMode: NavigationMode;
-  pageLayout: PageLayout;
-  slot: PageSlot;
-  revision: number;
-  visualIndex: number;
-  onReloadPage: (pageNum: number) => void;
-}) {
-  const texts = useReaderTexts();
+function PageFrame(props: { slot: PageSlot; revision: number; visualIndex: number; side: "left" | "right" | null }): JSX.Element {
   let node!: HTMLElement;
-  let frame!: HTMLElement;
-  const content = createMemo<SlotContent>(() => {
+  const style = () => {
     void props.revision;
-    return {
-      pageNum: props.slot.pageNum,
-      kind: props.slot.kind,
-      state: props.slot.state,
-      errorMessage: props.slot.errorMessage ?? undefined,
-    };
-  });
-  const image = createMemo(() => {
-    void props.revision;
-    return props.slot.state === "ready" || props.slot.state === "loading"
-      ? props.slot.image
-      : null;
-  });
-  const imageLoading = createMemo(() => {
-    void props.revision;
-    return props.slot.state === "loading" && props.slot.image !== null;
-  });
-  const slotStyle = createMemo(() => {
-    void props.revision;
-    const frameShortSide = Math.min(props.slot.frameWidth, props.slot.frameHeight);
+    const short = Math.min(props.slot.frameWidth, props.slot.frameHeight);
     return {
       "--reader-page-height": `${props.slot.frameHeight + PAGE_SLOT_SPACING}px`,
       "--reader-page-width": `${props.slot.frameWidth + PAGE_SLOT_SPACING}px`,
       "--reader-frame-width": `${props.slot.frameWidth}px`,
       "--reader-frame-height": `${props.slot.frameHeight}px`,
-      "--reader-end-font-size": `${Math.max(10, frameShortSide * 0.11)}px`,
-      "--reader-end-padding": `${Math.min(24, Math.max(4, frameShortSide * 0.06))}px`,
+      "--reader-end-font-size": `${Math.max(10, short * 0.11)}px`,
+      "--reader-end-padding": `${Math.min(24, Math.max(4, short * 0.06))}px`,
       order: String(props.visualIndex),
     };
-  });
-
-  onCleanup(() => {
-    if (props.slot.elements?.node === node) {
-      props.slot.elements = null;
-    }
-  });
-
-  return (
-    <section
-      ref={node}
-      class="ehpeek-page"
-      data-pair-side={props.doublePageSide}
-      data-ehpeek-page-num={String(props.slot.pageNum)}
-      style={slotStyle()}
-    >
-      <div
-        ref={(element) => {
-          frame = element;
-          props.slot.elements = { node, frame };
-        }}
-        class="ehpeek-reader-page-frame"
-      >
-        <Show
-          when={image()}
-          keyed
-          fallback={<PageSlotPlaceholder content={content()} text={slotPlaceholderText(content(), texts)} onReloadPage={props.onReloadPage} />}
-        >
-          {(currentImage) => currentImage}
-        </Show>
-        <Show when={imageLoading()}>
-          <span
-            class="ehpeek-reader-page-loading"
-            role="status"
-            aria-label={texts.common.status.loading}
-          />
-        </Show>
-      </div>
-    </section>
-  );
-}
-
-function doublePageSide(
-  pageNum: number,
-  currentPageNum: number,
-  navigationMode: NavigationMode,
-  pageLayout: PageLayout,
-  direction: ReadDirection,
-): DoublePageSide {
-  if (navigationMode !== "paged" || pageLayout !== "double") {
-    return null;
-  }
-
-  const firstInPair = Math.abs(pageNum - currentPageNum) % 2 === 0;
-  if (direction === "rtl") {
-    return firstInPair ? "right" : "left";
-  }
-  return firstInPair ? "left" : "right";
-}
-
-function PageSlotPlaceholder(props: {
-  content: SlotContent;
-  text: string;
-  onReloadPage: (pageNum: number) => void;
-}) {
-  const texts = useReaderTexts();
-  const stop = (event: Event) => {
-    event.preventDefault();
-    event.stopPropagation();
   };
-
-  return (
-    <div
-      class="ehpeek-reader-placeholder"
-      data-state={props.content.state}
-      data-kind={props.content.kind}
-      role={props.content.state === "loading" ? "status" : undefined}
-      aria-label={props.content.state === "loading" ? `${texts.common.status.loading} ${props.text}` : undefined}
-    >
-      <Show when={props.content.state === "error"} fallback={
-        <Show when={props.content.state === "loading"} fallback={props.text}>
-          <span class="ehpeek-reader-placeholder-loading" aria-hidden="true">
-            <span class="ehpeek-reader-placeholder-number">
-              {props.text}
-            </span>
-            <span class="ehpeek-reader-placeholder-spinner" />
-          </span>
-        </Show>
-      }>
-        <button
-          type="button"
-          class="ehpeek-reader-page-reload"
-          aria-label={`${texts.reader.reloadPage} ${props.content.pageNum}`}
-          title={texts.reader.reloadPage}
-          onPointerDown={stop}
-          onClick={(event: MouseEvent) => {
-            stop(event);
-            props.onReloadPage(props.content.pageNum);
-          }}
-        >
-          <Icon name="refresh" size="var(--ui-icon-size-xl)" />
-        </button>
-        <div class="ehpeek-reader-page-error">
-          {texts.common.status.failed}
-        </div>
-        <Show when={props.content.errorMessage}>
-          <div class="ehpeek-reader-page-error-detail">
-            {props.content.errorMessage}
-          </div>
-        </Show>
-      </Show>
+  onCleanup(() => { props.slot.elements = null; });
+  return <section ref={node} class="ehpeek-page" data-pair-side={props.side} data-ehpeek-page-num={String(props.slot.pageNum)} style={style()}>
+    <div ref={frame => { props.slot.elements = { node, frame }; }} class="ehpeek-reader-page-frame">
+      <ReaderPageView pageNum={props.slot.pageNum} />
     </div>
-  );
-}
-
-function pageImageDom(pageNum: number, slotImage: ViewportImage): HTMLImageElement {
-  const image = document.createElement("img");
-
-  image.className = "ehpeek-reader-page-image";
-  image.alt = `Page ${pageNum}`;
-  image.decoding = "async";
-  image.loading = "eager";
-  image.draggable = false;
-  image.setAttribute("fetchpriority", slotImage.highPriority ? "high" : "low");
-  image.src = slotImage.imageUrl;
-
-  if (slotImage.width && slotImage.height) {
-    image.width = slotImage.width;
-    image.height = slotImage.height;
-  }
-
-  return image;
-}
-
-async function loadImage(image: HTMLImageElement, errorMessage: string): Promise<void> {
-  if (image.complete && image.naturalWidth > 0) {
-    return;
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    image.addEventListener("load", () => resolve(), { once: true });
-    image.addEventListener("error", () => reject(new Error(errorMessage)), { once: true });
-  });
-
-  try {
-    await image.decode();
-  } catch {
-    // Loaded is enough.
-  }
-}
-
-function createPagesScroller(element: HTMLElement) {
-  const clampedTop = (scrollTop: number, bounds?: VerticalScrollBounds | null): number => {
-    if (!bounds) {
-      return scrollTop;
-    }
-
-    return clamp(scrollTop, bounds.min ?? Number.NEGATIVE_INFINITY, bounds.max ?? Number.POSITIVE_INFINITY);
-  };
-
-  return {
-    element,
-    resetPosition(): void {
-      element.scrollLeft = 0;
-      element.scrollTop = 0;
-    },
-    scrollLeft(): number {
-      return element.scrollLeft;
-    },
-    scrollTop(): number {
-      return element.scrollTop;
-    },
-    viewportWidth(): number {
-      return element.clientWidth || window.innerWidth || 1;
-    },
-    viewportHeight(): number {
-      return element.clientHeight;
-    },
-    viewportXRatio(clientX: number): number {
-      const bounds = element.getBoundingClientRect();
-      return (clientX - bounds.left) / Math.max(1, bounds.width);
-    },
-    moveToLeft(scrollLeft: number): void {
-      element.scrollLeft = scrollLeft;
-    },
-    centerHorizontal(): void {
-      element.scrollLeft = Math.max(0, (element.scrollWidth - element.clientWidth) / 2);
-    },
-    centerVertical(): void {
-      element.scrollTop = Math.max(0, (element.scrollHeight - element.clientHeight) / 2);
-    },
-    centerAnchor(): ViewportCenterAnchor | null {
-      const viewportRect = element.getBoundingClientRect();
-      const centerX = viewportRect.left + viewportRect.width / 2;
-      const centerY = viewportRect.top + viewportRect.height / 2;
-      const pages = Array.from(element.querySelectorAll<HTMLElement>(".ehpeek-page"));
-      let closest: { distance: number; node: HTMLElement } | null = null;
-      for (const node of pages) {
-        const rect = node.getBoundingClientRect();
-        const dx = centerX < rect.left ? rect.left - centerX : centerX > rect.right ? centerX - rect.right : 0;
-        const dy = centerY < rect.top ? rect.top - centerY : centerY > rect.bottom ? centerY - rect.bottom : 0;
-        const distance = Math.hypot(dx, dy);
-        if (!closest || distance < closest.distance) {
-          closest = { distance, node };
-        }
-      }
-      if (!closest) {
-        return null;
-      }
-      const rect = closest.node.getBoundingClientRect();
-      const pageNum = Number(closest.node.dataset.ehpeekPageNum || "");
-      return Number.isFinite(pageNum) && rect.width > 0 && rect.height > 0
-        ? {
-          pageNum,
-          xRatio: (centerX - rect.left) / rect.width,
-          yRatio: (centerY - rect.top) / rect.height,
-        }
-        : null;
-    },
-    restoreCenterAnchor(anchor: ViewportCenterAnchor): void {
-      const node = element.querySelector<HTMLElement>(`.ehpeek-page[data-ehpeek-page-num="${anchor.pageNum}"]`);
-      if (!node) {
-        return;
-      }
-      const viewportRect = element.getBoundingClientRect();
-      const pageRect = node.getBoundingClientRect();
-      const centerX = viewportRect.left + viewportRect.width / 2;
-      const centerY = viewportRect.top + viewportRect.height / 2;
-      element.scrollLeft += pageRect.left + pageRect.width * anchor.xRatio - centerX;
-      element.scrollTop += pageRect.top + pageRect.height * anchor.yRatio - centerY;
-    },
-    moveToTop(scrollTop: number, bounds?: VerticalScrollBounds | null): void {
-      element.scrollTop = clampedTop(scrollTop, bounds);
-    },
-    slotTop(elements: SlotElements): number {
-      const elementsRect = elements.node.getBoundingClientRect();
-      const scrollerRect = element.getBoundingClientRect();
-      return element.scrollTop + elementsRect.top - scrollerRect.top;
-    },
-    slotLeft(elements: SlotElements): number {
-      const elementsRect = elements.node.getBoundingClientRect();
-      const scrollerRect = element.getBoundingClientRect();
-      return element.scrollLeft + elementsRect.left - scrollerRect.left;
-    },
-
-    slotOffset(
-      elements: SlotElements,
-      navigationMode: NavigationMode,
-      direction: ReadDirection,
-      pageLayout: PageLayout,
-    ): number {
-      const pageRect = elements.node.getBoundingClientRect();
-      const scrollerRect = element.getBoundingClientRect();
-      if (direction === "ttb") {
-        return pageRect.top - scrollerRect.top;
-      }
-      if (direction === "rtl" && (navigationMode === "scroll" || pageLayout === "double")) {
-        return pageRect.right - scrollerRect.right;
-      }
-      return pageRect.left - scrollerRect.left;
-    },
-
-    slotContainsViewportTarget(elements: SlotElements, direction: ReadDirection): boolean {
-      const scrollerRect = element.getBoundingClientRect();
-      const rect = elements.node.getBoundingClientRect();
-      if (direction === "ttb") {
-        const target = scrollerRect.top + Math.min(80, scrollerRect.height * 0.14);
-        return rect.top <= target && rect.bottom > target;
-      }
-      const offset = Math.min(80, scrollerRect.width * 0.14);
-      const target = direction === "rtl" ? scrollerRect.right - offset : scrollerRect.left + offset;
-      return rect.left <= target && rect.right > target;
-    },
-
-    slotViewportStartDistance(
-      elements: SlotElements,
-      direction: ReadDirection,
-    ): number | null {
-      const scrollerRect = element.getBoundingClientRect();
-      const rect = elements.node.getBoundingClientRect();
-      if (
-        rect.bottom <= scrollerRect.top ||
-        rect.top >= scrollerRect.bottom ||
-        rect.right <= scrollerRect.left ||
-        rect.left >= scrollerRect.right
-      ) {
-        return null;
-      }
-      if (direction === "ttb") {
-        return Math.max(0, rect.top - scrollerRect.top);
-      }
-      return direction === "rtl"
-        ? Math.max(0, scrollerRect.right - rect.right)
-        : Math.max(0, rect.left - scrollerRect.left);
-    },
-  };
-}
-
-function slotPlaceholderText(content: SlotContent, texts: ReaderTexts): string {
-  if (content.state === "error") {
-    return texts.common.status.failed;
-  }
-
-  if (content.kind === "end") {
-    return texts.reader.end;
-  }
-
-  if (content.kind === "blank") {
-    return "";
-  }
-
-  return String(content.pageNum);
-}
-
-function pageSlotKind(pageNum: number, totalPages: number | undefined): PageSlotKind {
-  if (pageNum < 1) {
-    return "blank";
-  }
-
-  if (totalPages && pageNum === totalPages + 1) {
-    return "end";
-  }
-
-  if (totalPages && pageNum > totalPages + 1) {
-    return "blank";
-  }
-
-  return "page";
-}
-
-function pageSlot(pageNum: number, kind: PageSlotKind): PageSlot {
-  return {
-    pageNum,
-    index: 0,
-    kind,
-    state: kind === "page" ? "idle" : "ready",
-    aspectRatio: FALLBACK_ASPECT_RATIO,
-    width: null,
-    height: null,
-    image: null,
-    errorMessage: null,
-    frameWidth: 1,
-    frameHeight: Math.ceil(FALLBACK_ASPECT_RATIO),
-    elements: null,
-    token: 0,
-  };
-}
-
-function applyPageMetaToSlot(slot: PageSlot, page: PageMeta): void {
-  const aspectRatio = normalizedAspectRatio(page.aspectRatio, FALLBACK_ASPECT_RATIO);
-
-  if (slot.aspectRatio === aspectRatio) {
-    return;
-  }
-
-  slot.aspectRatio = aspectRatio;
-}
-
-function clearNonPageSlotMeta(slot: PageSlot): void {
-  if (slot.kind !== "blank" && slot.kind !== "end") {
-    return;
-  }
-
-  slot.state = "ready";
-  slot.image = null;
-  slot.errorMessage = null;
-  slot.width = null;
-  slot.height = null;
-  slot.token += 1;
-}
-
-function pageSlotAspectRatio(slot: PageSlot): number {
-  return slot.width && slot.height && slot.width > 0 && slot.height > 0
-    ? slot.height / slot.width
-    : normalizedAspectRatio(slot.aspectRatio, FALLBACK_ASPECT_RATIO);
+  </section>;
 }

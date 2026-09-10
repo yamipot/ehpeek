@@ -1,4 +1,30 @@
 import type { NavigationMode, PageLayout, ReaderScrollSizeScale } from "../kit/interfaces";
+import { clamp } from "../kit/helpers";
+
+export function doublePagePairStart(pageNum: number, firstPageSeparate: boolean): number {
+  return firstPageSeparate
+    ? pageNum <= 1 ? 1 : pageNum - pageNum % 2
+    : pageNum % 2 === 0 ? pageNum - 1 : pageNum;
+}
+
+/** The end screen is a reading destination, never the second half of a spread. */
+export function normalizeReadingPage(page: number, total: number | undefined, mode: NavigationMode, layout: PageLayout, separate: boolean): number {
+  const target = clamp(Math.round(page), 1, total ? total + 1 : Number.MAX_SAFE_INTEGER);
+  return mode === "paged" && layout === "double" && (!total || target !== total + 1)
+    ? doublePagePairStart(target, separate) : target;
+}
+
+export function nextReadingPage(page: number, step: -1 | 1, total: number | undefined, layout: PageLayout, separate: boolean): number {
+  let delta: number = step;
+  if (layout === "double") {
+    if (total && page === total + 1 && step < 0) delta = doublePagePairStart(total, separate) - page;
+    else if (separate && page === 1 && step > 0) delta = 1;
+    else if (separate && page === 2 && step < 0) delta = -1;
+    else delta = step * 2;
+  }
+  return clamp(page + delta, 1, total ? total + 1 : Number.MAX_SAFE_INTEGER);
+}
+
 export function pageWindowNumbers(currentPageNum: number, windowSize: number): number[] {
   const numbers: number[] = [];
 

@@ -16,7 +16,7 @@ export type LoadedReaderImage = LoadedReaderPage & {
 
 /**
  * One Reader mount owns source-image requests, metadata retention and decode admission.
- * Decoded DOM images remain owned by PagesViewport.
+ * The loading module owns decoded DOM images and their retention separately.
  */
 export class ReaderImages {
   readonly queue: PriorityLoadQueue<ReaderLoadTarget, LoadedReaderPage>;

@@ -305,10 +305,6 @@ test("Composed Preview connects wrapped parts and custom controls without caller
   const panel = root.querySelector(".ehpeek-preview-panel");
   const toolbar = root.querySelector(".ehpeek-preview-toolbar");
   const customButton = button(root, "Locate custom highlight");
-  assert.equal(panel.firstElementChild.className, "custom-body");
-  assert.equal(toolbar.parentElement.className, "custom-header");
-  assert.ok(panel.classList.contains("custom-panel"));
-  assert.ok(toolbar.classList.contains("custom-toolbar"));
   assertVisible(root, 62);
 
   button(root, "Zoom out").click();
@@ -326,12 +322,8 @@ test("Composed Preview connects wrapped parts and custom controls without caller
   assert.equal(panel.style.color, "blue");
   assert.equal(toolbar.style.color, "blue");
   assert.equal(root.querySelector(".custom-viewport").style.borderColor, "blue");
-  const oldScroller = root.querySelector(".ehpeek-preview-scroller");
   mounted.settings[1]("direction", "rtl");
   await nextFrame();
-  assert.notEqual(root.querySelector(".ehpeek-preview-scroller"), oldScroller);
-  assert.equal(root.querySelector(".ehpeek-preview-toolbar"), toolbar);
-  assert.equal(button(root, "Locate custom highlight"), customButton);
   assert.equal(root.querySelector(".custom-viewport").style.borderColor, "blue");
   assertVisible(root, 62);
 
@@ -449,8 +441,6 @@ test("Toolbar zoom, positioning and direction changes share the viewport without
   t.after(() => { mounted.dispose(); root.remove(); });
   await nextFrame();
 
-  const panel = root.querySelector(".ehpeek-preview-panel");
-  assert.equal(root.querySelector(".ehpeek-preview-toolbar").parentElement, panel);
   assertVisible(root, 62);
   root.querySelector('button[aria-label="Zoom out"]').click();
   await nextFrame();

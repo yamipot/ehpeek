@@ -36,15 +36,17 @@ export interface ScrollPreviewContext {
   progress: ReadProgressPort;
   /** Browsing page, retained while the viewport is absent; page numbers start at 1. */
   currentPage: Accessor<number>;
-  /** Viewport-owned measurements and positioning; null while absent, replaced when direction changes. */
-  viewport: Accessor<PreviewViewportRef | null>;
 
-  // Internal viewport binding
+  // Component and DOM references
 
-  /** Drag-to-close moves the complete panel, including custom layout and controls. */
-  readonly panel: HTMLElement;
-  /** Attach the active viewport; null retains its last browsing page for the next viewport. */
-  viewportRef(viewport: PreviewViewportRef | null): void;
+  refs: {
+    /** Viewport-owned measurements and positioning; null while absent, replaced when direction changes. */
+    viewport: Accessor<PreviewViewportRef | null>;
+    /** Drag-to-close moves the complete panel, including custom layout and controls. */
+    readonly panel: HTMLElement;
+    /** Attach the active viewport; null retains its last browsing page for the next viewport. */
+    bindViewport(viewport: PreviewViewportRef | null): void;
+  };
 
   // User actions
 

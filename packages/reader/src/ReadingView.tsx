@@ -1,5 +1,5 @@
 import { createEffect, createSignal, ErrorBoundary, onCleanup, onMount, Show, untrack } from "solid-js";
-import { Reader, type ReaderActions } from "./Reader/index";
+import { Reader, type ReaderRef } from "./Reader/index";
 import { ReadingPreview, type ScrollPreviewOpenState } from "./ReadingPreview";
 import { createReaderSettings } from "./features/ReaderSettings";
 import { createPreviewCache } from "./features/PreviewCache";
@@ -20,7 +20,7 @@ export function ReadingView(props: ReadingViewProps) {
   const settings = createReaderSettings(options.settings, options.onSettingChange);
   const cache = createPreviewCache(options.source);
   const [progress, setProgress] = createSignal(options.initialProgress ?? null);
-  const [readerActions, setReaderActions] = createSignal<ReaderActions | null>(null);
+  const [readerActions, setReaderActions] = createSignal<ReaderRef | null>(null);
   const [previewProgress, setPreviewProgress] = createSignal<ReadProgressPort | null>(null);
   const [fullscreenActive, setFullscreenActive] = createSignal(host.fullscreen.active());
   const onError = options.onError ?? ((error: unknown) => console.error("[reader]", error));
@@ -234,14 +234,12 @@ export function ReadingView(props: ReadingViewProps) {
       >
         <Reader
           disabled={props.disabled || preview() !== null}
-          actionsRef={setReaderActions}
-          callbacks={{
-            onClose: () => navi.back(),
-            onProgress: publishProgress,
-            onEnd: () => options.onEnd?.(),
-            onOpenPreview: pageNum => navi.openPreview(pageNum, true),
-            onToggleFullscreen: toggleFullscreen,
-          }}
+          ref={setReaderActions}
+          onClose={() => navi.back()}
+          onProgress={publishProgress}
+          onEnd={() => options.onEnd?.()}
+          onOpenPreview={pageNum => navi.openPreview(pageNum, true)}
+          onToggleFullscreen={toggleFullscreen}
           settings={settings}
           customization={{
             ...options.customization,
@@ -252,7 +250,7 @@ export function ReadingView(props: ReadingViewProps) {
               : undefined,
           }}
           fullscreenActive={fullscreenActive()}
-          options={{ initialPageNum: view.pageNum, totalPages: options.source.totalPages }}
+          initPage={view.pageNum}
           source={options.source}
         />
       </div>
