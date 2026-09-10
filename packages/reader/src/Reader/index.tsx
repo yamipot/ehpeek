@@ -4,7 +4,6 @@ import { batch, createEffect, onCleanup, onMount, Show, untrack } from "solid-js
 import { createReadProgressPublisher, type ReadProgressPort } from "../features/ReadProgressSyncer";
 import type { ContentSource, ReaderCustomization, ReaderPage, ReaderSettingsState } from "../kit/interfaces";
 
-import { useOverlayHost } from "../kit/Widgets/OverlayHost";
 import { useReaderTexts } from "../kit/i18n";
 import { currentReaderOrientation } from "../features/ReaderSettings";
 import {
@@ -68,7 +67,6 @@ export type ReaderProps = {
 };
 
 export function Reader(props: ReaderProps) {
-  const overlayHost = useOverlayHost();
   const options = untrack(() => props.options);
   const totalPages = options.totalPages ?? 0;
   const source = untrack(() => props.source);
@@ -192,7 +190,6 @@ export function Reader(props: ReaderProps) {
           currentPage={readerState.navi.currentPageNum()}
           expanded={readerState.scrollBar.expanded()}
           narrow={readerState.scrollViewport.viewportWidth() < window.innerWidth}
-          pixelScale={overlayHost.fullscreenPixelScale()}
           totalPages={totalPages}
           visible={readerState.scrollBar.visible()}
         />

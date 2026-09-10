@@ -10,7 +10,6 @@ export function ReaderScrollBar(props: {
   currentPage: number;
   narrow: boolean;
   expanded: boolean;
-  pixelScale: number;
   totalPages: number;
   visible: boolean;
 }) {
@@ -25,7 +24,6 @@ export function ReaderScrollBar(props: {
       onCommit={props.callbacks.onProgressCommit}
       onInput={props.callbacks.onProgressInput}
       onPointerDown={props.callbacks.onProgressPointerDown}
-      pixelScale={props.pixelScale}
       position="fixed"
       thickness={props.narrow ? "narrow" : "normal"}
       trackClickEnabled={false}

@@ -1,5 +1,6 @@
 import { createEffect, createSignal, untrack } from "solid-js";
 import { clamp } from "../helpers";
+import { useUiPixelScale } from "../../UiPixelScale";
 import "../../styles";
 
 type PositionBarThickness = "narrow" | "normal";
@@ -15,7 +16,6 @@ export function PositionBar(props: {
   onCommit?: (value: number) => void;
   onInput: (value: number) => void;
   onPointerDown?: (event: PointerEvent) => void;
-  pixelScale?: number;
   position?: "absolute" | "fixed";
   reversed?: boolean;
   thickness?: PositionBarThickness;
@@ -25,6 +25,7 @@ export function PositionBar(props: {
   visibleValueCount?: number;
   visibleRatio?: number;
 }) {
+  const pixelScale = useUiPixelScale();
   const [dragging, setDragging] = createSignal(false);
   let track!: HTMLDivElement;
   let thumb!: HTMLDivElement;
@@ -167,7 +168,7 @@ export function PositionBar(props: {
         <span
           class="ehpeek-position-bar__fill"
           style={{
-            transform: `scaleY(${props.pixelScale ?? 1})`,
+            transform: `scaleY(${pixelScale()})`,
             "transform-origin": "bottom",
           }}
         />
@@ -216,7 +217,7 @@ export function PositionBar(props: {
         <span
           class="ehpeek-position-bar__fill"
           style={{
-            transform: `scaleX(${props.pixelScale ?? 1})`,
+            transform: `scaleX(${pixelScale()})`,
             "transform-origin": "right",
           }}
         />

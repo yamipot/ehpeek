@@ -16,7 +16,8 @@ import type { PreviewCache } from "../features/PreviewCache";
 import { lockPageScroll } from "../features/Viewport";
 import { bindInteractionGate } from "../features/InteractionGate";
 
-import { OverlayPortal, useOverlayHost } from "../kit/Widgets/OverlayHost";
+import { useUiPixelScale } from "../UiPixelScale";
+import { OverlayPortal } from "../kit/Widgets/OverlayHost";
 import type { PreviewItem, ReadDirection } from "../kit/interfaces";
 import { useReaderTexts } from "../kit/i18n";
 import { clamp } from "../kit/helpers";
@@ -330,7 +331,6 @@ function PreviewPositionBar(props: {
   ready: boolean;
   embedded: boolean;
   rightToLeft: boolean;
-  pixelScale: number;
   onScrollTo: (offset: number) => void;
   onInteractionChange: (active: boolean) => void;
 }) {
@@ -386,7 +386,6 @@ function PreviewPositionBar(props: {
         onCommit={() => props.onInteractionChange(false)}
         onInput={scrollToPositionValue}
         onPointerDown={() => props.onInteractionChange(true)}
-        pixelScale={props.pixelScale}
         position={horizontal ? undefined : "absolute"}
         reversed={horizontal && props.rightToLeft}
         thickness={props.embedded || !horizontal ? "narrow" : "normal"}
@@ -531,7 +530,6 @@ function EmbeddedScrollPreview(props: {
           onCrossCountOverrideChange={session.setEmbeddedCrossCountOverride}
           onOpenOverlay={source.onOpenOverlay}
           onOpenPage={source.onSelectPage}
-          pixelScale={1}
           previewCache={source.previewCache}
           readDirection={direction}
           targetPageNum={
@@ -573,7 +571,6 @@ function ScrollPreviewOverlay(props: {
 }) {
   const session = untrack(() => props.session);
   const source = untrack(() => props.source);
-  const overlayHost = useOverlayHost();
   return (
     <Show when={session.open()}>
       <OverlayPortal>
@@ -595,7 +592,6 @@ function ScrollPreviewOverlay(props: {
             onLoadError={source.onLoadError}
             onCrossCountOverrideChange={session.setCrossCountOverride}
             onOpenPage={source.onSelectPage}
-            pixelScale={overlayHost.fullscreenPixelScale()}
             previewCache={source.previewCache}
             readDirection={direction}
             targetPageNum={session.targetPageNum()}
@@ -622,7 +618,6 @@ type ScrollPreviewPanelProps = {
   onCrossCountOverrideChange: (crossCount: number) => void;
   onOpenOverlay?: (pageNum: number) => void;
   onOpenPage: (pageUrl: string, pageNum: number) => void;
-  pixelScale: number;
   previewCache: PreviewCache;
   readDirection: ReadDirection;
   targetPageNum: number | null;
@@ -902,7 +897,7 @@ function PreviewViewport(props: ScrollPreviewPanelProps & {
     ),
     MAX_TILE_WIDTH,
   );
-  const pixelScale = () => props.pixelScale;
+  const pixelScale = useUiPixelScale();
   const initialPixelScale = untrack(pixelScale);
   const readDirection = untrack(() => props.readDirection);
   const horizontal = readDirection !== "ttb";
@@ -1383,7 +1378,6 @@ function PreviewViewport(props: ScrollPreviewPanelProps & {
           ready={positionBarReady()}
           embedded={embedded}
           rightToLeft={rightToLeft}
-          pixelScale={pixelScale()}
           onScrollTo={(offset) => {
             gestures.cancelMotion();
             updateScrollOffset(offset);

@@ -6,10 +6,12 @@ import { solidPlugin } from "esbuild-plugin-solid";
 const result = await build({
   stdin: {
     contents: `
+      import { createComponent } from "solid-js";
       import { renderToString } from "solid-js/web";
       import { Button, IconButton, IconLink } from "./src/kit/Widgets/Button";
       import { Popover } from "./src/kit/Widgets/Popover";
       import { PositionBar } from "./src/kit/Widgets/PositionBar";
+      import { UiPixelScaleProvider } from "./src/UiPixelScale";
       import { ProgressBar } from "./src/kit/Widgets/ProgressBar";
       export { widgetClass } from "./src/kit/helpers";
       export { listenForOutsidePress } from "./src/kit/helpers";
@@ -18,6 +20,12 @@ const result = await build({
       export const renderIconLink = props => renderToString(() => IconLink(props));
       export const renderPopover = props => renderToString(() => Popover(props));
       export const renderPositionBar = props => renderToString(() => PositionBar(props));
+      export const renderScaledPositionBar = (props, scale) => renderToString(() =>
+        createComponent(UiPixelScaleProvider, {
+          value: () => scale,
+          get children() { return createComponent(PositionBar, props); },
+        })
+      );
       export const renderProgressBar = props => renderToString(() => ProgressBar(props));
     `,
     resolveDir: new URL("../", import.meta.url).pathname,
@@ -201,6 +209,7 @@ test("position bar exposes visual state without changing its logical progress", 
   assert.match(vertical, /data-draggable="true"/);
   assert.match(vertical, /aria-valuenow="3"/);
   assert.match(vertical, /top:25%/);
+  assert.match(vertical, /transform:scaleX\(1\)/);
   const horizontal = widgets.renderPositionBar({
     ...props, axis: "horizontal", reversed: true,
   });
@@ -208,6 +217,10 @@ test("position bar exposes visual state without changing its logical progress", 
   assert.match(horizontal, /data-thickness="normal"/);
   assert.match(horizontal, /left:75%/);
   assert.match(horizontal, /aria-valuenow="3"/);
+  assert.match(
+    widgets.renderScaledPositionBar({ ...props, axis: "horizontal" }, 0.75),
+    /transform:scaleY\(0\.75\)/,
+  );
   const disabled = widgets.renderPositionBar({ ...props, axis: "vertical", maxValue: 1 });
   assert.match(disabled, /data-draggable="false"/);
 });

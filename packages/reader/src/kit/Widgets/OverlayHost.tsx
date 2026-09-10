@@ -8,6 +8,7 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { applyUiScale, markUiRoot, type UiScale } from "../ui";
+import { UiPixelScaleProvider } from "../../UiPixelScale";
 import { ReaderTextsProvider, readerLocales, type ReaderTexts } from "../i18n";
 import "../../styles";
 import {
@@ -75,7 +76,13 @@ export function OverlayHostProvider(props: {
 
 export function OverlayPortal(props: { children: JSX.Element }) {
   const host = useOverlayHost();
-  return <Portal mount={host.element}>{props.children}</Portal>;
+  return (
+    <Portal mount={host.element}>
+      <UiPixelScaleProvider value={host.fullscreenPixelScale}>
+        {props.children}
+      </UiPixelScaleProvider>
+    </Portal>
+  );
 }
 
 export function useOverlayHost(): OverlayHost {
