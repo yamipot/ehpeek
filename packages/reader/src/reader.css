@@ -877,12 +877,12 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
   background: var(--color-site-elevated);
 }
 .ehpeek-preview-panel[data-scroll-preview-instance][hidden] { display: none; }
-.ehpeek-preview-panel[data-scroll-preview-instance] > .ehpeek-preview-toolbar { flex-wrap: wrap; }
-.ehpeek-preview-panel[data-scroll-preview-instance] > .ehpeek-preview-toolbar .ehpeek-preview-range {
+.ehpeek-preview-toolbar { flex-wrap: wrap; }
+.ehpeek-preview-toolbar .ehpeek-preview-range {
   min-width: 0;
   flex: 1 1 auto;
 }
-.ehpeek-preview-panel[data-scroll-preview-instance] > .ehpeek-preview-toolbar .ehpeek-preview-toolbar-actions {
+.ehpeek-preview-toolbar .ehpeek-preview-toolbar-actions {
   max-width: 100%;
   flex-wrap: wrap;
   margin-inline-start: auto;

@@ -3,8 +3,8 @@ import {
   createSignal,
   onCleanup,
   onMount,
-  Show,
   untrack,
+  type JSX,
 } from "solid-js";
 import type { SetStoreFunction, Store } from "solid-js/store";
 import { bindInteractionGate } from "../features/InteractionGate";
@@ -43,6 +43,8 @@ export interface ScrollPreviewRef {
 
 /** Owns one Preview instance. */
 export interface ScrollPreviewProps {
+  class?: string;
+  style?: JSX.CSSProperties;
   previewCache: PreviewCache;
   decodeCache: PreviewDecodeCache;
   /** Hiding the Preview retains its settings and viewport positions. */
@@ -69,7 +71,27 @@ export interface ScrollPreviewProps {
   onError?(error: unknown): void;
 }
 
-export function ScrollPreview(props: ScrollPreviewProps) {
+export interface PreviewRootProps extends ScrollPreviewProps {
+  /** Compose one viewport and its controls inside this instance. */
+  children: JSX.Element;
+}
+
+function DefaultScrollPreview(props: ScrollPreviewProps): JSX.Element {
+  return (
+    <ScrollPreview.Root {...props}>
+      <ScrollPreview.Toolbar />
+      <ScrollPreview.Viewport />
+    </ScrollPreview.Root>
+  );
+}
+
+export const ScrollPreview = Object.assign(DefaultScrollPreview, {
+  Root: PreviewRoot,
+  Toolbar: PreviewToolbar,
+  Viewport: PreviewViewport,
+});
+
+function PreviewRoot(props: PreviewRootProps) {
   const previewCache = untrack(() => props.previewCache);
   const decodeCache = untrack(() => props.decodeCache);
   const onResize = untrack(() => props.onResize);
@@ -112,6 +134,9 @@ export function ScrollPreview(props: ScrollPreviewProps) {
       setHighlightedPage(normalizePage(pageNum, totalPages));
     },
   };
+  const scrollToPage = (pageNum: number): void => {
+    viewport()?.scrollToPage(normalizePage(pageNum, totalPages));
+  };
   const context: ScrollPreviewContext = untrack(() => ({
     previewCache,
     decodeCache,
@@ -121,6 +146,16 @@ export function ScrollPreview(props: ScrollPreviewProps) {
     visible,
     disabled,
     leftHanded,
+    get panel() { return panel; },
+    fitContentHeight: () => props.fitContentHeight ?? false,
+    viewport,
+    viewportRef: onViewportRef,
+    currentPage,
+    scrollToPage,
+    locateHighlightedPage() {
+      const pageNum = highlightedPage();
+      if (pageNum !== null) scrollToPage(pageNum);
+    },
     selectPage(pageNum) {
       const next = normalizePage(pageNum, totalPages);
       setHighlightedPage(next);
@@ -130,9 +165,6 @@ export function ScrollPreview(props: ScrollPreviewProps) {
     resize: onResize ? () => onResize(untrack(currentPage)) : undefined,
     close: onClose ? () => onClose(untrack(currentPage)) : undefined,
   }));
-  const scrollToPage = (pageNum: number): void => {
-    viewport()?.scrollToPage(normalizePage(pageNum, totalPages));
-  };
   const reference: ScrollPreviewRef = {
     progress,
     currentPage,
@@ -161,28 +193,12 @@ export function ScrollPreview(props: ScrollPreviewProps) {
     <ScrollPreviewContextKey.Provider value={context}>
       <section
         ref={panel}
-        class="ehpeek-preview-panel"
+        class={`ehpeek-preview-panel${props.class ? ` ${props.class}` : ""}`}
+        style={props.style}
         data-scroll-preview-instance
         hidden={!props.visible}
       >
-        <PreviewToolbar
-          crossCount={viewport()?.crossCount() ?? 1}
-          crossCountLimits={viewport()?.crossCountLimits() ?? { min: 1, max: 1 }}
-          visiblePages={viewport()?.visiblePages() ?? null}
-          loading={loading.loadingCount() > 0}
-          locateHighlightedPage={() => {
-            const pageNum = highlightedPage();
-            if (pageNum !== null) scrollToPage(pageNum);
-          }}
-        />
-        <Show when={context.settings[0].direction} keyed>{(_direction) => (
-          <PreviewViewport
-            initPage={currentPage()}
-            panel={panel}
-            fitContentHeight={props.fitContentHeight ?? false}
-            ref={onViewportRef}
-          />
-        )}</Show>
+        {props.children}
       </section>
     </ScrollPreviewContextKey.Provider>
   );

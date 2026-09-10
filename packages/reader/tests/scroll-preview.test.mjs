@@ -27,10 +27,11 @@ after(() => window.close());
 const output = await build({
   stdin: {
     contents: `
-      import { createComponent, createSignal } from "solid-js";
+      import { createComponent, createSignal, mergeProps } from "solid-js";
       import { createStore } from "solid-js/store";
       import { render } from "solid-js/web";
       import { ScrollPreview } from "./src/ScrollPreview/index";
+      import { ComposedPreview } from "./tests/fixtures/preview-composition";
       import { ReadingView } from "@ehpeek/reader";
       import { PreviewDecodeCache } from "./src/ScrollPreview/DecodeCache";
       import { createPreviewCache } from "./src/features/PreviewCache";
@@ -45,8 +46,10 @@ const output = await build({
         const [visible, setVisible] = createSignal(true);
         const [disabled, setDisabled] = createSignal(false);
         const [fitContentHeight, setFitContentHeight] = createSignal(callbacks.fitContentHeight ?? false);
+        const [accent, setAccent] = createSignal("red");
+        const [viewportVisible, setViewportVisible] = createSignal(true);
         let reference = null;
-        const dispose = render(() => createComponent(ScrollPreview, {
+        const props = {
           previewCache: cache,
           decodeCache,
           settings,
@@ -61,9 +64,15 @@ const output = await build({
           onResize: page => callbacks.onResize?.(page),
           onClose: page => callbacks.onClose?.(page),
           onError: error => callbacks.onError?.(error),
-        }), root);
+        };
+        const dispose = render(() => callbacks.composed
+          ? createComponent(ComposedPreview, mergeProps(props, {
+              get accent() { return accent(); },
+              get viewportVisible() { return viewportVisible(); },
+            }))
+          : createComponent(ScrollPreview, props), root);
         return {
-          cache, decodeCache, settings, setVisible, setDisabled, setFitContentHeight,
+          cache, decodeCache, settings, setVisible, setDisabled, setFitContentHeight, setAccent, setViewportVisible,
           reference: () => reference,
           dispose() { dispose(); cache.dispose(); decodeCache.dispose(); },
         };
@@ -281,6 +290,87 @@ function assertVisible(root, page) {
   const { first, last } = visibleRange(root);
   assert.ok(first <= page && last >= page, `Page ${page} is within ${first}–${last}`);
 }
+
+test("Composed Preview connects wrapped parts and custom controls without caller wiring", async t => {
+  const root = document.createElement("div");
+  document.body.append(root);
+  const closed = [];
+  const mounted = preview.mount(root, source(120), {
+    composed: true, initPage: 62, initialProgress: 62, crossCount: 4,
+    onClose: page => closed.push(page),
+  });
+  t.after(() => { mounted.dispose(); root.remove(); });
+  await nextFrame();
+
+  const panel = root.querySelector(".ehpeek-preview-panel");
+  const toolbar = root.querySelector(".ehpeek-preview-toolbar");
+  const customButton = button(root, "Locate custom highlight");
+  assert.equal(panel.firstElementChild.className, "custom-body");
+  assert.equal(toolbar.parentElement.className, "custom-header");
+  assert.ok(panel.classList.contains("custom-panel"));
+  assert.ok(toolbar.classList.contains("custom-toolbar"));
+  assertVisible(root, 62);
+
+  button(root, "Zoom out").click();
+  await nextFrame();
+  assert.equal(mounted.settings[0].crossCount, 5);
+  mounted.reference().scrollToPage(92);
+  await nextFrame();
+  assertVisible(root, 92);
+  customButton.click();
+  await nextFrame();
+  assertVisible(root, 62);
+  assert.equal(mounted.reference().progress.current(), 62);
+
+  mounted.setAccent("blue");
+  assert.equal(panel.style.color, "blue");
+  assert.equal(toolbar.style.color, "blue");
+  assert.equal(root.querySelector(".custom-viewport").style.borderColor, "blue");
+  const oldScroller = root.querySelector(".ehpeek-preview-scroller");
+  mounted.settings[1]("direction", "rtl");
+  await nextFrame();
+  assert.notEqual(root.querySelector(".ehpeek-preview-scroller"), oldScroller);
+  assert.equal(root.querySelector(".ehpeek-preview-toolbar"), toolbar);
+  assert.equal(button(root, "Locate custom highlight"), customButton);
+  assert.equal(root.querySelector(".custom-viewport").style.borderColor, "blue");
+  assertVisible(root, 62);
+
+  mounted.setDisabled(true);
+  mounted.reference().scrollToPage(92);
+  await nextFrame();
+  customButton.click();
+  button(root, "Close").click();
+  assertVisible(root, 92);
+  assert.deepEqual(closed, []);
+  mounted.setDisabled(false);
+  button(root, "Close").click();
+  assert.deepEqual(closed, [mounted.reference().currentPage()]);
+});
+
+test("Composed instances retain independent positions when a viewport is temporarily removed", async t => {
+  const firstRoot = document.createElement("div");
+  const secondRoot = document.createElement("div");
+  document.body.append(firstRoot, secondRoot);
+  const first = preview.mount(firstRoot, source(120), { composed: true, initPage: 62, initialProgress: 62 });
+  const second = preview.mount(secondRoot, source(120), { composed: true, initPage: 12, initialProgress: 12 });
+  t.after(() => { first.dispose(); second.dispose(); firstRoot.remove(); secondRoot.remove(); });
+  await nextFrame();
+  first.reference().scrollToPage(82);
+  await nextFrame();
+  const retainedPage = first.reference().currentPage();
+  first.setViewportVisible(false);
+  assert.equal(first.reference().currentPage(), retainedPage);
+  assert.equal(firstRoot.querySelector(".ehpeek-preview-viewport"), null);
+  assert.equal(button(firstRoot, "Zoom in").disabled, true);
+  first.setViewportVisible(true);
+  await nextFrame();
+  assertVisible(firstRoot, retainedPage);
+  button(firstRoot, "Locate custom highlight").click();
+  await nextFrame();
+  assertVisible(firstRoot, 62);
+  assertVisible(secondRoot, 12);
+  assert.equal(second.reference().progress.current(), 12);
+});
 
 test("ScrollPreview instances isolate progress and expose local selection", async t => {
   document.body.replaceChildren();

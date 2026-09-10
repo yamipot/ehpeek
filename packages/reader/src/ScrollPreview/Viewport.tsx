@@ -1,4 +1,4 @@
-import { batch, createEffect, createMemo, createSignal, on, onCleanup, onMount, Show, untrack, type Accessor } from "solid-js";
+import { batch, createEffect, createMemo, createSignal, on, onCleanup, onMount, Show, untrack, type Accessor, type JSX } from "solid-js";
 import { clamp } from "../kit/helpers";
 import { useUiPixelScale } from "../UiPixelScale";
 import { useScrollPreviewContext } from "./Context";
@@ -32,23 +32,24 @@ export interface PreviewViewportRef {
 }
 
 export interface PreviewViewportProps {
-  /** Page centered by the first usable layout; the first page is 1. */
-  initPage: number;
-  /** Drag-to-close moves the entire panel, including its toolbar. */
-  panel: HTMLElement;
-  /** Use only the content height, capped by the container's available height. */
-  fitContentHeight: boolean;
-  ref?: (viewport: PreviewViewportRef | null) => void;
+  class?: string;
+  style?: JSX.CSSProperties;
 }
 
 export function PreviewViewport(props: PreviewViewportProps) {
+  const ctx = useScrollPreviewContext();
+  // Each direction has its own geometry and gestures; only the browsing page survives replacement.
+  return <Show when={ctx.settings[0].direction} keyed>{(_direction) => <Viewport {...props} />}</Show>;
+}
+
+function Viewport(props: PreviewViewportProps) {
   const ctx = useScrollPreviewContext();
   const source = ctx.previewCache.source;
   const direction = untrack(() => ctx.settings[0].direction);
   const horizontal = direction !== "ttb";
   const rightToLeft = direction === "rtl";
-  const initPage = untrack(() => props.initPage);
-  const panel = untrack(() => props.panel);
+  const initPage = untrack(ctx.currentPage);
+  const panel = ctx.panel;
   const pixelScale = useUiPixelScale();
   const estimatedAspectRatio = layoutAspectRatio(source.aspectRatio);
   const referenceThumbnailCrossSize = medianSize(
@@ -147,7 +148,7 @@ export function PreviewViewport(props: PreviewViewportProps) {
         ? Math.min(MAX_PREVIEW_CROSS_COUNT, source.totalPages) : MAX_PREVIEW_CROSS_COUNT,
       item: ctx.previewCache.item,
     });
-    if (props.fitContentHeight) {
+    if (ctx.fitContentHeight()) {
       const contentHeight = horizontal
         ? next.crossCount * next.tileCrossSize + (next.crossCount - 1) * next.gap
         : next.totalMainSize;
@@ -174,10 +175,10 @@ export function PreviewViewport(props: PreviewViewportProps) {
   };
 
   onMount(() => {
-    props.ref?.(reference);
+    ctx.viewportRef(reference);
 
     createEffect(on(
-      [ctx.visible, () => ctx.settings[0].crossCount, pixelScale, () => props.fitContentHeight],
+      [ctx.visible, () => ctx.settings[0].crossCount, pixelScale, ctx.fitContentHeight],
       ([visible], previous) => {
         if (!visible) {
           setReady(false);
@@ -210,7 +211,7 @@ export function PreviewViewport(props: PreviewViewportProps) {
       observer.disconnect();
       if (layoutFrame !== null) window.cancelAnimationFrame(layoutFrame);
       if (scrollFrame !== null) window.cancelAnimationFrame(scrollFrame);
-      props.ref?.(null);
+      ctx.viewportRef(null);
     });
   });
 
@@ -243,7 +244,7 @@ export function PreviewViewport(props: PreviewViewportProps) {
   };
 
   return (
-    <div class="ehpeek-preview-viewport">
+    <div class={`ehpeek-preview-viewport${props.class ? ` ${props.class}` : ""}`} style={props.style}>
       <div
         ref={scroller}
         class="ehpeek-preview-scroller"

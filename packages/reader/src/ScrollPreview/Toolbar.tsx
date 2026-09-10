@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { Show, type JSX } from "solid-js";
 import { clamp } from "../kit/helpers";
 import { useReaderTexts } from "../kit/i18n";
 import type { ReadDirection } from "../kit/interfaces";
@@ -13,21 +13,15 @@ const NEXT_DIRECTION: Record<ReadDirection, ReadDirection> = {
 };
 
 export interface PreviewToolbarProps {
-  /** Actual fitted row/column count, which may differ from the requested count. */
-  crossCount: number;
-  /** Allowed row/column counts for the current viewport. */
-  crossCountLimits: { min: number; max: number };
-  /** Inclusive page range currently visible; null before initial layout. */
-  visiblePages: { first: number; last: number } | null;
-  /** Derived from metadata requests relevant to this viewport. */
-  loading: boolean;
-  /** Reveal the current reading-progress page without changing it. */
-  locateHighlightedPage(): void;
+  class?: string;
+  style?: JSX.CSSProperties;
 }
 
 export function PreviewToolbar(props: PreviewToolbarProps) {
   const ctx = useScrollPreviewContext();
   const texts = useReaderTexts();
+  const crossCount = () => ctx.viewport()?.crossCount() ?? 1;
+  const crossCountLimits = () => ctx.viewport()?.crossCountLimits() ?? { min: 1, max: 1 };
   const direction = () => ctx.settings[0].direction;
   const directionIcon = () => direction() === "ttb"
     ? "arrow-down" as const
@@ -43,14 +37,21 @@ export function PreviewToolbar(props: PreviewToolbarProps) {
     if (!window.confirm(texts.gallery.confirmScrollPreviewDirection)) return;
     ctx.settings[1]("direction", NEXT_DIRECTION[direction()]);
   };
-  const range = () => props.visiblePages
-    ? `${props.visiblePages.first}–${props.visiblePages.last} / ${ctx.previewCache.source.totalPages}`
-    : `— / ${ctx.previewCache.source.totalPages}`;
+  const range = () => {
+    const pages = ctx.viewport()?.visiblePages();
+    return pages
+      ? `${pages.first}–${pages.last} / ${ctx.previewCache.source.totalPages}`
+      : `— / ${ctx.previewCache.source.totalPages}`;
+  };
 
   return (
-    <div class="ehpeek-preview-toolbar" data-left-handed={ctx.leftHanded()}>
+    <div
+      class={`ehpeek-preview-toolbar${props.class ? ` ${props.class}` : ""}`}
+      style={props.style}
+      data-left-handed={ctx.leftHanded()}
+    >
       <span class="ehpeek-preview-range">
-        <Show when={props.loading}><span class="ehpeek-preview-loading" /></Show>
+        <Show when={ctx.loading.loadingCount() > 0}><span class="ehpeek-preview-loading" /></Show>
         {range()}
       </span>
       <div class="ehpeek-preview-toolbar-actions">
@@ -68,9 +69,9 @@ export function PreviewToolbar(props: PreviewToolbarProps) {
           size="md"
           aria-label={texts.common.actions.zoomOut}
           title={texts.common.actions.zoomOut}
-          disabled={props.crossCount >= props.crossCountLimits.max}
+          disabled={crossCount() >= crossCountLimits().max}
           onClick={() => ctx.settings[1]("crossCount", clamp(
-            props.crossCount + 1, props.crossCountLimits.min, props.crossCountLimits.max,
+            crossCount() + 1, crossCountLimits().min, crossCountLimits().max,
           ))}
         >
           <Icon name="zoom-out" size="var(--ui-icon-size-md)" />
@@ -80,9 +81,9 @@ export function PreviewToolbar(props: PreviewToolbarProps) {
           size="md"
           aria-label={texts.common.actions.zoomIn}
           title={texts.common.actions.zoomIn}
-          disabled={props.crossCount <= props.crossCountLimits.min}
+          disabled={crossCount() <= crossCountLimits().min}
           onClick={() => ctx.settings[1]("crossCount", clamp(
-            props.crossCount - 1, props.crossCountLimits.min, props.crossCountLimits.max,
+            crossCount() - 1, crossCountLimits().min, crossCountLimits().max,
           ))}
         >
           <Icon name="zoom-in" size="var(--ui-icon-size-md)" />
@@ -93,7 +94,7 @@ export function PreviewToolbar(props: PreviewToolbarProps) {
           aria-label={texts.common.actions.current}
           title={texts.common.actions.current}
           disabled={ctx.progress.current() === null}
-          onClick={() => props.locateHighlightedPage()}
+          onClick={() => ctx.locateHighlightedPage()}
         >
           <Icon name="locate" size="var(--ui-icon-size-md)" />
         </IconButton>
