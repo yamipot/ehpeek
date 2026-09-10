@@ -26,6 +26,7 @@ const { ReaderPreviewNavi } = await loadModule("features/ReaderPreviewNavi");
 const { lockPageScroll } = await loadModule("features/Viewport");
 const readerLayout = await loadModule("Reader/layout");
 const previewLayout = await loadModule("ScrollPreview/layout");
+const preview2Layout = await loadModule("ScrollPreview2/layout");
 const { ReaderImages } = await loadModule("Reader/images");
 const { ReaderSession } = await loadModule("Reader/session");
 
@@ -155,6 +156,29 @@ test("embedded preview sizing uses reference thumbnails and preserves override l
   assert.equal(previewLayout.calculatePreviewLayout(options).crossCount, 5);
   assert.equal(previewLayout.calculatePreviewLayout({ ...options, crossCountOverride: 30 }).crossCount, 12);
   assert.equal(previewLayout.calculatePreviewLayout({ ...options, crossCountOverride: 0 }).crossCount, 1);
+});
+
+test("ScrollPreview2 sizing is container-driven and caps initial overrides", () => {
+  const options = {
+    width: 500, height: 300, horizontal: false,
+    totalImages: 20, pixelScale: 1, gap: 8, estimatedAspectRatio: 1.5,
+    maxTileWidth: 220, referenceThumbnailCrossSize: 200,
+    crossCountOverride: 30, maximumCrossCount: 3, item: () => null,
+  };
+  const layout = preview2Layout.calculatePreviewLayout(options);
+  assert.equal(layout.crossCount, 3);
+  assert.equal(
+    preview2Layout.calculatePreviewLayout({ ...options, crossCountOverride: null }).crossCount,
+    3,
+  );
+  const placements = preview2Layout.previewTilePlacements({
+    layout, firstGroup: 0, lastGroup: 0, totalPages: 20, rightToLeft: false,
+  });
+  assert.deepEqual(placements.map(tile => tile.pageNum), [1, 2, 3]);
+  assert.deepEqual(
+    preview2Layout.previewVisiblePages(layout, 0, 20),
+    { first: 1, last: 6 },
+  );
 });
 
 test("Reader decode admission retains its minimum concurrency and releases waiting work", async () => {

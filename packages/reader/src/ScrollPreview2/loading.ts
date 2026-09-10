@@ -5,6 +5,7 @@ import type { PreviewCache } from "../features/PreviewCache";
 const PREVIEW_CONCURRENT_LOADS = 2;
 const PREVIEW_LOAD_RADIUS = 2;
 
+/** Loads the batch window around the viewport and leaves retry state local to it. */
 export function createPreviewLoading(options: {
   centeredPageNum: Accessor<number>;
   maxBatchIndex: number;

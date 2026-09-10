@@ -871,6 +871,23 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
   border-radius: var(--ui-radius-sm);
   background: var(--color-site-elevated);
 }
+.ehpeek-preview-panel[data-scroll-preview-instance] {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  background: var(--color-site-elevated);
+}
+.ehpeek-preview-panel[data-scroll-preview-instance][hidden] { display: none; }
+.ehpeek-preview-panel[data-scroll-preview-instance] > .ehpeek-preview-toolbar { flex-wrap: wrap; }
+.ehpeek-preview-panel[data-scroll-preview-instance] > .ehpeek-preview-toolbar .ehpeek-preview-range {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.ehpeek-preview-panel[data-scroll-preview-instance] > .ehpeek-preview-toolbar .ehpeek-preview-toolbar-actions {
+  max-width: 100%;
+  flex-wrap: wrap;
+  margin-inline-start: auto;
+}
 .ehpeek-preview-toolbar {
   display: flex;
   min-height: var(--ui-control-size-md);

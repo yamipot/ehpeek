@@ -27,8 +27,8 @@ import { IconButton } from "../kit/Widgets/Button";
 import { Icon } from "../kit/Widgets/Icon";
 import { LauncherButton } from "../kit/Widgets/LauncherButton";
 import { PositionBar } from "../kit/Widgets/PositionBar";
-import { PreviewDecodeCache } from "./DecodeCache";
-import { createPreviewLoading } from "./loading";
+import { PreviewDecodeCache } from "../ScrollPreview2/DecodeCache";
+import { createPreviewLoading } from "../ScrollPreview2/loading";
 import {
   buildGroupGeometry, calculatePreviewLayout, minimumPreviewCrossCount, groupAtOffset, groupOffsetAt, groupSizeAt,
   layoutAspectRatio, layoutThumbnailSize, logicalGroupOffset,

@@ -4,6 +4,7 @@ type DecodeCacheEntry = {
   pins: number;
 };
 
+/** Retains decoded thumbnails while visible tiles pin them. */
 export class PreviewDecodeCache {
   private bytes = 0;
   private readonly entries = new Map<string, DecodeCacheEntry>();
