@@ -1,9 +1,10 @@
 import { Show } from "solid-js";
+import { clamp } from "../kit/helpers";
 import { useReaderTexts } from "../kit/i18n";
 import type { ReadDirection } from "../kit/interfaces";
 import { IconButton } from "../kit/Widgets/Button";
 import { Icon } from "../kit/Widgets/Icon";
-import { useScrollPreview } from "./Context";
+import { useScrollPreviewContext } from "./Context";
 
 const NEXT_DIRECTION: Record<ReadDirection, ReadDirection> = {
   ltr: "rtl",
@@ -22,14 +23,12 @@ export interface PreviewToolbarProps {
   loading: boolean;
   /** Reveal the current reading-progress page without changing it. */
   locateHighlightedPage(): void;
-  zoomIn(): void;
-  zoomOut(): void;
 }
 
 export function PreviewToolbar(props: PreviewToolbarProps) {
-  const preview = useScrollPreview();
+  const ctx = useScrollPreviewContext();
   const texts = useReaderTexts();
-  const direction = () => preview.settings[0].direction;
+  const direction = () => ctx.settings[0].direction;
   const directionIcon = () => direction() === "ttb"
     ? "arrow-down" as const
     : direction() === "rtl"
@@ -42,14 +41,14 @@ export function PreviewToolbar(props: PreviewToolbarProps) {
       : texts.gallery.scrollPreviewDirectionLtr;
   const changeDirection = (): void => {
     if (!window.confirm(texts.gallery.confirmScrollPreviewDirection)) return;
-    preview.settings[1]("direction", NEXT_DIRECTION[direction()]);
+    ctx.settings[1]("direction", NEXT_DIRECTION[direction()]);
   };
   const range = () => props.visiblePages
-    ? `${props.visiblePages.first}–${props.visiblePages.last} / ${preview.previewCache.source.totalPages}`
-    : `— / ${preview.previewCache.source.totalPages}`;
+    ? `${props.visiblePages.first}–${props.visiblePages.last} / ${ctx.previewCache.source.totalPages}`
+    : `— / ${ctx.previewCache.source.totalPages}`;
 
   return (
-    <div class="ehpeek-preview-toolbar" data-left-handed={preview.leftHanded()}>
+    <div class="ehpeek-preview-toolbar" data-left-handed={ctx.leftHanded()}>
       <span class="ehpeek-preview-range">
         <Show when={props.loading}><span class="ehpeek-preview-loading" /></Show>
         {range()}
@@ -70,7 +69,9 @@ export function PreviewToolbar(props: PreviewToolbarProps) {
           aria-label={texts.common.actions.zoomOut}
           title={texts.common.actions.zoomOut}
           disabled={props.crossCount >= props.crossCountLimits.max}
-          onClick={() => props.zoomOut()}
+          onClick={() => ctx.settings[1]("crossCount", clamp(
+            props.crossCount + 1, props.crossCountLimits.min, props.crossCountLimits.max,
+          ))}
         >
           <Icon name="zoom-out" size="var(--ui-icon-size-md)" />
         </IconButton>
@@ -80,7 +81,9 @@ export function PreviewToolbar(props: PreviewToolbarProps) {
           aria-label={texts.common.actions.zoomIn}
           title={texts.common.actions.zoomIn}
           disabled={props.crossCount <= props.crossCountLimits.min}
-          onClick={() => props.zoomIn()}
+          onClick={() => ctx.settings[1]("crossCount", clamp(
+            props.crossCount - 1, props.crossCountLimits.min, props.crossCountLimits.max,
+          ))}
         >
           <Icon name="zoom-in" size="var(--ui-icon-size-md)" />
         </IconButton>
@@ -89,29 +92,29 @@ export function PreviewToolbar(props: PreviewToolbarProps) {
           size="md"
           aria-label={texts.common.actions.current}
           title={texts.common.actions.current}
-          disabled={preview.progress.current() === null}
+          disabled={ctx.progress.current() === null}
           onClick={() => props.locateHighlightedPage()}
         >
           <Icon name="locate" size="var(--ui-icon-size-md)" />
         </IconButton>
-        <Show when={preview.resize}>
+        <Show when={ctx.resize}>
           <IconButton
             variant="subtle"
             size="md"
             aria-label={texts.gallery.openScrollPreview}
             title={texts.gallery.openScrollPreview}
-            onClick={() => preview.resize?.()}
+            onClick={() => ctx.resize?.()}
           >
             <Icon name="fullscreen" size="var(--ui-icon-size-md)" />
           </IconButton>
         </Show>
-        <Show when={preview.close}>
+        <Show when={ctx.close}>
           <IconButton
             variant="subtle"
             size="md"
             aria-label={texts.common.actions.close}
             title={texts.common.actions.close}
-            onClick={() => preview.close?.()}
+            onClick={() => ctx.close?.()}
           >
             <Icon name="close" size="var(--ui-icon-size-md)" />
           </IconButton>

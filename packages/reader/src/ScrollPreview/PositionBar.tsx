@@ -1,4 +1,4 @@
-import { Show, untrack, type Accessor } from "solid-js";
+import { createEffect, onCleanup, Show, untrack, type Accessor } from "solid-js";
 import { clamp } from "../kit/helpers";
 import { useReaderTexts } from "../kit/i18n";
 import { PositionBar } from "../kit/Widgets/PositionBar";
@@ -7,23 +7,26 @@ import {
   physicalGroupOffset,
   type PreviewLayout,
 } from "./layout";
-import { useScrollPreview } from "./Context";
+import { useScrollPreviewContext } from "./Context";
 
 const SCROLL_PIXEL_EPSILON = 1;
 
 export interface PreviewPositionBarProps {
   layout: Accessor<PreviewLayout>;
   scrollOffset: Accessor<number>;
-  ready: boolean;
   rightToLeft: boolean;
   scrollTo(offset: number): void;
   setInteracting(active: boolean): void;
 }
 
 export function PreviewPositionBar(props: PreviewPositionBarProps) {
-  const preview = useScrollPreview();
+  const ctx = useScrollPreviewContext();
   const texts = useReaderTexts();
-  const horizontal = untrack(() => props.layout().horizontal);
+  const horizontal = untrack(() => ctx.settings[0].direction !== "ttb");
+  createEffect(() => {
+    if (ctx.disabled() || !ctx.visible()) props.setInteracting(false);
+  });
+  onCleanup(() => props.setInteracting(false));
   const mainViewportSize = () => horizontal
     ? props.layout().viewportWidth
     : props.layout().viewportHeight;
@@ -55,10 +58,10 @@ export function PreviewPositionBar(props: PreviewPositionBarProps) {
   };
 
   return (
-    <Show when={props.ready && totalGroups() > 0 &&
+    <Show when={totalGroups() > 0 &&
       maxScrollOffset() > SCROLL_PIXEL_EPSILON && visibleRatio() < 1}>
       <PositionBar
-        disabled={preview.disabled()}
+        disabled={ctx.disabled()}
         ariaLabel={texts.gallery.scrollPreview}
         axis={horizontal ? "horizontal" : "vertical"}
         currentValue={value()}

@@ -1,16 +1,13 @@
 import { createEffect, For, onCleanup, Show } from "solid-js";
 import { Icon } from "../kit/Widgets/Icon";
-import { useScrollPreview } from "./Context";
+import { useScrollPreviewContext } from "./Context";
 import type { PreviewTilePlacement } from "./layout";
 
 export type { PreviewTilePlacement } from "./layout";
 
 export interface PreviewTileProps extends PreviewTilePlacement {
-  /** The batch failed to load, so the placeholder becomes a retry control. */
-  failed: boolean;
   /** Upper bound on enlargement relative to the thumbnail's intrinsic dimensions. */
   maximumScale: number;
-  retry(): void;
 }
 
 export interface PreviewGridProps {
@@ -20,12 +17,9 @@ export interface PreviewGridProps {
   tiles: readonly PreviewTilePlacement[];
   /** Enlargement limit applied to every tile, relative to intrinsic dimensions. */
   maximumScale: number;
-  failedBatches: ReadonlySet<number>;
-  retry(pageNum: number): void;
 }
 
 export function PreviewGrid(props: PreviewGridProps) {
-  const preview = useScrollPreview();
   return (
     <div
       class="ehpeek-preview-canvas"
@@ -37,9 +31,7 @@ export function PreviewGrid(props: PreviewGridProps) {
       <For each={props.tiles}>{(tile) => (
         <PreviewTile
           {...tile}
-          failed={props.failedBatches.has(preview.previewCache.batchForPage(tile.pageNum))}
           maximumScale={props.maximumScale}
-          retry={() => props.retry(tile.pageNum)}
         />
       )}</For>
     </div>
@@ -47,10 +39,11 @@ export function PreviewGrid(props: PreviewGridProps) {
 }
 
 export function PreviewTile(props: PreviewTileProps) {
-  const preview = useScrollPreview();
+  const ctx = useScrollPreviewContext();
+  const failed = () => ctx.loading.failedBatches().has(ctx.previewCache.batchForPage(props.pageNum));
   const item = () => {
-    preview.previewCache.version();
-    return preview.previewCache.item(props.pageNum);
+    ctx.previewCache.version();
+    return ctx.previewCache.item(props.pageNum);
   };
   let releaseDecodedImage: (() => void) | null = null;
 
@@ -58,7 +51,7 @@ export function PreviewTile(props: PreviewTileProps) {
     releaseDecodedImage?.();
     const current = item();
     releaseDecodedImage = current?.thumbnail.url
-      ? preview.decodeCache.retain(current.thumbnail.url)
+      ? ctx.decodeCache.retain(current.thumbnail.url)
       : null;
   });
   onCleanup(() => releaseDecodedImage?.());
@@ -81,10 +74,10 @@ export function PreviewTile(props: PreviewTileProps) {
             <button
               type="button"
               class="ehpeek-preview-placeholder"
-              disabled={!props.failed}
-              onClick={() => props.retry()}
+              disabled={!failed()}
+              onClick={() => ctx.loading.retry(props.pageNum)}
             >
-              <Show when={props.failed}>
+              <Show when={failed()}>
                 <Icon name="refresh" size="var(--ui-icon-size-lg)" />
               </Show>
               <span>{props.pageNum}</span>
@@ -138,14 +131,14 @@ export function PreviewTile(props: PreviewTileProps) {
                   href={loaded.pageUrl}
                   draggable={false}
                   aria-label={`Page ${loaded.pageNum}`}
-                  aria-current={preview.progress.current() === props.pageNum ? "page" : undefined}
+                  aria-current={ctx.progress.current() === props.pageNum ? "page" : undefined}
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
-                    preview.selectPage(props.pageNum);
+                    ctx.selectPage(props.pageNum);
                   }}
                 />
-                <Show when={preview.progress.current() === props.pageNum}>
+                <Show when={ctx.progress.current() === props.pageNum}>
                   <span class="ehpeek-preview-highlight" aria-hidden="true" />
                 </Show>
               </>

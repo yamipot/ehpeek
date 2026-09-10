@@ -26,7 +26,6 @@ const { ReaderPreviewNavi } = await loadModule("features/ReaderPreviewNavi");
 const { lockPageScroll } = await loadModule("features/Viewport");
 const readerLayout = await loadModule("Reader/layout");
 const previewLayout = await loadModule("ScrollPreview/layout");
-const preview2Layout = await loadModule("ScrollPreview2/layout");
 const { ReaderImages } = await loadModule("Reader/images");
 const { ReaderSession } = await loadModule("Reader/session");
 
@@ -91,10 +90,12 @@ test("layout calculations retain page windows, median sizing and group offsets",
   });
   assert.deepEqual(geometry.groupOffsets, [0, 208, 416]);
   assert.equal(geometry.totalMainSize, 616);
-  const layout = { ...geometry, gap: 8 };
-  assert.equal(previewLayout.groupAtOffset(layout, 208), 1);
-  assert.equal(previewLayout.logicalGroupOffset(layout, 260), 1.25);
-  assert.equal(previewLayout.physicalGroupOffset(layout, 1.25), 260);
+  assert.equal(geometry.gap, 8);
+  assert.equal(previewLayout.groupAtOffset(geometry, 208), 1);
+  assert.equal(previewLayout.groupOffsetAt(geometry, 2), 416);
+  assert.equal(previewLayout.groupSizeAt(geometry, 1), 200);
+  assert.equal(previewLayout.logicalGroupOffset(geometry, 260), 1.25);
+  assert.equal(previewLayout.physicalGroupOffset(geometry, 1.25), 260);
 });
 
 test("Reader image resources retain metadata, touch LRU entries and abort on disposal", async () => {
@@ -124,9 +125,9 @@ test("Reader image resources retain metadata, touch LRU entries and abort on dis
 
 test("preview sizing distinguishes horizontal rows, vertical columns and explicit zoom", () => {
   const options = {
-    width: 800, height: 600, horizontal: false, embedded: false,
+    width: 800, height: 600, horizontal: false,
     totalImages: 8, pixelScale: 1, gap: 8, estimatedAspectRatio: 1.5,
-    maxTileWidth: 220, embeddedReferenceTileWidth: 160,
+    maxTileWidth: 220,
     referenceThumbnailCrossSize: 200, crossCountOverride: null,
     maximumCrossCount: 12, item: () => null,
   };
@@ -145,38 +146,25 @@ test("preview sizing distinguishes horizontal rows, vertical columns and explici
   assert.equal(previewLayout.minimumPreviewCrossCount(false, 1.5, 800, 600, 8), 2);
 });
 
-test("embedded preview sizing uses reference thumbnails and preserves override limits", () => {
-  const options = {
-    width: 800, height: 600, horizontal: false, embedded: true,
-    totalImages: 8, pixelScale: 1, gap: 8, estimatedAspectRatio: 1.5,
-    maxTileWidth: 220, embeddedReferenceTileWidth: 160,
-    referenceThumbnailCrossSize: 160, crossCountOverride: null,
-    maximumCrossCount: 12, item: () => null,
-  };
-  assert.equal(previewLayout.calculatePreviewLayout(options).crossCount, 5);
-  assert.equal(previewLayout.calculatePreviewLayout({ ...options, crossCountOverride: 30 }).crossCount, 12);
-  assert.equal(previewLayout.calculatePreviewLayout({ ...options, crossCountOverride: 0 }).crossCount, 1);
-});
-
-test("ScrollPreview2 sizing is container-driven and caps initial overrides", () => {
+test("ScrollPreview sizing is container-driven and caps initial overrides", () => {
   const options = {
     width: 500, height: 300, horizontal: false,
     totalImages: 20, pixelScale: 1, gap: 8, estimatedAspectRatio: 1.5,
     maxTileWidth: 220, referenceThumbnailCrossSize: 200,
     crossCountOverride: 30, maximumCrossCount: 3, item: () => null,
   };
-  const layout = preview2Layout.calculatePreviewLayout(options);
+  const layout = previewLayout.calculatePreviewLayout(options);
   assert.equal(layout.crossCount, 3);
   assert.equal(
-    preview2Layout.calculatePreviewLayout({ ...options, crossCountOverride: null }).crossCount,
+    previewLayout.calculatePreviewLayout({ ...options, crossCountOverride: null }).crossCount,
     3,
   );
-  const placements = preview2Layout.previewTilePlacements({
+  const placements = previewLayout.previewTilePlacements({
     layout, firstGroup: 0, lastGroup: 0, totalPages: 20, rightToLeft: false,
   });
   assert.deepEqual(placements.map(tile => tile.pageNum), [1, 2, 3]);
   assert.deepEqual(
-    preview2Layout.previewVisiblePages(layout, 0, 20),
+    previewLayout.previewVisiblePages(layout, 0, 20),
     { first: 1, last: 6 },
   );
 });

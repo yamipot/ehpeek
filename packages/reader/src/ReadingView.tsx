@@ -1,6 +1,6 @@
 import { createEffect, createSignal, ErrorBoundary, onCleanup, onMount, Show, untrack } from "solid-js";
 import { Reader, type ReaderActions } from "./Reader/index";
-import { ScrollPreview, type ScrollPreviewOpenState } from "./ScrollPreview";
+import { ReadingPreview, type ScrollPreviewOpenState } from "./ReadingPreview";
 import { createReaderSettings } from "./features/ReaderSettings";
 import { createPreviewCache } from "./features/PreviewCache";
 import { ReadProgressSyncer, type ReadProgressPort } from "./features/ReadProgressSyncer";
@@ -299,7 +299,7 @@ export function ReadingView(props: ReadingViewProps) {
   return (
     <OverlayHostProvider host={host}>
       <div ref={previewRoot} class="ehpeek-ui-root ehpeek-reading-view">
-        <ScrollPreview
+        <ReadingPreview
           disabled={props.disabled ?? false}
           embeddedDisabled={embeddedPreviewDisabled()}
           openState={preview()}
@@ -318,7 +318,7 @@ export function ReadingView(props: ReadingViewProps) {
             navi.back();
           }}
           onOpenOverlay={pageNum => navi.openPreview(pageNum)}
-          onSelectPage={(_url, page) => { void openReader(page, true).catch(onError); }}
+          onSelectPage={page => { void openReader(page, true).catch(onError); }}
           onLoadError={onError}
           onEmbeddedDirectionChange={(direction) => settings.set("embeddedPreviewDirection", direction)}
           onReadDirectionChange={(direction) => settings.set("previewDirection", direction)}

@@ -64,10 +64,10 @@ const mocks = {
       return element;
     }
   `,
-  "./ScrollPreview": `
+  "./ReadingPreview": `
     import { createEffect, onCleanup } from "solid-js";
     import { fixture, progress } from "test:fixture";
-    export function ScrollPreview(props) {
+    export function ReadingPreview(props) {
       fixture.previewMounts++;
       fixture.previewProps = props;
       fixture.preview = progress(props.initialProgress ?? null);
@@ -278,7 +278,7 @@ test("covered Reader ignores keyboard, wheel, buttons and a pointer released aft
   assert.equal(instance.progress(), 2);
   assert.equal(instance.activeView, "preview");
   assert.equal(reader.querySelector(".ehpeek-reader-toolbar-controls").hidden, true);
-  labelledButton(document.querySelector('.ehpeek-preview-panel[data-embedded="false"]'), "Close").click();
+  labelledButton(document.querySelector('.ehpeek-preview-host[data-embedded="false"] > .ehpeek-preview-panel'), "Close").click();
   await settle();
   assert.equal(reader.inert, false);
   assert.equal(document.querySelector("#ehpeek-reader"), reader);
@@ -304,13 +304,13 @@ test("public open switches from Preview with and without history, without a retu
       await instance.open(3);
       const reader = document.querySelector("#ehpeek-reader");
       assert.equal(instance.activeView, "reader");
-      assert.equal(document.querySelector('.ehpeek-preview-panel[data-embedded="false"]'), null);
+      assert.equal(document.querySelector('.ehpeek-preview-host[data-embedded="false"] > .ehpeek-preview-panel'), null);
       instance.openPreview(3);
       await instance.open(5);
       assert.equal(document.querySelector("#ehpeek-reader"), reader);
       assert.equal(instance.progress(), 5);
       assert.equal(instance.activeView, "reader");
-      assert.equal(document.querySelector('.ehpeek-preview-panel[data-embedded="false"]'), null);
+      assert.equal(document.querySelector('.ehpeek-preview-host[data-embedded="false"] > .ehpeek-preview-panel'), null);
       assert.deepEqual(returns, []);
       if (withHistory) assert.equal(depth, 1);
     });
@@ -328,7 +328,7 @@ test("disabled input preserves programmatic navigation and separately gates side
   const { instance, root, setDisabled } = mountActual(t, { placement: () => placement }, { embeddedPreview: true });
   await instance.open(2);
   const reader = document.querySelector("#ehpeek-reader");
-  const embedded = root.querySelector('.ehpeek-preview-panel[data-embedded="true"]');
+  const embedded = root.querySelector('.ehpeek-preview-host[data-embedded="true"] > .ehpeek-preview-panel');
   assert.equal(reader.inert, false);
   assert.equal(embedded.inert, false);
   const scroller = reader.querySelector(".ehpeek-reader-scroller");
@@ -346,7 +346,7 @@ test("disabled input preserves programmatic navigation and separately gates side
   assert.equal(instance.progress(), 4);
   assert.equal(document.querySelector("#ehpeek-reader"), reader);
   instance.openPreview(4);
-  const overlay = document.querySelector('.ehpeek-preview-panel[data-embedded="false"]');
+  const overlay = document.querySelector('.ehpeek-preview-host[data-embedded="false"] > .ehpeek-preview-panel');
   assert.equal(overlay.inert, true);
   labelledButton(overlay, "Close").click();
   assert.equal(instance.activeView, "preview");
@@ -504,12 +504,12 @@ test("mounted public Reader and Preview respond to instance settings without vie
   assert.equal(instance.settings.value().scrollTtbScale, "fill");
 
   instance.settings.set("embeddedPreviewDirection", "ttb");
-  const embedded = () => root.querySelector('.ehpeek-preview-panel[data-embedded="true"]');
+  const embedded = () => root.querySelector('.ehpeek-preview-host[data-embedded="true"] > .ehpeek-preview-panel');
   assert.ok(embedded().querySelector('[aria-label="Scroll Preview: top to bottom"]'));
   instance.settings.set("embeddedPreviewDirection", "ltr");
   assert.ok(embedded().querySelector('[aria-label="Scroll Preview: left to right"]'));
   instance.openPreview(2);
-  const overlay = () => document.querySelector('.ehpeek-preview-panel[data-embedded="false"]');
+  const overlay = () => document.querySelector('.ehpeek-preview-host[data-embedded="false"] > .ehpeek-preview-panel');
   assert.ok(overlay());
   instance.settings.set("previewDirection", "rtl");
   assert.ok(overlay().querySelector('[aria-label="Scroll Preview: right to left"]'));
@@ -567,7 +567,7 @@ test("embedded preview returns to the existing reader and retains progress sync"
   fixture.reader.gotoPage(6);
   assert.equal(fixture.preview.current(), 6);
   fixture.readerProps.callbacks.onOpenPreview(6);
-  fixture.previewProps.onSelectPage("/page/8", 8);
+  fixture.previewProps.onSelectPage(8);
   await settle();
   assert.equal(instance.activeView, "reader");
   assert.equal(fixture.reader.progress.current(), 8);

@@ -8,7 +8,6 @@ const PREVIEW_LOAD_RADIUS = 2;
 /** Loads the batch window around the viewport and leaves retry state local to it. */
 export function createPreviewLoading(options: {
   centeredPageNum: Accessor<number>;
-  maxBatchIndex: number;
   onLoadError: (error: unknown) => void;
   previewCache: PreviewCache;
   ready: Accessor<boolean>;
@@ -23,7 +22,7 @@ export function createPreviewLoading(options: {
 
   const sync = (centerIndex: number, retryIndex?: number): void => {
     const firstIndex = Math.max(0, centerIndex - PREVIEW_LOAD_RADIUS);
-    const lastIndex = Math.min(options.maxBatchIndex, centerIndex + PREVIEW_LOAD_RADIUS);
+    const lastIndex = Math.min(options.previewCache.maxBatch, centerIndex + PREVIEW_LOAD_RADIUS);
     const targets = [];
     for (let batchIndex = firstIndex; batchIndex <= lastIndex; batchIndex += 1) {
       targets.push({
