@@ -86,7 +86,8 @@ export function createPagesScroller(element: HTMLElement) {
       element.scrollTop += pageRect.top + pageRect.height * anchor.yRatio - centerY;
     },
     moveToTop(scrollTop: number, bounds?: ScrollBounds | null): void {
-      element.scrollTop = clampedTop(scrollTop, bounds);
+      const nextScrollTop = clampedTop(scrollTop, bounds);
+      if (element.scrollTop !== nextScrollTop) element.scrollTop = nextScrollTop;
     },
     slotTop(elements: SlotElements): number {
       const elementsRect = elements.node.getBoundingClientRect();

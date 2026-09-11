@@ -234,6 +234,20 @@ class PointerGesture {
       return;
     }
 
+    // iOS/WebView coalesces several moves into a single pointermove. Feed the
+    // merged-away intermediate points (each with its own timeStamp) into the
+    // velocity samples so a fast flick's initial speed isn't underestimated. The
+    // last array element is this event itself; leave it to move() below to avoid
+    // sampling it twice.
+    if (this.drag.canDrag && typeof event.getCoalescedEvents === "function") {
+      const coalesced = event.getCoalescedEvents();
+      for (let i = 0; i < coalesced.length - 1; i += 1) {
+        const sample = coalesced[i];
+        if (!this.drag || !sample) break;
+        this.updateLastMove(this.drag, sample.clientX, sample.clientY, sample);
+      }
+    }
+
     this.move(event.clientX, event.clientY, event);
   };
 
@@ -344,6 +358,16 @@ class PointerGesture {
     this.releaseCapture(drag);
     this.removePointerListeners();
     this.removeMouseListeners();
+
+    // iOS/WebView often drops the last few pointermove events at the end of a
+    // fast flick, so the release reuses a stale, slower velocity and the fling
+    // feels weaker than on Android. Recompute once with the real pointerup
+    // location as the final sample to recover the missing tail displacement. If
+    // the finger had already stopped before lifting, the recompute drives the
+    // velocity to zero, so it won't cause an unwanted fling.
+    if (!cancelled && drag.active) {
+      this.updateLastMove(drag, clientX, clientY, event);
+    }
 
     const info = {
       pointerId: drag.pointerId,

@@ -48,6 +48,10 @@ const PAGE_SLOT_SPACING = 8;
 const FALLBACK_ASPECT_RATIO = 1.42;
 const HORIZONTAL_FLING_VELOCITY_MULTIPLIER = 1.4;
 const HORIZONTAL_FLING_MAX_VELOCITY = 1.8;
+const VERTICAL_FLING_VELOCITY_MULTIPLIER = 1.35;
+const VERTICAL_FLING_MAX_VELOCITY = 2.4;
+const VERTICAL_FLING_DECAY = 0.001;
+const VERTICAL_FLING_MAX_FRAME_DELTA_MS = 96;
 type PageSlot = {
   pageNum: number;
   index: number;
@@ -329,7 +333,10 @@ export function ReaderViewport(props: ReaderViewportProps) {
       flingAnimator.start({
         axis: "y",
         scroller,
-        initialVelocity: -dragVelocityY,
+        initialVelocity: -dragVelocityY * VERTICAL_FLING_VELOCITY_MULTIPLIER,
+        maxVelocity: VERTICAL_FLING_MAX_VELOCITY,
+        decay: VERTICAL_FLING_DECAY,
+        maxFrameDelta: VERTICAL_FLING_MAX_FRAME_DELTA_MS,
         setScrollPosition: moveToTop,
         canRun: () => !disposed && controls().navigationMode === "scroll" && !horizontalAxis(),
         onStop,

@@ -88,6 +88,10 @@ export function createPreviewGestures(options: {
   let pinchMinimumCrossCount = 1;
   const pointer: PointerGestureCallbacks = {
     get dragAxis() { return preview.close ? "any" : horizontal() ? "x" : "y"; },
+    shouldCaptureDrag(event) {
+      return Boolean(preview.close) || !("pointerType" in event) || event.pointerType === "mouse";
+    },
+    shouldObserveTap: () => true,
     onStart() {
       cancelMotion();
       resetDismiss();

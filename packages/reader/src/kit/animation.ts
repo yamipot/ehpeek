@@ -86,6 +86,8 @@ export class ScrollFlingAnimator {
     scroller: HTMLElement;
     initialVelocity: number;
     maxVelocity?: number;
+    decay?: number;
+    maxFrameDelta?: number;
     setScrollPosition: (scrollPosition: number) => void;
     canRun: () => boolean;
     onStop: () => void;
@@ -110,7 +112,11 @@ export class ScrollFlingAnimator {
         return;
       }
 
-      const elapsed = clamp(time - this.lastFrameTime, ANIMATION_FRAME_MIN_DELTA_MS, ANIMATION_FRAME_MAX_DELTA_MS);
+      const elapsed = clamp(
+        time - this.lastFrameTime,
+        ANIMATION_FRAME_MIN_DELTA_MS,
+        options.maxFrameDelta ?? ANIMATION_FRAME_MAX_DELTA_MS,
+      );
       this.lastFrameTime = time;
 
       const previousPosition = options.axis === "x"
@@ -127,7 +133,7 @@ export class ScrollFlingAnimator {
         return;
       }
 
-      this.velocity *= Math.exp(-SCROLL_FLING_DECAY * elapsed);
+      this.velocity *= Math.exp(-(options.decay ?? SCROLL_FLING_DECAY) * elapsed);
 
       if (Math.abs(this.velocity) < SCROLL_FLING_STOP_VELOCITY) {
         this.cancel();

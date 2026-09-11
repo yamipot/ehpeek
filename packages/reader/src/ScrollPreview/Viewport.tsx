@@ -250,7 +250,7 @@ function Viewport(props: PreviewViewportProps) {
         class="ehpeek-preview-scroller"
         classList={{ "ehpeek-preview-scroller--horizontal": horizontal }}
         style={{
-          "touch-action": ctx.close ? "none" : horizontal ? "pan-y" : "pan-x",
+          "touch-action": ctx.close ? "none" : "pan-x pan-y",
           "overscroll-behavior": ctx.close ? "contain" : "auto",
         }}
         onScroll={reportScroll}

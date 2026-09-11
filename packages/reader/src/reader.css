@@ -697,7 +697,6 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-download-link:hover { text-deco
   touch-action: none;
 }
 .ehpeek-reader-scroller::-webkit-scrollbar { display: none; }
-.ehpeek-reader-scroller[data-navigation-mode="scroll"][data-read-direction="ttb"][data-zoom-active="false"] { touch-action: pan-x pan-y; }
 .ehpeek-reader-scroller[data-dragging="true"] { cursor: grabbing; user-select: none; }
 .ehpeek-reader-scroller[data-navigation-mode="paged"] { overflow: hidden; touch-action: none; user-select: none; }
 .ehpeek-reader-page-strip { display: flex; }

@@ -96,11 +96,6 @@ export function createReaderGestures(options: {
   const isPageReloadButtonTarget = (event: PointerEvent | MouseEvent): boolean =>
     event.target instanceof Element &&
     event.target.closest(".ehpeek-reader-page-reload") !== null;
-  const shouldStartDrag = (event: PointerEvent): boolean =>
-    zoomImage() !== null ||
-    pagedMode() ||
-    controls().direction !== "ttb" ||
-    event.pointerType === "mouse";
   const isPreviewSwipe = (info: PointerDragEnd): boolean => {
     if (!pagedMode()) {
       return false;
@@ -285,13 +280,8 @@ export function createReaderGestures(options: {
       if (event.pointerType === "mouse" && event.button !== 0) {
         return false;
       }
-      return shouldStartDrag(event);
+      return true;
     },
-    shouldObserveTap: (event) =>
-      event instanceof PointerEvent &&
-      !isPageReloadButtonTarget(event) &&
-      event.pointerType !== "mouse" &&
-      !shouldStartDrag(event),
     dragStartThreshold: TAP_CANCEL_DISTANCE,
     tapMoveThreshold: TAP_CANCEL_DISTANCE,
   };
