@@ -5,6 +5,7 @@ import {
   Show,
 } from "solid-js";
 import { EnhanceSearchGrids } from "../components/Enhance/EnhanceSearchGrids";
+import { installSearchScrollMemory } from "./searchScroll";
 import { ReadingView } from "@ehpeek/reader";
 import {
   ThumbsGrids,
@@ -794,6 +795,13 @@ function injectSearchPage(
       initialResultsDom.handle.listenGalleryLinksOpenInNewTab();
     });
   }
+  // Safari reloads the search page fresh when returning from a gallery (Android
+  // keeps it via bfcache), and enhanced pagination's "manual" scrollRestoration
+  // stops the browser restoring scroll on that reload. Remember the position on
+  // the way out and re-apply it on return so both platforms behave the same.
+  allowFeatureFailure("Search scroll memory", () => {
+    installSearchScrollMemory();
+  });
   const updateSearchPage = (source: eh.SearchResultsDom) => {
     markUiRoot(source.elems.resultList.Component());
     setResultsDom(source);
