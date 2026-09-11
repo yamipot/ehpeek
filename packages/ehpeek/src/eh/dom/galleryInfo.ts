@@ -298,6 +298,14 @@ const readFavoriteDialog = (
   };
 };
 
+/**
+ * E-H serves the login form into the add-favorite popup for signed-out visitors
+ * instead of the favorite dialog. Its password field never appears in the real
+ * dialog, so it is a reliable "not signed in" marker.
+ */
+const isLoginDocument = (doc: Document): boolean =>
+  doc.querySelector('input[type="password"]') !== null;
+
 /** Manages E-H's gallery header for GalleryInfoPanel. */
 export function manageGalleryInfo(
   preview: GalleryPreviewData | null,
@@ -472,7 +480,10 @@ export function manageGalleryInfo(
     /** Loads the original favorite categories and note for EhPeek's favorite modal. */
     async loadGalleryFavoriteDialog(actionUrl: string, favorited: boolean) {
       const response = await requestPage(actionUrl);
-      return readFavoriteDialog(response.document, favorited);
+      if (isLoginDocument(response.document)) {
+        return { authenticated: false as const };
+      }
+      return { authenticated: true as const, ...readFavoriteDialog(response.document, favorited) };
     },
     /** Submits a tag to the chosen My Tags collection and validates the response. */
     async submitFavoriteTag(

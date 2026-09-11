@@ -53,6 +53,7 @@
     "copyOriginalTag": "Copy Original Tag",
     "editFavoriteNote": "Edit Note",
     "discardFavoriteNote": "Discard note edits?",
+    "favoriteRequiresLogin": "Not logged in",
     "removeFavoriteTag": "Remove My Tag",
     "tagCollection": "Collection",
     "tagBehavior": "Behavior",

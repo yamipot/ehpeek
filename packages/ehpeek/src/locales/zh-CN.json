@@ -53,6 +53,7 @@
     "copyOriginalTag": "复制原始标签",
     "editFavoriteNote": "编辑备注",
     "discardFavoriteNote": "放弃备注修改？",
+    "favoriteRequiresLogin": "未登录",
     "removeFavoriteTag": "移除我的标签",
     "tagCollection": "标签集",
     "tagBehavior": "行为",

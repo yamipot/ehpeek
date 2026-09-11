@@ -53,6 +53,7 @@
     "copyOriginalTag": "元のタグをコピー",
     "editFavoriteNote": "メモを編集",
     "discardFavoriteNote": "メモの変更を破棄しますか？",
+    "favoriteRequiresLogin": "未ログイン",
     "removeFavoriteTag": "マイタグを削除",
     "tagCollection": "コレクション",
     "tagBehavior": "動作",

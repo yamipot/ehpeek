@@ -13,6 +13,19 @@ const ZOOM_DOUBLE_TAP_MS = 300;
 const ZOOM_DOUBLE_TAP_DISTANCE = 36;
 const ZOOM_DOUBLE_TAP_SCALE = 1.2;
 const TAP_CANCEL_DISTANCE = 8;
+// iOS Safari emits a synthetic click ~300ms after a touch tap. When that tap
+// closed the reader, the click lands on whatever the now-removed overlay
+// uncovered (e.g. a gallery button). Swallow that one trailing click.
+const GHOST_CLICK_WINDOW_MS = 500;
+function suppressTrailingClick(): void {
+  const swallow = (event: MouseEvent): void => {
+    event.stopPropagation();
+    event.preventDefault();
+    window.removeEventListener("click", swallow, true);
+  };
+  window.addEventListener("click", swallow, true);
+  window.setTimeout(() => window.removeEventListener("click", swallow, true), GHOST_CLICK_WINDOW_MS);
+}
 
 
 /** Geometry commands used only by this viewport's input handling. */
@@ -110,6 +123,7 @@ export function createReaderGestures(options: {
     if (zoomImage() !== null) {
       event.preventDefault();
     } else if (viewport.isHitEndPage(info)) {
+      suppressTrailingClick();
       ctx.finish();
     } else {
       const zone = viewport.viewportXRatio(info.clientX);

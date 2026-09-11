@@ -876,7 +876,7 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
   );
   const [open, setOpen] = createSignal(false);
   const [loadingState, setLoadingState] = createSignal<
-    "idle" | "loading" | "failed"
+    "idle" | "loading" | "failed" | "unauthenticated"
   >("idle");
   const [options, setOptions] = createSignal<GalleryFavoriteOption[]>([]);
   const [note, setNote] = createSignal("");
@@ -913,6 +913,11 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
         currentFavorite.actionUrl,
         currentFavorite.favorited,
       );
+      // Signed-out visitors get E-H's login form in the popup, not the dialog.
+      if (!dialog.authenticated) {
+        setLoadingState("unauthenticated");
+        return;
+      }
       setOptions(dialog.options);
       setNote(dialog.note);
       setNoteDraft(dialog.note);
@@ -995,6 +1000,9 @@ function TouchGalleryFavoriteButton(props: { source: GalleryInfoDom }) {
           </Show>
           <Show when={loadingState() === "failed"}>
             <TouchGalleryFavoriteStatus text={texts.common.status.failed} />
+          </Show>
+          <Show when={loadingState() === "unauthenticated"}>
+            <TouchGalleryFavoriteStatus text={texts.gallery.favoriteRequiresLogin} />
           </Show>
           <Show when={loadingState() === "idle"}>
             <Show
