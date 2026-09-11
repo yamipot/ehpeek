@@ -66,6 +66,7 @@ export function ReaderViewport(props: ReaderViewportProps) {
   const controls = () => getReaderControls(ctx);
   const pageLayout = () => controls().pageLayout === "double" && controls().firstPageSeparate && ctx.position.page() === 1 ? "single" : controls().pageLayout;
   const pagedMode = () => controls().navigationMode === "paged";
+  const initPageNum = untrack(() => props.initPage);
   const horizontalAxis = () => controls().direction !== "ttb";
   const [slots, setSlots] = createSignal<PageSlot[]>([]);
   const [revision, setRevision] = createSignal(0);
@@ -225,6 +226,11 @@ export function ReaderViewport(props: ReaderViewportProps) {
   let dragStartPosition: { left: number; top: number } | null = null;
   let settleMove: ((completed: boolean) => void) | null = null;
   let moveRevision = 0;
+  // While an open is still settling (frame sizes, viewport bounds and the first
+  // page's aspect ratio can all land after mount), realign to the requested page
+  // on each reflow instead of preserving a pre-settle anchor. Cleared once the
+  // reader has moved on (drag, a turn to another page, or zoom).
+  let initialSeekActive = true;
   const suppressScrollObservation = () => {
     programmatic = true;
     window.cancelAnimationFrame(programmaticFrame ?? 0);
@@ -242,6 +248,7 @@ export function ReaderViewport(props: ReaderViewportProps) {
     settleMove = null;
   };
   const moveToPage = (pageNum: number, motion: ScrollMotion = "instant"): Promise<boolean> => {
+    if (pageNum !== initPageNum) initialSeekActive = false;
     stopMotion();
     suppressScrollObservation();
     const token = moveRevision;
@@ -300,6 +307,7 @@ export function ReaderViewport(props: ReaderViewportProps) {
     // Movement and its cancellation share the same motion owner.
     isDragging: gestureDragging,
     beginDrag(): void {
+      initialSeekActive = false;
       stopMotion();
       programmatic = false;
       dragStartPosition = {
@@ -454,14 +462,20 @@ export function ReaderViewport(props: ReaderViewportProps) {
     }
     queueMicrotask(() => {
       if (disposed || token !== syncingRevision) return;
-      // A newer seek/turn takes precedence over the anchor captured for this reflow.
-      if (anchor && !settleMove && anchorMoveRevision === moveRevision) {
+      if (initialSeekActive && !settleMove) {
+        // Still settling the initial open: realign exactly to the requested page
+        // so a pre-settle size error isn't frozen in place by the anchor below.
+        void moveToPage(initPageNum);
+      } else if (anchor && !settleMove && anchorMoveRevision === moveRevision) {
+        // A newer seek/turn takes precedence over the anchor captured for this reflow.
         suppressScrollObservation();
         scrollerApi.restoreCenterAnchor(anchor);
       }
       setFirstVisiblePage(measureFirstVisiblePage());
     });
   });
+  // Entering zoom counts as moving on from the initial open.
+  createEffect(() => { if (zoomImage()) initialSeekActive = false; });
   const stripStyle = () => {
     revision();
     if (pagedMode()) return {};

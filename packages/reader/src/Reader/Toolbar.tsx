@@ -11,6 +11,15 @@ import { InteractionHelp } from "../kit/Widgets/InteractionHelp";
 import { getReaderControls, useReaderContext } from "./Context";
 import { imageFileExtension } from "./images";
 
+// iPhone Safari exposes no element Fullscreen API (only <video>), so the toggle
+// would silently no-op there. Detect the capability once to disable the button.
+const FULLSCREEN_SUPPORTED =
+  typeof document !== "undefined" &&
+  (document.fullscreenEnabled ||
+    typeof document.documentElement.requestFullscreen === "function" ||
+    typeof (document.documentElement as { webkitRequestFullscreen?: unknown })
+      .webkitRequestFullscreen === "function");
+
 export type PageProgress = {
   pageNum: number;
   totalPages?: number;
@@ -151,6 +160,7 @@ export function ReaderToolbar(props: ReaderToolbarProps) {
           </Button>
           <Button
             class={READER_FLOATING_ICON_ACTION_CLASS}
+            disabled={!FULLSCREEN_SUPPORTED}
             aria-label={props.fullscreenActive ? texts.reader.exitFullscreen : texts.reader.fullscreen}
             title={props.fullscreenActive ? texts.reader.exitFullscreen : texts.reader.fullscreen}
             onClick={() => props.onToggleFullscreen()}

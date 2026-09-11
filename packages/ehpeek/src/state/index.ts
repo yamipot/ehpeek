@@ -233,7 +233,7 @@ function readerControls(orientation: ReaderOrientation) {
   return {
     navigationMode: persisted<NavigationMode>(
       `ehpeek:reader:navigation-mode:${orientation}`,
-      "scroll",
+      "paged",
     ).preload(),
     scrollDirection: persisted<ReadDirection>(
       `ehpeek:reader:scroll-direction:${orientation}`,
