@@ -871,37 +871,55 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
   position: relative;
   height: var(--scroll-preview-height);
   max-height: 100svh;
-  border: 1px solid var(--color-site-border);
+  border: 1px solid var(--color-site-border-subtle);
   border-radius: var(--ui-radius-sm);
   background: var(--color-site-elevated);
 }
 .ehpeek-preview-panel[data-scroll-preview-instance][hidden] { display: none; }
-.ehpeek-preview-toolbar { flex-wrap: wrap; }
-.ehpeek-preview-toolbar .ehpeek-preview-range {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-.ehpeek-preview-toolbar .ehpeek-preview-toolbar-actions {
-  max-width: 100%;
-  flex-wrap: wrap;
-  margin-inline-start: auto;
-}
+/* Overlay and embedded previews share one compact, softly-bordered chrome; the
+   former overlay-only full-width toolbar (strong border, large padding) has been
+   dropped. The fullscreen overlay still clears device safe areas via the max()
+   padding floor. */
 .ehpeek-preview-toolbar {
   display: flex;
-  min-height: var(--ui-control-size-md);
+  min-height: var(--ui-control-size-sm);
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--ui-space-md);
-  padding: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) var(--ui-space-sm) max(8px, env(safe-area-inset-left, 0px));
+  gap: var(--ui-space-sm);
+  padding:
+    max(var(--ui-space-xs), env(safe-area-inset-top, 0px))
+    max(var(--ui-space-sm), env(safe-area-inset-right, 0px))
+    var(--ui-space-xs)
+    max(var(--ui-space-sm), env(safe-area-inset-left, 0px));
   border: 0;
-  border-bottom: 1px solid var(--color-site-border);
+  border-bottom: 1px solid var(--color-site-border-subtle);
   background: var(--color-site-elevated);
   color: var(--color-site-text);
   font-size: var(--ui-font-size-sm);
 }
-.ehpeek-preview-range { display: flex; align-items: center; gap: var(--ui-space-sm); opacity: 0.75; }
-.ehpeek-preview-toolbar-actions { display: flex; flex: none; gap: var(--ui-space-sm); }
+.ehpeek-preview-range {
+  display: inline-flex;
+  min-height: var(--ui-control-size-sm);
+  flex: none;
+  align-items: center;
+  gap: var(--ui-space-xs);
+  padding-inline: var(--ui-space-sm);
+  border-radius: var(--ui-radius-sm);
+  background: var(--color-site-surface);
+  opacity: 0.75;
+}
+.ehpeek-preview-toolbar-actions {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ui-space-xs);
+  margin-inline-start: auto;
+}
 .ehpeek-preview-toolbar[data-left-handed="true"],
 .ehpeek-preview-toolbar[data-left-handed="true"] .ehpeek-preview-toolbar-actions { flex-direction: row-reverse; }
 .ehpeek-preview-loading {
@@ -917,7 +935,7 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
 .ehpeek-preview-viewport { position: relative; min-height: 0; width: 100%; flex: 1; }
 .ehpeek-preview-scroller {
   position: absolute;
-  inset: 0;
+  inset: 0 4px 4px;
   box-sizing: border-box;
   background: var(--color-surface);
   cursor: grab;
@@ -930,7 +948,7 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
 }
 .ehpeek-preview-scroller::-webkit-scrollbar { display: none; }
 .ehpeek-preview-scroller[data-dragging="true"] { cursor: grabbing; user-select: none; }
-.ehpeek-preview-scroller--horizontal { overflow-x: auto; overflow-y: hidden; }
+.ehpeek-preview-scroller--horizontal { overflow-x: auto; overflow-y: hidden; bottom: calc(var(--ui-control-size-xs) / 2); }
 .ehpeek-preview-canvas { position: relative; }
 .ehpeek-preview-slot { position: absolute; }
 .ehpeek-preview-launcher { display: flex; width: 100%; justify-content: center; margin-block: var(--ui-space-sm); }
