@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         EhPeek
-// @version      260912.0102
+// @version      260912.0210
 // @description  A full-featured, touch-optimized E-H/ExH viewer. Adapted for desktop, Android, iOS. Features: a built-in reader, zoomable gallery previews, mobile UI adaptation, gesture navigation, reading history, and more.
 // @description:ja  タッチ操作向けの多機能 E-H/ExH ビューア。 デスクトップ、Android、iOS に対応。 内蔵リーダー、ズーム対応のギャラリープレビュー、モバイル向け UI、ジェスチャー操作、閲覧履歴など。
 // @description:zh-CN  针对触屏优化的 E-H/ExH 阅读器。 适配桌面端、安卓、iOS。 功能： 内置阅读器、可缩放画廊预览、移动端 UI 适配、手势导航、阅读历史等。
@@ -32,6 +32,7 @@
 // @grant        GM_download
 // @inject-into  content
 // @run-at       document-start
+// @noframes
 // @updateURL    https://github.com/yamipot/ehpeek/raw/build-master/ehpeek.user.js
 // @downloadURL  https://github.com/yamipot/ehpeek/raw/build-master/ehpeek.user.js
 // ==/UserScript==
@@ -6867,9 +6868,9 @@ Next page`,
     }
   });
 
-  // ../reader/dist/chunk-HX4VXJTR.js
-  var theme_default, reader_default, init_chunk_HX4VXJTR = __esm({
-    "../reader/dist/chunk-HX4VXJTR.js"() {
+  // ../reader/dist/chunk-7EUWUEUH.js
+  var theme_default, reader_default, init_chunk_7EUWUEUH = __esm({
+    "../reader/dist/chunk-7EUWUEUH.js"() {
       "use strict";
       init_chunk_E6UKP7HT();
       theme_default = `.ehpeek-ui-root,
@@ -7491,7 +7492,7 @@ html[data-reader-pointer="mouse"] .ehpeek-launcher-button:hover {
   z-index: 2;
   display: flex;
   justify-content: flex-end;
-  transition: opacity 160ms ease-in-out, transform 160ms ease-in-out;
+  transition: opacity 160ms ease-in-out, transform 160ms ease-in-out, visibility 160ms;
 }
 .ehpeek-reader-floating-actions { display: flex; flex-direction: column; gap: var(--ui-space-sm); }
 .ehpeek-reader-floating-button {
@@ -7514,7 +7515,7 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-floating-button:enabled:hover {
   display: flex;
   align-items: center;
   padding: 0;
-  transition: opacity 160ms ease-in-out, transform 160ms ease-in-out;
+  transition: opacity 160ms ease-in-out, transform 160ms ease-in-out, visibility 160ms;
 }
 .ehpeek-reader-progress-input { font-size: var(--ui-font-size-lg); }
 .ehpeek-reader-floating-toolbar[data-open="false"],
@@ -7522,6 +7523,10 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-floating-button:enabled:hover {
   opacity: 0;
   transform: translateY(calc(100% + 16px));
   pointer-events: none;
+  /* Stop iOS Safari repainting the still-composited (blue) progress track while
+     it is hidden — a page turn updates the value and would otherwise flash a
+     thin accent line at the bottom safe-area edge. */
+  visibility: hidden;
 }
 .ehpeek-reader-page-number,
 .ehpeek-reader-fullscreen-status {
@@ -8050,7 +8055,7 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
       init_chunk_UPVG5Y6S();
       init_chunk_W6BYXZGJ();
       init_chunk_JXES5MWD();
-      init_chunk_HX4VXJTR();
+      init_chunk_7EUWUEUH();
       init_chunk_E6UKP7HT();
       init_chunk_PKBMQBKP();
     }
@@ -12031,38 +12036,55 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
     }
   });
 
-  // ../reader/dist/chunk-64RYE5Q7.js
-  var PreviewDecodeCache, init_chunk_64RYE5Q7 = __esm({
-    "../reader/dist/chunk-64RYE5Q7.js"() {
+  // ../reader/dist/chunk-5OWZ2GGT.js
+  var PreviewDecodeCache, init_chunk_5OWZ2GGT = __esm({
+    "../reader/dist/chunk-5OWZ2GGT.js"() {
       "use strict";
       PreviewDecodeCache = class {
-        constructor(byteLimit, itemLimit) {
-          this.byteLimit = byteLimit, this.itemLimit = itemLimit, this.bytes = 0, this.entries = /* @__PURE__ */ new Map();
+        constructor(byteLimit, itemLimit, maxConcurrent = 3) {
+          this.byteLimit = byteLimit, this.itemLimit = itemLimit, this.maxConcurrent = maxConcurrent, this.bytes = 0, this.activeLoads = 0, this.pending = [], this.entries = /* @__PURE__ */ new Map();
         }
         retain(url) {
           let entry = this.ensure(url);
-          return entry.pins += 1, this.touch(url, entry), () => {
+          return entry.pins += 1, this.touch(url, entry), this.prune(), () => {
             let current = this.entries.get(url);
             current === entry && (current.pins = Math.max(0, current.pins - 1), this.prune());
           };
         }
         dispose() {
           for (let entry of this.entries.values())
-            entry.image.removeAttribute("src");
-          this.entries.clear(), this.bytes = 0;
+            entry.image.onload = null, entry.image.onerror = null, entry.image.removeAttribute("src");
+          this.entries.clear(), this.pending.length = 0, this.bytes = 0, this.activeLoads = 0;
         }
         ensure(url) {
           let cached = this.entries.get(url);
           if (cached)
             return cached;
-          let image2 = new Image(), entry = { bytes: 0, image: image2, pins: 0 };
-          return image2.decoding = "async", image2.onload = () => {
-            let bytes = Math.max(1, image2.naturalWidth) * Math.max(1, image2.naturalHeight) * 4;
-            this.bytes += bytes - entry.bytes, entry.bytes = bytes, image2.decode().catch(() => {
-            }).finally(() => this.prune());
-          }, image2.onerror = () => {
-            entry.pins === 0 && this.evict(url, entry);
-          }, image2.src = url, this.entries.set(url, entry), this.prune(), entry;
+          let image2 = new Image();
+          image2.decoding = "async";
+          let entry = { bytes: 0, image: image2, pins: 0, status: "queued" };
+          return this.entries.set(url, entry), this.pending.push(url), this.pump(), entry;
+        }
+        /** Starts queued loads up to the concurrency limit, newest (last pinned) first. */
+        pump() {
+          for (; this.activeLoads < this.maxConcurrent && this.pending.length > 0; ) {
+            let url = this.pending.pop(), entry = this.entries.get(url);
+            if (!entry || entry.status !== "queued")
+              continue;
+            entry.status = "loading", this.activeLoads += 1;
+            let { image: image2 } = entry;
+            image2.onload = () => {
+              let bytes = Math.max(1, image2.naturalWidth) * Math.max(1, image2.naturalHeight) * 4;
+              this.bytes += bytes - entry.bytes, entry.bytes = bytes, image2.decode().catch(() => {
+              }).finally(() => this.finishLoad(entry));
+            }, image2.onerror = () => {
+              this.finishLoad(entry), entry.pins === 0 && this.evict(url, entry);
+            }, image2.src = url;
+          }
+        }
+        /** Frees the load slot exactly once, then lets pruning/pumping continue. */
+        finishLoad(entry) {
+          entry.status === "loading" && (entry.status = "done", this.activeLoads = Math.max(0, this.activeLoads - 1), this.prune(), this.pump());
         }
         touch(url, entry) {
           this.entries.delete(url), this.entries.set(url, entry);
@@ -12076,7 +12098,15 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
           }
         }
         evict(url, entry) {
-          this.entries.get(url) === entry && (this.entries.delete(url), this.bytes = Math.max(0, this.bytes - entry.bytes), entry.image.onload = null, entry.image.onerror = null, entry.image.removeAttribute("src"));
+          if (this.entries.get(url) === entry) {
+            if (this.entries.delete(url), this.bytes = Math.max(0, this.bytes - entry.bytes), entry.status === "loading")
+              this.activeLoads = Math.max(0, this.activeLoads - 1);
+            else if (entry.status === "queued") {
+              let index = this.pending.lastIndexOf(url);
+              index !== -1 && this.pending.splice(index, 1);
+            }
+            entry.status = "done", entry.image.onload = null, entry.image.onerror = null, entry.image.removeAttribute("src"), this.pump();
+          }
         }
       };
     }
@@ -12255,7 +12285,7 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
     }
   });
 
-  // ../reader/dist/chunk-BUHSINLQ.js
+  // ../reader/dist/chunk-PQWKCP7X.js
   function ReadingPreview(props) {
     let texts = useReaderTexts(), cache = untrack(() => props.previewCache), embeddedDisabled = () => props.disabled || props.embeddedDisabled, decodeCache = new PreviewDecodeCache(64 * 1024 * 1024, 160);
     onCleanup(() => decodeCache.dispose());
@@ -12399,12 +12429,12 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
       }
     })];
   }
-  var _tmpl$31, _tmpl$213, _tmpl$38, init_chunk_BUHSINLQ = __esm({
-    "../reader/dist/chunk-BUHSINLQ.js"() {
+  var _tmpl$31, _tmpl$213, _tmpl$38, init_chunk_PQWKCP7X = __esm({
+    "../reader/dist/chunk-PQWKCP7X.js"() {
       "use strict";
       init_chunk_M65F42KE();
       init_chunk_MXRD3IEY();
-      init_chunk_64RYE5Q7();
+      init_chunk_5OWZ2GGT();
       init_chunk_PBZTMYEM();
       init_chunk_FRCEUGG2();
       init_chunk_ENSDPUNG();
@@ -12748,12 +12778,12 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
       init_chunk_JM34DFW3();
       init_chunk_Z3FCOX44();
       init_chunk_I4HV7TJW();
-      init_chunk_BUHSINLQ();
+      init_chunk_PQWKCP7X();
       init_chunk_M65F42KE();
       init_chunk_MXRD3IEY();
       init_chunk_R253JGHC();
       init_chunk_25OOXIQ6();
-      init_chunk_64RYE5Q7();
+      init_chunk_5OWZ2GGT();
       init_chunk_IECOMI6N();
       init_chunk_2N7YTWHY();
       init_chunk_WGECFBEU();
@@ -12786,7 +12816,7 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
       init_chunk_UPVG5Y6S();
       init_chunk_W6BYXZGJ();
       init_chunk_JXES5MWD();
-      init_chunk_HX4VXJTR();
+      init_chunk_7EUWUEUH();
       init_chunk_W6Q6Q5LD();
       init_chunk_UPMSF6PX();
       init_chunk_TRAUK5J2();
@@ -13948,7 +13978,7 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-page-reload:hover { background:
     let [helpOpen, setHelpOpen] = createSignal(!1), [licensesOpen, setLicensesOpen] = createSignal(!1);
     return [(() => {
       var _el$27 = _tmpl$112(), _el$28 = _el$27.firstChild, _el$29 = _el$28.nextSibling, _el$30 = _el$29.firstChild, _el$31 = _el$29.nextSibling, _el$32 = _el$31.firstChild, _el$33 = _el$31.nextSibling, _el$34 = _el$33.firstChild, _el$35 = _el$34.nextSibling;
-      return insert(_el$28, "EhPeek"), insert(_el$29, "260912.0102", null), _el$31.$$click = () => setHelpOpen(!0), insert(_el$32, () => activeTexts.help.title), _el$33.$$click = () => setLicensesOpen(!0), insert(_el$34, () => activeTexts.settings.licenses), insert(_el$35, createComponent(Icon2, {
+      return insert(_el$28, "EhPeek"), insert(_el$29, "260912.0210", null), _el$31.$$click = () => setHelpOpen(!0), insert(_el$32, () => activeTexts.help.title), _el$33.$$click = () => setLicensesOpen(!0), insert(_el$34, () => activeTexts.settings.licenses), insert(_el$35, createComponent(Icon2, {
         name: "chevron-right",
         size: "var(--ui-icon-size-sm)"
       })), createRenderEffect(() => _el$27.hidden = !props.active), _el$27;
