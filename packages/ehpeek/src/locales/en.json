@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "description": "A full-featured, touch-optimized E-H/ExH viewer. Features: a built-in reader, zoomable gallery previews, mobile UI adaptation, gesture navigation, reading history, and more."
+    "description": "A full-featured, touch-optimized E-H/ExH viewer. Adapted for desktop, Android, iOS. Features: a built-in reader, zoomable gallery previews, mobile UI adaptation, gesture navigation, reading history, and more."
   },
   "help": {
     "sections": [

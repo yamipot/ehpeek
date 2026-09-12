@@ -5,7 +5,7 @@
  [![jsDelivr Stable](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdata.jsdelivr.com%2Fv1%2Fstats%2Fpackages%2Fgh%2Fyamipot%2Fehpeek%40build-stable%3Fperiod%3Dall&query=%24.hits.total&label=jsDelivr%20Stable&color=ff5627&logo=jsdelivr)](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-stable/ehpeek.user.js)
  [![jsDelivr Beta](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdata.jsdelivr.com%2Fv1%2Fstats%2Fpackages%2Fgh%2Fyamipot%2Fehpeek%40build-master%3Fperiod%3Dall&query=%24.hits.total&label=jsDelivr%20Beta&color=ff5627&logo=jsdelivr)](https://cdn.jsdelivr.net/gh/yamipot/ehpeek@build-master/ehpeek.user.js)
 
-A userscript that turns E-H / ExH pages into a touch-optimized gallery reader. Inspired by [EhViewer-NekoInverter/EhViewer](https://github.com/EhViewer-NekoInverter/EhViewer).
+A full-featured, touch-optimized E-H / ExH viewer implemented as browser userscript. Adapted for desktop, Android, and iOS. Inspired by [EhViewer-NekoInverter/EhViewer](https://github.com/EhViewer-NekoInverter/EhViewer).
 
 ## Features
 
@@ -23,7 +23,11 @@ EhPeek can work with the following scripts for a better experience and maintains
 
 ## Install
 
-- Install [Violentmonkey](https://violentmonkey.github.io/) or another userscript manager. On Android, use a browser with userscript or extension support, such as [Via](https://viayoo.com/) or [Quetta](https://www.quetta.net/products/android).
+
+- Install a userscript manager or use a browser with userscript support:
+  - On desktop, use [Violentmonkey](https://violentmonkey.github.io/), [Tampermonkey](https://www.tampermonkey.net/), etc.
+  - On Android, use [Via](https://viayoo.com/) or [Quetta](https://www.quetta.net/products/android), etc.
+  - On iOS, use [Stay for Safari](https://apps.apple.com/us/app/stay-for-safari/id1591620171), [Userscripts](https://github.com/quoid/userscripts#installation), etc.
 - Install from one of these channels:
 
 | Channel | Sources |

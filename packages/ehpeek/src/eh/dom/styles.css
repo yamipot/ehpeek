@@ -16,6 +16,22 @@
   line-height: inherit !important;
 }
 
+.ehpeek-external-autocomplete-item.auto-complete-item > .cn-name {
+  flex-grow: 1 !important;
+}
+
+/* Safari can retain pre-scaled intrinsic widths after EhPeek enlarges
+   highlighted flex content. */
+.ehpeek-external-autocomplete-item.lolicon-autocomplete-item > .ac-main:only-child {
+  flex-grow: 1 !important;
+  text-align: left !important;
+}
+
+.ehpeek-external-autocomplete-item.lolicon-autocomplete-item > .ac-main > mark,
+.ehpeek-external-autocomplete-text > mark {
+  display: inline-block !important;
+}
+
 /* This root mode is the single ownership signal for fitting original pages to the viewport. */
 html.ehpeek-fit-to-viewport,
 html.ehpeek-fit-to-viewport body {

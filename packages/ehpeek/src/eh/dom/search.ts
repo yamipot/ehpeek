@@ -373,13 +373,6 @@ function manageSearchTextInput(inputSource: DomNode<HTMLInputElement>) {
         document.activeElement === elems.input.Component(),
       );
       const submitValue = () => callbacks.onSubmit(elems.input.inputValue());
-      const positionChange = (event: Event) => {
-        const target = event.target;
-        if (target instanceof Node && overlay()?.contains(target)) {
-          return;
-        }
-        callbacks.onPositionChange();
-      };
       const outsidePointer = (event: PointerEvent) => {
         const target = event.target;
         if (
@@ -399,19 +392,21 @@ function manageSearchTextInput(inputSource: DomNode<HTMLInputElement>) {
         ...(elems.form ? [elems.form.listen("submit", submitValue)] : []),
       ];
       document.addEventListener("pointerdown", outsidePointer, true);
-      document.addEventListener("scroll", positionChange, true);
       window.addEventListener("resize", callbacks.onPositionChange);
       return () => {
         disconnect.forEach((cleanup) => cleanup());
         document.removeEventListener("pointerdown", outsidePointer, true);
-        document.removeEventListener("scroll", positionChange, true);
         window.removeEventListener("resize", callbacks.onPositionChange);
       };
     },
     /** Locates the overlay directly below the original search input. */
     readSearchOverlayPosition(): { left: number; top: number; width: number } {
       const rect = elems.input.rect();
-      return { left: rect.left, top: rect.bottom, width: rect.width };
+      return {
+        left: rect.left + window.scrollX,
+        top: rect.bottom + window.scrollY,
+        width: rect.width,
+      };
     },
     /** Commits a history or suggestion choice through the original input events. */
     applySearchSelection(value: string): void {

@@ -135,6 +135,29 @@ html[data-reader-pointer="mouse"] .ehpeek-icon-action--ghost:disabled:hover {
   flex: none;
 }
 
+.ehpeek-debug-overlay {
+  all: initial;
+  position: fixed;
+  right: 8px;
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  left: 8px;
+  z-index: 2147483647;
+  box-sizing: border-box;
+  max-height: 60dvh;
+  overflow: auto;
+  padding: 8px;
+  border: 2px solid #ffcc00;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.9);
+  color: #fff;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: left;
+  -webkit-text-size-adjust: none;
+}
+
 .ehpeek-launcher-button {
   display: inline-flex;
   min-height: var(--ui-control-size-xs);

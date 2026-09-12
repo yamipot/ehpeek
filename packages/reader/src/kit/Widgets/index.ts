@@ -1,4 +1,5 @@
 export { Button, IconButton, IconLink, type ButtonProps, type IconButtonProps, type IconLinkProps } from "./Button";
+export { DebugOverlay } from "./DebugOverlay";
 export { Dialog } from "./Dialog";
 export { Icon, type IconName } from "./Icon";
 export { LauncherButton } from "./LauncherButton";
