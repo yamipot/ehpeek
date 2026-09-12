@@ -534,7 +534,7 @@ html[data-reader-pointer="mouse"] .ehpeek-launcher-button:hover {
   z-index: 2;
   display: flex;
   justify-content: flex-end;
-  transition: opacity 160ms ease-in-out, transform 160ms ease-in-out;
+  transition: opacity 160ms ease-in-out, transform 160ms ease-in-out, visibility 160ms;
 }
 .ehpeek-reader-floating-actions { display: flex; flex-direction: column; gap: var(--ui-space-sm); }
 .ehpeek-reader-floating-button {
@@ -557,7 +557,7 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-floating-button:enabled:hover {
   display: flex;
   align-items: center;
   padding: 0;
-  transition: opacity 160ms ease-in-out, transform 160ms ease-in-out;
+  transition: opacity 160ms ease-in-out, transform 160ms ease-in-out, visibility 160ms;
 }
 .ehpeek-reader-progress-input { font-size: var(--ui-font-size-lg); }
 .ehpeek-reader-floating-toolbar[data-open="false"],
@@ -565,6 +565,10 @@ html[data-reader-pointer="mouse"] .ehpeek-reader-floating-button:enabled:hover {
   opacity: 0;
   transform: translateY(calc(100% + 16px));
   pointer-events: none;
+  /* Stop iOS Safari repainting the still-composited (blue) progress track while
+     it is hidden — a page turn updates the value and would otherwise flash a
+     thin accent line at the bottom safe-area edge. */
+  visibility: hidden;
 }
 .ehpeek-reader-page-number,
 .ehpeek-reader-fullscreen-status {

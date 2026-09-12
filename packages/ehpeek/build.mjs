@@ -64,6 +64,7 @@ const metadata = [
   "// @grant        GM_download",
   "// @inject-into  content",
   "// @run-at       document-start",
+  "// @noframes",
   `// @updateURL    ${installUrl}`,
   `// @downloadURL  ${installUrl}`,
   "// ==/UserScript==",

@@ -27,7 +27,7 @@ EhPeek can work with the following scripts for a better experience and maintains
 - Install a userscript manager or use a browser with userscript support:
   - On desktop, use [Violentmonkey](https://violentmonkey.github.io/), [Tampermonkey](https://www.tampermonkey.net/), etc.
   - On Android, use [Via](https://viayoo.com/) or [Quetta](https://www.quetta.net/products/android), etc.
-  - On iOS, use [Stay for Safari](https://apps.apple.com/us/app/stay-for-safari/id1591620171), [Userscripts](https://github.com/quoid/userscripts#installation), etc.
+  - On iOS, use [Userscripts](https://github.com/quoid/userscripts#installation), etc.
 - Install from one of these channels:
 
 | Channel | Sources |
